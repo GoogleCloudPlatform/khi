@@ -26,6 +26,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -70,19 +71,6 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 
 	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore.TimelineTypeResource})
 	subresourcePath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "binding", Type: inspectioncore.TimelineTypeSubresource})
-
-	// Comparer for structured.Node using semantical YAML serializations to bypass unexported fields.
-	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
-		if a == nil || b == nil {
-			return a == b
-		}
-		aYAML, errA := structured.NewNodeReader(a).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		bYAML, errB := structured.NewNodeReader(b).Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-		if errA != nil || errB != nil {
-			return false
-		}
-		return string(aYAML) == string(bYAML)
-	})
 
 	// Helper to parse YAML into structured.Node.
 	parseYAML := func(yamlStr string) structured.Node {
@@ -129,7 +117,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sResourceExisting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -154,7 +142,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -182,7 +170,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -210,7 +198,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -240,7 +228,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -267,7 +255,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sResourceExisting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -295,7 +283,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDeleteCollection,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -320,14 +308,14 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    k8saudit.RevisionStateK8sResourceExisting,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(parentPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Date(2023, 10, 26, 9, 59, 0, 0, time.UTC),
 						ResourceBody: nil,
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -351,14 +339,14 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    k8saudit.RevisionStateK8sResourceExisting,
-					}, nodeComparer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(parentPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
 						Principal:    "N/A",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -383,7 +371,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    k8saudit.RevisionStateK8sResourceExisting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -409,7 +397,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -436,7 +424,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbPatch,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -463,7 +451,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbPatch,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -492,7 +480,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbPatch,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -520,7 +508,7 @@ status:
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleting,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -561,7 +549,7 @@ uid: "test-uid"`,
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -597,7 +585,7 @@ uid: "test-uid"`,
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    k8saudit.RevisionStateK8sResourceTruncated,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -623,7 +611,7 @@ uid: "test-uid"`,
 						Principal:    "admin",
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    k8saudit.RevisionStateK8sResourceDeleted,
-					}, nodeComparer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 	}

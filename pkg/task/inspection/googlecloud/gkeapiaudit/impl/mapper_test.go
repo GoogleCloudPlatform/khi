@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -71,18 +72,6 @@ func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
 	}
 	return structured.NewNodeReader(node)
 }
-
-var compareNodeOption = cmp.Transformer("StructuredNodeToYAML", func(n structured.Node) string {
-	if n == nil {
-		return ""
-	}
-	serializer := &structured.YAMLNodeSerializer{}
-	bytes, err := serializer.Serialize(n)
-	if err != nil {
-		return "serialization error"
-	}
-	return string(bytes)
-})
 
 func TestMapGKEAuditLog(t *testing.T) {
 	// 1. Initialize the Builder.
@@ -170,7 +159,7 @@ func TestMapGKEAuditLog(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: bodyNode,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationStart,
 						StateType:   gcpcommon.RevisionStateOperationStarted,
@@ -179,7 +168,7 @@ func TestMapGKEAuditLog(t *testing.T) {
 						ResourceBody: testReaderFromYAML(t, `cluster:
   initialNodeCount: 1
   name: test-cluster`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -205,13 +194,13 @@ func TestMapGKEAuditLog(t *testing.T) {
 						StateType:   k8saudit.RevisionStateK8sClusterExisting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -247,7 +236,7 @@ func TestMapGKEAuditLog(t *testing.T) {
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: bodyNode,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOp1Path, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationStart,
 						StateType:   gcpcommon.RevisionStateOperationStarted,
@@ -256,7 +245,7 @@ func TestMapGKEAuditLog(t *testing.T) {
 						ResourceBody: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 1
   name: test-nodepool`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -282,19 +271,19 @@ func TestMapGKEAuditLog(t *testing.T) {
 						StateType:   k8saudit.RevisionStateK8sNodepoolProvisioningLogNotFound,
 						Principal:   "foobar@qux.test",
 						ChangedTime: time.Unix(0, 0),
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:    k8saudit.VerbCreate,
 						StateType:   k8saudit.RevisionStateK8sNodepoolExisting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOp1Path, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -320,19 +309,19 @@ func TestMapGKEAuditLog(t *testing.T) {
 						StateType:   k8saudit.RevisionStateK8sNodepoolDeletingLogNotFound,
 						Principal:   "foobar@qux.test",
 						ChangedTime: time.Unix(0, 0),
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:    k8saudit.VerbDelete,
 						StateType:   k8saudit.RevisionStateK8sNodepoolDeleted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOp2Path, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -392,7 +381,7 @@ desiredNodePoolId: np-1`).Node
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpUpdatePath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
@@ -400,7 +389,7 @@ desiredNodePoolId: np-1`).Node
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `update:
   desiredNodePoolId: np-1`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -434,14 +423,14 @@ desiredNodePoolId: np-1`).Node
 						Principal:    "foobar@qux.test",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    k8saudit.RevisionStateK8sClusterExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: patchBody,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpUpdatePath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
@@ -449,7 +438,7 @@ desiredNodePoolId: np-1`).Node
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `update:
   desiredNodePoolId: np-1`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -487,7 +476,7 @@ name: test-nodepool`).Node
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOpUpdatePath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
@@ -495,7 +484,7 @@ name: test-nodepool`).Node
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 5`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -529,14 +518,14 @@ name: test-nodepool`).Node
 						Principal:    "foobar@qux.test",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbUpdate,
 						StateType:    k8saudit.RevisionStateK8sNodepoolExisting,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: patchBody,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOpUpdatePath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
@@ -544,7 +533,7 @@ name: test-nodepool`).Node
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 5`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -581,13 +570,13 @@ name: test-nodepool`).Node
 						StateType:   k8saudit.RevisionStateK8sNodepoolDeleting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOp2Path, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationStart,
 						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -611,7 +600,7 @@ name: test-nodepool`).Node
 			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 1
 name: test-cluster`).Node
-				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
+				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), testutil.CompareStructuredNode()); diff != "" {
 					t.Errorf("tracker.CurrentManifest() mismatch (-want +got):\n%s", diff)
 				}
 			},
@@ -644,7 +633,7 @@ name: test-cluster`).Node
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantClusterOpPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
@@ -653,12 +642,12 @@ name: test-cluster`).Node
 						ResourceBody: testReaderFromYAML(t, `cluster:
   initialNodeCount: 1
   name: test-cluster`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 1
 name: test-cluster`).Node
-				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
+				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), testutil.CompareStructuredNode()); diff != "" {
 					t.Errorf("tracker.CurrentManifest() mismatch (-want +got):\n%s", diff)
 				}
 			},
@@ -684,7 +673,7 @@ name: test-cluster`).Node
 			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 2
 name: test-nodepool`).Node
-				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
+				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), testutil.CompareStructuredNode()); diff != "" {
 					t.Errorf("tracker.CurrentManifest() mismatch (-want +got):\n%s", diff)
 				}
 			},
@@ -717,7 +706,7 @@ name: test-nodepool`).Node
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: wantBody,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOp1Path, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
@@ -726,12 +715,12 @@ name: test-nodepool`).Node
 						ResourceBody: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 2
   name: test-nodepool`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, `initialNodeCount: 2
 name: test-nodepool`).Node
-				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
+				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), testutil.CompareStructuredNode()); diff != "" {
 					t.Errorf("tracker.CurrentManifest() mismatch (-want +got):\n%s", diff)
 				}
 			},
@@ -763,13 +752,13 @@ name: test-nodepool`).Node
 						StateType:   k8saudit.RevisionStateK8sNodepoolDeleted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantNodepoolOp2Path, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				if tracker.CurrentManifest() != nil {
@@ -807,7 +796,7 @@ name: test-nodepool`).Node
 						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasNoRevision(wantClusterPath)
 			},
 		},
@@ -841,7 +830,7 @@ name: test-nodepool`).Node
 						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasNoRevision(wantNodepoolPath)
 			},
 		},
@@ -878,12 +867,12 @@ name: test-nodepool`).Node
 						ChangedTime: testTime,
 						ResourceBody: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 5`).Node,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasNoRevision(wantNodepoolPath)
 			},
 			assertTracker: func(t *testing.T, tracker *gcpcommon.GCPOperationTracker) {
 				wantManifest := testReaderFromYAML(t, "initialNodeCount: 3\nname: test-nodepool").Node
-				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), compareNodeOption); diff != "" {
+				if diff := cmp.Diff(wantManifest, tracker.CurrentManifest(), testutil.CompareStructuredNode()); diff != "" {
 					t.Errorf("tracker.CurrentManifest() mismatch (-want +got):\n%s", diff)
 				}
 			},

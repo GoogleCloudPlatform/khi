@@ -30,6 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/networkapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -43,18 +44,6 @@ func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
 	}
 	return structured.NewNodeReader(node)
 }
-
-var nodeTransformer = cmp.Transformer("NodeToString", func(n structured.Node) string {
-	if n == nil {
-		return ""
-	}
-	serializer := &structured.JSONNodeSerializer{}
-	bytes, err := serializer.Serialize(n)
-	if err != nil {
-		return ""
-	}
-	return string(bytes)
-})
 
 func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 	testTime := time.Date(2026, 5, 27, 12, 0, 0, 0, time.UTC)
@@ -197,7 +186,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -212,7 +201,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbCreate,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-pod")
@@ -223,7 +212,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbCreate,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -288,7 +277,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -303,7 +292,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-pod")
@@ -314,7 +303,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -372,7 +361,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -386,7 +375,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbCreate,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
@@ -397,7 +386,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbCreate,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -454,7 +443,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -468,7 +457,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
@@ -479,7 +468,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointAttached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -537,7 +526,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: zones/us-central1-a/instances/test-node\n  ipAddress: 10.0.0.13").Node,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -557,7 +546,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbNonReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
@@ -574,7 +563,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbNonReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -631,7 +620,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -645,7 +634,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbDelete,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-node")
@@ -656,7 +645,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbDelete,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -722,7 +711,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						VerbType:     gcpcommon.VerbOperationStart,
 						StateType:    gcpcommon.RevisionStateOperationStarted,
 						ResourceBody: testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\"").Node,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -743,7 +732,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbNonReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-pod")
@@ -760,7 +749,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbNonReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -825,7 +814,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -840,7 +829,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbDelete,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				bsPath := networkapiaudit.MustGCPResourceTimeline(ctx, "test-project", "backendServices", "test-bs")
 				wantBSNEGPath := networkapiaudit.MustNEGUnderResourceTimeline(ctx, bsPath, "test-pod")
@@ -851,7 +840,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbDelete,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -936,7 +925,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbDelete,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetached,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -973,13 +962,13 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    gcpcommon.VerbOperationStart,
 						StateType:   gcpcommon.RevisionStateOperationStartedLogNotFound,
-					}, nodeTransformer).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -1037,7 +1026,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationFailed,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				clusterPath := k8saudit.MustK8sClusterTimeline(ctx, "cluster")
 				apiPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
@@ -1115,7 +1104,7 @@ func TestNetworkAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:   "test-user@google.com",
 						VerbType:    k8saudit.VerbNonReady,
 						StateType:   networkapiaudit.RevisionStateNEGEndpointDetaching,
-					}, nodeTransformer)
+					}, testutil.CompareStructuredNode())
 
 				if revisions := cs.Revisions[wantNodeNEGPath]; len(revisions) != 1 {
 					t.Errorf("expected exactly 1 revision on %v, got %d", wantNodeNEGPath, len(revisions))

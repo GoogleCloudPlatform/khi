@@ -30,6 +30,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -43,18 +44,6 @@ func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
 	}
 	return structured.NewNodeReader(node)
 }
-
-var compareNodeOption = cmp.Transformer("StructuredNodeToYAML", func(n structured.Node) string {
-	if n == nil {
-		return ""
-	}
-	serializer := &structured.YAMLNodeSerializer{}
-	bytes, err := serializer.Serialize(n)
-	if err != nil {
-		return "serialization error"
-	}
-	return string(bytes)
-})
 
 func TestComposerAuditLogToTimelineMapper(t *testing.T) {
 	testTime := time.Date(2026, time.August, 10, 0, 23, 12, 0, time.UTC)
@@ -98,7 +87,7 @@ func TestComposerAuditLogToTimelineMapper(t *testing.T) {
 config:
   softwareConfig:
     imageVersion: composer-3-airflow-2`).Node,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(opPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationStart,
 						StateType:   gcpcommon.RevisionStateOperationStarted,
@@ -109,7 +98,7 @@ config:
   config:
     softwareConfig:
       imageVersion: composer-3-airflow-2`).Node,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -140,13 +129,13 @@ config:
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(opPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -174,26 +163,26 @@ config:
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbCreate,
 						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentExisting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(opPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationStart,
 						StateType:   gcpcommon.RevisionStateOperationStartedLogNotFound,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: time.Unix(0, 0),
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(opPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -220,20 +209,20 @@ config:
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  time.Unix(0, 0),
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(envPath, &khifilev6.StagingRevision{
 						VerbType:     k8saudit.VerbDelete,
 						StateType:    composercluster.RevisionStateManagedAirflowEnvironmentDeleting,
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(opPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationStart,
 						StateType:   gcpcommon.RevisionStateOperationStarted,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -264,13 +253,13 @@ config:
 						Principal:    "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime:  testTime,
 						ResourceBody: nil,
-					}, compareNodeOption).
+					}, testutil.CompareStructuredNode()).
 					HasRevision(opPath, &khifilev6.StagingRevision{
 						VerbType:    gcpcommon.VerbOperationFinish,
 						StateType:   gcpcommon.RevisionStateOperationSucceed,
 						Principal:   "serviceAccount:khi-sa@test-project.iam.gserviceaccount.com",
 						ChangedTime: testTime,
-					}, compareNodeOption)
+					}, testutil.CompareStructuredNode())
 			},
 		},
 		{
