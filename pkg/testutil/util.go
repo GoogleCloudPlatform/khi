@@ -37,20 +37,16 @@ func GlobResultToChildTestName(filePath string, basePath string) string {
 
 // CompareStructuredNode returns a cmp.Option that compares two structured.Node instances by their serialized YAML representation.
 func CompareStructuredNode() cmp.Option {
-	return cmp.Comparer(func(x, y structured.Node) bool {
-		if x == nil && y == nil {
-			return true
-		}
-		if x == nil || y == nil {
-			return false
+	return cmp.Transformer("StructuredNodeToYAML", func(n structured.Node) string {
+		if n == nil {
+			return ""
 		}
 		s := &structured.YAMLNodeSerializer{}
-		bx, errX := s.Serialize(x)
-		by, errY := s.Serialize(y)
-		if errX != nil || errY != nil {
-			return false
+		b, err := s.Serialize(n)
+		if err != nil {
+			return "serialization error"
 		}
-		return bytes.Equal(bx, by)
+		return string(b)
 	})
 }
 
