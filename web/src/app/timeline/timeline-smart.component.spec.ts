@@ -143,4 +143,35 @@ describe('TimelineSmartComponent', () => {
 
     expect(timeRangeFilterSignal()).toBeNull();
   });
+
+  it('should exclude events from lookupPrecedingLogs and lookupSucceedingLogs when Alt is held', () => {
+    const mockRevision = { changedTime: 1000n } as never;
+    const mockEvent1 = { timestamp: 1500n } as never;
+    const mockEvent2 = { timestamp: 1600n } as never;
+    const mockNextRevision = { changedTime: 2500n } as never;
+    const mockNextEvent = { timestamp: 2200n } as never;
+
+    const mockTimeline = {
+      id: 1,
+      events: [mockEvent1, mockEvent2],
+      revisions: [mockRevision],
+      lookupEventsInRangeNs: () => [mockNextEvent],
+      lookupRevisionsInRangeNs: () => [mockNextRevision],
+      lookupRevisionAtNs: () => null,
+    } as never;
+
+    expect(
+      component['lookupPrecedingLogs'](mockTimeline, 2000n, false),
+    ).toEqual([mockEvent1, mockEvent2]);
+    expect(component['lookupPrecedingLogs'](mockTimeline, 2000n, true)).toEqual(
+      [mockRevision],
+    );
+
+    expect(
+      component['lookupSucceedingLogs'](mockTimeline, 2000n, 10, false),
+    ).toEqual([mockNextEvent, mockNextRevision]);
+    expect(
+      component['lookupSucceedingLogs'](mockTimeline, 2000n, 10, true),
+    ).toEqual([mockNextRevision]);
+  });
 });

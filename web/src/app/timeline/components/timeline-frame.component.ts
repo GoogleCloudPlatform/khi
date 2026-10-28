@@ -775,6 +775,27 @@ export class TimelineFrameComponent implements AfterViewInit {
   protected readonly shiftStatus = signal(false);
 
   /**
+   * Indicates whether the Alt key is currently pressed.
+   * Used for hiding events on the timeline while Alt is held.
+   */
+  protected readonly altStatus = signal(false);
+
+  /**
+   * Emitted when the Alt key hold state changes.
+   */
+  readonly altStatusChange = output<boolean>();
+
+  /**
+   * Updates the internal Alt key state and notifies parent components.
+   *
+   * @param status Whether the Alt key is currently held.
+   */
+  protected onAltStatusChange(status: boolean): void {
+    this.altStatus.set(status);
+    this.altStatusChange.emit(status);
+  }
+
+  /**
    * Indicates whether the scale mode is enabled from the ruler.
    */
   protected readonly scaleModeFromRuler = signal(false);

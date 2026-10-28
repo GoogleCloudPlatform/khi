@@ -140,6 +140,11 @@ export class TimelineChartComponent implements AfterViewInit {
   readonly filteredLogIds = input<IdBitset>(IdBitset.createEmpty());
 
   /**
+   * Whether events should be hidden from rendering and hit testing (e.g., while holding Alt).
+   */
+  readonly hideEvents = input<boolean>(false);
+
+  /**
    * Emitted when the mouse moves over a timeline item.
    */
   readonly mouseMoveOnTimelineItem = output<TimelineChartMouseEvent>();
@@ -178,6 +183,8 @@ export class TimelineChartComponent implements AfterViewInit {
 
   private backgroundRenderer!: TimelineBackgroundRenderer;
 
+  private lastMouseEvent: MouseEvent | null = null;
+
   constructor() {
     effect(() => {
       const chartViewModel = this.chartViewModel();
@@ -191,8 +198,16 @@ export class TimelineChartComponent implements AfterViewInit {
       this.selectedLogIndex();
       this.highlightedLogIndexBitset();
       this.timelineHighlights();
+      this.hideEvents();
       this.invalidate = true;
       this.updateRendererParams();
+    });
+
+    effect(() => {
+      this.hideEvents();
+      if (this.lastMouseEvent && this.readyToRender()) {
+        this.onMouseEvent(this.lastMouseEvent, this.mouseMoveOnTimelineItem);
+      }
     });
   }
 
@@ -248,6 +263,23 @@ export class TimelineChartComponent implements AfterViewInit {
   public syncCanvasSize(): void {
     this.handleResize();
     this.updateRendererParams();
+  }
+
+  /**
+   * Handles mouse move events on the timeline container and caches the last mouse position.
+   *
+   * @param e The native MouseEvent.
+   */
+  protected onMouseMove(e: MouseEvent) {
+    this.lastMouseEvent = e;
+    this.onMouseEvent(e, this.mouseMoveOnTimelineItem);
+  }
+
+  /**
+   * Clears the cached mouse event when the cursor leaves the timeline container.
+   */
+  protected onMouseLeave() {
+    this.lastMouseEvent = null;
   }
 
   /**
@@ -313,6 +345,7 @@ export class TimelineChartComponent implements AfterViewInit {
     const selectedLogIndex = this.selectedLogIndex();
     const highlightedLogIndexBitset = this.highlightedLogIndexBitset();
     const filteredLogIds = this.filteredLogIds();
+    const hideEvents = this.hideEvents();
     this.invalidate = true;
     if (
       rulerViewModel === undefined ||
@@ -336,6 +369,7 @@ export class TimelineChartComponent implements AfterViewInit {
       selectedLogIndex,
       highlightedLogIndexBitset,
       filteredLogIds,
+      hideEvents,
     );
   }
 }

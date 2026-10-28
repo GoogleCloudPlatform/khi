@@ -327,6 +327,17 @@ export class TimelineSmartComponent {
 
   private readonly isMouseOnTimeline = signal(false);
 
+  private readonly hideEvents = signal(false);
+
+  /**
+   * Handles changes to the Alt key hold state from the timeline frame.
+   *
+   * @param isPressed Whether the Alt key is currently held.
+   */
+  protected onAltStatusChange(isPressed: boolean): void {
+    this.hideEvents.set(isPressed);
+  }
+
   /**
    * Handles the mouse entering the chart area.
    */
@@ -424,13 +435,17 @@ export class TimelineSmartComponent {
   private lookupPrecedingLogs(
     timeline: ReadonlyDomainElement<Timeline>,
     targetTimeNs: bigint,
+    hideEvents = false,
   ): (ReadonlyDomainElement<Event> | ReadonlyDomainElement<Revision>)[] {
-    const events = timeline.events;
-    const eEndIdx = bisectLeft(events, targetTimeNs, (item, target) =>
-      item.timestamp < target ? -1 : 1,
-    );
-    const eStartIdx = Math.max(0, eEndIdx - 2);
-    const prevEvents = events.slice(eStartIdx, eEndIdx);
+    let prevEvents: readonly ReadonlyDomainElement<Event>[] = [];
+    if (!hideEvents) {
+      const events = timeline.events;
+      const eEndIdx = bisectLeft(events, targetTimeNs, (item, target) =>
+        item.timestamp < target ? -1 : 1,
+      );
+      const eStartIdx = Math.max(0, eEndIdx - 2);
+      prevEvents = events.slice(eStartIdx, eEndIdx);
+    }
 
     const revisions = timeline.revisions;
     const rEndIdx = bisectLeft(revisions, targetTimeNs, (item, target) =>
@@ -457,6 +472,7 @@ export class TimelineSmartComponent {
     timeline: ReadonlyDomainElement<Timeline>,
     targetTimeNs: bigint,
     remainingCount: number,
+    hideEvents = false,
   ): (ReadonlyDomainElement<Event> | ReadonlyDomainElement<Revision>)[] {
     if (remainingCount <= 0) {
       return [];
@@ -467,7 +483,9 @@ export class TimelineSmartComponent {
       ) * 1000000n;
     const maxTimeNs = targetTimeNs + rangeNs;
 
-    const nextEvents = timeline.lookupEventsInRangeNs(targetTimeNs, maxTimeNs);
+    const nextEvents = hideEvents
+      ? []
+      : timeline.lookupEventsInRangeNs(targetTimeNs, maxTimeNs);
     const nextRevisionsRaw = timeline.lookupRevisionsInRangeNs(
       targetTimeNs,
       maxTimeNs,
@@ -499,13 +517,19 @@ export class TimelineSmartComponent {
       }
       const { timeline, targetTimeNs } = resolved;
       const targetTimeMs = BigIntTimeUtil.NsToNumberMs(targetTimeNs);
+      const hideEvents = this.hideEvents();
 
-      const prevLogs = this.lookupPrecedingLogs(timeline, targetTimeNs);
+      const prevLogs = this.lookupPrecedingLogs(
+        timeline,
+        targetTimeNs,
+        hideEvents,
+      );
       const remainingCount = this.MAX_HOVER_VIEW_LOG_COUNT - prevLogs.length;
       const nextLogs = this.lookupSucceedingLogs(
         timeline,
         targetTimeNs,
         remainingCount,
+        hideEvents,
       );
 
       const finalEvents: ReadonlyDomainElement<Event>[] = [];

@@ -149,6 +149,11 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    */
   private filteredLogIds: IdBitset = IdBitset.createEmpty();
 
+  /**
+   * Whether events should be hidden from rendering and hit testing (e.g., while holding Alt).
+   */
+  private hideEvents = false;
+
   private filterBitsetUpdated = true;
   private highlightBitsetUpdated = true;
 
@@ -228,7 +233,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.chartViewModel.styleStore,
     );
     this.iterateRevisionRenderers(gl, (r, rect) => r.renderColor(gl, rect));
-    this.iterateEventRenderers(gl, (r, rect) => r.renderColor(gl, rect));
+    if (!this.hideEvents) {
+      this.iterateEventRenderers(gl, (r, rect) => r.renderColor(gl, rect));
+    }
 
     if (this.hitTestRequests.length > 0) {
       this.processHitTestRequest(gl);
@@ -257,6 +264,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    * @param selectedLogIndex The index of the selected log, or 0xFFFFFFFF if none.
    * @param highlightedLogIndices The bitset of highlighted log indices.
    * @param filteredLogIds The bitset of filtered log IDs.
+   * @param hideEvents Whether events should be excluded from rendering and hit testing.
    */
   update(
     chartViewModel: TimelineChartViewModel,
@@ -264,12 +272,14 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     selectedLogIndex: number,
     highlightedLogIndices: IdBitset,
     filteredLogIds: IdBitset,
+    hideEvents = false,
   ) {
     this.chartViewModel = chartViewModel;
     this.chartStyle = chartStyle;
     this.revisionSharedResource.updateChartStyle(chartStyle);
     this.eventSharedResource.updateChartStyle(chartStyle);
     this.selectedLogIndex = selectedLogIndex;
+    this.hideEvents = hideEvents;
     if (this.highlightedLogIndices !== highlightedLogIndices) {
       this.highlightedLogIndices = highlightedLogIndices;
       this.highlightBitsetUpdated = true;
@@ -346,7 +356,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
         const revisionRenderer = this.ensureRevisionRenderer(gl, t);
         revisionRenderer.renderHittest(gl, rect);
       }
-      if (t.events.length > 0) {
+      if (!this.hideEvents && t.events.length > 0) {
         const eventRenderer = this.ensureEventRenderer(gl, t);
         eventRenderer.renderHittest(gl, rect);
       }

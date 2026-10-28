@@ -17,7 +17,8 @@
 <div
   class="container"
   #container
-  (mousemove)="onMouseEvent($event, mouseMoveOnTimelineItem)"
+  (mousemove)="onMouseMove($event)"
+  (mouseleave)="onMouseLeave()"
   (click)="onMouseEvent($event, clickOnTimelineItem)"
 >
   <canvas class="background-2d-canvas" #background2dCanvas></canvas>

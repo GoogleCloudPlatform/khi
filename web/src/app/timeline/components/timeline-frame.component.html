@@ -29,6 +29,7 @@
   [style.--viewport-height.px]="viewportHeight()"
   [style.--viewport-width.px]="viewportWidth()"
   (shiftStatusChange)="shiftStatus.set($event)"
+  (altStatusChange)="onAltStatusChange($event)"
   (mousedown)="handleMouseDown($event)"
   (mouseup)="handleMouseUp()"
   (mouseleave)="handleMouseLeave()"
@@ -73,6 +74,7 @@
         [selectedLogIndex]="selectedLogIndex()"
         [highlightedLogIndexBitset]="highlightedLogIndexBitset()"
         [filteredLogIds]="filteredLogIds()"
+        [hideEvents]="altStatus()"
         (mouseMoveOnTimelineItem)="
           handleTimelineChartItemEvent($event, hoverOnTimelineItem)
         "
@@ -138,6 +140,7 @@
           [timelineHoverOverlay]="timelineHoverOverlay()"
           [timezoneShiftHours]="timezoneShiftHours()"
           [highlights]="timelineChartItemHighlights()"
+          [hideEvents]="altStatus()"
           (hoverOnElement)="
             handleTimelineChartItemEvent($event, hoverOnTimelineItem)
           "
@@ -165,6 +168,7 @@
           [selectedLogIndex]="selectedLogIndex()"
           [highlightedLogIndexBitset]="highlightedLogIndexBitset()"
           [filteredLogIds]="filteredLogIds()"
+          [hideEvents]="altStatus()"
           (mouseMoveOnTimelineItem)="
             handleTimelineChartItemEvent($event, hoverOnTimelineItem)
           "
