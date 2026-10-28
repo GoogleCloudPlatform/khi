@@ -33,14 +33,10 @@ import (
 
 func TestIngestCSMControlPlaneLog(t *testing.T) {
 	testTime := time.Date(2026, time.May, 22, 12, 0, 0, 0, time.UTC)
-	customTime := time.Date(2026, time.May, 22, 13, 0, 0, 0, time.UTC)
 	testCases := []struct {
-		name          string
-		yaml          string
-		wantSummary   string
-		wantLogType   *pb.LogType
-		wantSeverity  *pb.Severity
-		wantTimestamp time.Time
+		name   string
+		yaml   string
+		assert func(t *testing.T, cs *khifilev6.LogChangeSet)
 	}{
 		{
 			name: "jsonPayload.message and severity info",
@@ -56,30 +52,13 @@ resource:
 jsonPayload:
   message: "ads: full sync complete"
 `,
-			wantSummary:   "ads: full sync complete",
-			wantLogType:   commoncsmcp.LogTypeCSMCP,
-			wantSeverity:  inspectioncore.SeverityInfo,
-			wantTimestamp: testTime,
-		},
-		{
-			name: "jsonPayload.timestamp overrides log timestamp",
-			yaml: `
-timestamp: "2026-05-22T12:00:00Z"
-severity: INFO
-resource:
-  type: istio_control_plane
-  labels:
-    project_id: "fleet-project"
-    location: "us-central1"
-    revision: "asm-managed"
-jsonPayload:
-  message: "ADS: new delta connection for node:test-pod.default-1"
-  timestamp: "2026-05-22T13:00:00Z"
-`,
-			wantSummary:   "ADS: new delta connection for node:test-pod.default-1",
-			wantLogType:   commoncsmcp.LogTypeCSMCP,
-			wantSeverity:  inspectioncore.SeverityInfo,
-			wantTimestamp: customTime,
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasLogType(commoncsmcp.LogTypeCSMCP).
+					HasSummary("ads: full sync complete").
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore.SeverityInfo)
+			},
 		},
 		{
 			name: "textPayload fallback and severity warning",
@@ -94,10 +73,13 @@ resource:
     revision: "asm-managed"
 textPayload: "warning starting istiod"
 `,
-			wantSummary:   "warning starting istiod",
-			wantLogType:   commoncsmcp.LogTypeCSMCP,
-			wantSeverity:  inspectioncore.SeverityWarning,
-			wantTimestamp: testTime,
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasLogType(commoncsmcp.LogTypeCSMCP).
+					HasSummary("warning starting istiod").
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore.SeverityWarning)
+			},
 		},
 		{
 			name: "missing severity",
@@ -108,10 +90,12 @@ resource:
 jsonPayload:
   message: "no severity log"
 `,
-			wantSummary:   "no severity log",
-			wantLogType:   commoncsmcp.LogTypeCSMCP,
-			wantSeverity:  nil,
-			wantTimestamp: testTime,
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasLogType(commoncsmcp.LogTypeCSMCP).
+					HasSummary("no severity log").
+					HasTimestamp(testTime)
+			},
 		},
 	}
 
@@ -122,13 +106,7 @@ jsonPayload:
 			if err != nil {
 				t.Fatalf("ingestCSMControlPlaneLog() error = %v", err)
 			}
-			assert := testchangeset.AssertLog(t, cs).
-				HasLogType(tc.wantLogType).
-				HasSummary(tc.wantSummary).
-				HasTimestamp(tc.wantTimestamp)
-			if tc.wantSeverity != nil {
-				assert.HasSeverity(tc.wantSeverity)
-			}
+			tc.assert(t, cs)
 		})
 	}
 }

@@ -31,43 +31,48 @@ import (
 )
 
 func TestGenerateCSMControlPlaneStructuredQuery(t *testing.T) {
+	type queryResult struct {
+		Query              string
+		SupportMetricsFlag bool
+		Incomplete         bool
+	}
 	testCases := []struct {
-		name                   string
-		fleetProjectID         string
-		wantQuery              string
-		wantSupportMetricsFlag bool
-		wantIncomplete         bool
+		name           string
+		fleetProjectID string
+		want           queryResult
 	}{
 		{
 			name:           "valid fleet project id",
 			fleetProjectID: "fleet-project",
-			wantQuery: `resource.type="istio_control_plane"
+			want: queryResult{
+				Query: `resource.type="istio_control_plane"
 resource.labels.project_id="fleet-project"`,
-			wantSupportMetricsFlag: true,
-			wantIncomplete:         false,
+				SupportMetricsFlag: true,
+				Incomplete:         false,
+			},
 		},
 		{
 			name:           "empty fleet project id",
 			fleetProjectID: "",
-			wantQuery: `resource.type="istio_control_plane"
+			want: queryResult{
+				Query: `resource.type="istio_control_plane"
 resource.labels.project_id=""`,
-			wantSupportMetricsFlag: true,
-			wantIncomplete:         true,
+				SupportMetricsFlag: true,
+				Incomplete:         true,
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			sq := generateCSMControlPlaneStructuredQuery(tc.fleetProjectID)
-			if sq.Incomplete != tc.wantIncomplete {
-				t.Errorf("Incomplete = %v, want %v", sq.Incomplete, tc.wantIncomplete)
+			got := queryResult{
+				Query:              sq.GenerateCloudLoggingQuery(),
+				SupportMetricsFlag: sq.AllFiltersSupportMetrics(),
+				Incomplete:         sq.Incomplete,
 			}
-			if sq.AllFiltersSupportMetrics() != tc.wantSupportMetricsFlag {
-				t.Errorf("AllFiltersSupportMetrics() = %v, want %v", sq.AllFiltersSupportMetrics(), tc.wantSupportMetricsFlag)
-			}
-			gotQuery := sq.GenerateCloudLoggingQuery()
-			if diff := cmp.Diff(tc.wantQuery, gotQuery); diff != "" {
-				t.Errorf("GenerateCloudLoggingQuery() mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("generateCSMControlPlaneStructuredQuery() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -86,26 +91,39 @@ func TestListCSMControlPlaneLogEntriesTask_DryRun(t *testing.T) {
 	testCases := []struct {
 		name           string
 		fleetProjectID string
-		wantIncomplete bool
-		wantQuery      string
+		want           []*inspectionmetadata.QueryItem
 	}{
 		{
 			name:           "valid fleet project id",
 			fleetProjectID: "fleet-project",
-			wantIncomplete: false,
-			wantQuery: `resource.type="istio_control_plane"
+			want: []*inspectionmetadata.QueryItem{
+				{
+					Id:   csm.ListCSMControlPlaneLogEntriesTaskID.String(),
+					Name: "CSM Control Plane logs",
+					Query: `resource.type="istio_control_plane"
 resource.labels.project_id="fleet-project"
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`,
+					Incomplete: false,
+					Pending:    true,
+				},
+			},
 		},
 		{
 			name:           "missing fleet project id is incomplete",
 			fleetProjectID: "",
-			wantIncomplete: true,
-			wantQuery: `resource.type="istio_control_plane"
+			want: []*inspectionmetadata.QueryItem{
+				{
+					Id:   csm.ListCSMControlPlaneLogEntriesTaskID.String(),
+					Name: "CSM Control Plane logs",
+					Query: `resource.type="istio_control_plane"
 resource.labels.project_id=""
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`,
+					Incomplete: true,
+					Pending:    false,
+				},
+			},
 		},
 	}
 
@@ -140,20 +158,8 @@ timestamp <= "2025-01-01T01:01:00+0000"`,
 			}
 
 			serialized := queryMetadata.ToSerializable().([]*inspectionmetadata.QueryItem)
-			if len(serialized) != 1 {
-				t.Fatalf("expected 1 QueryItem, got %d", len(serialized))
-			}
-
-			if serialized[0].Name != "CSM Control Plane logs" {
-				t.Errorf("Name = %q, want %q", serialized[0].Name, "CSM Control Plane logs")
-			}
-
-			if serialized[0].Incomplete != tc.wantIncomplete {
-				t.Errorf("Incomplete mismatch: got %v, want %v", serialized[0].Incomplete, tc.wantIncomplete)
-			}
-
-			if diff := cmp.Diff(tc.wantQuery, serialized[0].Query); diff != "" {
-				t.Errorf("Query mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, serialized); diff != "" {
+				t.Errorf("QueryMetadata mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
