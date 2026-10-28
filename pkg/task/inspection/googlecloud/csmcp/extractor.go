@@ -16,26 +16,22 @@ package csmcp
 
 import (
 	"strings"
-	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 )
 
 var (
-	pathClusterName          = structured.CompileFieldPath("resource.labels.cluster_name")
-	pathTextPayload          = structured.CompileFieldPath("textPayload")
-	pathJSONPayloadTimestamp = structured.CompileFieldPath("jsonPayload.timestamp")
-	pathJSONPayloadMessage   = structured.CompileFieldPath("jsonPayload.message")
-	pathJSONPayloadMsg       = structured.CompileFieldPath("jsonPayload.msg")
-	pathJSONPayloadMESSAGE   = structured.CompileFieldPath("jsonPayload.MESSAGE")
-	pathJSONPayloadLog       = structured.CompileFieldPath("jsonPayload.log")
-	pathTimestamp            = structured.CompileFieldPath("timestamp")
+	pathClusterName        = structured.CompileFieldPath("resource.labels.cluster_name")
+	pathTextPayload        = structured.CompileFieldPath("textPayload")
+	pathJSONPayloadMessage = structured.CompileFieldPath("jsonPayload.message")
+	pathJSONPayloadMsg     = structured.CompileFieldPath("jsonPayload.msg")
+	pathJSONPayloadMESSAGE = structured.CompileFieldPath("jsonPayload.MESSAGE")
+	pathJSONPayloadLog     = structured.CompileFieldPath("jsonPayload.log")
 )
 
 // FieldSet holds structured log data extracted from the log entry.
 type FieldSet struct {
-	Timestamp   *time.Time
 	Message     string
 	Pods        []commoncsmcp.PodIdentifier
 	ClusterName string
@@ -70,15 +66,7 @@ func Extract(reader *structured.NodeReader) (FieldSet, error) {
 		}
 	}
 
-	var timestamp *time.Time
-	if ts, err := reader.ReadTimestamp(pathJSONPayloadTimestamp); err == nil {
-		timestamp = &ts
-	} else if ts, err := reader.ReadTimestamp(pathTimestamp); err == nil {
-		timestamp = &ts
-	}
-
 	return FieldSet{
-		Timestamp:   timestamp,
 		Message:     message,
 		Pods:        pods,
 		ClusterName: clusterName,

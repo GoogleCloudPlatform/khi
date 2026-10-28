@@ -17,7 +17,6 @@ package csmcp_impl
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -86,19 +85,12 @@ func mapCSMCPLog(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.Tim
 		clusterName = fs.ClusterName
 	}
 
-	var changedTime time.Time
-	if fs.Timestamp != nil {
-		changedTime = *fs.Timestamp
-	} else {
-		changedTime = l.Timestamp
-	}
-
 	nextGroupData := commoncsmcp.MapPodAndConnectionTimelines(
 		ctx,
 		cs,
 		clusterName,
 		fs.Message,
-		changedTime,
+		l.Timestamp,
 		fs.Pods,
 		prevGroupData,
 	)

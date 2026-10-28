@@ -101,16 +101,13 @@ func TestMapCSMCPLog(t *testing.T) {
 	csmcpPodPath := commoncsmcp.MustCSMCPPodLogTimeline(ctx, clientPodPath)
 	connPath := commoncsmcp.MustCSMCPConnectionTimeline(ctx, clientPodPath, "1")
 
-	customTime := time.Date(2026, time.May, 22, 11, 0, 0, 0, time.UTC)
-
 	testCases := []struct {
-		name            string
-		logMessage      string
-		pods            []commoncsmcp.PodIdentifier
-		prevGroupData   *commoncsmcp.TimelineState
-		customTimestamp *time.Time
-		wantNextConns   map[string]bool
-		assert          func(*testing.T, *khifilev6.TimelineChangeSet)
+		name          string
+		logMessage    string
+		pods          []commoncsmcp.PodIdentifier
+		prevGroupData *commoncsmcp.TimelineState
+		wantNextConns map[string]bool
+		assert        func(*testing.T, *khifilev6.TimelineChangeSet)
 	}{
 		{
 			name:       "new delta connection log",
@@ -124,26 +121,6 @@ func TestMapCSMCPLog(t *testing.T) {
 					HasEvent(csmcpPodPath).
 					HasRevision(connPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
-						VerbType:     inspectioncore.VerbUnknown,
-						StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnected,
-						ResourceBody: nil,
-						Principal:    "csm-cp",
-					})
-			},
-		},
-		{
-			name:            "custom timestamp overrides log timestamp",
-			logMessage:      "ADS: new connection for node:test-pod.default-1",
-			customTimestamp: &customTime,
-			pods: []commoncsmcp.PodIdentifier{
-				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
-			},
-			wantNextConns: map[string]bool{"default/test-pod/1": true},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
-				testchangeset.AssertTimeline(t, cs).
-					HasEvent(csmcpPodPath).
-					HasRevision(connPath, &khifilev6.StagingRevision{
-						ChangedTime:  customTime,
 						VerbType:     inspectioncore.VerbUnknown,
 						StateType:    commoncsmcp.RevisionStateCSMCPConnectionConnected,
 						ResourceBody: nil,
@@ -280,9 +257,8 @@ func TestMapCSMCPLog(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fs := csmcp.FieldSet{
-				Timestamp: tc.customTimestamp,
-				Message:   tc.logMessage,
-				Pods:      tc.pods,
+				Message: tc.logMessage,
+				Pods:    tc.pods,
 			}
 			logObj := testlog.NewMockLog(testTime, fs)
 

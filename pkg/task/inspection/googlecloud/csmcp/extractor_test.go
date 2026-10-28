@@ -16,7 +16,6 @@ package csmcp
 
 import (
 	"testing"
-	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
@@ -42,7 +41,6 @@ resource:
 textPayload: "ADS: new delta connection for node:auth-service-647d798687-abcde.backend-ns-61"
 `,
 			want: FieldSet{
-				Timestamp:   nil,
 				Message:     "ADS: new delta connection for node:auth-service-647d798687-abcde.backend-ns-61",
 				ClusterName: "my-cluster",
 				Pods: []commoncsmcp.PodIdentifier{
@@ -66,7 +64,6 @@ resource:
 textPayload: 'ADS: "192.0.2.1:41780" payment-worker-7f5bcf84bb-fghij.payment-ns-84 terminated'
 `,
 			want: FieldSet{
-				Timestamp:   nil,
 				Message:     `ADS: "192.0.2.1:41780" payment-worker-7f5bcf84bb-fghij.payment-ns-84 terminated`,
 				ClusterName: "my-cluster",
 				Pods: []commoncsmcp.PodIdentifier{
@@ -90,7 +87,6 @@ resource:
 textPayload: "CDS: PUSH request for node:payment-worker-7f5bcf84bb-fghij.payment-ns resources:87 ..."
 `,
 			want: FieldSet{
-				Timestamp:   nil,
 				Message:     "CDS: PUSH request for node:payment-worker-7f5bcf84bb-fghij.payment-ns resources:87 ...",
 				ClusterName: "my-cluster",
 				Pods: []commoncsmcp.PodIdentifier{
@@ -103,7 +99,7 @@ textPayload: "CDS: PUSH request for node:payment-worker-7f5bcf84bb-fghij.payment
 			},
 		},
 		{
-			name: "jsonPayload message and timestamp",
+			name: "jsonPayload message",
 			input: `
 resource:
   labels:
@@ -113,13 +109,8 @@ resource:
     container_name: discovery
 jsonPayload:
   message: "ADS: new connection for node:ratings-v1-7d99676f7f-abcde.default-1"
-  timestamp: "2026-07-03T15:46:12Z"
 `,
 			want: FieldSet{
-				Timestamp: func() *time.Time {
-					t, _ := time.Parse(time.RFC3339, "2026-07-03T15:46:12Z")
-					return &t
-				}(),
 				Message:     "ADS: new connection for node:ratings-v1-7d99676f7f-abcde.default-1",
 				ClusterName: "prod-cluster",
 				Pods: []commoncsmcp.PodIdentifier{
