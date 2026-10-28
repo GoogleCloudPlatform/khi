@@ -265,6 +265,83 @@ func TestPaginate(t *testing.T) {
 	}
 }
 
+func TestNormalizePageSize(t *testing.T) {
+	testCases := []struct {
+		name            string
+		pageSize        int
+		defaultPageSize int
+		maxPageSize     int
+		want            int
+	}{
+		{
+			name:            "zero uses default",
+			pageSize:        0,
+			defaultPageSize: 50,
+			maxPageSize:     500,
+			want:            50,
+		},
+		{
+			name:            "negative uses default",
+			pageSize:        -1,
+			defaultPageSize: 50,
+			maxPageSize:     500,
+			want:            50,
+		},
+		{
+			name:            "valid size stays unchanged",
+			pageSize:        25,
+			defaultPageSize: 50,
+			maxPageSize:     500,
+			want:            25,
+		},
+		{
+			name:            "oversized request is capped",
+			pageSize:        800,
+			defaultPageSize: 50,
+			maxPageSize:     500,
+			want:            500,
+		},
+		{
+			name:            "default is also capped",
+			pageSize:        0,
+			defaultPageSize: 800,
+			maxPageSize:     500,
+			want:            500,
+		},
+		{
+			name:            "zero maximum means no cap",
+			pageSize:        800,
+			defaultPageSize: 50,
+			maxPageSize:     0,
+			want:            800,
+		},
+		{
+			name:            "negative maximum means no cap",
+			pageSize:        800,
+			defaultPageSize: 50,
+			maxPageSize:     -1,
+			want:            800,
+		},
+		{
+			name:            "size equals maximum",
+			pageSize:        500,
+			defaultPageSize: 50,
+			maxPageSize:     500,
+			want:            500,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := NormalizePageSize(tc.pageSize, tc.defaultPageSize, tc.maxPageSize)
+			if got != tc.want {
+				t.Errorf("NormalizePageSize(%d, %d, %d) = %d, want %d",
+					tc.pageSize, tc.defaultPageSize, tc.maxPageSize, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestFormatErrorAndErrorResult(t *testing.T) {
 	testCases := []struct {
 		name        string
