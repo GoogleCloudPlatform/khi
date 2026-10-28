@@ -95,6 +95,8 @@ func (h *WorkbenchHandler) handleGetTimelineLogs(ctx context.Context, _ *mcpsdk.
 		return errRes, nil, err
 	}
 
+	// Retrieve all matching logs to aggregate linked-timeline information across the
+	// full result set, then paginate the log entries here for the response.
 	res, err := wb.GetTimelineLogs(ctx, timelineID, input.Filter)
 	if errors.Is(err, workbench.ErrTimelineNotFound) {
 		return timelineNotFoundResult(input.InspectionID, input.TimelineID)
@@ -156,17 +158,15 @@ func (h *WorkbenchHandler) handleGetResourceRevisions(ctx context.Context, _ *mc
 	if err != nil {
 		return invalidPageTokenResult(err)
 	}
-	pageSize := input.PageSize
-	if pageSize <= 0 {
-		pageSize = defaultDetailPageSize
-	}
-	pageSize = min(pageSize, maxDetailPageSize)
 
+	pageSize := mdtemplate.NormalizePageSize(input.PageSize, defaultDetailPageSize, maxDetailPageSize)
 	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
 	if err != nil || errRes != nil {
 		return errRes, nil, err
 	}
 
+	// Paginate in the workbench so manifest reads and change calculations are limited
+	// to this page, plus the preceding revision needed for the first comparison.
 	res, err := wb.GetResourceRevisions(timelineID, workbench.ResourceRevisionsQuery{
 		StartTime: input.StartTime,
 		EndTime:   input.EndTime,

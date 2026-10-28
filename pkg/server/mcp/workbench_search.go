@@ -17,7 +17,6 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -145,7 +144,7 @@ func (h *WorkbenchHandler) handleSearchLogs(ctx context.Context, _ *mcpsdk.CallT
 	groups := make([]timelineLogGroupTemplateData, len(logRes.TimelineGroups))
 	for i, g := range logRes.TimelineGroups {
 		groups[i] = timelineLogGroupTemplateData{
-			TimelineID:      strconv.FormatUint(uint64(g.TimelineID), 10),
+			TimelineID:      formatID(g.TimelineID),
 			Segments:        g.Segments,
 			MatchedLogCount: g.MatchedLogCount,
 			SeveritySummary: formatSeveritySummary(g.SeverityCounts),
@@ -157,7 +156,7 @@ func (h *WorkbenchHandler) handleSearchLogs(ctx context.Context, _ *mcpsdk.CallT
 	samples := make([]sampleLogTemplateData, len(logRes.SampleLogs))
 	for i, s := range logRes.SampleLogs {
 		samples[i] = sampleLogTemplateData{
-			LogID:         strconv.FormatUint(uint64(s.LogID), 10),
+			LogID:         formatID(s.LogID),
 			Time:          s.Time,
 			Severity:      s.Severity.GetLabel(),
 			LogType:       s.LogType,
@@ -205,7 +204,7 @@ func formatTimelineTreeLine(node workbench.TimelineTreeNode, sameDay bool) strin
 	indent := strings.Repeat("  ", node.Depth)
 	tokens := []string{
 		fmt.Sprintf("%s[%s] %s", indent, node.Type, node.Name),
-		fmt.Sprintf("id=%d", node.ID),
+		fmt.Sprintf("id=%s", formatID(node.ID)),
 	}
 	if node.OmittedChildren > 0 {
 		tokens = append(tokens, fmt.Sprintf("children=%d", node.OmittedChildren))
@@ -246,7 +245,7 @@ func formatTimelineIDsCell(ids []uint32) string {
 	}
 	parts := make([]string, len(ids))
 	for i, id := range ids {
-		parts[i] = md.Code(strconv.FormatUint(uint64(id), 10))
+		parts[i] = md.Code(formatID(id))
 	}
 	return strings.Join(parts, ", ")
 }

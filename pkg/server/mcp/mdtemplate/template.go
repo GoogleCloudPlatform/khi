@@ -273,14 +273,22 @@ type PageResult[T any] struct {
 	NextPageToken string
 }
 
-// Paginate slices items according to pagination parameters and returns a PageResult.
-func Paginate[T any](items []T, pageSize, defaultPageSize, maxPageSize int, pageToken string) (PageResult[T], error) {
+// NormalizePageSize uses defaultPageSize when pageSize is nonpositive,
+// then caps the result at maxPageSize if maxPageSize is positive.
+func NormalizePageSize(pageSize int, defaultPageSize int, maxPageSize int) int {
 	if pageSize <= 0 {
 		pageSize = defaultPageSize
 	}
 	if maxPageSize > 0 && pageSize > maxPageSize {
 		pageSize = maxPageSize
 	}
+	return pageSize
+}
+
+// Paginate slices items according to pagination parameters and returns a PageResult.
+func Paginate[T any](items []T, pageSize, defaultPageSize, maxPageSize int, pageToken string) (PageResult[T], error) {
+	pageSize = NormalizePageSize(pageSize, defaultPageSize, maxPageSize)
+
 	offset, err := DecodePageToken(pageToken)
 	if err != nil {
 		return PageResult[T]{}, err
