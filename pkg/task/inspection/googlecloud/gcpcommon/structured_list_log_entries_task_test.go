@@ -1074,31 +1074,39 @@ func (e *testMonitoringClientErr) Error() string {
 func TestNewStructuredLogEstimator_PreservesClientErrorTypes(t *testing.T) {
 	t.Parallel()
 
+	type extractedErrors struct {
+		Logging    *testLoggingClientErr
+		Monitoring *testMonitoringClientErr
+	}
+
 	testCases := []struct {
-		name               string
-		loggingErr         error
-		monitoringErr      error
-		wantLoggingType    bool
-		wantMonitoringType bool
+		name          string
+		loggingErr    error
+		monitoringErr error
+		want          extractedErrors
 	}{
 		{
-			name:               "logging client error preserves error type",
-			loggingErr:         &testLoggingClientErr{msg: "logging auth failure"},
-			wantLoggingType:    true,
-			wantMonitoringType: false,
+			name:       "logging client error preserves error type",
+			loggingErr: &testLoggingClientErr{msg: "logging auth failure"},
+			want: extractedErrors{
+				Logging: &testLoggingClientErr{msg: "logging auth failure"},
+			},
 		},
 		{
-			name:               "monitoring client error preserves error type",
-			monitoringErr:      &testMonitoringClientErr{msg: "monitoring auth failure"},
-			wantLoggingType:    false,
-			wantMonitoringType: true,
+			name:          "monitoring client error preserves error type",
+			monitoringErr: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			want: extractedErrors{
+				Monitoring: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			},
 		},
 		{
-			name:               "joined logging and monitoring client errors preserve both error types",
-			loggingErr:         &testLoggingClientErr{msg: "logging auth failure"},
-			monitoringErr:      &testMonitoringClientErr{msg: "monitoring auth failure"},
-			wantLoggingType:    true,
-			wantMonitoringType: true,
+			name:          "joined logging and monitoring client errors preserve both error types",
+			loggingErr:    &testLoggingClientErr{msg: "logging auth failure"},
+			monitoringErr: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			want: extractedErrors{
+				Logging:    &testLoggingClientErr{msg: "logging auth failure"},
+				Monitoring: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			},
 		},
 	}
 
@@ -1138,14 +1146,11 @@ func TestNewStructuredLogEstimator_PreservesClientErrorTypes(t *testing.T) {
 				t.Fatalf("newStructuredLogEstimator() = (%v, nil), want non-nil error", estimator)
 			}
 
-			var logTarget *testLoggingClientErr
-			if got := errors.As(gotErr, &logTarget); got != tc.wantLoggingType {
-				t.Errorf("errors.As(gotErr, *testLoggingClientErr) = %v, want %v (err: %v)", got, tc.wantLoggingType, gotErr)
-			}
-
-			var monTarget *testMonitoringClientErr
-			if got := errors.As(gotErr, &monTarget); got != tc.wantMonitoringType {
-				t.Errorf("errors.As(gotErr, *testMonitoringClientErr) = %v, want %v (err: %v)", got, tc.wantMonitoringType, gotErr)
+			var got extractedErrors
+			_ = errors.As(gotErr, &got.Logging)
+			_ = errors.As(gotErr, &got.Monitoring)
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(testLoggingClientErr{}, testMonitoringClientErr{})); diff != "" {
+				t.Errorf("newStructuredLogEstimator() extracted error mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
