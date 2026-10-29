@@ -16,9 +16,11 @@ package summary
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -32,8 +34,8 @@ const (
 )
 
 type destination struct {
-	kind      destinationKind
-	featureID string
+	kind       destinationKind
+	featureIDs []string
 }
 
 type featureInfo struct {
@@ -51,8 +53,7 @@ type sectionResolver struct {
 func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 	destinations := make(map[string]destination)
 	features := make(map[string]featureInfo)
-
-	isForm := make(map[string]bool)
+	isBoundary := make(map[string]bool)
 
 	allTasks := taskGraph.GetAll()
 	refToImplID := make(map[string]string, len(allTasks))
@@ -74,14 +75,21 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 				order: typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskOrder, 0),
 			}
 			destinations[id] = destination{
-				kind:      destinationFeature,
-				featureID: id,
+				kind:       destinationFeature,
+				featureIDs: []string{id},
 			}
+			isBoundary[id] = true
 		case typedmap.GetOrDefault(labels, inspectioncore.TaskLabelKeyIsFormTask, false):
-			isForm[id] = true
 			destinations[id] = destination{
 				kind: destinationForm,
 			}
+			isBoundary[id] = true
+		case hasFanInInput(task):
+			// Fan-in tasks aggregate shared data across features and belong to Shared & Filter Context.
+			destinations[id] = destination{
+				kind: destinationShared,
+			}
+			isBoundary[id] = true
 		}
 	}
 
@@ -95,6 +103,14 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 
 	adj := make(map[string][]string)
 	for _, edge := range taskGraph.Edges() {
+		if edge.Cardinality != taskid.CardinalityPointToPoint || edge.Scope != taskid.ScopeAll {
+			// Optional and fan-in dependencies do not pull upstream tasks into a consumer feature's ownership.
+			continue
+		}
+		if isBoundary[edge.SourceImplID] {
+			// Outgoing edges from feature, form, and fan-in boundary tasks must not propagate ownership downstream.
+			continue
+		}
 		if _, isGated := gateTaskByTask[edge.SourceImplID]; isGated {
 			// Feature-gated tasks export data to shared inventory tasks across features,
 			// so their outgoing data edges must not be traversed for section resolution.
@@ -105,27 +121,20 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 
 	for _, task := range allTasks {
 		id := task.UntypedID().String()
-		if _, isFeature := features[id]; isFeature || isForm[id] {
+		if isBoundary[id] {
 			continue
 		}
 
 		startID := id
 		if gateTaskID, isGated := gateTaskByTask[id]; isGated {
-			if _, isFeature := features[gateTaskID]; isFeature {
-				destinations[id] = destination{
-					kind:      destinationFeatureMember,
-					featureID: gateTaskID,
-				}
-				continue
-			}
 			startID = gateTaskID
 		}
 
 		if startID != "" {
-			if best, ok := findNearestFeature(startID, adj, features); ok {
+			if reached := findReachableFeatures(startID, adj, features); len(reached) > 0 {
 				destinations[id] = destination{
-					kind:      destinationFeatureMember,
-					featureID: best.id,
+					kind:       destinationFeatureMember,
+					featureIDs: reached,
 				}
 				continue
 			}
@@ -142,44 +151,43 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 	}
 }
 
-func findNearestFeature(startID string, adj map[string][]string, features map[string]featureInfo) (featureInfo, bool) {
-	currentLevel := []string{startID}
+func hasFanInInput(task coretask.UntypedTask) bool {
+	for _, input := range task.Inputs() {
+		if input.Dependency.DescriptorCardinality() == taskid.CardinalityFanIn {
+			return true
+		}
+	}
+	return false
+}
+
+func findReachableFeatures(startID string, adj map[string][]string, features map[string]featureInfo) []string {
+	if _, isFeature := features[startID]; isFeature {
+		return []string{startID}
+	}
+
+	queue := []string{startID}
 	visited := map[string]bool{startID: true}
-	var candidateFeatures []featureInfo
+	var reached []string
 
-	for len(currentLevel) > 0 {
-		var nextLevel []string
-		for _, curr := range currentLevel {
-			for _, next := range adj[curr] {
-				if visited[next] {
-					continue
-				}
-				visited[next] = true
-				if fi, ok := features[next]; ok {
-					// Feature tasks are terminal search targets and are not expanded further.
-					candidateFeatures = append(candidateFeatures, fi)
-					continue
-				}
-				nextLevel = append(nextLevel, next)
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for _, next := range adj[curr] {
+			if visited[next] {
+				continue
 			}
+			visited[next] = true
+			if _, isFeature := features[next]; isFeature {
+				// Feature tasks are terminal search targets and are not expanded further.
+				reached = append(reached, next)
+				continue
+			}
+			queue = append(queue, next)
 		}
-		if len(candidateFeatures) > 0 {
-			break
-		}
-		currentLevel = nextLevel
 	}
 
-	if len(candidateFeatures) == 0 {
-		return featureInfo{}, false
-	}
-
-	best := candidateFeatures[0]
-	for _, f := range candidateFeatures[1:] {
-		if f.order < best.order || (f.order == best.order && f.id < best.id) {
-			best = f
-		}
-	}
-	return best, true
+	slices.Sort(reached)
+	return reached
 }
 
 func (r *sectionResolver) destinationOf(taskID string) destination {

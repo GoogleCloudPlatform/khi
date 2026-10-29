@@ -15,18 +15,35 @@
 package summary
 
 import (
+	"context"
 	"testing"
 
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 )
 
-func newTestTask(id string, labelOpts ...coretask.LabelOpt) coretask.UntypedTask {
+func newTestTask(id string, labelOpts ...coretask.LabelOpt) coretask.Task[any] {
 	return coretask.DefineConstant[any](
 		taskid.NewDefaultImplementationID[any](id),
 		nil,
+		labelOpts...,
+	)
+}
+
+func newTestTaskWithBind(id string, bind func(b *coretask.Binder), labelOpts ...coretask.LabelOpt) coretask.Task[any] {
+	return coretask.Define(
+		taskid.NewDefaultImplementationID[any](id),
+		func(b *coretask.Binder) func(ctx context.Context) (any, error) {
+			if bind != nil {
+				bind(b)
+			}
+			return func(ctx context.Context) (any, error) {
+				return nil, nil
+			}
+		},
 		labelOpts...,
 	)
 }
@@ -35,53 +52,68 @@ func newTestEdge(sourceID, targetID string) taskid.TaskEdge {
 	return taskid.TaskEdge{
 		SourceImplID: sourceID,
 		TargetImplID: targetID,
+		Cardinality:  taskid.CardinalityPointToPoint,
+		Scope:        taskid.ScopeAll,
 	}
 }
 
-func TestSectionResolver(t *testing.T) {
+func TestSectionResolver_ExampleDAGFromIssue1039(t *testing.T) {
+	tagNodeNames := coretask.NewTag[any]("test-node-names")
+	tagEmpty := coretask.NewTag[any]("test-empty-inventory")
+
 	formTask := newTestTask("form-cluster-name", inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
-	listAuditTask := newTestTask("list-audit-logs")
-	auditExtractorTask := newTestTask("audit-log-extractor")
-	auditMapperTask := newTestTask("audit-log-mapper")
-	featureAuditTask := newTestTask("feature-audit", inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 2, true))
+	listNodeTask := newTestTask("list-node-names", coretask.ProvidesTag(tagNodeNames))
+	inventoryTask := inspectiontaskbase.DefineInventoryTask(
+		taskid.NewDefaultImplementationID[any]("inventory-node-names"),
+		tagNodeNames,
+		func(results []any) (any, error) { return results, nil },
+	)
+	emptyInventoryTask := inspectiontaskbase.DefineInventoryTask(
+		taskid.NewDefaultImplementationID[any]("inventory-empty"),
+		tagEmpty,
+		func(results []any) (any, error) { return results, nil },
+	)
 
-	listEventTask := newTestTask("list-event-logs")
-	eventMapperTask := newTestTask("event-log-mapper")
-	featureEventTask := newTestTask("feature-event", inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 1, true))
+	listAuditTask := newTestTaskWithBind("list-audit-logs", func(b *coretask.Binder) {
+		coretask.Use(b, formTask.ID().Ref())
+	})
+	auditMapperTask := newTestTaskWithBind("audit-log-mapper", func(b *coretask.Binder) {
+		coretask.Use(b, listAuditTask.ID().Ref())
+		coretask.Use(b, inventoryTask.ID().Ref())
+		coretask.Use(b, emptyInventoryTask.ID().Ref())
+	})
+	featureAuditTask := newTestTaskWithBind("feature-audit", func(b *coretask.Binder) {
+		coretask.Use(b, auditMapperTask.ID().Ref())
+	}, inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))
 
-	nodeDiscoveryTask := newTestTask("discovery-node-names", coretask.WithFeatureGate(featureAuditTask.UntypedID().GetUntypedReference()))
-	inventoryTask := newTestTask("inventory-node-names")
-	serializerTask := newTestTask("serializer")
+	listEventTask := newTestTaskWithBind("list-event-logs", func(b *coretask.Binder) {
+		coretask.Use(b, formTask.ID().Ref())
+	})
+	eventMapperTask := newTestTaskWithBind("event-log-mapper", func(b *coretask.Binder) {
+		coretask.Use(b, listEventTask.ID().Ref())
+		coretask.Use(b, inventoryTask.ID().Ref())
+	})
+	featureEventTask := newTestTaskWithBind("feature-event", func(b *coretask.Binder) {
+		coretask.Use(b, eventMapperTask.ID().Ref())
+	}, inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 2, true))
 
-	tasks := []coretask.UntypedTask{
+	available := []coretask.UntypedTask{
 		formTask,
+		listNodeTask,
+		inventoryTask,
+		emptyInventoryTask,
 		listAuditTask,
-		auditExtractorTask,
 		auditMapperTask,
 		featureAuditTask,
 		listEventTask,
 		eventMapperTask,
 		featureEventTask,
-		nodeDiscoveryTask,
-		inventoryTask,
-		serializerTask,
+	}
+	taskGraph, err := coretask.ResolveGraph([]coretask.UntypedTask{featureAuditTask, featureEventTask}, available, nil)
+	if err != nil {
+		t.Fatalf("ResolveGraph() unexpected error: %v", err)
 	}
 
-	edges := []taskid.TaskEdge{
-		newTestEdge(formTask.UntypedID().String(), listAuditTask.UntypedID().String()),
-		newTestEdge(formTask.UntypedID().String(), listEventTask.UntypedID().String()),
-		newTestEdge(listAuditTask.UntypedID().String(), auditExtractorTask.UntypedID().String()),
-		newTestEdge(auditExtractorTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
-		newTestEdge(auditMapperTask.UntypedID().String(), featureAuditTask.UntypedID().String()),
-		newTestEdge(listEventTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
-		newTestEdge(eventMapperTask.UntypedID().String(), featureEventTask.UntypedID().String()),
-		newTestEdge(listAuditTask.UntypedID().String(), nodeDiscoveryTask.UntypedID().String()),
-		newTestEdge(nodeDiscoveryTask.UntypedID().String(), inventoryTask.UntypedID().String()),
-		newTestEdge(inventoryTask.UntypedID().String(), featureEventTask.UntypedID().String()),
-		newTestEdge(featureAuditTask.UntypedID().String(), serializerTask.UntypedID().String()),
-	}
-
-	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)
 	resolver := newSectionResolver(taskGraph)
 
 	testCases := []struct {
@@ -90,78 +122,241 @@ func TestSectionResolver(t *testing.T) {
 		want   destination
 	}{
 		{
-			name:   "form task",
+			name:   "form task routes to Common Properties",
 			taskID: formTask.UntypedID().String(),
 			want: destination{
 				kind: destinationForm,
 			},
 		},
 		{
-			name:   "list audit logs is member of audit feature and does not traverse gated discovery task",
+			name:   "list audit logs routes to Kubernetes Audit Logs",
 			taskID: listAuditTask.UntypedID().String(),
 			want: destination{
-				kind:      destinationFeatureMember,
-				featureID: featureAuditTask.UntypedID().String(),
+				kind:       destinationFeatureMember,
+				featureIDs: []string{featureAuditTask.UntypedID().String()},
 			},
 		},
 		{
-			name:   "audit log extractor is member of audit feature",
-			taskID: auditExtractorTask.UntypedID().String(),
-			want: destination{
-				kind:      destinationFeatureMember,
-				featureID: featureAuditTask.UntypedID().String(),
-			},
-		},
-		{
-			name:   "audit log mapper is member of audit feature",
+			name:   "audit log mapper routes to Kubernetes Audit Logs",
 			taskID: auditMapperTask.UntypedID().String(),
 			want: destination{
-				kind:      destinationFeatureMember,
-				featureID: featureAuditTask.UntypedID().String(),
+				kind:       destinationFeatureMember,
+				featureIDs: []string{featureAuditTask.UntypedID().String()},
 			},
 		},
 		{
-			name:   "node discovery task is member of audit feature via feature gate",
-			taskID: nodeDiscoveryTask.UntypedID().String(),
-			want: destination{
-				kind:      destinationFeatureMember,
-				featureID: featureAuditTask.UntypedID().String(),
-			},
-		},
-		{
-			name:   "feature audit is feature itself",
+			name:   "feature audit routes to its own feature section",
 			taskID: featureAuditTask.UntypedID().String(),
 			want: destination{
-				kind:      destinationFeature,
-				featureID: featureAuditTask.UntypedID().String(),
+				kind:       destinationFeature,
+				featureIDs: []string{featureAuditTask.UntypedID().String()},
 			},
 		},
 		{
-			name:   "list event logs is member of event feature",
+			name:   "list event logs routes to Kubernetes Event Logs",
 			taskID: listEventTask.UntypedID().String(),
 			want: destination{
-				kind:      destinationFeatureMember,
-				featureID: featureEventTask.UntypedID().String(),
+				kind:       destinationFeatureMember,
+				featureIDs: []string{featureEventTask.UntypedID().String()},
 			},
 		},
 		{
-			name:   "event log mapper is member of event feature",
+			name:   "event log mapper routes to Kubernetes Event Logs",
 			taskID: eventMapperTask.UntypedID().String(),
 			want: destination{
-				kind:      destinationFeatureMember,
-				featureID: featureEventTask.UntypedID().String(),
+				kind:       destinationFeatureMember,
+				featureIDs: []string{featureEventTask.UntypedID().String()},
 			},
 		},
 		{
-			name:   "feature event is feature itself",
+			name:   "feature event routes to its own feature section",
 			taskID: featureEventTask.UntypedID().String(),
 			want: destination{
-				kind:      destinationFeature,
-				featureID: featureEventTask.UntypedID().String(),
+				kind:       destinationFeature,
+				featureIDs: []string{featureEventTask.UntypedID().String()},
 			},
 		},
 		{
-			name:   "serializer task downstream of features is shared",
+			name:   "fan-in inventory task consumed by mappers routes to Shared & Filter Context",
+			taskID: inventoryTask.UntypedID().String(),
+			want: destination{
+				kind: destinationShared,
+			},
+		},
+		{
+			name:   "fan-in inventory task with zero active producers still routes to Shared & Filter Context",
+			taskID: emptyInventoryTask.UntypedID().String(),
+			want: destination{
+				kind: destinationShared,
+			},
+		},
+		{
+			name:   "ungated discovery task feeding inventory routes to Shared & Filter Context",
+			taskID: listNodeTask.UntypedID().String(),
+			want: destination{
+				kind: destinationShared,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := resolver.destinationOf(tc.taskID)
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(destination{})); diff != "" {
+				t.Errorf("destinationOf(%q) mismatch (-want +got):\n%s", tc.taskID, diff)
+			}
+		})
+	}
+}
+
+func TestSectionResolver_BoundariesAndMultiFeatureFanOut(t *testing.T) {
+	tagNodeNames := coretask.NewTag[any]("test-gated-node-names")
+
+	formHelperTask := newTestTask("form-autocomplete-helper")
+	formTask := newTestTaskWithBind("form-cluster-name", func(b *coretask.Binder) {
+		coretask.Use(b, formHelperTask.ID().Ref())
+	}, inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
+
+	inventoryTask := inspectiontaskbase.DefineInventoryTask(
+		taskid.NewDefaultImplementationID[any]("inventory-node-names"),
+		tagNodeNames,
+		func(results []any) (any, error) { return results, nil },
+	)
+
+	// Shared downstream consumer of inventory, required by both features at unequal hop distances (2 hops to audit, 1 hop to event).
+	sharedPatternFinderTask := newTestTaskWithBind("resource-uid-pattern-finder", func(b *coretask.Binder) {
+		coretask.Use(b, inventoryTask.ID().Ref())
+	})
+
+	listAuditTask := newTestTaskWithBind("list-audit-logs", func(b *coretask.Binder) {
+		coretask.Use(b, formTask.ID().Ref())
+	})
+	auditExtractorTask := newTestTaskWithBind("audit-log-extractor", func(b *coretask.Binder) {
+		coretask.Use(b, listAuditTask.ID().Ref())
+	})
+	auditMapperTask := newTestTaskWithBind("audit-log-mapper", func(b *coretask.Binder) {
+		coretask.Use(b, auditExtractorTask.ID().Ref())
+		coretask.Use(b, sharedPatternFinderTask.ID().Ref())
+	})
+	// Task required by feature-audit, but only optionally referenced by event-log-mapper.
+	auditOnlyProducerTask := newTestTask("audit-manifest-table")
+	featureAuditConsumerTask := newTestTaskWithBind("audit-manifest-consumer", func(b *coretask.Binder) {
+		coretask.Use(b, auditOnlyProducerTask.ID().Ref())
+	})
+	featureAuditTask := newTestTaskWithBind("feature-audit", func(b *coretask.Binder) {
+		coretask.Use(b, auditMapperTask.ID().Ref())
+		coretask.Use(b, featureAuditConsumerTask.ID().Ref())
+	}, inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 10, true))
+
+	gatedDiscoveryTask := newTestTaskWithBind("discovery-node-names", func(b *coretask.Binder) {
+		coretask.Use(b, listAuditTask.ID().Ref())
+	}, coretask.ProvidesTag(tagNodeNames), coretask.WithFeatureGate(featureAuditTask.ID().Ref()))
+
+	listEventTask := newTestTaskWithBind("list-event-logs", func(b *coretask.Binder) {
+		coretask.Use(b, formTask.ID().Ref())
+	})
+	eventMapperTask := newTestTaskWithBind("event-log-mapper", func(b *coretask.Binder) {
+		coretask.Use(b, listEventTask.ID().Ref())
+		coretask.UseOptional(b, auditOnlyProducerTask.ID().Ref(coretask.FromActiveGraph))
+	})
+	featureEventTask := newTestTaskWithBind("feature-event", func(b *coretask.Binder) {
+		coretask.Use(b, eventMapperTask.ID().Ref())
+		coretask.Use(b, sharedPatternFinderTask.ID().Ref())
+	}, inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 1, true))
+
+	serializerTask := newTestTaskWithBind("serializer", func(b *coretask.Binder) {
+		coretask.UseOptional(b, featureAuditTask.ID().Ref(coretask.FromActiveGraph))
+		coretask.UseOptional(b, featureEventTask.ID().Ref(coretask.FromActiveGraph))
+	}, coretask.NewRequiredTaskLabel())
+
+	// Also test a helper upstream of an ungated discovery task: stops at fan-in boundary -> Shared.
+	ungatedDiscoveryHelperTask := newTestTask("ungated-discovery-helper")
+	ungatedDiscoveryTask := newTestTaskWithBind("ungated-discovery", func(b *coretask.Binder) {
+		coretask.Use(b, ungatedDiscoveryHelperTask.ID().Ref())
+	}, coretask.ProvidesTag(tagNodeNames))
+
+	available := []coretask.UntypedTask{
+		formHelperTask,
+		formTask,
+		inventoryTask,
+		sharedPatternFinderTask,
+		listAuditTask,
+		auditExtractorTask,
+		auditMapperTask,
+		auditOnlyProducerTask,
+		featureAuditConsumerTask,
+		featureAuditTask,
+		gatedDiscoveryTask,
+		listEventTask,
+		eventMapperTask,
+		featureEventTask,
+		serializerTask,
+		ungatedDiscoveryHelperTask,
+		ungatedDiscoveryTask,
+	}
+	taskGraph, err := coretask.ResolveGraph([]coretask.UntypedTask{featureAuditTask, featureEventTask}, available, nil)
+	if err != nil {
+		t.Fatalf("ResolveGraph() unexpected error: %v", err)
+	}
+
+	resolver := newSectionResolver(taskGraph)
+
+	testCases := []struct {
+		name   string
+		taskID string
+		want   destination
+	}{
+		{
+			name:   "helper upstream of form task stops at form boundary and routes to shared",
+			taskID: formHelperTask.UntypedID().String(),
+			want: destination{
+				kind: destinationShared,
+			},
+		},
+		{
+			name:   "feature-gated discovery task belongs to its gated feature",
+			taskID: gatedDiscoveryTask.UntypedID().String(),
+			want: destination{
+				kind:       destinationFeatureMember,
+				featureIDs: []string{featureAuditTask.UntypedID().String()},
+			},
+		},
+		{
+			name:   "list audit logs stays exclusively in audit feature without leaking through gated discovery",
+			taskID: listAuditTask.UntypedID().String(),
+			want: destination{
+				kind:       destinationFeatureMember,
+				featureIDs: []string{featureAuditTask.UntypedID().String()},
+			},
+		},
+		{
+			name:   "UseOptional does not pull audit producer into event feature",
+			taskID: auditOnlyProducerTask.UntypedID().String(),
+			want: destination{
+				kind:       destinationFeatureMember,
+				featureIDs: []string{featureAuditTask.UntypedID().String()},
+			},
+		},
+		{
+			name:   "task required by multiple features at unequal hop distances fans out to all reachable features",
+			taskID: sharedPatternFinderTask.UntypedID().String(),
+			want: destination{
+				kind: destinationFeatureMember,
+				featureIDs: []string{
+					featureAuditTask.UntypedID().String(),
+					featureEventTask.UntypedID().String(),
+				},
+			},
+		},
+		{
+			name:   "helper upstream of ungated discovery routes to shared",
+			taskID: ungatedDiscoveryHelperTask.UntypedID().String(),
+			want: destination{
+				kind: destinationShared,
+			},
+		},
+		{
+			name:   "serializer downstream of features routes to shared",
 			taskID: serializerTask.UntypedID().String(),
 			want: destination{
 				kind: destinationShared,
@@ -173,33 +368,9 @@ func TestSectionResolver(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := resolver.destinationOf(tc.taskID)
 			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(destination{})); diff != "" {
-				t.Errorf("destinationOf() mismatch (-want +got):\n%s", diff)
+				t.Errorf("destinationOf(%q) mismatch (-want +got):\n%s", tc.taskID, diff)
 			}
 		})
-	}
-}
-
-func TestSectionResolverTieBreak(t *testing.T) {
-	feature1 := newTestTask("feature-1", inspectioncore.FeatureTaskLabel("Feature One", "", 10, false))
-	feature2 := newTestTask("feature-2", inspectioncore.FeatureTaskLabel("Feature Two", "", 5, false))
-	taskSharedChild := newTestTask("task-split")
-
-	tasks := []coretask.UntypedTask{feature1, feature2, taskSharedChild}
-	edges := []taskid.TaskEdge{
-		newTestEdge(taskSharedChild.UntypedID().String(), feature1.UntypedID().String()),
-		newTestEdge(taskSharedChild.UntypedID().String(), feature2.UntypedID().String()),
-	}
-
-	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)
-	resolver := newSectionResolver(taskGraph)
-
-	want := destination{
-		kind:      destinationFeatureMember,
-		featureID: feature2.UntypedID().String(),
-	}
-	got := resolver.destinationOf(taskSharedChild.UntypedID().String())
-	if diff := cmp.Diff(want, got, cmp.AllowUnexported(destination{})); diff != "" {
-		t.Errorf("destinationOf() tie-break mismatch (-want +got):\n%s", diff)
 	}
 }
 

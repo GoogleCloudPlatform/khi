@@ -258,6 +258,7 @@ func fetchLogsForStructuredQueries(
 	tracker := progress.NewRatioTracker(ctx, progress.WithUnit("logs"))
 	defer tracker.Done()
 	totalLogsFetched := 0
+	queryLogCounts := make([]int, len(queries))
 	allLogSlices := make([][]*log.Log, 0, len(queries)*len(groups))
 	for queryIndex, q := range queries {
 		filterString := q.GenerateCloudLoggingQuery()
@@ -277,6 +278,7 @@ func fetchLogsForStructuredQueries(
 			if err != nil {
 				return nil, setErrorMetadataForFetchLogError(ctx, err)
 			}
+			queryLogCounts[queryIndex] += len(logs)
 			totalLogsFetched += len(logs)
 			allLogSlices = append(allLogSlices, logs)
 		}
@@ -285,7 +287,9 @@ func fetchLogsForStructuredQueries(
 	allLogs := kwaymerge.Merge(allLogSlices, func(a, b *log.Log) int {
 		return a.Timestamp.Compare(b.Timestamp)
 	})
-	summary.RecordQueryLogCount(ctx, taskID, len(allLogs))
+	for queryIndex, logCount := range queryLogCounts {
+		summary.RecordQueryLogCount(ctx, summaryQueryID(taskID, queryIndex, len(queries)), logCount)
+	}
 
 	tracingActive, _ := khictx.GetValue(ctx, inspectioncore.TracingActive)
 	if tracingActive {
@@ -330,8 +334,16 @@ func setStructuredQueryInfoWithPendingAndPreset(ctx context.Context, taskID, bas
 	default:
 		queryInfo.SetQuery(taskID, logFilterName, finalFilter)
 	}
-	summary.RecordQuery(ctx, taskID, logFilterName, finalFilter)
+	summary.RecordQuery(ctx, summaryQueryID(taskID, logFilterIndex, totalLogFilterCount), logFilterName, finalFilter)
 	return nil
+}
+
+// summaryQueryID returns a summary query identifier that stays unique across split queries while preserving lexicographical execution order.
+func summaryQueryID(taskID string, queryIndex, totalQueryCount int) string {
+	if totalQueryCount <= 1 {
+		return taskID
+	}
+	return fmt.Sprintf("%s#%04d", taskID, queryIndex)
 }
 
 // maxResourceNameCountPerRequest is the maximum allowed count of resource names per single entries.list. The default quota is 100.

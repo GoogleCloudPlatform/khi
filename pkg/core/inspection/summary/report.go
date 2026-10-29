@@ -47,9 +47,13 @@ func (c *Collector) setProperty(callerID, key, value string) {
 	case destinationForm:
 		c.common.set(key, value)
 	case destinationFeature:
-		c.getOrCreateSection(dest.featureID).properties.set(key, value)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).properties.set(key, value)
+		}
 	case destinationFeatureMember:
-		c.getOrCreateSection(dest.featureID).getOrCreateTaskReport(callerID).properties.set(key, value)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).getOrCreateTaskReport(callerID).properties.set(key, value)
+		}
 	case destinationShared:
 		c.getOrCreateShared().properties.set(key, value)
 	}
@@ -63,9 +67,13 @@ func (c *Collector) addIntProperty(callerID, key string, delta int) {
 	case destinationForm:
 		c.common.addInt(key, delta)
 	case destinationFeature:
-		c.getOrCreateSection(dest.featureID).properties.addInt(key, delta)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).properties.addInt(key, delta)
+		}
 	case destinationFeatureMember:
-		c.getOrCreateSection(dest.featureID).getOrCreateTaskReport(callerID).properties.addInt(key, delta)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).getOrCreateTaskReport(callerID).properties.addInt(key, delta)
+		}
 	case destinationShared:
 		c.getOrCreateShared().properties.addInt(key, delta)
 	}
@@ -79,9 +87,13 @@ func (c *Collector) addToSetProperty(callerID, key, value string) {
 	case destinationForm:
 		c.common.addToSet(key, value)
 	case destinationFeature:
-		c.getOrCreateSection(dest.featureID).properties.addToSet(key, value)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).properties.addToSet(key, value)
+		}
 	case destinationFeatureMember:
-		c.getOrCreateSection(dest.featureID).getOrCreateTaskReport(callerID).properties.addToSet(key, value)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).getOrCreateTaskReport(callerID).properties.addToSet(key, value)
+		}
 	case destinationShared:
 		c.getOrCreateShared().properties.addToSet(key, value)
 	}
@@ -93,7 +105,9 @@ func (c *Collector) addFeatureIntProperty(callerID, key string, delta int) {
 	dest := c.resolver.destinationOf(callerID)
 	switch dest.kind {
 	case destinationFeature, destinationFeatureMember:
-		c.getOrCreateSection(dest.featureID).properties.addInt(key, delta)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).properties.addInt(key, delta)
+		}
 	case destinationForm:
 		c.common.addInt(key, delta)
 	case destinationShared:
@@ -110,9 +124,13 @@ func (c *Collector) appendMarkdown(callerID, markdown string) {
 	dest := c.resolver.destinationOf(callerID)
 	switch dest.kind {
 	case destinationFeature:
-		c.getOrCreateSection(dest.featureID).appendInsight(markdown)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).appendInsight(markdown)
+		}
 	case destinationFeatureMember:
-		c.getOrCreateSection(dest.featureID).getOrCreateTaskReport(callerID).appendMarkdown(markdown)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).getOrCreateTaskReport(callerID).appendMarkdown(markdown)
+		}
 	case destinationForm, destinationShared:
 		c.getOrCreateShared().appendInsight(markdown)
 	}
@@ -124,7 +142,9 @@ func (c *Collector) recordQuery(callerID, id, name, text string) {
 	dest := c.resolver.destinationOf(callerID)
 	switch dest.kind {
 	case destinationFeature, destinationFeatureMember:
-		c.getOrCreateSection(dest.featureID).recordQuery(id, name, text)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).recordQuery(id, name, text)
+		}
 	case destinationForm, destinationShared:
 		c.getOrCreateShared().recordQuery(id, name, text)
 	}
@@ -136,7 +156,9 @@ func (c *Collector) recordQueryLogCount(callerID, id string, logCount int) {
 	dest := c.resolver.destinationOf(callerID)
 	switch dest.kind {
 	case destinationFeature, destinationFeatureMember:
-		c.getOrCreateSection(dest.featureID).recordQueryLogCount(id, logCount)
+		for _, featureID := range dest.featureIDs {
+			c.getOrCreateSection(featureID).recordQueryLogCount(id, logCount)
+		}
 	case destinationForm, destinationShared:
 		c.getOrCreateShared().recordQueryLogCount(id, logCount)
 	}

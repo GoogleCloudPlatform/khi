@@ -146,6 +146,8 @@ type TaskEdge struct {
 	TargetImplID string
 	// Cardinality indicates whether this edge originated from a point-to-point or fan-in dependency.
 	Cardinality EdgeCardinality
+	// Scope indicates the dependency resolution scope that created this edge.
+	Scope DependencyScope
 	// Tag is the tag identifier if this edge originated from a fan-in dependency.
 	Tag string
 	// Priority specifies the precedence weight of this edge during graph resolution and cycle pruning.
