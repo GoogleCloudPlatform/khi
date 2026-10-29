@@ -17,6 +17,7 @@ package csm
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -40,6 +41,7 @@ var (
 	pathLocation               = structured.CompileFieldPath("resource.labels.location")
 	pathRevision               = structured.CompileFieldPath("resource.labels.revision")
 	pathJSONPayloadMessage     = structured.CompileFieldPath("jsonPayload.message")
+	pathJSONPayloadTimestamp   = structured.CompileFieldPath("jsonPayload.timestamp")
 	pathTextPayload            = structured.CompileFieldPath("textPayload")
 )
 
@@ -114,6 +116,7 @@ type CSMControlPlaneLogFieldSet struct {
 	Location  string
 	Revision  string
 	Message   string
+	Timestamp *time.Time
 	Pods      []commoncsmcp.PodIdentifier
 }
 
@@ -132,11 +135,16 @@ func ExtractCSMControlPlaneLog(reader *structured.NodeReader) (CSMControlPlaneLo
 			pods = append(pods, *p)
 		}
 	}
+	var timestamp *time.Time
+	if ts, err := reader.ReadTimestamp(pathJSONPayloadTimestamp); err == nil {
+		timestamp = &ts
+	}
 	return CSMControlPlaneLogFieldSet{
 		ProjectID: reader.ReadStringOrDefault(pathProjectID, ""),
 		Location:  reader.ReadStringOrDefault(pathLocation, ""),
 		Revision:  reader.ReadStringOrDefault(pathRevision, ""),
 		Message:   message,
+		Timestamp: timestamp,
 		Pods:      pods,
 	}, nil
 }

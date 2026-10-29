@@ -47,6 +47,9 @@ func ingestCSMControlPlaneLog(ctx context.Context, l *log.Log) (*khifilev6.LogCh
 		return nil, err
 	}
 	cs.SetSummary(fs.Message)
+	if fs.Timestamp != nil {
+		cs.SetTimestamp(*fs.Timestamp)
+	}
 
 	return cs, nil
 }
@@ -107,13 +110,18 @@ func mapCSMControlPlaneLog(
 	timelinePath := csm.MustCSMControlPlaneTimeline(ctx)
 	cs.AddEvent(timelinePath)
 
+	changedTime := l.Timestamp
+	if fs.Timestamp != nil {
+		changedTime = *fs.Timestamp
+	}
+
 	if commoncsmcp.IsXDSLog(fs.Message) && clusterIdentity.ClusterName != "" && len(fs.Pods) > 0 {
 		nextGroupData := commoncsmcp.MapPodAndConnectionTimelines(
 			ctx,
 			cs,
 			clusterIdentity.ClusterName,
 			fs.Message,
-			l.Timestamp,
+			changedTime,
 			fs.Pods,
 			prevGroupData,
 		)

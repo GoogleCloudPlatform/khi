@@ -16,6 +16,7 @@ package csm
 
 import (
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
@@ -179,6 +180,7 @@ resource:
 }
 
 func TestExtractCSMControlPlaneLog(t *testing.T) {
+	parsedTS := time.Date(2026, time.July, 3, 15, 46, 12, 0, time.UTC)
 	testCases := []struct {
 		desc    string
 		input   string
@@ -208,7 +210,7 @@ jsonPayload:
 			},
 		},
 		{
-			desc: "jsonPayload with pods",
+			desc: "jsonPayload with pods and timestamp",
 			input: `
 resource:
   type: istio_control_plane
@@ -218,12 +220,14 @@ resource:
     revision: "asm-managed"
 jsonPayload:
   message: "ADS: new delta connection for node:my-pod.default-12 and other-pod.kube-system"
+  timestamp: "2026-07-03T15:46:12Z"
 `,
 			want: CSMControlPlaneLogFieldSet{
 				ProjectID: "fleet-project",
 				Location:  "us-central1",
 				Revision:  "asm-managed",
 				Message:   "ADS: new delta connection for node:my-pod.default-12 and other-pod.kube-system",
+				Timestamp: &parsedTS,
 				Pods: []commoncsmcp.PodIdentifier{
 					{Name: "my-pod", Namespace: "default", ConnectionID: "12"},
 					{Name: "other-pod", Namespace: "kube-system"},
