@@ -52,7 +52,7 @@ func TestParseIDArgument(t *testing.T) {
 
 func TestWorkbenchHandler_DetailToolErrors(t *testing.T) {
 	mgr, inspectionID := newTestWorkbenchManager(t)
-	handler := NewWorkbenchHandler(mgr, nil)
+	handler := NewWorkbenchHandler(mgr, nil, nil)
 
 	revisionIndex := 0
 	at := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)

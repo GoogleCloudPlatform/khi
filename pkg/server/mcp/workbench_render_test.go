@@ -18,6 +18,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +29,30 @@ import (
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+func TestRenderTimelines_Golden(t *testing.T) {
+	startTime := time.Date(2026, 9, 24, 1, 0, 0, 0, time.UTC)
+	endTime := time.Date(2026, 9, 24, 2, 0, 0, 0, time.UTC)
+	verifyTemplateGolden(t, "render_timelines.md.tmpl", renderTimelinesTemplateData{
+		RenderedCount:   8,
+		TotalMatched:    8,
+		HasMore:         false,
+		MaxAllowedNodes: maxRenderMaxNodes,
+		Width:           1600,
+		Height:          460,
+		ViewStartTime:   startTime,
+		ViewEndTime:     endTime,
+		ImageURL:        "http://127.0.0.1:8080/api/v1/rendered-timelines/ABCDEF.png",
+		ExpiresAt:       time.Date(2026, 9, 24, 2, 30, 0, 0, time.UTC),
+		Applied: workbench.AppliedFilter{
+			TimelineQuery:               `timelineType == "Pod"`,
+			LogQuery:                    `severity >= WARNING`,
+			StartTime:                   startTime,
+			EndTime:                     endTime,
+			ExcludeTimelinesWithoutLogs: true,
+		},
+	}, "testdata/render_timelines.golden.md")
+}
 
 type fakeTimelineImageRenderer struct {
 	gotReq *TimelineRenderRequest
@@ -63,9 +89,12 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	wantInvalidCELResult, _, _ := mdtemplate.CELErrorResult("filter.timelineQuery", "invalid &&& syntax", invalidCELErr)
 
 	type renderTestOutcome struct {
-		Result  *mcpsdk.CallToolResult
-		Request *TimelineRenderRequest
+		Result    *mcpsdk.CallToolResult
+		Request   *TimelineRenderRequest
+		ServedPNG []byte
 	}
+
+	const placeholderURL = testRenderedTimelineBaseURL + "<TOKEN>.png"
 
 	testCases := []struct {
 		name     string
@@ -74,7 +103,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 		want     renderTestOutcome
 	}{
 		{
-			name: "valid render_timelines returns PNG ImageContent and Markdown TextContent",
+			name: "valid render_timelines returns PNG ImageContent, image URL, and Markdown TextContent",
 			renderer: &fakeTimelineImageRenderer{
 				result: &TimelineRenderResult{
 					PNGBytes:        fakePNG,
@@ -103,6 +132,15 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 								"",
 								"Rendered 8 of 8 matched timelines (1600x460 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"",
+								"- Image URL: `" + placeholderURL + "`",
+								"- Expires at: <EXPIRES_AT>",
+								"",
+								"Embed the image in Markdown (`![Timeline](" + placeholderURL + ")`) or download the PNG before it expires:",
+								"",
+								"```sh",
+								"curl --fail-with-body -o timeline.png '" + placeholderURL + "'",
+								"```",
+								"",
 								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
 							}, "\n"),
 						},
@@ -113,6 +151,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					MaxNodes:     defaultRenderMaxNodes,
 					Width:        defaultRenderWidth,
 				},
+				ServedPNG: fakePNG,
 			},
 		},
 		{
@@ -156,6 +195,15 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 								"Rendered 20 of 75 matched timelines (1200x800 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to 150) to render omitted timelines.",
 								"",
+								"- Image URL: `" + placeholderURL + "`",
+								"- Expires at: <EXPIRES_AT>",
+								"",
+								"Embed the image in Markdown (`![Timeline](" + placeholderURL + ")`) or download the PNG before it expires:",
+								"",
+								"```sh",
+								"curl --fail-with-body -o timeline.png '" + placeholderURL + "'",
+								"```",
+								"",
 								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
 									TimelineQuery:               `timelineType == "Pod"`,
 									LogQuery:                    `severity >= WARNING`,
@@ -181,6 +229,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					Width:              1200,
 					TimezoneShiftHours: 9,
 				},
+				ServedPNG: fakePNG,
 			},
 		},
 		{
@@ -261,19 +310,71 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := NewWorkbenchHandler(mgr, tc.renderer)
+			imageStore := NewRenderedTimelineStore(testRenderedTimelineBaseURL, DefaultRenderedTimelineTTL)
+			handler := NewWorkbenchHandler(mgr, tc.renderer, imageStore)
+			before := time.Now().UTC().Truncate(time.Second)
 
 			res, _, err := handler.handleRenderTimelines(context.Background(), nil, tc.input)
 			if err != nil {
 				t.Fatalf("handleRenderTimelines() unexpected error = %v", err)
 			}
+
+			var servedPNG []byte
+			if res != nil && !res.IsError && len(res.Content) >= 2 {
+				if textContent, ok := res.Content[1].(*mcpsdk.TextContent); ok {
+					issuedURL, expiresAtStr := extractRenderedImageMetadata(t, textContent.Text)
+					expiresAt, parseErr := time.Parse(time.RFC3339, expiresAtStr)
+					if parseErr != nil {
+						t.Fatalf("Expires at %q failed RFC3339 parse: %v", expiresAtStr, parseErr)
+					}
+					if expiresAt.Before(before.Add(DefaultRenderedTimelineTTL)) {
+						t.Errorf("Expires at = %v, want at least %v", expiresAt, before.Add(DefaultRenderedTimelineTTL))
+					}
+
+					fileName := strings.TrimPrefix(issuedURL, testRenderedTimelineBaseURL)
+					rec := httptest.NewRecorder()
+					req := httptest.NewRequest(http.MethodGet, issuedURL, nil)
+					imageStore.ServeImage(rec, req, fileName)
+					if rec.Code != http.StatusOK {
+						t.Fatalf("GET %s returned %d, want %d", issuedURL, rec.Code, http.StatusOK)
+					}
+					servedPNG = rec.Body.Bytes()
+
+					normalizedText := strings.ReplaceAll(textContent.Text, issuedURL, placeholderURL)
+					normalizedText = strings.Replace(normalizedText, "- Expires at: "+expiresAtStr, "- Expires at: <EXPIRES_AT>", 1)
+					textContent.Text = normalizedText
+				}
+			}
+
 			got := renderTestOutcome{
-				Result:  res,
-				Request: tc.renderer.gotReq,
+				Result:    res,
+				Request:   tc.renderer.gotReq,
+				ServedPNG: servedPNG,
 			}
 			if diff := cmp.Diff(tc.want, got, ignoreMCPUnexported); diff != "" {
 				t.Errorf("handleRenderTimelines() outcome mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+}
+
+func extractRenderedImageMetadata(t *testing.T, markdown string) (string, string) {
+	t.Helper()
+	const urlPrefix = "- Image URL: `"
+	_, afterURL, found := strings.Cut(markdown, urlPrefix)
+	if !found {
+		t.Fatalf("render_timelines markdown missing %q:\n%s", urlPrefix, markdown)
+	}
+	issuedURL, rest, found := strings.Cut(afterURL, "`")
+	if !found {
+		t.Fatalf("render_timelines markdown missing closing backtick for Image URL:\n%s", markdown)
+	}
+
+	const expiresPrefix = "\n- Expires at: "
+	_, afterExpires, found := strings.Cut(rest, expiresPrefix)
+	if !found {
+		t.Fatalf("render_timelines markdown missing %q:\n%s", expiresPrefix, markdown)
+	}
+	expiresAt, _, _ := strings.Cut(afterExpires, "\n")
+	return issuedURL, expiresAt
 }

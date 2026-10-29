@@ -5,4 +5,11 @@ Rendered {{ .RenderedCount }} of {{ .TotalMatched }} matched timelines ({{ .Widt
 Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to {{ .MaxAllowedNodes }}) to render omitted timelines.
 {{- end }}
 
+- Image URL: {{ code .ImageURL }}
+- Expires at: {{ time .ExpiresAt }}
+
+Embed the image in Markdown ({{ code (printf "![Timeline](%s)" .ImageURL) }}) or download the PNG before it expires:
+
+{{ fence "sh" (printf "curl --fail-with-body -o timeline.png '%s'" .ImageURL) }}
+
 {{ appliedFilter .Applied }}

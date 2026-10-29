@@ -27,7 +27,12 @@ import (
 var (
 	// MCPServerKey stores the mcp.Server instance.
 	MCPServerKey = typedmap.NewTypedKey[*mcp.Server]("khi.google.com/init/mcp-server")
+	// RenderedTimelineStoreKey stores the mcp.RenderedTimelineStore instance when timeline rendering is enabled.
+	RenderedTimelineStoreKey = typedmap.NewTypedKey[*mcp.RenderedTimelineStore]("khi.google.com/init/rendered-timeline-store")
 )
+
+// renderedTimelinesPath is the route of rendered timeline PNG URLs under the base path.
+const renderedTimelinesPath = "/api/v1/rendered-timelines/"
 
 // InitializerIDMCPServer identifies the Initializer that sets up the MCP server.
 const InitializerIDMCPServer coreinit.InitializerID = "khi.default/mcp-server"
@@ -54,24 +59,35 @@ var MCPServerInitializer = &coreinit.Initializer{
 		workbenchManager := coreinit.MustGet(ctx, WorkbenchManagerKey)
 		uploadURLIssuer := coreinit.MustGet(ctx, UploadURLIssuerKey)
 
+		router := coreinit.MustGet(ctx, GinRouterKey)
+
 		var timelineRenderer mcp.TimelineImageRenderer
+		var renderedTimelineStore *mcp.RenderedTimelineStore
 		if browser, found := coreinit.Get(ctx, CDPBrowserKey); found && browser != nil {
 			serverParams := coreinit.MustGet(ctx, ServerParametersKey)
 			basePath := coreinit.MustGet(ctx, BasePathKey)
-			renderer := mcp.NewChromeTimelineImageRenderer(browser, localServerBaseURL(*serverParams.Host, *serverParams.Port, basePath))
+			baseURL := localServerBaseURL(*serverParams.Host, *serverParams.Port, basePath)
+			renderer := mcp.NewChromeTimelineImageRenderer(browser, baseURL)
 			ctx.OnTerminate(func() error {
 				return renderer.Close()
 			})
 			timelineRenderer = renderer
+
+			renderedTimelineStore = mcp.NewRenderedTimelineStore(baseURL+renderedTimelinesPath, mcp.DefaultRenderedTimelineTTL)
+			coreinit.Set(ctx, RenderedTimelineStoreKey, renderedTimelineStore)
+			serveRenderedTimeline := func(c *gin.Context) {
+				renderedTimelineStore.ServeImage(c.Writer, c.Request, c.Param("fileName"))
+			}
+			router.GET(renderedTimelinesPath+":fileName", serveRenderedTimeline)
+			router.HEAD(renderedTimelinesPath+":fileName", serveRenderedTimeline)
 		}
 
 		srv := mcp.NewServer(
 			mcp.NewInspectionHandler(inspectionServer, uploadURLIssuer),
-			mcp.NewWorkbenchHandler(workbenchManager, timelineRenderer),
+			mcp.NewWorkbenchHandler(workbenchManager, timelineRenderer, renderedTimelineStore),
 		)
 		coreinit.Set(ctx, MCPServerKey, srv)
 
-		router := coreinit.MustGet(ctx, GinRouterKey)
 		router.Any("/mcp", gin.WrapH(srv.HTTPHandler()))
 		router.Any("/mcp/sse", gin.WrapH(srv.SSEHandler()))
 		return nil

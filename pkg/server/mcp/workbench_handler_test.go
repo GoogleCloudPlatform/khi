@@ -97,7 +97,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 			name: "shares workbench opened by browser without reloading",
 			run: func(t *testing.T) {
 				mgr, inspectionID := newTestWorkbenchManager(t)
-				handler := NewWorkbenchHandler(mgr, nil)
+				handler := NewWorkbenchHandler(mgr, nil, nil)
 
 				ctx := context.Background()
 				browserWB, err := mgr.Open(ctx, inspectionID, workbench.AccessorBrowser, func(apiv1.OpenWorkbenchResponse_Stage, float64, string) error { return nil })
@@ -125,7 +125,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 			name: "returns inspection not found for unknown inspection ID",
 			run: func(t *testing.T) {
 				mgr, _ := newTestWorkbenchManager(t)
-				handler := NewWorkbenchHandler(mgr, nil)
+				handler := NewWorkbenchHandler(mgr, nil, nil)
 
 				gotWB, toolRes, err := handler.acquireWorkbench(context.Background(), "unknown-id")
 				if err != nil {
@@ -146,7 +146,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 			name: "returns WORKBENCH_LOADING when wait timeout expires and succeeds on retry",
 			run: func(t *testing.T) {
 				mgr, inspectionID := newTestWorkbenchManager(t)
-				handler := NewWorkbenchHandler(mgr, nil)
+				handler := NewWorkbenchHandler(mgr, nil, nil)
 				handler.waitTimeout = 0
 
 				ctx := context.Background()

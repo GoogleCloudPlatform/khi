@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -36,13 +37,14 @@ func TestMCPServerInitializer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	testCases := []struct {
-		name           string
-		jobMode        bool
-		withCDPBrowser bool
-		basePath       string
-		wantMCP        bool
-		wantRenderTool bool
-		wantNotFound   []string
+		name                      string
+		jobMode                   bool
+		withCDPBrowser            bool
+		basePath                  string
+		wantMCP                   bool
+		wantRenderTool            bool
+		wantRenderedTimelineStore bool
+		wantNotFound              []string
 	}{
 		{
 			name:    "skips initialization in job mode",
@@ -54,14 +56,24 @@ func TestMCPServerInitializer(t *testing.T) {
 			wantMCP:  true,
 		},
 		{
-			name:           "mounts endpoints with render_timelines when CDPBrowserKey is present",
-			withCDPBrowser: true,
-			basePath:       "/khi-base",
-			wantMCP:        true,
-			wantRenderTool: true,
+			name:                      "mounts endpoints with render_timelines at root base path",
+			withCDPBrowser:            true,
+			basePath:                  "",
+			wantMCP:                   true,
+			wantRenderTool:            true,
+			wantRenderedTimelineStore: true,
+		},
+		{
+			name:                      "mounts endpoints with render_timelines under custom base path",
+			withCDPBrowser:            true,
+			basePath:                  "/khi-base",
+			wantMCP:                   true,
+			wantRenderTool:            true,
+			wantRenderedTimelineStore: true,
 			wantNotFound: []string{
 				"/mcp",
 				"/mcp/sse",
+				"/api/v1/rendered-timelines/missing.png",
 			},
 		},
 	}
@@ -113,8 +125,41 @@ func TestMCPServerInitializer(t *testing.T) {
 				t.Errorf("coreinit.Get(MCPServerKey) found = %v, want %v", found, tc.wantMCP)
 			}
 
+			imageStore, storeFound := coreinit.Get(ctx, RenderedTimelineStoreKey)
+			if storeFound != tc.wantRenderedTimelineStore {
+				t.Errorf("coreinit.Get(RenderedTimelineStoreKey) found = %v, want %v", storeFound, tc.wantRenderedTimelineStore)
+			}
+
 			if !tc.wantMCP {
 				return
+			}
+
+			if tc.wantRenderedTimelineStore {
+				pngBytes := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+				grant := imageStore.Issue(pngBytes)
+
+				getReq := httptest.NewRequest(http.MethodGet, grant.URL, nil)
+				getRec := httptest.NewRecorder()
+				ginEngine.ServeHTTP(getRec, getReq)
+				if getRec.Code != http.StatusOK {
+					t.Errorf("GET %s returned %d, want %d: %s", grant.URL, getRec.Code, http.StatusOK, getRec.Body.String())
+				}
+				if gotType := getRec.Header().Get("Content-Type"); gotType != "image/png" {
+					t.Errorf("GET %s Content-Type = %q, want %q", grant.URL, gotType, "image/png")
+				}
+				if diff := cmp.Diff(pngBytes, getRec.Body.Bytes()); diff != "" {
+					t.Errorf("GET %s body mismatch (-want +got):\n%s", grant.URL, diff)
+				}
+
+				headReq := httptest.NewRequest(http.MethodHead, grant.URL, nil)
+				headRec := httptest.NewRecorder()
+				ginEngine.ServeHTTP(headRec, headReq)
+				if headRec.Code != http.StatusOK {
+					t.Errorf("HEAD %s returned %d, want %d", grant.URL, headRec.Code, http.StatusOK)
+				}
+				if headRec.Body.Len() != 0 {
+					t.Errorf("HEAD %s body len = %d, want 0", grant.URL, headRec.Body.Len())
+				}
 			}
 
 			for _, path := range tc.wantNotFound {
