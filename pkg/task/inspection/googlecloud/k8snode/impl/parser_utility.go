@@ -69,11 +69,17 @@ func readNextQuotedString(msg string) string {
 // readQuotedFieldFromString extracts the value of a quoted key-value field (e.g., key:"value") from message.
 func readQuotedFieldFromString(message string, key string) string {
 	prefix := key + ":"
-	for i := 0; i <= len(message)-len(prefix); i++ {
-		if (i == 0 || message[i-1] == ' ' || message[i-1] == '\t' || message[i-1] == '{' || message[i-1] == ',') &&
-			strings.HasPrefix(message[i:], prefix) {
-			return readNextQuotedString(message[i+len(prefix):])
+	pos := 0
+	for {
+		idx := strings.Index(message[pos:], prefix)
+		if idx == -1 {
+			break
 		}
+		realIdx := pos + idx
+		if realIdx == 0 || message[realIdx-1] == ' ' || message[realIdx-1] == '\t' || message[realIdx-1] == '{' || message[realIdx-1] == ',' {
+			return readNextQuotedString(message[realIdx+len(prefix):])
+		}
+		pos = realIdx + 1
 	}
 	return ""
 }

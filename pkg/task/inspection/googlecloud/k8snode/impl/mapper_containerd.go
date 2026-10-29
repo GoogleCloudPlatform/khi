@@ -180,22 +180,22 @@ func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) 
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
 	}
 	if strings.HasPrefix(msg, "RunPodSandbox") {
-		splitted := strings.Split(msg, "returns sandbox id")
-		if len(splitted) < 2 {
+		before, after, found := strings.Cut(msg, "returns sandbox id")
+		if !found {
 			return nil, fmt.Errorf("pod index information not found:%w", khierrors.ErrNotFound)
 		}
-		sandboxID := readNextQuotedString(splitted[1])
+		sandboxID := readNextQuotedString(after)
 		if sandboxID == "" {
 			return nil, fmt.Errorf("pod index information not found:%w", khierrors.ErrNotFound)
 		}
-		fields := readGoStructFromString(splitted[0], "PodSandboxMetadata")
+		fields := readGoStructFromString(before, "PodSandboxMetadata")
 		podName := fields["Name"]
 		podNamespace := fields["Namespace"]
 		if podName == "" {
-			podName = readQuotedFieldFromString(splitted[0], "name")
+			podName = readQuotedFieldFromString(before, "name")
 		}
 		if podNamespace == "" {
-			podNamespace = readQuotedFieldFromString(splitted[0], "namespace")
+			podNamespace = readQuotedFieldFromString(before, "namespace")
 		}
 		if podName != "" && podNamespace != "" {
 			return &k8snode.PodSandboxIDInfo{
@@ -226,26 +226,26 @@ func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
 	}
 	if strings.HasPrefix(msg, "CreateContainer") {
-		splitted := strings.Split(msg, "within sandbox")
-		if len(splitted) < 2 {
+		_, afterSandbox, foundSandbox := strings.Cut(msg, "within sandbox")
+		if !foundSandbox {
 			return nil, fmt.Errorf("failed to read the sandbox Id from container starting log")
 		}
-		sandboxID := readNextQuotedString(splitted[1])
+		sandboxID := readNextQuotedString(afterSandbox)
 		if sandboxID == "" {
 			return nil, fmt.Errorf("failed to read the sandbox Id from container starting log")
 		}
-		splitted = strings.Split(msg, "returns container id")
-		if len(splitted) < 2 {
+		beforeContainer, afterContainer, foundContainer := strings.Cut(msg, "returns container id")
+		if !foundContainer {
 			return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 		}
-		containerID := readNextQuotedString(splitted[1])
+		containerID := readNextQuotedString(afterContainer)
 		if containerID == "" {
 			return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 		}
-		fields := readGoStructFromString(splitted[0], "ContainerMetadata")
+		fields := readGoStructFromString(beforeContainer, "ContainerMetadata")
 		containerName := fields["Name"]
 		if containerName == "" {
-			containerName = readQuotedFieldFromString(splitted[0], "name")
+			containerName = readQuotedFieldFromString(beforeContainer, "name")
 		}
 		if containerName != "" {
 			return &k8saudit.ContainerIdentity{
