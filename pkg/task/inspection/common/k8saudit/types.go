@@ -131,12 +131,16 @@ func (r *ResourceIdentity) SummaryTag() string {
 
 var _ resourcelease.LeaseHolder = (*ResourceIdentity)(nil)
 
+// ContainerIdentity represents the identity of a container and its owning pod.
 type ContainerIdentity struct {
 	ContainerID   string
 	ContainerName string
 	PodSandboxID  string
+	PodNamespace  string
+	PodName       string
 }
 
+// Merge combines two ContainerIdentity instances, preferring non-empty fields from other.
 func (c *ContainerIdentity) Merge(other *ContainerIdentity) *ContainerIdentity {
 	result := *c
 	if other.ContainerID != "" {
@@ -147,6 +151,12 @@ func (c *ContainerIdentity) Merge(other *ContainerIdentity) *ContainerIdentity {
 	}
 	if other.PodSandboxID != "" {
 		result.PodSandboxID = other.PodSandboxID
+	}
+	if other.PodNamespace != "" {
+		result.PodNamespace = other.PodNamespace
+	}
+	if other.PodName != "" {
+		result.PodName = other.PodName
 	}
 	return &result
 }

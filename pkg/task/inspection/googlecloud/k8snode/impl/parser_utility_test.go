@@ -109,6 +109,49 @@ func TestReadNextQuotedString(t *testing.T) {
 	}
 }
 
+func TestReadQuotedFieldFromString(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		key   string
+		want  string
+	}{
+		{
+			desc:  "extracts name from modern RunPodSandbox log",
+			input: `RunPodSandbox for name:"test-pod" uid:"502b6c2c-2b55-432b-82ef-d7fb496787e5" namespace:"default"`,
+			key:   "name",
+			want:  "test-pod",
+		},
+		{
+			desc:  "extracts namespace from modern RunPodSandbox log",
+			input: `RunPodSandbox for name:"test-pod" uid:"502b6c2c-2b55-432b-82ef-d7fb496787e5" namespace:"default"`,
+			key:   "namespace",
+			want:  "default",
+		},
+		{
+			desc:  "extracts name from modern CreateContainer log",
+			input: `CreateContainer within sandbox "bac5e92576b0acc56fc8e1e6bdd047a5b029e3df09d86ceba784a9f908eebabc" for name:"test-container"`,
+			key:   "name",
+			want:  "test-container",
+		},
+		{
+			desc:  "returns empty string when key is missing",
+			input: `RunPodSandbox for name:"pod-1"`,
+			key:   "namespace",
+			want:  "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := readQuotedFieldFromString(tc.input, tc.key)
+			if got != tc.want {
+				t.Errorf("readQuotedFieldFromString(%q, %q) = %q, want %q", tc.input, tc.key, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestSlashSplittedPodNameToNamespaceAndName(t *testing.T) {
 	testCases := []struct {
 		desc     string
@@ -305,6 +348,32 @@ func TestFindPodAndContainerReferences(t *testing.T) {
 			text: "Received TaskCreate event: {ContainerID:fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256}",
 			containerIDInfo: map[string]*k8saudit.ContainerIdentity{
 				containerIdentity.ContainerID: containerIdentity,
+			},
+		},
+		{
+			desc: "container id with audit pod identity is resolved without pod sandbox",
+			text: "Received TaskCreate event: {ContainerID:fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256}",
+			containerIDInfo: map[string]*k8saudit.ContainerIdentity{
+				containerIdentity.ContainerID: {
+					ContainerID:   containerIdentity.ContainerID,
+					ContainerName: "fluentbit-gke-init",
+					PodNamespace:  "kube-system",
+					PodName:       "podname",
+				},
+			},
+			wantContainerRefs: []containerReference{
+				{
+					Container: &k8saudit.ContainerIdentity{
+						ContainerID:   containerIdentity.ContainerID,
+						ContainerName: "fluentbit-gke-init",
+						PodNamespace:  "kube-system",
+						PodName:       "podname",
+					},
+					Pod: &k8snode.PodSandboxIDInfo{
+						PodNamespace: "kube-system",
+						PodName:      "podname",
+					},
+				},
 			},
 		},
 		{

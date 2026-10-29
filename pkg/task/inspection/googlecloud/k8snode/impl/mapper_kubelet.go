@@ -16,7 +16,6 @@ package k8snode_impl
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
@@ -68,29 +67,7 @@ func mapKubeletLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.Go
 	cs.AddEvent(componentTimelinePath)
 
 	original := componentFieldSet.Message.Raw()
-
-	foundPods := map[string]struct{}{}
-	pods, containerRefs := findPodAndContainerReferences(original, podSandboxIDFinder, containerIDPatternFinder)
-	for _, pod := range pods {
-		cs.AddEvent(mustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
-		foundPods[fmt.Sprintf("%s/%s", pod.PodNamespace, pod.PodName)] = struct{}{}
-	}
-	for _, containerRef := range containerRefs {
-		podTimelinePath := mustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
-		cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
-	}
-
-	resourceFindResults := patternfinder.FindAllWithStarterRunes(original, resourceUIDPatternFinder, false, '"')
-	for _, result := range resourceFindResults {
-		res := result.Value
-		if res.APIVersion == "core/v1" && res.Kind == "pod" {
-			if _, ok := foundPods[fmt.Sprintf("%s/%s", res.Namespace, res.Name)]; ok {
-				continue
-			}
-		}
-		resTimelinePath := k8saudit.MustResourceTimeline(ctx, clusterName, res)
-		cs.AddEvent(resTimelinePath)
-	}
+	addPodContainerAndResourceEvents(ctx, cs, clusterName, original, podSandboxIDFinder, containerIDPatternFinder, resourceUIDPatternFinder)
 
 	// Kubelet specific resource bindings
 	// When this log can't be associated with resource by container id or pod sandbox id, try to get it from klog fields.

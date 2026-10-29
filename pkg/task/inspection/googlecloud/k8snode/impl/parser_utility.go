@@ -28,6 +28,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
 )
 
+// nodeLogUIDStarterRunes defines the delimiter runes that precede Kubernetes resource UIDs in node logs.
+var nodeLogUIDStarterRunes = []rune{'"', '=', '/', ':'}
+
 // readGoStructFromString finds the struct part of a specific structName in the given string and returns its fields as a map.
 func readGoStructFromString(message string, structName string) map[string]string {
 	splitted := strings.Split(message, structName)
@@ -63,6 +66,24 @@ func readNextQuotedString(msg string) string {
 	}
 }
 
+// readQuotedFieldFromString extracts the value of a quoted key-value field (e.g., key:"value") from message.
+func readQuotedFieldFromString(message string, key string) string {
+	prefix := key + ":"
+	pos := 0
+	for {
+		idx := strings.Index(message[pos:], prefix)
+		if idx == -1 {
+			break
+		}
+		realIdx := pos + idx
+		if realIdx == 0 || message[realIdx-1] == ' ' || message[realIdx-1] == '\t' || message[realIdx-1] == '{' || message[realIdx-1] == ',' {
+			return readNextQuotedString(message[realIdx+len(prefix):])
+		}
+		pos = realIdx + 1
+	}
+	return ""
+}
+
 // containerReference is an occurrence of a container ID inside a node log message, resolved down
 // to the container and the pod that owns it.
 type containerReference struct {
@@ -75,8 +96,9 @@ type containerReference struct {
 // findPodAndContainerReferences collects the pod sandboxes and the containers whose IDs are
 // written in message.
 //
-// Container IDs whose owning pod sandbox is unknown are omitted because they can neither be
-// rendered as a readable name nor be mapped onto a container timeline.
+// Container IDs whose owning pod is unknown from both podSandboxIDFinder and ContainerIdentity are
+// omitted because they can neither be rendered as a readable name nor be mapped onto a container
+// timeline.
 func findPodAndContainerReferences(
 	message string,
 	podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo],
@@ -89,13 +111,49 @@ func findPodAndContainerReferences(
 
 	var containerRefs []containerReference
 	for _, found := range patternfinder.FindAllHexTokens(message, containerIDPatternFinder) {
-		owner, ok := podSandboxIDFinder.Match(found.Value.PodSandboxID)
-		if !ok {
+		var ownerPod *k8snode.PodSandboxIDInfo
+		if found.Value.PodSandboxID != "" {
+			if owner, ok := podSandboxIDFinder.Match(found.Value.PodSandboxID); ok {
+				ownerPod = owner.Value
+			}
+		}
+		if ownerPod == nil && found.Value.PodNamespace != "" && found.Value.PodName != "" {
+			ownerPod = &k8snode.PodSandboxIDInfo{
+				PodNamespace: found.Value.PodNamespace,
+				PodName:      found.Value.PodName,
+				PodSandboxID: found.Value.PodSandboxID,
+			}
+		}
+		if ownerPod == nil {
 			continue
 		}
-		containerRefs = append(containerRefs, containerReference{Container: found.Value, Pod: owner.Value})
+		containerRefs = append(containerRefs, containerReference{Container: found.Value, Pod: ownerPod})
 	}
 	return pods, containerRefs
+}
+
+// addPodContainerAndResourceEvents adds timeline events for pods, containers, and resources referenced by ID or UID in message.
+func addPodContainerAndResourceEvents(
+	ctx context.Context,
+	cs *khifilev6.TimelineChangeSet,
+	clusterName string,
+	message string,
+	podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo],
+	containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity],
+	resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity],
+) {
+	pods, containerRefs := findPodAndContainerReferences(message, podSandboxIDFinder, containerIDPatternFinder)
+	for _, pod := range pods {
+		cs.AddEvent(mustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
+	}
+	for _, containerRef := range containerRefs {
+		podTimelinePath := mustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
+		cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
+	}
+	for _, result := range patternfinder.FindAllWithStarterRunes(message, resourceUIDPatternFinder, false, nodeLogUIDStarterRunes...) {
+		resTimelinePath := k8saudit.MustResourceTimeline(ctx, clusterName, result.Value)
+		cs.AddEvent(resTimelinePath)
+	}
 }
 
 // checkStartingAndTerminationLog checks if the log message matches a predefined starting or termination log for a component and adds a corresponding revision to the TimelineChangeSet.
