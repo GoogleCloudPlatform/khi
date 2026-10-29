@@ -256,6 +256,85 @@ func TestMapK8sEventLog(t *testing.T) {
 					HasEventCount(1)
 			},
 		},
+		{
+			desc: "pod event with spec.containers fieldPath and source.host maps to pod, container, and node timelines",
+			input: k8sevent.KubernetesEventFieldSet{
+				ClusterName:  "test-cluster",
+				APIVersion:   "core/v1",
+				ResourceKind: "pod",
+				Namespace:    "default",
+				Resource:     "my-pod",
+				FieldPath:    "spec.containers{app-container}",
+				SourceHost:   "node-1",
+				Reason:       "BackOff",
+				Message:      "Back-off restarting failed container app-container in pod my-pod_default",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				podKindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+				namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
+				podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "my-pod")
+				containerPath := k8saudit.MustK8sContainerTimeline(ctx, podPath, "app-container")
+				nodeKindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "node-1")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(podPath).
+					HasEvent(containerPath).
+					HasEvent(nodePath).
+					HasEventCount(3)
+			},
+		},
+		{
+			desc: "pod event with spec.initContainers fieldPath maps to init container timeline",
+			input: k8sevent.KubernetesEventFieldSet{
+				ClusterName:  "test-cluster",
+				APIVersion:   "core/v1",
+				ResourceKind: "pod",
+				Namespace:    "default",
+				Resource:     "my-pod",
+				FieldPath:    "spec.initContainers{init-db}",
+				Reason:       "Started",
+				Message:      "Started container init-db",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				podKindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+				namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
+				podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "my-pod")
+				containerPath := k8saudit.MustK8sContainerTimeline(ctx, podPath, "init-db")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(podPath).
+					HasEvent(containerPath).
+					HasEventCount(2)
+			},
+		},
+		{
+			desc: "node event with matching source.host does not duplicate node timeline event",
+			input: k8sevent.KubernetesEventFieldSet{
+				ClusterName:  "test-cluster",
+				APIVersion:   "core/v1",
+				ResourceKind: "node",
+				Namespace:    "cluster-scope",
+				Resource:     "node-1",
+				SourceHost:   "node-1",
+				Reason:       "NodeReady",
+				Message:      "Node node-1 status is now: NodeReady",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, "test-cluster")
+				apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+				nodeKindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
+				nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "node-1")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(nodePath).
+					HasEventCount(1)
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -391,6 +470,58 @@ func TestProcessK8sEventLog(t *testing.T) {
 			}
 
 			tc.assert(t, cs)
+		})
+	}
+}
+
+func TestExtractContainerNameFromFieldPath(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		fieldPath string
+		want      string
+	}{
+		{
+			desc:      "standard container fieldPath",
+			fieldPath: "spec.containers{settlement-engine}",
+			want:      "settlement-engine",
+		},
+		{
+			desc:      "init container fieldPath",
+			fieldPath: "spec.initContainers{init-config}",
+			want:      "init-config",
+		},
+		{
+			desc:      "ephemeral container fieldPath",
+			fieldPath: "spec.ephemeralContainers{debugger}",
+			want:      "debugger",
+		},
+		{
+			desc:      "empty braces",
+			fieldPath: "spec.containers{}",
+			want:      "",
+		},
+		{
+			desc:      "missing closing brace",
+			fieldPath: "spec.containers{unclosed",
+			want:      "",
+		},
+		{
+			desc:      "non-container fieldPath",
+			fieldPath: "status.conditions[0]",
+			want:      "",
+		},
+		{
+			desc:      "empty string",
+			fieldPath: "",
+			want:      "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := extractContainerNameFromFieldPath(tc.fieldPath); got != tc.want {
+				t.Errorf("extractContainerNameFromFieldPath(%q) = %q, want %q", tc.fieldPath, got, tc.want)
+			}
 		})
 	}
 }

@@ -43,6 +43,7 @@ jsonPayload:
     namespace: default
     name: test-pod
     uid: 8b04c24f-b9f7-49dd-ab67-f55568b07817
+    fieldPath: spec.containers{app}
   source:
     host: node-1
   reason: Scheduled
@@ -55,6 +56,7 @@ jsonPayload:
 				Namespace:    "default",
 				Resource:     "test-pod",
 				ResourceUID:  "8b04c24f-b9f7-49dd-ab67-f55568b07817",
+				FieldPath:    "spec.containers{app}",
 				Reason:       "Scheduled",
 				Message:      "Successfully assigned default/test-pod to node-1",
 				SourceHost:   "node-1",
