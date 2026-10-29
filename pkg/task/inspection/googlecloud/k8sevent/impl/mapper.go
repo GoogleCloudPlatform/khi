@@ -132,7 +132,7 @@ func mapK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.Patter
 		}
 	}
 
-	if event.SourceHost != "" {
+	if event.SourceHost != "" && !(event.APIVersion == "core/v1" && event.ResourceKind == "node" && event.Resource == event.SourceHost) {
 		clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, event.ClusterName)
 		nodeAPIVersionPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
 		nodeKindPath := k8saudit.MustK8sKindTimeline(ctx, nodeAPIVersionPath, "node")
