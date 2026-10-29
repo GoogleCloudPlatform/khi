@@ -42,7 +42,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -1049,5 +1052,106 @@ func TestMonitorProgress(t *testing.T) {
 	wantMsg := "[1/2] 150 logs"
 	if snap.Message != wantMsg {
 		t.Errorf("snap.Message = %q, want %q", snap.Message, wantMsg)
+	}
+}
+
+type testLoggingClientErr struct {
+	msg string
+}
+
+func (e *testLoggingClientErr) Error() string {
+	return e.msg
+}
+
+type testMonitoringClientErr struct {
+	msg string
+}
+
+func (e *testMonitoringClientErr) Error() string {
+	return e.msg
+}
+
+func TestNewStructuredLogEstimator_PreservesClientErrorTypes(t *testing.T) {
+	t.Parallel()
+
+	type extractedErrors struct {
+		Logging    *testLoggingClientErr
+		Monitoring *testMonitoringClientErr
+	}
+
+	testCases := []struct {
+		name          string
+		loggingErr    error
+		monitoringErr error
+		want          extractedErrors
+	}{
+		{
+			name:       "logging client error preserves error type",
+			loggingErr: &testLoggingClientErr{msg: "logging auth failure"},
+			want: extractedErrors{
+				Logging: &testLoggingClientErr{msg: "logging auth failure"},
+			},
+		},
+		{
+			name:          "monitoring client error preserves error type",
+			monitoringErr: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			want: extractedErrors{
+				Monitoring: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			},
+		},
+		{
+			name:          "joined logging and monitoring client errors preserve both error types",
+			loggingErr:    &testLoggingClientErr{msg: "logging auth failure"},
+			monitoringErr: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			want: extractedErrors{
+				Logging:    &testLoggingClientErr{msg: "logging auth failure"},
+				Monitoring: &testMonitoringClientErr{msg: "monitoring auth failure"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			factory, err := googlecloud.NewClientFactory(func(f *googlecloud.ClientFactory) error {
+				f.ClientOptions = append(f.ClientOptions, func(opts []option.ClientOption, _ googlecloud.ResourceContainer) ([]option.ClientOption, error) {
+					return append(opts,
+						option.WithEndpoint("127.0.0.1:0"),
+						option.WithoutAuthentication(),
+						option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+					), nil
+				})
+				if tc.loggingErr != nil {
+					f.LoggingClientOptions = append(f.LoggingClientOptions, func(_ []option.ClientOption, _ googlecloud.ResourceContainer) ([]option.ClientOption, error) {
+						return nil, tc.loggingErr
+					})
+				}
+				if tc.monitoringErr != nil {
+					f.MonitoringMetricClientOptions = append(f.MonitoringMetricClientOptions, func(_ []option.ClientOption, _ googlecloud.ResourceContainer) ([]option.ClientOption, error) {
+						return nil, tc.monitoringErr
+					})
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("NewClientFactory() unexpected error: %v", err)
+			}
+			t.Cleanup(func() {
+				_ = factory.Close()
+			})
+
+			estimator, gotErr := newStructuredLogEstimator(t.Context(), factory, googlecloud.NewCallOptionInjector(), googlecloud.Project("test-project"))
+			if gotErr == nil {
+				t.Fatalf("newStructuredLogEstimator() = (%v, nil), want non-nil error", estimator)
+			}
+
+			var got extractedErrors
+			_ = errors.As(gotErr, &got.Logging)
+			_ = errors.As(gotErr, &got.Monitoring)
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(testLoggingClientErr{}, testMonitoringClientErr{})); diff != "" {
+				t.Errorf("newStructuredLogEstimator() extracted error mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

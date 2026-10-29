@@ -75,7 +75,7 @@ func QueryResourceLabelsFromMetrics(ctx context.Context, client *monitoring.Metr
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to list time series: %w", err)
+			return nil, fmt.Errorf("failed to list time series: %w", WrapPermissionDenied(err, Project(projectID).Identifier(), "monitoring.timeSeries.list"))
 		}
 		labels := map[string]string{}
 		for k, v := range resp.GetResource().GetLabels() {

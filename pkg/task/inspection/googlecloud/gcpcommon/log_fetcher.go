@@ -16,6 +16,7 @@ package gcpcommon
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
@@ -82,7 +83,8 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 		}
 
 		if err != nil {
-			return err
+			defaultResource, defaultPermission := defaultLogPermissionTarget(container, resourceContainers)
+			return googlecloud.WrapPermissionDenied(err, defaultResource, defaultPermission)
 		}
 		select {
 		case dest <- entry:
@@ -92,6 +94,18 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 
 	}
 	return nil
+}
+
+func defaultLogPermissionTarget(container googlecloud.ResourceContainer, resourceContainers []string) (string, string) {
+	defaultResource := container.Identifier()
+	defaultPermission := "logging.logEntries.list"
+	if len(resourceContainers) == 1 && resourceContainers[0] != "" {
+		defaultResource = resourceContainers[0]
+		if strings.Contains(defaultResource, "/views/") {
+			defaultPermission = "logging.views.access"
+		}
+	}
+	return defaultResource, defaultPermission
 }
 
 func newCloudLoggingRetrier(ctx context.Context) gax.Retryer {

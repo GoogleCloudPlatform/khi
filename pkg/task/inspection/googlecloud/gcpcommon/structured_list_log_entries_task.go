@@ -16,6 +16,7 @@ package gcpcommon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -199,12 +200,7 @@ func estimateAndRecordQueries(
 				startTime,
 				endTime,
 				func(queryCtx context.Context, container googlecloud.ResourceContainer) (*logestimator.StructuredLogEstimator, error) {
-					loggingClient, logErr := clientFactory.LoggingClient(queryCtx, container)
-					metricClient, monErr := clientFactory.MonitoringMetricClient(queryCtx, container)
-					if logErr != nil || monErr != nil {
-						return nil, fmt.Errorf("failed to initialize clients for container %s: loggingErr=%v, metricErr=%v", container.Identifier(), logErr, monErr)
-					}
-					return logestimator.NewStructuredLogEstimatorFromClients(loggingClient, metricClient, callOptionInjector), nil
+					return newStructuredLogEstimator(queryCtx, clientFactory, callOptionInjector, container)
 				},
 			)
 			switch {
@@ -227,6 +223,22 @@ func estimateAndRecordQueries(
 		}
 	}
 	return nil
+}
+
+// newStructuredLogEstimator initializes the Cloud Logging and Cloud Monitoring clients for container
+// and joins any client creation failures so callers retain the underlying error types.
+func newStructuredLogEstimator(
+	ctx context.Context,
+	clientFactory *googlecloud.ClientFactory,
+	callOptionInjector *googlecloud.CallOptionInjector,
+	container googlecloud.ResourceContainer,
+) (*logestimator.StructuredLogEstimator, error) {
+	loggingClient, logErr := clientFactory.LoggingClient(ctx, container)
+	metricClient, monErr := clientFactory.MonitoringMetricClient(ctx, container)
+	if err := errors.Join(logErr, monErr); err != nil {
+		return nil, fmt.Errorf("failed to initialize clients for container %s: %w", container.Identifier(), err)
+	}
+	return logestimator.NewStructuredLogEstimatorFromClients(loggingClient, metricClient, callOptionInjector), nil
 }
 
 // fetchLogsForStructuredQueries retrieves logs in parallel across time partitions and container groups.
