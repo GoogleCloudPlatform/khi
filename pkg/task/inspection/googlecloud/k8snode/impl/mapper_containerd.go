@@ -180,19 +180,27 @@ func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) 
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
 	}
 	if strings.HasPrefix(msg, "RunPodSandbox") {
-		fields := readGoStructFromString(msg, "PodSandboxMetadata")
-		sandboxID := ""
 		splitted := strings.Split(msg, "returns sandbox id")
-		if len(splitted) >= 2 {
-			sandboxID = readNextQuotedString(splitted[1])
+		if len(splitted) < 2 {
+			return nil, fmt.Errorf("pod index information not found:%w", khierrors.ErrNotFound)
 		}
+		sandboxID := readNextQuotedString(splitted[1])
 		if sandboxID == "" {
 			return nil, fmt.Errorf("pod index information not found:%w", khierrors.ErrNotFound)
 		}
-		if fields["Name"] != "" && fields["Namespace"] != "" {
+		fields := readGoStructFromString(splitted[0], "PodSandboxMetadata")
+		podName := fields["Name"]
+		podNamespace := fields["Namespace"]
+		if podName == "" {
+			podName = readQuotedFieldFromString(splitted[0], "name")
+		}
+		if podNamespace == "" {
+			podNamespace = readQuotedFieldFromString(splitted[0], "namespace")
+		}
+		if podName != "" && podNamespace != "" {
 			return &k8snode.PodSandboxIDInfo{
-				PodName:      fields["Name"],
-				PodNamespace: fields["Namespace"],
+				PodName:      podName,
+				PodNamespace: podNamespace,
 				PodSandboxID: sandboxID,
 			}, nil
 		}
@@ -218,25 +226,31 @@ func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
 	}
 	if strings.HasPrefix(msg, "CreateContainer") {
-		fields := readGoStructFromString(msg, "ContainerMetadata")
-		sandboxID := ""
 		splitted := strings.Split(msg, "within sandbox")
 		if len(splitted) < 2 {
 			return nil, fmt.Errorf("failed to read the sandbox Id from container starting log")
 		}
-		sandboxID = readNextQuotedString(splitted[1])
-		containerID := ""
-		splitted = strings.Split(msg, "returns container id")
-		if len(splitted) >= 2 {
-			containerID = readNextQuotedString(splitted[1])
+		sandboxID := readNextQuotedString(splitted[1])
+		if sandboxID == "" {
+			return nil, fmt.Errorf("failed to read the sandbox Id from container starting log")
 		}
+		splitted = strings.Split(msg, "returns container id")
+		if len(splitted) < 2 {
+			return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
+		}
+		containerID := readNextQuotedString(splitted[1])
 		if containerID == "" {
 			return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 		}
-		if fields["Name"] != "" {
+		fields := readGoStructFromString(splitted[0], "ContainerMetadata")
+		containerName := fields["Name"]
+		if containerName == "" {
+			containerName = readQuotedFieldFromString(splitted[0], "name")
+		}
+		if containerName != "" {
 			return &k8saudit.ContainerIdentity{
 				PodSandboxID:  sandboxID,
-				ContainerName: fields["Name"],
+				ContainerName: containerName,
 				ContainerID:   containerID,
 			}, nil
 		}
@@ -244,25 +258,26 @@ func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (
 	return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 }
 
-// containerdLogTimelineMapper maps containerd logs to the timelines of their node component and of the pods and containers they mention.
+// containerdLogTimelineMapper maps containerd logs to the timelines of their node component and of the pods, containers, and resources they mention.
 type containerdLogTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 	clusterIdentity          coretask.Input[k8scommon.GoogleCloudClusterIdentity]
 	podSandboxIDFinder       coretask.Input[patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]]
 	containerIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]]
+	resourceUIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
 }
 
 // ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
 func (c *containerdLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	cs, err := mapContainerdLog(ctx, l, c.clusterIdentity.Get(ctx), c.podSandboxIDFinder.Get(ctx), c.containerIDPatternFinder.Get(ctx))
+	cs, err := mapContainerdLog(ctx, l, c.clusterIdentity.Get(ctx), c.podSandboxIDFinder.Get(ctx), c.containerIDPatternFinder.Get(ctx), c.resourceUIDPatternFinder.Get(ctx))
 	return cs, struct{}{}, err
 }
 
 var _ inspectiontaskbase.TimelineMapper[struct{}] = (*containerdLogTimelineMapper)(nil)
 
-// mapContainerdLog adds events for a containerd log to the timeline of its node component and to the timelines of the pods and containers it mentions.
+// mapContainerdLog adds events for a containerd log to the timeline of its node component and to the timelines of the pods, containers, and resources it mentions.
 // It also adds a revision to the component timeline when the log marks the start or the stop of containerd.
-func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity]) (*khifilev6.TimelineChangeSet, error) {
+func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
 	clusterName := clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster)
 	nodeLogFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil {
@@ -278,15 +293,7 @@ func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon
 
 	cs.AddEvent(componentTimelinePath)
 
-	raw := nodeLogFieldSet.Message.Raw()
-	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
-	for _, pod := range pods {
-		cs.AddEvent(mustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
-	}
-	for _, containerRef := range containerRefs {
-		podTimelinePath := mustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
-		cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
-	}
+	addPodContainerAndResourceEvents(ctx, cs, clusterName, nodeLogFieldSet.Message.Raw(), podSandboxIDFinder, containerIDPatternFinder, resourceUIDPatternFinder)
 
 	return cs, nil
 }
@@ -303,6 +310,7 @@ var containerdLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelin
 			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
 			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
 			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
+			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
 		}
 	},
 )

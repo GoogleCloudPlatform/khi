@@ -65,7 +65,7 @@ func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patte
 	}
 
 	if resourceUIDPatternFinder != nil {
-		resourceFindResults := patternfinder.FindAllWithStarterRunes(raw, resourceUIDPatternFinder, false, '"', '=')
+		resourceFindResults := patternfinder.FindAllWithStarterRunes(raw, resourceUIDPatternFinder, false, nodeLogUIDStarterRunes...)
 		for _, result := range resourceFindResults {
 			uid, err := result.GetMatchedString(raw)
 			if err == nil {

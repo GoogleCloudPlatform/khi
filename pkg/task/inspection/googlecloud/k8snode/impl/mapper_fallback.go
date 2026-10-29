@@ -33,7 +33,7 @@ var otherLogFilterTask = defineParserTypeFilterTask(k8snode.OtherLogFilterTaskID
 // otherLogGroupTask groups other logs by node and component.
 var otherLogGroupTask = defineNodeAndComponentNameGrouperTask(k8snode.OtherLogGroupTaskID, k8snode.OtherLogFilterTaskID.Ref())
 
-// otherLogTimelineMapper maps the logs of node components other than containerd and kubelet to the timelines of their component and of the pods and containers they mention.
+// otherLogTimelineMapper maps the logs of node components other than containerd and kubelet to the timelines of their component and of the pods, containers, and resources they mention.
 type otherLogTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 	// startingMessagesByComponent maps a component name to the log message that marks the start of the component.
@@ -43,19 +43,20 @@ type otherLogTimelineMapper struct {
 	clusterIdentity                coretask.Input[k8scommon.GoogleCloudClusterIdentity]
 	podSandboxIDFinder             coretask.Input[patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]]
 	containerIDPatternFinder       coretask.Input[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]]
+	resourceUIDPatternFinder       coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
 }
 
 // ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
 func (o *otherLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	cs, err := o.mapLog(ctx, l, o.clusterIdentity.Get(ctx), o.podSandboxIDFinder.Get(ctx), o.containerIDPatternFinder.Get(ctx))
+	cs, err := o.mapLog(ctx, l, o.clusterIdentity.Get(ctx), o.podSandboxIDFinder.Get(ctx), o.containerIDPatternFinder.Get(ctx), o.resourceUIDPatternFinder.Get(ctx))
 	return cs, struct{}{}, err
 }
 
 var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherLogTimelineMapper)(nil)
 
-// mapLog adds events for a node component log to the timeline of its component and to the timelines of the pods and containers it mentions.
+// mapLog adds events for a node component log to the timeline of its component and to the timelines of the pods, containers, and resources it mentions.
 // It also adds a revision to the component timeline when the log message is the starting or terminating message of the component.
-func (o *otherLogTimelineMapper) mapLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity]) (*khifilev6.TimelineChangeSet, error) {
+func (o *otherLogTimelineMapper) mapLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
 	clusterName := clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster)
 	componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil {
@@ -80,14 +81,7 @@ func (o *otherLogTimelineMapper) mapLog(ctx context.Context, l *log.Log, cluster
 	cs.AddEvent(componentTimelinePath)
 
 	if componentFieldSet.Message != nil {
-		pods, containerRefs := findPodAndContainerReferences(componentFieldSet.Message.Raw(), podSandboxIDFinder, containerIDPatternFinder)
-		for _, pod := range pods {
-			cs.AddEvent(mustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName))
-		}
-		for _, containerRef := range containerRefs {
-			podTimelinePath := mustK8sPodTimeline(ctx, clusterName, containerRef.Pod.PodNamespace, containerRef.Pod.PodName)
-			cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, podTimelinePath, containerRef.Container.ContainerName))
-		}
+		addPodContainerAndResourceEvents(ctx, cs, clusterName, componentFieldSet.Message.Raw(), podSandboxIDFinder, containerIDPatternFinder, resourceUIDPatternFinder)
 	}
 
 	return cs, nil
@@ -115,6 +109,7 @@ var otherLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapp
 			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
 			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
 			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
+			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
 		}
 	},
 )

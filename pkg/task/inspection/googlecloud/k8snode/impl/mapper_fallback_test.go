@@ -55,6 +55,7 @@ func TestOtherLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		inputClusterIdentity *k8scommon.GoogleCloudClusterIdentity
 		inputPodIDInfo       map[string]*k8snode.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*k8saudit.ContainerIdentity
+		inputResourceUIDInfo map[string]*k8saudit.ResourceIdentity
 		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -169,6 +170,29 @@ func TestOtherLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(wantPodPath)
 			},
 		},
+		{
+			desc:         "gcfsd log with resource UID associates pod timeline",
+			inputMessage: `time="2026-10-15T09:15:30.123456789Z" level=info msg="mounting /var/lib/kubelet/pods/4cba26fb-f074-44fe-9afa-5195e903c337/volumes" module=containerdgateway`,
+			component:    "gcfsd",
+			nodeName:     "node-1",
+			inputResourceUIDInfo: map[string]*k8saudit.ResourceIdentity{
+				"4cba26fb-f074-44fe-9afa-5195e903c337": {
+					APIVersion: "core/v1",
+					Kind:       "pod",
+					Namespace:  "kube-system",
+					Name:       "podname",
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "gcfsd")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -180,6 +204,10 @@ func TestOtherLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			containerIDFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ContainerIdentity]()
 			for k, v := range tc.inputContainerIDInfo {
 				containerIDFinder.AddPattern(k, v)
+			}
+			resourceUIDFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ResourceIdentity]()
+			for k, v := range tc.inputResourceUIDInfo {
+				resourceUIDFinder.AddPattern(k, v)
 			}
 
 			parser := logutil.FallbackRawTextLogParser{}
@@ -204,7 +232,7 @@ func TestOtherLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			// 2. Setup context with SAME builder
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			cs, err := mapper.mapLog(ctx, l, clusterIdent, podIDFinder, containerIDFinder)
+			cs, err := mapper.mapLog(ctx, l, clusterIdent, podIDFinder, containerIDFinder, resourceUIDFinder)
 			if err != nil {
 				t.Fatalf("mapLog() returned unexpected error: %v", err)
 			}

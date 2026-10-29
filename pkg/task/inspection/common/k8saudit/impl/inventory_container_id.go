@@ -99,9 +99,9 @@ var containerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 					if log.ResourceBodyReader == nil {
 						continue
 					}
-					extractContainerIDs(log.ResourceBodyReader, pathContainerStatuses, result)
-					extractContainerIDs(log.ResourceBodyReader, pathInitContainerStatuses, result)
-					extractContainerIDs(log.ResourceBodyReader, pathEphemeralContainerStatuses, result)
+					extractContainerIDs(log.ResourceBodyReader, pathContainerStatuses, group.Resource.Namespace, group.Resource.Name, result)
+					extractContainerIDs(log.ResourceBodyReader, pathInitContainerStatuses, group.Resource.Namespace, group.Resource.Name, result)
+					extractContainerIDs(log.ResourceBodyReader, pathEphemeralContainerStatuses, group.Resource.Namespace, group.Resource.Name, result)
 				}
 			}
 			return result, nil
@@ -111,7 +111,7 @@ var containerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
 
-func extractContainerIDs(reader *structured.NodeReader, fieldPath structured.FieldPath, result k8saudit.ContainerIDToContainerIdentity) {
+func extractContainerIDs(reader *structured.NodeReader, fieldPath structured.FieldPath, podNamespace, podName string, result k8saudit.ContainerIDToContainerIdentity) {
 	statusesReader, err := reader.GetReader(fieldPath)
 	if err != nil {
 		return
@@ -122,10 +122,13 @@ func extractContainerIDs(reader *structured.NodeReader, fieldPath structured.Fie
 			return true
 		}
 		containerID = strings.TrimPrefix(containerID, "containerd://")
+		containerID = strings.TrimPrefix(containerID, "docker://")
 		name, _ := value.ReadString(pathContainerName)
 		result[containerID] = &k8saudit.ContainerIdentity{
 			ContainerID:   containerID,
 			ContainerName: name,
+			PodNamespace:  podNamespace,
+			PodName:       podName,
 		}
 		return true
 	})

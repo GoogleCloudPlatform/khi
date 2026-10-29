@@ -103,6 +103,16 @@ func TestFindPodSandboxIDInfo(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			desc: "valid modern prototext log message",
+			log:  "RunPodSandbox for name:\"test-pod\" uid:\"502b6c2c-2b55-432b-82ef-d7fb496787e5\" namespace:\"default\" returns sandbox id \"f93e7cdb2e4b34e84cc40eb710de02c29fb3b4e71d2a93cb763429df26a72f3c\"",
+			want: &k8snode.PodSandboxIDInfo{
+				PodName:      "test-pod",
+				PodNamespace: "default",
+				PodSandboxID: "f93e7cdb2e4b34e84cc40eb710de02c29fb3b4e71d2a93cb763429df26a72f3c",
+			},
+			wantErr: false,
+		},
+		{
 			desc:    "log message without RunPodSandbox prefix",
 			log:     "Some other log message",
 			want:    nil,
@@ -199,6 +209,16 @@ func TestFindContainerIDInfo(t *testing.T) {
 				PodSandboxID:  "sandbox123",
 				ContainerName: "container-name",
 				ContainerID:   "container123",
+			},
+			wantErr: false,
+		},
+		{
+			desc: "valid modern prototext log message",
+			log:  "CreateContainer within sandbox \"bac5e92576b0acc56fc8e1e6bdd047a5b029e3df09d86ceba784a9f908eebabc\" for name:\"test-container\" returns container id \"af9a63a6c69bf9ce322f64ec8fe7f19c1789b4fa46e434ac6310cb1c912ac9c1\"",
+			want: &k8saudit.ContainerIdentity{
+				PodSandboxID:  "bac5e92576b0acc56fc8e1e6bdd047a5b029e3df09d86ceba784a9f908eebabc",
+				ContainerName: "test-container",
+				ContainerID:   "af9a63a6c69bf9ce322f64ec8fe7f19c1789b4fa46e434ac6310cb1c912ac9c1",
 			},
 			wantErr: false,
 		},
@@ -306,6 +326,7 @@ func TestContainerdLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		inputClusterIdentity *k8scommon.GoogleCloudClusterIdentity
 		inputPodIDInfo       map[string]*k8snode.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*k8saudit.ContainerIdentity
+		inputResourceUIDInfo map[string]*k8saudit.ResourceIdentity
 		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -431,6 +452,31 @@ func TestContainerdLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(wantComponentPath)
 			},
 		},
+		{
+			desc:         "log with resource UID links to pod timeline",
+			inputMessage: `time="2026-10-16T08:11:50Z" level=error msg="Unable to open network namespace, will not delete interface" ip="10.0.0.7" pod="d3d73e9a-3156-2c44-9053-6bc7144028d1"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			inputResourceUIDInfo: map[string]*k8saudit.ResourceIdentity{
+				"d3d73e9a-3156-2c44-9053-6bc7144028d1": {
+					APIVersion: "core/v1",
+					Kind:       "pod",
+					Namespace:  "default",
+					Name:       "test-pod",
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "default", "test-pod")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -445,6 +491,12 @@ func TestContainerdLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			if tc.inputContainerIDInfo != nil {
 				for k, v := range tc.inputContainerIDInfo {
 					containerIDFinder.AddPattern(k, v)
+				}
+			}
+			resourceUIDFinder := patternfinder.NewNaivePatternFinder[*k8saudit.ResourceIdentity]()
+			if tc.inputResourceUIDInfo != nil {
+				for k, v := range tc.inputResourceUIDInfo {
+					resourceUIDFinder.AddPattern(k, v)
 				}
 			}
 
@@ -466,7 +518,7 @@ func TestContainerdLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				*tc.inputNodeLogFieldSet,
 			)
 
-			cs, err := mapContainerdLog(ctx, l, clusterIdent, podIDFinder, containerIDFinder)
+			cs, err := mapContainerdLog(ctx, l, clusterIdent, podIDFinder, containerIDFinder, resourceUIDFinder)
 			if err != nil {
 				t.Fatalf("mapContainerdLog() returned unexpected error: %v", err)
 			}

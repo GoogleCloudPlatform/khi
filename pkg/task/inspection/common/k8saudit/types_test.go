@@ -57,3 +57,64 @@ func TestResourceIdentity_SummaryTag(t *testing.T) {
 		})
 	}
 }
+
+func TestContainerIdentity_Merge(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		base  *ContainerIdentity
+		other *ContainerIdentity
+		want  *ContainerIdentity
+	}{
+		{
+			desc: "merges audit pod identity with containerd sandbox identity",
+			base: &ContainerIdentity{
+				ContainerID:   "cid-1",
+				ContainerName: "app",
+				PodNamespace:  "default",
+				PodName:       "my-pod",
+			},
+			other: &ContainerIdentity{
+				ContainerID:   "cid-1",
+				ContainerName: "app",
+				PodSandboxID:  "sandbox-1",
+			},
+			want: &ContainerIdentity{
+				ContainerID:   "cid-1",
+				ContainerName: "app",
+				PodSandboxID:  "sandbox-1",
+				PodNamespace:  "default",
+				PodName:       "my-pod",
+			},
+		},
+		{
+			desc: "merges containerd sandbox identity with audit pod identity",
+			base: &ContainerIdentity{
+				ContainerID:   "cid-1",
+				ContainerName: "app",
+				PodSandboxID:  "sandbox-1",
+			},
+			other: &ContainerIdentity{
+				ContainerID:   "cid-1",
+				ContainerName: "app",
+				PodNamespace:  "default",
+				PodName:       "my-pod",
+			},
+			want: &ContainerIdentity{
+				ContainerID:   "cid-1",
+				ContainerName: "app",
+				PodSandboxID:  "sandbox-1",
+				PodNamespace:  "default",
+				PodName:       "my-pod",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := tc.base.Merge(tc.other)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Merge() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
