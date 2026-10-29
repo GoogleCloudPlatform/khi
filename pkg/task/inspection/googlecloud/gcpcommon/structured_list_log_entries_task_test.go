@@ -152,13 +152,17 @@ func TestStructuredListLogEntriesTask_Run_FetchLogs(t *testing.T) {
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 	testErr := fmt.Errorf("fetch error")
 
+	type fetchLogsOutcome struct {
+		Logs    []string
+		Summary summary.Snapshot
+	}
+
 	testCases := []struct {
-		desc               string
-		source             *mockStructuredLogQuerySource
-		fetcherFactory     func(t *testing.T) *mockLogFetcher
-		wantLogsString     []string
-		wantSummaryQueries []summary.Query
-		wantError          error
+		desc           string
+		source         *mockStructuredLogQuerySource
+		fetcherFactory func(t *testing.T) *mockLogFetcher
+		want           fetchLogsOutcome
+		wantError      error
 	}{
 		{
 			desc: "successful log fetch with single query",
@@ -185,18 +189,27 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 					}),
 				})
 			},
-			wantLogsString: []string{
-				"insertId: log-1\nlogName: container-log\n",
-				"insertId: log-2\nlogName: container-log\n",
-			},
-			wantSummaryQueries: []summary.Query{
-				{
-					Name: "container-logs",
-					Text: `resource.type="k8s_container"
+			want: fetchLogsOutcome{
+				Logs: []string{
+					"insertId: log-1\nlogName: container-log\n",
+					"insertId: log-2\nlogName: container-log\n",
+				},
+				Summary: summary.Snapshot{
+					Sections: []summary.Section{
+						{
+							Title: "Shared & Filter Context",
+							Queries: []summary.Query{
+								{
+									Name: "container-logs",
+									Text: `resource.type="k8s_container"
 resource.labels.project_id="test-project"
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`,
-					LogCount: ptr(2),
+									LogCount: ptr(2),
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -249,35 +262,44 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 					}),
 				})
 			},
-			wantLogsString: []string{
-				"insertId: log-a1\nlogName: container-log\n",
-				"insertId: log-a2\nlogName: container-log\n",
-				"insertId: log-c1\nlogName: container-log\n",
-			},
-			wantSummaryQueries: []summary.Query{
-				{
-					Name: "container-logs-0",
-					Text: `resource.type="k8s_container"
+			want: fetchLogsOutcome{
+				Logs: []string{
+					"insertId: log-a1\nlogName: container-log\n",
+					"insertId: log-a2\nlogName: container-log\n",
+					"insertId: log-c1\nlogName: container-log\n",
+				},
+				Summary: summary.Snapshot{
+					Sections: []summary.Section{
+						{
+							Title: "Shared & Filter Context",
+							Queries: []summary.Query{
+								{
+									Name: "container-logs-0",
+									Text: `resource.type="k8s_container"
 resource.labels.node_name="node-a"
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`,
-					LogCount: ptr(2),
-				},
-				{
-					Name: "container-logs-1",
-					Text: `resource.type="k8s_container"
+									LogCount: ptr(2),
+								},
+								{
+									Name: "container-logs-1",
+									Text: `resource.type="k8s_container"
 resource.labels.node_name="node-b"
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`,
-					LogCount: ptr(0),
-				},
-				{
-					Name: "container-logs-2",
-					Text: `resource.type="k8s_container"
+									LogCount: ptr(0),
+								},
+								{
+									Name: "container-logs-2",
+									Text: `resource.type="k8s_container"
 resource.labels.node_name="node-c"
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`,
-					LogCount: ptr(1),
+									LogCount: ptr(1),
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -361,25 +383,17 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				gotLogsString = append(gotLogsString, string(yaml))
 			}
 
-			if diff := cmp.Diff(tc.wantLogsString, gotLogsString); diff != "" {
-				t.Errorf("Logs mismatch (-want +got):\n%s", diff)
-			}
-
 			metadata := khictx.MustGetValue(nextCtx, inspectionmetadata.MapContextKey)
 			summaryCollector, found := typedmap.Get(metadata, summary.MetadataKey)
 			if !found {
 				t.Fatalf("summary collector metadata not found")
 			}
-			wantSnap := summary.Snapshot{
-				Sections: []summary.Section{
-					{
-						Title:   "Shared & Filter Context",
-						Queries: tc.wantSummaryQueries,
-					},
-				},
+			got := fetchLogsOutcome{
+				Logs:    gotLogsString,
+				Summary: summaryCollector.Snapshot(),
 			}
-			if diff := cmp.Diff(wantSnap, summaryCollector.Snapshot()); diff != "" {
-				t.Errorf("summary.Snapshot() mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Run() outcome mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -755,22 +769,42 @@ resource.labels.project_id="test-project"
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp < "2025-01-01T01:01:00+0000"`
 
+	type taskRunOutcome struct {
+		Logs    []string
+		Queries []*inspectionmetadata.QueryItem
+		Summary summary.Snapshot
+	}
+
 	testCases := []struct {
 		desc               string
 		taskMode           inspectioncore.InspectionTaskModeType
 		noQueries          bool
 		timePartitionCount int
 		fetch              func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error)
-		wantLogs           []string
-		wantQueries        []*inspectionmetadata.QueryItem
+		want               taskRunOutcome
 		wantErrSubstr      string
 	}{
 		{
 			desc:               "dry run records the query with the query name",
 			taskMode:           inspectioncore.TaskModeDryRun,
 			timePartitionCount: 1,
-			wantQueries: []*inspectionmetadata.QueryItem{
-				{Id: taskID.String(), Name: "container-logs", Query: recordedQuery, Incomplete: true},
+			want: taskRunOutcome{
+				Queries: []*inspectionmetadata.QueryItem{
+					{Id: taskID.String(), Name: "container-logs", Query: recordedQuery, Incomplete: true},
+				},
+				Summary: summary.Snapshot{
+					Sections: []summary.Section{
+						{
+							Title: "Shared & Filter Context",
+							Queries: []summary.Query{
+								{
+									Name: "container-logs",
+									Text: recordedQuery,
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -781,12 +815,28 @@ timestamp < "2025-01-01T01:01:00+0000"`
 				logSource <- &loggingpb.LogEntry{InsertId: "log-1", LogName: "container-log"}
 				logSource <- &loggingpb.LogEntry{InsertId: "log-2", LogName: "container-log"}
 			},
-			wantLogs: []string{
-				"insertId: log-1\nlogName: container-log\n",
-				"insertId: log-2\nlogName: container-log\n",
-			},
-			wantQueries: []*inspectionmetadata.QueryItem{
-				{Id: taskID.String(), Name: "container-logs", Query: recordedQuery},
+			want: taskRunOutcome{
+				Logs: []string{
+					"insertId: log-1\nlogName: container-log\n",
+					"insertId: log-2\nlogName: container-log\n",
+				},
+				Queries: []*inspectionmetadata.QueryItem{
+					{Id: taskID.String(), Name: "container-logs", Query: recordedQuery},
+				},
+				Summary: summary.Snapshot{
+					Sections: []summary.Section{
+						{
+							Title: "Shared & Filter Context",
+							Queries: []summary.Query{
+								{
+									Name:     "container-logs",
+									Text:     recordedQuery,
+									LogCount: ptr(2),
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -891,41 +941,25 @@ timestamp < "2025-01-01T01:01:00+0000"`
 				}
 				gotLogStrings = append(gotLogStrings, string(yaml))
 			}
-			if diff := cmp.Diff(tc.wantLogs, gotLogStrings, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("logs mismatch (-want +got):\n%s", diff)
-			}
 
 			queryMetadata, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 			if !found {
 				t.Fatalf("QueryMetadata not found")
 			}
 			gotQueries := queryMetadata.ToSerializable().([]*inspectionmetadata.QueryItem)
-			if diff := cmp.Diff(tc.wantQueries, gotQueries, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("QueryItem mismatch (-want +got):\n%s", diff)
+
+			summaryCollector, found := typedmap.Get(metadata, summary.MetadataKey)
+			if !found {
+				t.Fatalf("summary collector metadata not found")
 			}
 
-			if tc.taskMode == inspectioncore.TaskModeRun && len(tc.wantQueries) > 0 {
-				summaryCollector, found := typedmap.Get(metadata, summary.MetadataKey)
-				if !found {
-					t.Fatalf("summary collector metadata not found")
-				}
-				wantSnap := summary.Snapshot{
-					Sections: []summary.Section{
-						{
-							Title: "Shared & Filter Context",
-							Queries: []summary.Query{
-								{
-									Name:     "container-logs",
-									Text:     recordedQuery,
-									LogCount: ptr(len(tc.wantLogs)),
-								},
-							},
-						},
-					},
-				}
-				if diff := cmp.Diff(wantSnap, summaryCollector.Snapshot()); diff != "" {
-					t.Errorf("summary.Snapshot() mismatch (-want +got):\n%s", diff)
-				}
+			got := taskRunOutcome{
+				Logs:    gotLogStrings,
+				Queries: gotQueries,
+				Summary: summaryCollector.Snapshot(),
+			}
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("Run() outcome mismatch (-want +got):\n%s", diff)
 			}
 
 			queryResourceNames, found := typeddict.Get(resourceNamesInput.resourceNames, taskID.ReferenceIDString())

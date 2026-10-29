@@ -147,6 +147,22 @@ func TestResolveGraph_MandatoryClosure(t *testing.T) {
 	}
 }
 
+type resolvedGraph struct {
+	TaskIDs []string
+	Edges   []taskid.TaskEdge
+}
+
+func toResolvedGraph(taskSet *TaskSet) resolvedGraph {
+	var taskIDs []string
+	for _, task := range taskSet.GetAll() {
+		taskIDs = append(taskIDs, task.UntypedID().String())
+	}
+	return resolvedGraph{
+		TaskIDs: taskIDs,
+		Edges:   taskSet.Edges(),
+	}
+}
+
 func TestResolveGraph_OptionalDependencies(t *testing.T) {
 	tagA := NewTag[any]("tag-a")
 
@@ -154,8 +170,7 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 		name           string
 		initialTasks   []UntypedTask
 		availableTasks []UntypedTask
-		wantTaskIDs    []string
-		wantEdges      []taskid.TaskEdge
+		want           resolvedGraph
 	}{
 		{
 			name: "optional dependency is activated when target exists in graph",
@@ -171,15 +186,17 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 				}),
 				createMockTask("provider", "default", nil),
 			},
-			wantTaskIDs: []string{"provider#default", "consumer#default"},
-			wantEdges: []taskid.TaskEdge{
-				{
-					SourceRefID:  "provider",
-					SourceImplID: "provider#default",
-					TargetImplID: "consumer#default",
-					Cardinality:  taskid.CardinalityPointToPoint,
-					Scope:        taskid.ScopeActiveGraph,
-					OutputType:   "interface {}",
+			want: resolvedGraph{
+				TaskIDs: []string{"provider#default", "consumer#default"},
+				Edges: []taskid.TaskEdge{
+					{
+						SourceRefID:  "provider",
+						SourceImplID: "provider#default",
+						TargetImplID: "consumer#default",
+						Cardinality:  taskid.CardinalityPointToPoint,
+						Scope:        taskid.ScopeActiveGraph,
+						OutputType:   "interface {}",
+					},
 				},
 			},
 		},
@@ -196,8 +213,10 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 				}),
 				createMockTask("provider", "default", nil),
 			},
-			wantTaskIDs: []string{"consumer#default"},
-			wantEdges:   []taskid.TaskEdge{},
+			want: resolvedGraph{
+				TaskIDs: []string{"consumer#default"},
+				Edges:   []taskid.TaskEdge{},
+			},
 		},
 		{
 			name: "fan-in with ScopeActiveGraph only includes existing tasks",
@@ -214,17 +233,19 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 				createMockTask("prod1", "default", nil, ProvidesTag(tagA)),
 				createMockTask("prod2", "default", nil, ProvidesTag(tagA)), // not in graph
 			},
-			wantTaskIDs: []string{"prod1#default", "collector#default"},
-			wantEdges: []taskid.TaskEdge{
-				{
-					SourceRefID:  "prod1",
-					SourceImplID: "prod1#default",
-					TargetImplID: "collector#default",
-					Cardinality:  taskid.CardinalityFanIn,
-					Scope:        taskid.ScopeActiveGraph,
-					Tag:          "tag-a",
-					Priority:     100,
-					OutputType:   "interface {}",
+			want: resolvedGraph{
+				TaskIDs: []string{"prod1#default", "collector#default"},
+				Edges: []taskid.TaskEdge{
+					{
+						SourceRefID:  "prod1",
+						SourceImplID: "prod1#default",
+						TargetImplID: "collector#default",
+						Cardinality:  taskid.CardinalityFanIn,
+						Scope:        taskid.ScopeActiveGraph,
+						Tag:          "tag-a",
+						Priority:     100,
+						OutputType:   "interface {}",
+					},
 				},
 			},
 		},
@@ -237,16 +258,8 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			var gotTaskIDs []string
-			for _, task := range taskSet.GetAll() {
-				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
-			}
-
-			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
-				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.wantEdges, taskSet.Edges()); diff != "" {
-				t.Errorf("ResolveGraph() edges mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.want, toResolvedGraph(taskSet)); diff != "" {
+				t.Errorf("ResolveGraph() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -309,11 +322,10 @@ func TestResolveGraph_FanInScopeActiveFeatures(t *testing.T) {
 
 func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 	testCases := []struct {
-		name        string
-		setup       func() (initialTasks, availableTasks, disabledTasks []UntypedTask)
-		wantTaskIDs []string
-		wantEdges   []taskid.TaskEdge
-		wantErr     bool
+		name    string
+		setup   func() (initialTasks, availableTasks, disabledTasks []UntypedTask)
+		want    resolvedGraph
+		wantErr bool
 	}{
 		{
 			name: "pulls in target task and upstream dependencies when upstream merges into active graph",
@@ -329,23 +341,25 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					[]UntypedTask{collector, commonAncestor, targetTask},
 					nil
 			},
-			wantTaskIDs: []string{"common-ancestor#default", "target-task#default", "collector#default"},
-			wantEdges: []taskid.TaskEdge{
-				{
-					SourceRefID:  "target-task",
-					SourceImplID: "target-task#default",
-					TargetImplID: "collector#default",
-					Cardinality:  taskid.CardinalityPointToPoint,
-					Scope:        taskid.ScopeActiveFeatures,
-					OutputType:   "interface {}",
-				},
-				{
-					SourceRefID:  "common-ancestor",
-					SourceImplID: "common-ancestor#default",
-					TargetImplID: "target-task#default",
-					Cardinality:  taskid.CardinalityPointToPoint,
-					Scope:        taskid.ScopeAll,
-					OutputType:   "interface {}",
+			want: resolvedGraph{
+				TaskIDs: []string{"common-ancestor#default", "target-task#default", "collector#default"},
+				Edges: []taskid.TaskEdge{
+					{
+						SourceRefID:  "target-task",
+						SourceImplID: "target-task#default",
+						TargetImplID: "collector#default",
+						Cardinality:  taskid.CardinalityPointToPoint,
+						Scope:        taskid.ScopeActiveFeatures,
+						OutputType:   "interface {}",
+					},
+					{
+						SourceRefID:  "common-ancestor",
+						SourceImplID: "common-ancestor#default",
+						TargetImplID: "target-task#default",
+						Cardinality:  taskid.CardinalityPointToPoint,
+						Scope:        taskid.ScopeAll,
+						OutputType:   "interface {}",
+					},
 				},
 			},
 			wantErr: false,
@@ -364,9 +378,11 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					[]UntypedTask{collector, unselectedFeature, targetTask},
 					[]UntypedTask{unselectedFeature}
 			},
-			wantTaskIDs: []string{"collector#default"},
-			wantEdges:   nil,
-			wantErr:     false,
+			want: resolvedGraph{
+				TaskIDs: []string{"collector#default"},
+				Edges:   []taskid.TaskEdge{},
+			},
+			wantErr: false,
 		},
 		{
 			name: "chains multi-hop point-to-point dependencies with ScopeActiveFeatures",
@@ -385,31 +401,33 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					[]UntypedTask{collector, commonAncestor, intermediateTask, targetTask},
 					nil
 			},
-			wantTaskIDs: []string{"common-ancestor#default", "intermediate-task#default", "target-task#default", "collector#default"},
-			wantEdges: []taskid.TaskEdge{
-				{
-					SourceRefID:  "target-task",
-					SourceImplID: "target-task#default",
-					TargetImplID: "collector#default",
-					Cardinality:  taskid.CardinalityPointToPoint,
-					Scope:        taskid.ScopeActiveFeatures,
-					OutputType:   "interface {}",
-				},
-				{
-					SourceRefID:  "common-ancestor",
-					SourceImplID: "common-ancestor#default",
-					TargetImplID: "intermediate-task#default",
-					Cardinality:  taskid.CardinalityPointToPoint,
-					Scope:        taskid.ScopeAll,
-					OutputType:   "interface {}",
-				},
-				{
-					SourceRefID:  "intermediate-task",
-					SourceImplID: "intermediate-task#default",
-					TargetImplID: "target-task#default",
-					Cardinality:  taskid.CardinalityPointToPoint,
-					Scope:        taskid.ScopeAll,
-					OutputType:   "interface {}",
+			want: resolvedGraph{
+				TaskIDs: []string{"common-ancestor#default", "intermediate-task#default", "target-task#default", "collector#default"},
+				Edges: []taskid.TaskEdge{
+					{
+						SourceRefID:  "target-task",
+						SourceImplID: "target-task#default",
+						TargetImplID: "collector#default",
+						Cardinality:  taskid.CardinalityPointToPoint,
+						Scope:        taskid.ScopeActiveFeatures,
+						OutputType:   "interface {}",
+					},
+					{
+						SourceRefID:  "common-ancestor",
+						SourceImplID: "common-ancestor#default",
+						TargetImplID: "intermediate-task#default",
+						Cardinality:  taskid.CardinalityPointToPoint,
+						Scope:        taskid.ScopeAll,
+						OutputType:   "interface {}",
+					},
+					{
+						SourceRefID:  "intermediate-task",
+						SourceImplID: "intermediate-task#default",
+						TargetImplID: "target-task#default",
+						Cardinality:  taskid.CardinalityPointToPoint,
+						Scope:        taskid.ScopeAll,
+						OutputType:   "interface {}",
+					},
 				},
 			},
 			wantErr: false,
@@ -427,19 +445,8 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 				return
 			}
 
-			var gotTaskIDs []string
-			for _, task := range taskSet.GetAll() {
-				gotTaskIDs = append(gotTaskIDs, task.UntypedID().String())
-			}
-
-			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
-				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
-			}
-
-			if tc.wantEdges != nil {
-				if diff := cmp.Diff(tc.wantEdges, taskSet.Edges()); diff != "" {
-					t.Errorf("ResolveGraph() edges mismatch (-want +got):\n%s", diff)
-				}
+			if diff := cmp.Diff(tc.want, toResolvedGraph(taskSet)); diff != "" {
+				t.Errorf("ResolveGraph() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
