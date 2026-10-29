@@ -17,6 +17,7 @@ package k8sevent_impl
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -28,6 +29,25 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8sevent"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
+
+var containerFieldPathPrefixes = []string{
+	"spec.containers{",
+	"spec.initContainers{",
+	"spec.ephemeralContainers{",
+}
+
+// extractContainerNameFromFieldPath extracts the container name from a Kubernetes event involvedObject.fieldPath.
+func extractContainerNameFromFieldPath(fieldPath string) string {
+	for _, prefix := range containerFieldPathPrefixes {
+		if after, ok := strings.CutPrefix(fieldPath, prefix); ok {
+			containerName, _, found := strings.Cut(after, "}")
+			if found {
+				return containerName
+			}
+		}
+	}
+	return ""
+}
 
 // processK8sEventLog sets the log type, timestamp, severity and summary of a Kubernetes event log.
 // The summary shows the resources that finder resolves from the resource UIDs in the event message.
@@ -93,8 +113,9 @@ func (m *k8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.L
 
 var _ inspectiontaskbase.TimelineMapper[struct{}] = (*k8sEventTimelineMapper)(nil)
 
-// mapK8sEventLog adds an event for a Kubernetes event log to the timeline of its involved resource
-// and to the timelines of the resources that finder resolves from the resource UIDs in the event message.
+// mapK8sEventLog adds an event for a Kubernetes event log to the timeline of its involved resource,
+// its target container or reporting node when present, and the resources that finder resolves from
+// the resource UIDs in the event message.
 func mapK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
 	event, err := k8sevent.ExtractKubernetesEvent(l.NodeReader)
 	if err != nil {
@@ -104,6 +125,20 @@ func mapK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.Patter
 	primaryResourcePath := mustResolveK8sResourceTimelinePath(ctx, &event)
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(primaryResourcePath)
+
+	if event.Resource != "" && event.APIVersion == "core/v1" && event.ResourceKind == "pod" && event.FieldPath != "" {
+		if containerName := extractContainerNameFromFieldPath(event.FieldPath); containerName != "" {
+			cs.AddEvent(k8saudit.MustK8sContainerTimeline(ctx, primaryResourcePath, containerName))
+		}
+	}
+
+	if event.SourceHost != "" && !(event.APIVersion == "core/v1" && event.ResourceKind == "node" && event.Resource == event.SourceHost) {
+		clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, event.ClusterName)
+		nodeAPIVersionPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+		nodeKindPath := k8saudit.MustK8sKindTimeline(ctx, nodeAPIVersionPath, "node")
+		nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, nodeKindPath, event.SourceHost)
+		cs.AddEvent(nodePath)
+	}
 
 	if event.Message != "" {
 		matches := patternfinder.FindAllWithStarterRunes(event.Message, finder, true, k8saudit.EventMessageUIDStarterRunes...)

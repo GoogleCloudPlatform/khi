@@ -32,6 +32,7 @@ var (
 	pathNamespace    = structured.CompileFieldPath("jsonPayload.involvedObject.namespace")
 	pathResourceName = structured.CompileFieldPath("jsonPayload.involvedObject.name")
 	pathResourceUID  = structured.CompileFieldPath("jsonPayload.involvedObject.uid")
+	pathFieldPath    = structured.CompileFieldPath("jsonPayload.involvedObject.fieldPath")
 	pathReason       = structured.CompileFieldPath("jsonPayload.reason")
 	pathMessage      = structured.CompileFieldPath("jsonPayload.message")
 	pathAction       = structured.CompileFieldPath("jsonPayload.action")
@@ -47,6 +48,7 @@ type KubernetesEventFieldSet struct {
 	Namespace    string
 	Resource     string
 	ResourceUID  string
+	FieldPath    string
 	Reason       string
 	Message      string
 	SourceHost   string
@@ -80,6 +82,7 @@ func ExtractKubernetesEvent(reader *structured.NodeReader) (KubernetesEventField
 	result.Namespace = reader.ReadStringOrDefault(pathNamespace, "cluster-scope")
 	result.Resource = reader.ReadStringOrDefault(pathResourceName, "")
 	result.ResourceUID = reader.ReadStringOrDefault(pathResourceUID, "")
+	result.FieldPath = reader.ReadStringOrDefault(pathFieldPath, "")
 	result.Reason = reader.ReadStringOrDefault(pathReason, "")
 	result.Message = reader.ReadStringOrDefault(pathMessage, "")
 	if result.Message == "" {
