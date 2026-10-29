@@ -27,6 +27,7 @@ import {
   output,
   OutputEmitterRef,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { GLContextManager } from './canvas/glcontextmanager';
@@ -205,9 +206,11 @@ export class TimelineChartComponent implements AfterViewInit {
 
     effect(() => {
       this.hideEvents();
-      if (this.lastMouseEvent && this.readyToRender()) {
-        this.onMouseEvent(this.lastMouseEvent, this.mouseMoveOnTimelineItem);
-      }
+      untracked(() => {
+        if (this.lastMouseEvent && this.readyToRender()) {
+          this.onMouseEvent(this.lastMouseEvent, this.mouseMoveOnTimelineItem);
+        }
+      });
     });
   }
 

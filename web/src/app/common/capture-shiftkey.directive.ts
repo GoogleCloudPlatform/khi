@@ -63,6 +63,12 @@ export class CaptureShiftKeyDirective implements AfterViewInit {
     this.containsMouse = false;
   }
 
+  @HostListener('window:blur')
+  windowBlur() {
+    this.shiftStatus.next(false);
+    this.altStatus.next(false);
+  }
+
   ngAfterViewInit(): void {
     // the target element may be not able to have focus. In the case, the key related event won't be fired.
     // it will be handled when the event was propagated to the window
@@ -73,10 +79,6 @@ export class CaptureShiftKeyDirective implements AfterViewInit {
     // (For in case some element stopping the propagation)
     window.addEventListener('keyup', (m) => this.keyboardEvent(m), {
       capture: true,
-    });
-    window.addEventListener('blur', () => {
-      this.shiftStatus.next(false);
-      this.altStatus.next(false);
     });
   }
 
