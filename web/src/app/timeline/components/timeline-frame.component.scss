@@ -256,6 +256,7 @@ $preview-range-border-color: mat.m2-get-color-from-palette(
   @include stick-to-header(0);
   width: 0;
   z-index: $z-index-cursor-header;
+  pointer-events: none;
   transform: translateX(var(--cursor-offset-left));
 
   .cursor-vertical-line-header {
@@ -303,6 +304,7 @@ $preview-range-border-color: mat.m2-get-color-from-palette(
   @include chart-item(var(--cursor-offset-left), 0);
   z-index: $z-index-cursor-body;
   height: 100%;
+  pointer-events: none;
 }
 
 .cursor-vertical-line-body {

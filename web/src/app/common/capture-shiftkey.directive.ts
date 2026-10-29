@@ -34,22 +34,39 @@ export class CaptureShiftKeyDirective implements AfterViewInit {
     this.shiftStatus
       .pipe(distinctUntilChanged())
       .subscribe((status) => this.shiftStatusChange.emit(status));
+    this.altStatus
+      .pipe(distinctUntilChanged())
+      .subscribe((status) => this.altStatusChange.emit(status));
   }
 
   @Output() shiftStatusChange = new EventEmitter<boolean>();
 
+  @Output() altStatusChange = new EventEmitter<boolean>();
+
   private shiftStatus = new Subject<boolean>();
+
+  private altStatus = new Subject<boolean>();
 
   private containsMouse = false;
 
-  @HostListener('mouseenter')
-  mouseEnter() {
+  @HostListener('mouseenter', ['$event'])
+  mouseEnter(m?: MouseEvent) {
     this.containsMouse = true;
+    if (m) {
+      this.shiftStatus.next(m.shiftKey);
+      this.altStatus.next(m.altKey);
+    }
   }
 
   @HostListener('mouseleave')
   mouseLeave() {
     this.containsMouse = false;
+  }
+
+  @HostListener('window:blur')
+  windowBlur() {
+    this.shiftStatus.next(false);
+    this.altStatus.next(false);
   }
 
   ngAfterViewInit(): void {
@@ -67,5 +84,6 @@ export class CaptureShiftKeyDirective implements AfterViewInit {
 
   keyboardEvent(m: KeyboardEvent) {
     this.shiftStatus.next(m.shiftKey);
+    this.altStatus.next(m.altKey);
   }
 }

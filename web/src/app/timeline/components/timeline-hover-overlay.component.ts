@@ -134,6 +134,11 @@ export class TimelineHoverOverlayComponent {
    */
   highlights = input<TimelineChartItemHighlight>({});
 
+  /**
+   * Whether events should be hidden from the hover overlay (e.g., while holding Alt).
+   */
+  hideEvents = input<boolean>(false);
+
   handleMouse(
     e: MouseEvent,
     timeline: ReadonlyDomainElement<Timeline>,
@@ -182,7 +187,7 @@ export class TimelineHoverOverlayComponent {
     }
     const highlights = this.highlights();
     const revisions = timelineHoverOverlay.revisions;
-    const events = timelineHoverOverlay.events;
+    const events = this.hideEvents() ? [] : timelineHoverOverlay.events;
     const viewModel: TimelineHoverOverlayViewModel = {
       logs: [],
       timeline: timelineHoverOverlay.timeline,

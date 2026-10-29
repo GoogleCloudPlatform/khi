@@ -36,6 +36,8 @@ import { TimeRangeFilter } from 'src/app/services/view-state.service';
 import { GLContextManager } from './canvas/glcontextmanager';
 import { TimelineChartComponent } from './timeline-chart.component';
 import { TimelineRulerComponent } from './timeline-ruler.component';
+import { CaptureShiftKeyDirective } from 'src/app/common/capture-shiftkey.directive';
+import { TimelineHoverOverlayComponent } from './timeline-hover-overlay.component';
 
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
@@ -74,6 +76,22 @@ class MockTimeline extends Timeline {
 
   override get type(): ReadonlyDomainElement<TimelineType> {
     return mockTimelineType;
+  }
+
+  override get name(): string {
+    return `timeline-${this.id}`;
+  }
+
+  override get layer(): number {
+    return 0;
+  }
+
+  override get parent(): ReadonlyDomainElement<Timeline> | null {
+    return null;
+  }
+
+  override get childrenCount(): number {
+    return 0;
   }
 }
 
@@ -425,5 +443,55 @@ describe('TimelineFrameComponent - time range selection', () => {
       pixelsPerMs: 2,
       invalidated: charts.map(() => true),
     });
+  });
+
+  it('should propagate Alt key status to child charts and hover overlay as hideEvents without enabling scaleMode', () => {
+    const timelineA = new MockTimeline(1);
+    frameFixture.componentRef.setInput('timelines', [timelineA]);
+    frameFixture.componentRef.setInput('timelineHoverOverlayRequest', {
+      timeMs: 1000,
+      timelineId: 1,
+      isMouseOnTimeline: true,
+      overlay: {
+        timeline: timelineA,
+        revisions: [],
+        events: [],
+        initialRevision: null,
+        cursorTime: 1000000000n,
+      },
+    });
+    frameFixture.detectChanges();
+
+    const shiftDirective = frameFixture.debugElement
+      .query(By.directive(CaptureShiftKeyDirective))
+      .injector.get(CaptureShiftKeyDirective);
+    const emittedAltStatuses: boolean[] = [];
+    frameComponent.altStatusChange.subscribe((status) => {
+      emittedAltStatuses.push(status);
+    });
+
+    const charts = queryCharts();
+    const hoverOverlay = frameFixture.debugElement.query(
+      By.directive(TimelineHoverOverlayComponent),
+    ).componentInstance as TimelineHoverOverlayComponent;
+
+    expect(charts.map((chart) => chart.hideEvents())).toEqual([false, false]);
+    expect(hoverOverlay.hideEvents()).toBeFalse();
+    expect(frameComponent['scaleMode']()).toBeFalse();
+
+    shiftDirective.altStatusChange.emit(true);
+    frameFixture.detectChanges();
+
+    expect(emittedAltStatuses).toEqual([true]);
+    expect(charts.map((chart) => chart.hideEvents())).toEqual([true, true]);
+    expect(hoverOverlay.hideEvents()).toBeTrue();
+    expect(frameComponent['scaleMode']()).toBeFalse();
+
+    shiftDirective.altStatusChange.emit(false);
+    frameFixture.detectChanges();
+
+    expect(emittedAltStatuses).toEqual([true, false]);
+    expect(charts.map((chart) => chart.hideEvents())).toEqual([false, false]);
+    expect(hoverOverlay.hideEvents()).toBeFalse();
   });
 });
