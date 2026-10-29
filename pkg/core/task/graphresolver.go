@@ -296,6 +296,7 @@ func resolveActiveFeaturesAndCandidateFanInEdges(
 					SourceImplID: p.UntypedID().String(),
 					TargetImplID: task.UntypedID().String(),
 					Cardinality:  taskid.CardinalityFanIn,
+					Scope:        fanInDep.DescriptorScope(),
 					Tag:          tag,
 					Priority:     priority,
 					OutputType:   tagType,
@@ -438,6 +439,7 @@ func resolvePointToPointEdges(graphTaskMap map[string]UntypedTask) ([]taskid.Tas
 						SourceImplID: sourceTask.UntypedID().String(),
 						TargetImplID: t.UntypedID().String(),
 						Cardinality:  taskid.CardinalityPointToPoint,
+						Scope:        dep.DescriptorScope(),
 						OutputType:   sourceTask.ResultType().String(),
 					})
 				}
@@ -471,6 +473,9 @@ func deduplicateAndNormalizeEdges(rawEdges []taskid.TaskEdge) []taskid.TaskEdge 
 			}
 			if existing.Cardinality == taskid.CardinalityPointToPoint || e.Cardinality == taskid.CardinalityPointToPoint {
 				existing.Cardinality = taskid.CardinalityPointToPoint
+			}
+			if e.Scope > existing.Scope {
+				existing.Scope = e.Scope
 			}
 			edgeMap[key] = existing
 		} else {

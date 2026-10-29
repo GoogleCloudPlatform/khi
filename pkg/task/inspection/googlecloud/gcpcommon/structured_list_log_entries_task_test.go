@@ -153,11 +153,12 @@ func TestStructuredListLogEntriesTask_Run_FetchLogs(t *testing.T) {
 	testErr := fmt.Errorf("fetch error")
 
 	testCases := []struct {
-		desc           string
-		source         *mockStructuredLogQuerySource
-		fetcherFactory func(t *testing.T) *mockLogFetcher
-		wantLogsString []string
-		wantError      error
+		desc               string
+		source             *mockStructuredLogQuerySource
+		fetcherFactory     func(t *testing.T) *mockLogFetcher
+		wantLogsString     []string
+		wantSummaryQueries []summary.Query
+		wantError          error
 	}{
 		{
 			desc: "successful log fetch with single query",
@@ -187,6 +188,97 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			wantLogsString: []string{
 				"insertId: log-1\nlogName: container-log\n",
 				"insertId: log-2\nlogName: container-log\n",
+			},
+			wantSummaryQueries: []summary.Query{
+				{
+					Name: "container-logs",
+					Text: `resource.type="k8s_container"
+resource.labels.project_id="test-project"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp <= "2025-01-01T01:01:00+0000"`,
+					LogCount: ptr(2),
+				},
+			},
+		},
+		{
+			desc: "successful log fetch with multiple split queries records per-query log counts",
+			source: &mockStructuredLogQuerySource{
+				resourceNames: []string{"projects/test-project"},
+				queries: []*logestimator.StructuredLogQuery{
+					{
+						ResourceTypes: []string{"k8s_container"},
+						Filters: []logestimator.LoggingMonitoringMatcher{
+							logestimator.ResourceLabel("node_name", logestimator.Exact("node-a")),
+						},
+					},
+					{
+						ResourceTypes: []string{"k8s_container"},
+						Filters: []logestimator.LoggingMonitoringMatcher{
+							logestimator.ResourceLabel("node_name", logestimator.Exact("node-b")),
+						},
+					},
+					{
+						ResourceTypes: []string{"k8s_container"},
+						Filters: []logestimator.LoggingMonitoringMatcher{
+							logestimator.ResourceLabel("node_name", logestimator.Exact("node-c")),
+						},
+					},
+				},
+				timePartitionCount: 1,
+			},
+			fetcherFactory: func(t *testing.T) *mockLogFetcher {
+				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
+					newFakeLogUpstreamPair(`resource.type="k8s_container"
+resource.labels.node_name="node-a"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						logSource <- &loggingpb.LogEntry{InsertId: "log-a1", LogName: "container-log"}
+						logSource <- &loggingpb.LogEntry{InsertId: "log-a2", LogName: "container-log"}
+					}),
+					newFakeLogUpstreamPair(`resource.type="k8s_container"
+resource.labels.node_name="node-b"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						// Zero logs returned for node-b.
+					}),
+					newFakeLogUpstreamPair(`resource.type="k8s_container"
+resource.labels.node_name="node-c"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						logSource <- &loggingpb.LogEntry{InsertId: "log-c1", LogName: "container-log"}
+					}),
+				})
+			},
+			wantLogsString: []string{
+				"insertId: log-a1\nlogName: container-log\n",
+				"insertId: log-a2\nlogName: container-log\n",
+				"insertId: log-c1\nlogName: container-log\n",
+			},
+			wantSummaryQueries: []summary.Query{
+				{
+					Name: "container-logs-0",
+					Text: `resource.type="k8s_container"
+resource.labels.node_name="node-a"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp <= "2025-01-01T01:01:00+0000"`,
+					LogCount: ptr(2),
+				},
+				{
+					Name: "container-logs-1",
+					Text: `resource.type="k8s_container"
+resource.labels.node_name="node-b"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp <= "2025-01-01T01:01:00+0000"`,
+					LogCount: ptr(0),
+				},
+				{
+					Name: "container-logs-2",
+					Text: `resource.type="k8s_container"
+resource.labels.node_name="node-c"
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp <= "2025-01-01T01:01:00+0000"`,
+					LogCount: ptr(1),
+				},
 			},
 		},
 		{
@@ -271,6 +363,23 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 
 			if diff := cmp.Diff(tc.wantLogsString, gotLogsString); diff != "" {
 				t.Errorf("Logs mismatch (-want +got):\n%s", diff)
+			}
+
+			metadata := khictx.MustGetValue(nextCtx, inspectionmetadata.MapContextKey)
+			summaryCollector, found := typedmap.Get(metadata, summary.MetadataKey)
+			if !found {
+				t.Fatalf("summary collector metadata not found")
+			}
+			wantSnap := summary.Snapshot{
+				Sections: []summary.Section{
+					{
+						Title:   "Shared & Filter Context",
+						Queries: tc.wantSummaryQueries,
+					},
+				},
+			}
+			if diff := cmp.Diff(wantSnap, summaryCollector.Snapshot()); diff != "" {
+				t.Errorf("summary.Snapshot() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

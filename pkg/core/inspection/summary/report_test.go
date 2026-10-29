@@ -41,6 +41,7 @@ func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 	featureEventTask := newTestTask("feature-event", inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 2, true))
 
 	inventoryTask := newTestTask("inventory-node-names")
+	sharedMemberTask := newTestTask("shared-log-fetcher", coretask.WithTitle("Shared Log Fetcher"))
 
 	tasks := []coretask.UntypedTask{
 		formTask,
@@ -51,6 +52,7 @@ func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 		eventMapperTask,
 		featureEventTask,
 		inventoryTask,
+		sharedMemberTask,
 	}
 
 	taskMap := make(map[string]coretask.UntypedTask)
@@ -65,6 +67,8 @@ func buildTestGraph() (*coretask.TaskSet, map[string]coretask.UntypedTask) {
 		newTestEdge(auditMapperTask.UntypedID().String(), featureAuditTask.UntypedID().String()),
 		newTestEdge(listEventTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
 		newTestEdge(eventMapperTask.UntypedID().String(), featureEventTask.UntypedID().String()),
+		newTestEdge(sharedMemberTask.UntypedID().String(), auditMapperTask.UntypedID().String()),
+		newTestEdge(sharedMemberTask.UntypedID().String(), eventMapperTask.UntypedID().String()),
 	}
 
 	return coretask.NewResolvedTaskSet(tasks, edges, nil), taskMap
@@ -297,6 +301,64 @@ func TestReportAPI(t *testing.T) {
 								Properties: []KeyValue{
 									{Key: "fruits", Value: "apple, banana, cherry"},
 								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multi-feature member fans out queries, properties, and markdown to every reachable feature",
+			run: func(c *Collector) {
+				ctx := buildTaskContext(c, tasks["shared-log-fetcher#default"])
+				RecordQuery(ctx, "q-shared-member", "Shared Log Query", "resource.type=\"gce_instance\"")
+				RecordQueryLogCount(ctx, "q-shared-member", 75)
+				SetProperty(ctx, "mode", "streaming")
+				AddIntProperty(ctx, "chunks", 3)
+				AddToSetProperty(ctx, "zones", "us-central1-b")
+				AddToSetProperty(ctx, "zones", "us-central1-a")
+				AddFeatureIntProperty(ctx, "sharedFetchedLogs", 75)
+				AppendMarkdown(ctx, "Fetched across 2 zones.")
+			},
+			want: Snapshot{
+				Sections: []Section{
+					{
+						Title: "Kubernetes Audit Logs",
+						Queries: []Query{
+							{Name: "Shared Log Query", Text: "resource.type=\"gce_instance\"", LogCount: testutil.P(75)},
+						},
+						Properties: []KeyValue{
+							{Key: "sharedFetchedLogs", Value: "75"},
+						},
+						TaskReports: []TaskReport{
+							{
+								Title: "Shared Log Fetcher",
+								Properties: []KeyValue{
+									{Key: "chunks", Value: "3"},
+									{Key: "mode", Value: "streaming"},
+									{Key: "zones", Value: "us-central1-a, us-central1-b"},
+								},
+								Markdown: "Fetched across 2 zones.",
+							},
+						},
+					},
+					{
+						Title: "Kubernetes Event Logs",
+						Queries: []Query{
+							{Name: "Shared Log Query", Text: "resource.type=\"gce_instance\"", LogCount: testutil.P(75)},
+						},
+						Properties: []KeyValue{
+							{Key: "sharedFetchedLogs", Value: "75"},
+						},
+						TaskReports: []TaskReport{
+							{
+								Title: "Shared Log Fetcher",
+								Properties: []KeyValue{
+									{Key: "chunks", Value: "3"},
+									{Key: "mode", Value: "streaming"},
+									{Key: "zones", Value: "us-central1-a, us-central1-b"},
+								},
+								Markdown: "Fetched across 2 zones.",
 							},
 						},
 					},

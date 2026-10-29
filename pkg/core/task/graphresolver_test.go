@@ -155,7 +155,7 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 		initialTasks   []UntypedTask
 		availableTasks []UntypedTask
 		wantTaskIDs    []string
-		wantEdgeCount  int
+		wantEdges      []taskid.TaskEdge
 	}{
 		{
 			name: "optional dependency is activated when target exists in graph",
@@ -171,8 +171,17 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 				}),
 				createMockTask("provider", "default", nil),
 			},
-			wantTaskIDs:   []string{"provider#default", "consumer#default"},
-			wantEdgeCount: 1,
+			wantTaskIDs: []string{"provider#default", "consumer#default"},
+			wantEdges: []taskid.TaskEdge{
+				{
+					SourceRefID:  "provider",
+					SourceImplID: "provider#default",
+					TargetImplID: "consumer#default",
+					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeActiveGraph,
+					OutputType:   "interface {}",
+				},
+			},
 		},
 		{
 			name: "optional dependency is NOT activated when target is not in graph",
@@ -187,8 +196,8 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 				}),
 				createMockTask("provider", "default", nil),
 			},
-			wantTaskIDs:   []string{"consumer#default"},
-			wantEdgeCount: 0,
+			wantTaskIDs: []string{"consumer#default"},
+			wantEdges:   []taskid.TaskEdge{},
 		},
 		{
 			name: "fan-in with ScopeActiveGraph only includes existing tasks",
@@ -205,8 +214,19 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 				createMockTask("prod1", "default", nil, ProvidesTag(tagA)),
 				createMockTask("prod2", "default", nil, ProvidesTag(tagA)), // not in graph
 			},
-			wantTaskIDs:   []string{"prod1#default", "collector#default"},
-			wantEdgeCount: 1,
+			wantTaskIDs: []string{"prod1#default", "collector#default"},
+			wantEdges: []taskid.TaskEdge{
+				{
+					SourceRefID:  "prod1",
+					SourceImplID: "prod1#default",
+					TargetImplID: "collector#default",
+					Cardinality:  taskid.CardinalityFanIn,
+					Scope:        taskid.ScopeActiveGraph,
+					Tag:          "tag-a",
+					Priority:     100,
+					OutputType:   "interface {}",
+				},
+			},
 		},
 	}
 
@@ -225,8 +245,8 @@ func TestResolveGraph_OptionalDependencies(t *testing.T) {
 			if diff := cmp.Diff(tc.wantTaskIDs, gotTaskIDs); diff != "" {
 				t.Errorf("ResolveGraph() task IDs mismatch (-want +got):\n%s", diff)
 			}
-			if len(taskSet.Edges()) != tc.wantEdgeCount {
-				t.Errorf("got %d edges, want %d", len(taskSet.Edges()), tc.wantEdgeCount)
+			if diff := cmp.Diff(tc.wantEdges, taskSet.Edges()); diff != "" {
+				t.Errorf("ResolveGraph() edges mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -316,6 +336,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					SourceImplID: "target-task#default",
 					TargetImplID: "collector#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeActiveFeatures,
 					OutputType:   "interface {}",
 				},
 				{
@@ -323,6 +344,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					SourceImplID: "common-ancestor#default",
 					TargetImplID: "target-task#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeAll,
 					OutputType:   "interface {}",
 				},
 			},
@@ -370,6 +392,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					SourceImplID: "target-task#default",
 					TargetImplID: "collector#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeActiveFeatures,
 					OutputType:   "interface {}",
 				},
 				{
@@ -377,6 +400,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					SourceImplID: "common-ancestor#default",
 					TargetImplID: "intermediate-task#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeAll,
 					OutputType:   "interface {}",
 				},
 				{
@@ -384,6 +408,7 @@ func TestResolveGraph_PointToPointScopeActiveFeatures(t *testing.T) {
 					SourceImplID: "intermediate-task#default",
 					TargetImplID: "target-task#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeAll,
 					OutputType:   "interface {}",
 				},
 			},
@@ -443,6 +468,7 @@ func TestResolveGraph_EdgeDeduplication(t *testing.T) {
 					SourceImplID: "task-a#default",
 					TargetImplID: "task-b#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeAll,
 					Tag:          "tag-a",
 					Priority:     100,
 					OutputType:   "interface {}",
@@ -464,6 +490,7 @@ func TestResolveGraph_EdgeDeduplication(t *testing.T) {
 					SourceImplID: "task-a#default",
 					TargetImplID: "task-b#default",
 					Cardinality:  taskid.CardinalityPointToPoint,
+					Scope:        taskid.ScopeActiveFeatures,
 					Tag:          "tag-a",
 					Priority:     20,
 					OutputType:   "interface {}",

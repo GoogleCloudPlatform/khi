@@ -68,9 +68,9 @@ func TestInspectionHandler_SummaryGolden(t *testing.T) {
 	}
 
 	edges := []taskid.TaskEdge{
-		{SourceImplID: formTask.UntypedID().String(), TargetImplID: listAuditTask.UntypedID().String()},
-		{SourceImplID: listAuditTask.UntypedID().String(), TargetImplID: auditMapperTask.UntypedID().String()},
-		{SourceImplID: auditMapperTask.UntypedID().String(), TargetImplID: featureAuditTask.UntypedID().String()},
+		{SourceImplID: formTask.UntypedID().String(), TargetImplID: listAuditTask.UntypedID().String(), Cardinality: taskid.CardinalityPointToPoint, Scope: taskid.ScopeAll},
+		{SourceImplID: listAuditTask.UntypedID().String(), TargetImplID: auditMapperTask.UntypedID().String(), Cardinality: taskid.CardinalityPointToPoint, Scope: taskid.ScopeAll},
+		{SourceImplID: auditMapperTask.UntypedID().String(), TargetImplID: featureAuditTask.UntypedID().String(), Cardinality: taskid.CardinalityPointToPoint, Scope: taskid.ScopeAll},
 	}
 
 	taskGraph := coretask.NewResolvedTaskSet(tasks, edges, nil)
@@ -290,15 +290,32 @@ func TestInspectionHandler_E2E(t *testing.T) {
 
 	server.RegisterImportedInspection("2026-09-24-0010-e5f6", nil, md3.AsReadonly())
 
+	md4 := typedmap.NewTypedMap()
+	header4 := &inspectionmetadata.HeaderMetadata{
+		InspectionName:         "cancelled investigation",
+		InspectionType:         "Google Kubernetes Engine",
+		InspectTimeUnixSeconds: 200,
+	}
+	typedmap.Set(md4, inspectionmetadata.HeaderMetadataKey, header4)
+
+	prog4 := inspectionmetadata.NewProgress()
+	if err := prog4.MarkCancelled(); err != nil {
+		t.Fatalf("prog4.MarkCancelled() failed: %v", err)
+	}
+	typedmap.Set(md4, inspectionmetadata.ProgressMetadataKey, prog4)
+
+	server.RegisterImportedInspection("2026-09-24-0005-g7h8", nil, md4.AsReadonly())
+
 	t.Run("ListInspections", func(t *testing.T) {
 		got := readResourceText(t, ctx, session, "khi://inspections")
 		want := "# Inspections\n\n" +
-			"3 inspections, newest first. Read `khi://inspections/{id}` for the summary of each inspection.\n\n" +
+			"4 inspections, newest first. Read `khi://inspections/{id}` for the summary of each inspection.\n\n" +
 			"| ID | Name | Type | Status | Time range | Labels |\n" +
 			"| --- | --- | --- | --- | --- | --- |\n" +
 			"| `2026-09-24-0200-c3d4` | staging-cluster investigation | Google Kubernetes Engine | RUNNING |  |  |\n" +
 			"| `2026-09-24-0130-a1b2` | prod-cluster-1 restart investigation | Google Kubernetes Engine | DONE | 2026-09-24T01:00:00Z - 2026-09-24T02:00:00Z | clusterName=prod-cluster-1, location=us-central1, projectId=my-gcp-project |\n" +
-			"| `2026-09-24-0010-e5f6` | failed investigation | Google Kubernetes Engine | ERROR |  |  |"
+			"| `2026-09-24-0010-e5f6` | failed investigation | Google Kubernetes Engine | ERROR |  |  |\n" +
+			"| `2026-09-24-0005-g7h8` | cancelled investigation | Google Kubernetes Engine | CANCELLED |  |  |"
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("ListInspections mismatch (-want +got):\n%s", diff)
 		}
@@ -342,6 +359,11 @@ func TestInspectionHandler_E2E(t *testing.T) {
 			name: "ReadResourceERROR",
 			uri:  "khi://inspections/2026-09-24-0010-e5f6",
 			want: "# Inspection `2026-09-24-0010-e5f6`\n\nStatus: ERROR. No summary is available. Call `wait_inspection` to see which task failed.",
+		},
+		{
+			name: "ReadResourceCANCELLED",
+			uri:  "khi://inspections/2026-09-24-0005-g7h8",
+			want: "# Inspection `2026-09-24-0005-g7h8`\n\nStatus: CANCELLED. No summary is available because the inspection was cancelled.",
 		},
 		{
 			name:    "ReadResourceNotFound",
