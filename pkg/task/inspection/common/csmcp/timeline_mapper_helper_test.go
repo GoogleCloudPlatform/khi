@@ -73,7 +73,7 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 		{
 			name:        "disconnection event with previous connected state",
 			clusterName: "test-cluster",
-			logMessage:  `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`,
+			logMessage:  `ADS: "192.0.2.1:8080" test-pod.default-1 terminated`,
 			pods: []PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
@@ -101,7 +101,7 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 		{
 			name:        "disconnection event with nil initial state adds ConnectedLogNotFound",
 			clusterName: "test-cluster",
-			logMessage:  `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`,
+			logMessage:  `ADS: "192.0.2.1:8080" test-pod.default-1 terminated`,
 			pods: []PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
@@ -131,7 +131,7 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 		{
 			name:        "disconnection event without previous connected state in existing state adds ConnectedLogNotFound",
 			clusterName: "test-cluster",
-			logMessage:  `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`,
+			logMessage:  `ADS: "192.0.2.1:8080" test-pod.default-1 terminated`,
 			pods: []PodIdentifier{
 				{Name: "test-pod", Namespace: "default", ConnectionID: "1"},
 			},
@@ -203,7 +203,7 @@ func TestMapPodAndConnectionTimelines(t *testing.T) {
 		termTime := testTime.Add(time.Minute)
 		l2 := &log.Log{Timestamp: termTime}
 		cs2 := khifilev6.NewTimelineChangeSet(l2)
-		MapPodAndConnectionTimelines(ctx, cs2, "test-cluster", `ADS: "192.0.2.1:41780" test-pod.default-1 terminated`, termTime, connPods, state)
+		MapPodAndConnectionTimelines(ctx, cs2, "test-cluster", `ADS: "192.0.2.1:8080" test-pod.default-1 terminated`, termTime, connPods, state)
 
 		testchangeset.AssertTimeline(t, cs2).
 			HasEvent(csmcpPodPath).

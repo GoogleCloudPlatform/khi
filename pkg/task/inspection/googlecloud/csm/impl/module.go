@@ -20,7 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// Module declares the tasks that build pod, service and Traffic Director resource timelines from CSM traffic logs and Traffic Director audit logs.
+// Module declares the tasks that build pod, service, Traffic Director resource, and control plane timelines from CSM traffic logs, Traffic Director audit logs, and control plane logs.
 var Module = coreinspection.Module{
 	Name: "googlecloud/csm",
 	Scope: coreinspection.Scope{
@@ -39,12 +39,18 @@ var Module = coreinspection.Module{
 		csmTrafficDirectorLogIngesterTask,
 		csmTrafficDirectorLogGrouperTask,
 		csmTrafficDirectorLogToTimelineMapperTask,
+		csmControlPlaneLogIngesterTask,
+		csmControlPlaneLogGrouperTask,
+		csmControlPlaneLogToTimelineMapperTask,
 	},
 	SubModules: []coreinspection.Module{
 		{
 			Name:  "cloud-logging",
 			Scope: coreinspection.Scope{inspectioncore.InspectionTypeLabelKeyLogSource: "cloud_logging"},
-			Tasks: []coretask.UntypedTask{listLogEntriesTask},
+			Tasks: []coretask.UntypedTask{
+				listLogEntriesTask,
+				listCSMControlPlaneLogEntriesTask,
+			},
 		},
 	},
 }

@@ -60,7 +60,7 @@ func TestParsePodIdentifier(t *testing.T) {
 		},
 		{
 			name:  "ip address should return nil",
-			input: `"192.0.2.1:41780"`,
+			input: `"192.0.2.1:8080"`,
 			want:  nil,
 		},
 		{
@@ -114,6 +114,8 @@ func TestIsXDSLog(t *testing.T) {
 		{name: "SDS prefix", input: "SDS: PUSH request", want: true},
 		{name: "NDS prefix", input: "NDS: PUSH request", want: true},
 		{name: "WDS prefix", input: "WDS: PUSH request", want: true},
+		{name: "timeout writing prefix", input: "Timeout writing worker-pod-12345abcde-xyz12.example-ns-10", want: true},
+		{name: "client closed connection prefix", input: "Client closed connection worker-pod-12345abcde-xyz12.example-ns-10", want: true},
 		{name: "non-XDS log", input: "Starting discovery service", want: false},
 		{name: "lowercase prefix", input: "info: general log", want: false},
 		{name: "non-uppercase prefix", input: "NONUPPER1: log", want: false},
@@ -157,7 +159,8 @@ func TestIsDisconnectionLog(t *testing.T) {
 		input string
 		want  bool
 	}{
-		{name: "terminated log with address", input: `ADS: "192.0.2.1:41780" p.ns-1 terminated`, want: true},
+		{name: "terminated log with address", input: `ADS: "192.0.2.1:8080" p.ns-1 terminated`, want: true},
+		{name: "client closed connection log", input: "Client closed connection worker-pod-12345abcde-xyz12.example-ns-10", want: true},
 		{name: "connection log", input: "ADS: new delta connection for node:p.ns-1", want: false},
 		{name: "push log", input: "CDS: PUSH request", want: false},
 	}

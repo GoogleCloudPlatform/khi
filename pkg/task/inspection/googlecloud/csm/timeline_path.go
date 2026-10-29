@@ -20,6 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
@@ -78,4 +79,11 @@ func MustCSMServiceClientAccessTimeline(ctx context.Context, clusterName string,
 		Name: "client",
 		Type: TimelineTypeCSMTrafficLog,
 	})
+}
+
+// MustCSMControlPlaneTimeline returns the timeline path for the Managed CSM control plane.
+func MustCSMControlPlaneTimeline(ctx context.Context) *khifilev6.TimelinePath {
+	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, "Google Managed")
+	typeTimeline := gcpcommon.MustGCPResourceTypeTimeline(ctx, projectTimeline, "Control Plane")
+	return gcpcommon.MustGCPResourceTimeline(ctx, typeTimeline, "istio_control_plane")
 }
