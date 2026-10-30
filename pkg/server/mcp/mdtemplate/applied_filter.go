@@ -56,9 +56,7 @@ func FormatAppliedFilter(f workbench.AppliedFilter) string {
 	fmt.Fprintf(&yamlBody, "endTime: %s\n", endTime)
 	fmt.Fprintf(&yamlBody, "excludeTimelinesWithoutLogs: %t", f.ExcludeTimelinesWithoutLogs)
 
-	var sb strings.Builder
-	sb.WriteString("## Applied filter\n")
-	sb.WriteString("Enter these values in the KHI Web UI filter to see the same data.\n\n")
-	sb.WriteString(md.Fence("yaml", yamlBody.String()))
-	return sb.String()
+	return "## Applied filter\n" +
+		"Enter these values in the KHI Web UI filter to see the same data.\n\n" +
+		md.Fence("yaml", yamlBody.String())
 }
