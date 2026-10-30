@@ -34,17 +34,21 @@ type WorkbenchHandler struct {
 	templates   *mdtemplate.Set
 	waitTimeout time.Duration
 	renderer    TimelineImageRenderer
+	assetStore  *AssetStore
 }
 
 var _ DomainHandler = (*WorkbenchHandler)(nil)
 
 // NewWorkbenchHandler creates a new WorkbenchHandler.
-func NewWorkbenchHandler(manager *workbench.WorkbenchManager, renderer TimelineImageRenderer) *WorkbenchHandler {
+//
+// renderer may be nil to omit the render_timelines tool; when renderer is non-nil, assetStore must also be non-nil.
+func NewWorkbenchHandler(manager *workbench.WorkbenchManager, renderer TimelineImageRenderer, assetStore *AssetStore) *WorkbenchHandler {
 	return &WorkbenchHandler{
 		manager:     manager,
 		templates:   mdtemplate.MustParse(templateFS, "templates/*.md.tmpl"),
 		waitTimeout: defaultWorkbenchWaitTimeout,
 		renderer:    renderer,
+		assetStore:  assetStore,
 	}
 }
 
@@ -88,7 +92,7 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 	if h.renderer != nil {
 		mcpsdk.AddTool(srv, &mcpsdk.Tool{
 			Name:        "render_timelines",
-			Description: `Render resource timelines and events visually as a PNG image matching the KHI frontend timeline view, alongside a Markdown summary with the applied filter. Select target timelines via filter (same CEL and time range syntax as search_timelines) and/or explicit timelineIds (ancestor hierarchy rows are automatically included). When filter.startTime and filter.endTime are omitted, the entire inspection duration is rendered; when specified, the chart zooms horizontally to that time window.`,
+			Description: `Render resource timelines and events visually as a PNG image matching the KHI frontend timeline view, alongside a Markdown summary with a short-lived HTTP image URL and the applied filter. Select target timelines via filter (same CEL and time range syntax as search_timelines) and/or explicit timelineIds (ancestor hierarchy rows are automatically included). When filter.startTime and filter.endTime are omitted, the entire inspection duration is rendered; when specified, the chart zooms horizontally to that time window.`,
 		}, h.handleRenderTimelines)
 	}
 

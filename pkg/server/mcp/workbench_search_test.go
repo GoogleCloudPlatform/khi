@@ -37,7 +37,7 @@ var (
 
 func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
 	mgr, inspectionID := newTestWorkbenchManager(t)
-	handler := NewWorkbenchHandler(mgr, nil)
+	handler := NewWorkbenchHandler(mgr, nil, nil)
 
 	_, invalidCELErr := workbench.ValidateFilter(workbench.Filter{
 		TimelineQuery: "invalid &&& syntax",
@@ -112,7 +112,7 @@ func TestWorkbenchHandler_HandleSearchTimelines(t *testing.T) {
 
 func TestWorkbenchHandler_HandleSearchLogs(t *testing.T) {
 	mgr, inspectionID := newTestWorkbenchManager(t)
-	handler := NewWorkbenchHandler(mgr, nil)
+	handler := NewWorkbenchHandler(mgr, nil, nil)
 
 	_, invalidCELErr := workbench.ValidateFilter(workbench.Filter{
 		LogQuery: "invalid &&& syntax",

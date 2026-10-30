@@ -53,6 +53,8 @@ type renderTimelinesTemplateData struct {
 	Height          int
 	ViewStartTime   time.Time
 	ViewEndTime     time.Time
+	ImageURL        string
+	ExpiresAt       time.Time
 	Applied         workbench.AppliedFilter
 }
 
@@ -89,6 +91,8 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 		return mdtemplate.ErrorResult("RENDER_FAILED", fmt.Sprintf("Failed to render timelines: %s.", err.Error()))
 	}
 
+	grant := h.assetStore.Issue(renderRes.PNGBytes, "image/png", ".png")
+
 	summaryText, err := h.templates.Render("render_timelines.md.tmpl", renderTimelinesTemplateData{
 		RenderedCount:   renderRes.RenderedCount,
 		TotalMatched:    renderRes.TotalMatched,
@@ -98,6 +102,8 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 		Height:          renderRes.Height,
 		ViewStartTime:   time.UnixMilli(renderRes.ViewStartTimeMs).UTC(),
 		ViewEndTime:     time.UnixMilli(renderRes.ViewEndTimeMs).UTC(),
+		ImageURL:        grant.URL,
+		ExpiresAt:       grant.ExpiresAt,
 		Applied:         applied,
 	})
 	if err != nil {

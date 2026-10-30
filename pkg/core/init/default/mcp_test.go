@@ -29,39 +29,114 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMCPServerInitializer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	pngBytes := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+
+	type assetServeResult struct {
+		GetStatus       int
+		GetContentType  string
+		GetBody         []byte
+		HeadStatus      int
+		HeadBodyByteLen int
+	}
+
+	type initOutcome struct {
+		HasMCPServer             bool
+		HasAssetStore            bool
+		AssetServe               *assetServeResult
+		HasRenderToolByTransport map[string]bool
+		ProbeStatuses            map[string]int
+	}
+
 	testCases := []struct {
 		name           string
 		jobMode        bool
 		withCDPBrowser bool
 		basePath       string
-		wantMCP        bool
-		wantRenderTool bool
-		wantNotFound   []string
+		probePaths     []string
+		want           initOutcome
 	}{
 		{
 			name:    "skips initialization in job mode",
 			jobMode: true,
+			want: initOutcome{
+				HasMCPServer:  false,
+				HasAssetStore: false,
+			},
 		},
 		{
-			name:     "mounts endpoints without render_timelines when CDPBrowserKey is absent",
+			name:     "mounts endpoints and asset store without render_timelines when CDPBrowserKey is absent",
 			basePath: "",
-			wantMCP:  true,
+			want: initOutcome{
+				HasMCPServer:  true,
+				HasAssetStore: true,
+				AssetServe: &assetServeResult{
+					GetStatus:       http.StatusOK,
+					GetContentType:  "image/png",
+					GetBody:         pngBytes,
+					HeadStatus:      http.StatusOK,
+					HeadBodyByteLen: 0,
+				},
+				HasRenderToolByTransport: map[string]bool{
+					"streamable": false,
+					"sse":        false,
+				},
+			},
 		},
 		{
-			name:           "mounts endpoints with render_timelines when CDPBrowserKey is present",
+			name:           "mounts endpoints with render_timelines at root base path",
+			withCDPBrowser: true,
+			basePath:       "",
+			want: initOutcome{
+				HasMCPServer:  true,
+				HasAssetStore: true,
+				AssetServe: &assetServeResult{
+					GetStatus:       http.StatusOK,
+					GetContentType:  "image/png",
+					GetBody:         pngBytes,
+					HeadStatus:      http.StatusOK,
+					HeadBodyByteLen: 0,
+				},
+				HasRenderToolByTransport: map[string]bool{
+					"streamable": true,
+					"sse":        true,
+				},
+			},
+		},
+		{
+			name:           "mounts endpoints with render_timelines under custom base path",
 			withCDPBrowser: true,
 			basePath:       "/khi-base",
-			wantMCP:        true,
-			wantRenderTool: true,
-			wantNotFound: []string{
+			probePaths: []string{
 				"/mcp",
 				"/mcp/sse",
+				"/api/v1/mcp-assets/missing.png",
+			},
+			want: initOutcome{
+				HasMCPServer:  true,
+				HasAssetStore: true,
+				AssetServe: &assetServeResult{
+					GetStatus:       http.StatusOK,
+					GetContentType:  "image/png",
+					GetBody:         pngBytes,
+					HeadStatus:      http.StatusOK,
+					HeadBodyByteLen: 0,
+				},
+				HasRenderToolByTransport: map[string]bool{
+					"streamable": true,
+					"sse":        true,
+				},
+				ProbeStatuses: map[string]int{
+					"/mcp":                           http.StatusNotFound,
+					"/mcp/sse":                       http.StatusNotFound,
+					"/api/v1/mcp-assets/missing.png": http.StatusNotFound,
+				},
 			},
 		},
 	}
@@ -103,55 +178,73 @@ func TestMCPServerInitializer(t *testing.T) {
 			var router gin.IRouter = ginEngine.Group(tc.basePath)
 			coreinit.Set(ctx, GinRouterKey, router)
 
-			err = MCPServerInitializer.Init(ctx)
-			if err != nil {
+			if err := MCPServerInitializer.Init(ctx); err != nil {
 				t.Fatalf("MCPServerInitializer.Init() failed: %v", err)
 			}
 
-			_, found := coreinit.Get(ctx, MCPServerKey)
-			if found != tc.wantMCP {
-				t.Errorf("coreinit.Get(MCPServerKey) found = %v, want %v", found, tc.wantMCP)
+			_, hasMCPServer := coreinit.Get(ctx, MCPServerKey)
+			assetStore, hasAssetStore := coreinit.Get(ctx, MCPAssetStoreKey)
+
+			got := initOutcome{
+				HasMCPServer:  hasMCPServer,
+				HasAssetStore: hasAssetStore,
 			}
 
-			if !tc.wantMCP {
-				return
-			}
+			if hasAssetStore {
+				grant := assetStore.Issue(pngBytes, "image/png", ".png")
 
-			for _, path := range tc.wantNotFound {
-				req := httptest.NewRequest(http.MethodGet, path, nil)
-				w := httptest.NewRecorder()
-				ginEngine.ServeHTTP(w, req)
-				if w.Code != http.StatusNotFound {
-					t.Errorf("GET %q returned %d, want 404", path, w.Code)
+				getReq := httptest.NewRequest(http.MethodGet, grant.URL, nil)
+				getRec := httptest.NewRecorder()
+				ginEngine.ServeHTTP(getRec, getReq)
+
+				headReq := httptest.NewRequest(http.MethodHead, grant.URL, nil)
+				headRec := httptest.NewRecorder()
+				ginEngine.ServeHTTP(headRec, headReq)
+
+				got.AssetServe = &assetServeResult{
+					GetStatus:       getRec.Code,
+					GetContentType:  getRec.Header().Get("Content-Type"),
+					GetBody:         getRec.Body.Bytes(),
+					HeadStatus:      headRec.Code,
+					HeadBodyByteLen: headRec.Body.Len(),
 				}
 			}
 
-			ts := httptest.NewServer(ginEngine)
-			defer ts.Close()
-
-			transports := []struct {
-				name      string
-				transport mcpsdk.Transport
-			}{
-				{
-					name: "streamable",
-					transport: &mcpsdk.StreamableClientTransport{
-						Endpoint: ts.URL + tc.basePath + "/mcp",
-					},
-				},
-				{
-					name: "sse",
-					transport: &mcpsdk.SSEClientTransport{
-						Endpoint: ts.URL + tc.basePath + "/mcp/sse",
-					},
-				},
+			if len(tc.probePaths) > 0 {
+				got.ProbeStatuses = make(map[string]int, len(tc.probePaths))
+				for _, path := range tc.probePaths {
+					req := httptest.NewRequest(http.MethodGet, path, nil)
+					rec := httptest.NewRecorder()
+					ginEngine.ServeHTTP(rec, req)
+					got.ProbeStatuses[path] = rec.Code
+				}
 			}
 
-			for _, tr := range transports {
-				t.Run(tr.name, func(t *testing.T) {
-					clientCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
+			if hasMCPServer {
+				ts := httptest.NewServer(ginEngine)
+				defer ts.Close()
 
+				transports := []struct {
+					name      string
+					transport mcpsdk.Transport
+				}{
+					{
+						name: "streamable",
+						transport: &mcpsdk.StreamableClientTransport{
+							Endpoint: ts.URL + tc.basePath + "/mcp",
+						},
+					},
+					{
+						name: "sse",
+						transport: &mcpsdk.SSEClientTransport{
+							Endpoint: ts.URL + tc.basePath + "/mcp/sse",
+						},
+					},
+				}
+
+				got.HasRenderToolByTransport = make(map[string]bool, len(transports))
+				for _, tr := range transports {
+					clientCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					client := mcpsdk.NewClient(&mcpsdk.Implementation{
 						Name:    "test-client",
 						Version: "1.0.0",
@@ -159,21 +252,25 @@ func TestMCPServerInitializer(t *testing.T) {
 
 					session, err := client.Connect(clientCtx, tr.transport, nil)
 					if err != nil {
+						cancel()
 						t.Fatalf("client.Connect() failed for %s: %v", tr.name, err)
 					}
-					defer session.Close()
 
 					tools, err := session.ListTools(clientCtx, nil)
+					session.Close()
+					cancel()
 					if err != nil {
 						t.Fatalf("session.ListTools() failed for %s: %v", tr.name, err)
 					}
-					hasRenderTool := slices.ContainsFunc(tools.Tools, func(tool *mcpsdk.Tool) bool {
+
+					got.HasRenderToolByTransport[tr.name] = slices.ContainsFunc(tools.Tools, func(tool *mcpsdk.Tool) bool {
 						return tool.Name == "render_timelines"
 					})
-					if hasRenderTool != tc.wantRenderTool {
-						t.Errorf("render_timelines registered = %v, want %v", hasRenderTool, tc.wantRenderTool)
-					}
-				})
+				}
+			}
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("MCPServerInitializer.Init() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
