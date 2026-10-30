@@ -16,7 +16,6 @@ package mdtemplate
 
 import (
 	"bytes"
-	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -50,40 +49,6 @@ func PageFooter(nextPageToken string) string {
 		return ""
 	}
 	return fmt.Sprintf("pageToken: %q", nextPageToken)
-}
-
-//go:embed templates/*.md.tmpl
-var builtinTemplateFS embed.FS
-
-// yamlBlock formats s as a YAML literal block scalar indented by two spaces so that query text such as `!has(x)` or `a: b` stays verbatim except for trailing newlines.
-// It normalizes CRLF and CR line endings to LF, returns an empty quoted string for an empty s, and adds an explicit indentation indicator when the first non-empty line starts with spaces or tabs because YAML would otherwise detect the indentation from them.
-func yamlBlock(s string) string {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	s = strings.ReplaceAll(s, "\r", "\n")
-	if s == "" {
-		return `""`
-	}
-	header := "|-"
-	if body := strings.TrimLeft(s, "\n"); strings.HasPrefix(body, " ") || strings.HasPrefix(body, "\t") {
-		header = "|2-"
-	}
-	return header + "\n  " + strings.ReplaceAll(s, "\n", "\n  ")
-}
-
-var appliedFilterTemplate = template.Must(
-	template.New("applied_filter.md.tmpl").Funcs(template.FuncMap{
-		"time":      FormatTime,
-		"yamlBlock": yamlBlock,
-	}).ParseFS(builtinTemplateFS, "templates/applied_filter.md.tmpl"),
-)
-
-// FormatAppliedFilter formats an AppliedFilter struct into a markdown explanation with a YAML block.
-func FormatAppliedFilter(f workbench.AppliedFilter) string {
-	var buf bytes.Buffer
-	if err := appliedFilterTemplate.Execute(&buf, f); err != nil {
-		panic(err)
-	}
-	return strings.TrimRight(buf.String(), "\r\n")
 }
 
 // DefaultFuncMap returns the default template functions for markdown templates.
