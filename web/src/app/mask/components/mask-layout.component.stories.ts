@@ -39,13 +39,17 @@ export const BuildingIndex: Story = {
       message: 'Extracting trigrams (12,400 / 25,800 strings)...',
     },
     livePreviewEnabled: true,
-    searchQuery: 'prod',
+    searchQuery: 'test',
     searchRegexError: '',
     candidates: [
-      { value: 'prod-payments-ns', selected: true, inRuleList: true },
-      { value: 'gke-prod-cluster-pool-1', selected: false, inRuleList: false },
+      { value: 'test-payments-ns', selected: true, inRuleList: true },
       {
-        value: 'serviceaccount:prod-runner@example.iam.gserviceaccount.com',
+        value: 'gke-test-cluster-default-pool-12345678-abcd',
+        selected: false,
+        inRuleList: false,
+      },
+      {
+        value: 'test-sa@test-project.iam.gserviceaccount.com',
         selected: false,
         inRuleList: false,
       },
@@ -54,7 +58,7 @@ export const BuildingIndex: Story = {
     isLoadingCandidates: false,
     rules: [
       {
-        target: 'prod-payments-ns',
+        target: 'test-payments-ns',
         replacement: '<masked_1>',
         defaultReplacement: '<masked_1>',
         isDeletion: false,
@@ -116,8 +120,8 @@ export const InvalidRegexQuery: Story = {
     searchRegexError:
       'invalid regex query: error parsing regexp: missing closing ]: `[unclosed`',
     candidates: [
-      { value: '10.128.0.14', selected: false, inRuleList: false },
-      { value: '10.128.0.29', selected: false, inRuleList: false },
+      { value: '10.0.0.14', selected: false, inRuleList: false },
+      { value: '10.0.0.29', selected: false, inRuleList: false },
     ],
     totalCandidateCount: 2,
     isLoadingCandidates: false,
@@ -141,14 +145,14 @@ export const ExportingMaskedArchive: Story = {
     searchQuery: '',
     searchRegexError: '',
     candidates: [
-      { value: 'prod-payments-ns', selected: true, inRuleList: true },
-      { value: '10.128.0.14', selected: true, inRuleList: true },
+      { value: 'test-payments-ns', selected: true, inRuleList: true },
+      { value: '10.0.0.14', selected: true, inRuleList: true },
     ],
     totalCandidateCount: 2,
     isLoadingCandidates: false,
     rules: [
       {
-        target: 'prod-payments-ns',
+        target: 'test-payments-ns',
         replacement: '<masked_1>',
         defaultReplacement: '<masked_1>',
         isDeletion: false,
@@ -156,7 +160,7 @@ export const ExportingMaskedArchive: Story = {
         enabled: true,
       },
       {
-        target: '10.128.0.14',
+        target: '10.0.0.14',
         replacement: '<masked_2>',
         defaultReplacement: '<masked_2>',
         isDeletion: false,

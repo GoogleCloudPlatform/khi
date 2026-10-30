@@ -1,0 +1,54 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+@switch (indexStatus().phase) {
+  @case (StringPoolIndexPhase.Building) {
+    <div class="index-banner building">
+      <div class="index-banner-top">
+        <div class="index-banner-label">
+          <mat-icon class="banner-icon">manage_search</mat-icon>
+          <span>Building string search index...</span>
+        </div>
+        <span class="index-percent">{{ roundedIndexProgress() }}%</span>
+      </div>
+      <mat-progress-bar
+        class="index-progress-bar"
+        mode="determinate"
+        [value]="indexStatus().progressPercentage"
+      ></mat-progress-bar>
+      <div class="index-banner-note">
+        {{ indexStatus().message || "Preparing trigram index..." }}
+        Search works immediately via full scan while indexing completes.
+      </div>
+    </div>
+  }
+  @case (StringPoolIndexPhase.Ready) {
+    <div class="index-banner ready">
+      <div class="index-ready-row">
+        <mat-icon class="banner-icon ready-icon">bolt</mat-icon>
+        <span>Trigram string search index ready</span>
+      </div>
+    </div>
+  }
+  @case (StringPoolIndexPhase.Failed) {
+    <div class="index-banner failed">
+      <div class="index-ready-row">
+        <mat-icon class="banner-icon warn-icon">info</mat-icon>
+        <span>Trigram index unavailable; using linear scan fallback.</span>
+      </div>
+    </div>
+  }
+}

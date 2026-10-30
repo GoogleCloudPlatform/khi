@@ -40,282 +40,50 @@
       </p>
     </div>
   } @else {
-    <div class="status-banners">
-      @switch (indexStatus().phase) {
-        @case (StringPoolIndexPhase.Building) {
-          <div class="index-banner building">
-            <div class="index-banner-top">
-              <div class="index-banner-label">
-                <mat-icon class="banner-icon">manage_search</mat-icon>
-                <span>Building string search index...</span>
-              </div>
-              <span class="index-percent">{{ roundedIndexProgress() }}%</span>
-            </div>
-            <mat-progress-bar
-              class="index-progress-bar"
-              mode="determinate"
-              [value]="indexStatus().progressPercentage"
-            ></mat-progress-bar>
-            <div class="index-banner-note">
-              {{ indexStatus().message || "Preparing trigram index..." }}
-              Search works immediately via full scan while indexing completes.
-            </div>
-          </div>
-        }
-        @case (StringPoolIndexPhase.Ready) {
-          <div class="index-banner ready">
-            <div class="index-ready-row">
-              <mat-icon class="banner-icon ready-icon">bolt</mat-icon>
-              <span>Trigram string search index ready</span>
-            </div>
-          </div>
-        }
-        @case (StringPoolIndexPhase.Failed) {
-          <div class="index-banner failed">
-            <div class="index-ready-row">
-              <mat-icon class="banner-icon warn-icon">info</mat-icon>
-              <span>
-                Trigram index unavailable; using linear scan fallback.
-              </span>
-            </div>
-          </div>
-        }
-      }
-    </div>
+    <khi-mask-index-banner
+      class="status-banners"
+      [indexStatus]="indexStatus()"
+    ></khi-mask-index-banner>
 
     <mat-tab-group class="mask-tabs" animationDuration="0ms">
       <mat-tab label="String Pool">
-        <div class="tab-panel pool-panel">
-          <div class="pool-controls">
-            <div
-              class="search-field-group"
-              [class.has-error]="hasSearchRegexError()"
-            >
-              <div class="search-box" [class.has-error]="hasSearchRegexError()">
-                <mat-icon class="search-icon">search</mat-icon>
-                <input
-                  class="search-input"
-                  type="text"
-                  placeholder="Filter dataset strings (RE2 regex, e.g. ^10\.\d+...)..."
-                  [ngModel]="searchQuery()"
-                  (ngModelChange)="onSearchInputChange($event)"
-                />
-                @if (searchQuery()) {
-                  <button
-                    mat-icon-button
-                    class="clear-search-btn"
-                    type="button"
-                    matTooltip="Clear filter"
-                    (click)="onClearSearch()"
-                  >
-                    <mat-icon>close</mat-icon>
-                  </button>
-                }
-              </div>
-
-              @if (hasSearchRegexError()) {
-                <div class="search-regex-error">
-                  <mat-icon class="regex-error-icon">error</mat-icon>
-                  <span class="regex-error-text">{{ searchRegexError() }}</span>
-                </div>
-              }
-            </div>
-
-            <div class="custom-rule-box">
-              <input
-                class="custom-input"
-                type="text"
-                placeholder="Add custom substring to mask..."
-                [ngModel]="customSubstringDraft()"
-                (ngModelChange)="onCustomSubstringInput($event)"
-                (keydown.enter)="onSubmitCustomSubstring()"
-              />
-              <button
-                mat-stroked-button
-                class="add-custom-btn"
-                type="button"
-                [disabled]="!canAddCustomSubstring()"
-                (click)="onSubmitCustomSubstring()"
-              >
-                Add
-              </button>
-            </div>
-
-            <div class="pool-meta-row">
-              <span class="pool-count">
-                Showing {{ candidates().length }} of
-                {{ totalCandidateCount() }} unique strings
-              </span>
-              @if (isLoadingCandidates()) {
-                <span class="loading-tag">Searching...</span>
-              }
-              <button
-                mat-stroked-button
-                class="select-shown-btn"
-                type="button"
-                matTooltip="Add all currently shown strings as sequential masking rules"
-                [disabled]="!canSelectShown()"
-                (click)="selectShownCandidates.emit()"
-              >
-                {{ selectShownLabel() }}
-              </button>
-            </div>
-          </div>
-
-          <div class="candidate-list">
-            @if (candidates().length === 0 && !isLoadingCandidates()) {
-              <div class="empty-list-message">
-                No strings matched "{{ searchQuery() }}".
-              </div>
-            }
-            @for (item of candidates(); track item.value) {
-              <div class="candidate-row" [class.selected]="item.selected">
-                <mat-checkbox
-                  class="candidate-checkbox"
-                  color="primary"
-                  [checked]="item.selected"
-                  (change)="
-                    onCandidateCheckboxChange(item.value, $event.checked)
-                  "
-                >
-                  <span class="candidate-text" [title]="item.value">{{
-                    item.value
-                  }}</span>
-                </mat-checkbox>
-              </div>
-            }
-            @if (hasMoreCandidates()) {
-              <div class="load-more-row">
-                <button
-                  mat-stroked-button
-                  type="button"
-                  [disabled]="isLoadingCandidates()"
-                  (click)="loadMoreCandidates.emit()"
-                >
-                  Load more ({{ candidates().length }} /
-                  {{ totalCandidateCount() }})
-                </button>
-              </div>
-            }
-          </div>
-        </div>
+        <khi-mask-string-pool
+          class="tab-panel"
+          [searchQuery]="searchQuery()"
+          [searchRegexError]="searchRegexError()"
+          [candidates]="candidates()"
+          [totalCandidateCount]="totalCandidateCount()"
+          [isLoadingCandidates]="isLoadingCandidates()"
+          (searchQueryChange)="searchQueryChange.emit($event)"
+          (selectShownCandidates)="selectShownCandidates.emit()"
+          (loadMoreCandidates)="loadMoreCandidates.emit()"
+          (candidateToggle)="candidateToggle.emit($event)"
+          (addCustomSubstring)="addCustomSubstring.emit($event)"
+        ></khi-mask-string-pool>
       </mat-tab>
 
       <mat-tab [label]="selectedMasksTabLabel()">
-        <div class="tab-panel rules-panel">
-          @if (rules().length === 0) {
-            <div class="empty-list-message">
-              Select strings from the String Pool tab or add a custom substring
-              to create masking rules.
-            </div>
-          } @else {
-            <div class="rules-list">
-              @for (rule of rules(); track rule.target) {
-                <div class="rule-card" [class.disabled]="!rule.enabled">
-                  <div class="rule-main-row">
-                    <mat-checkbox
-                      class="rule-enable"
-                      color="primary"
-                      [checked]="rule.enabled"
-                      (change)="
-                        onRuleEnabledToggle(rule.target, $event.checked)
-                      "
-                    ></mat-checkbox>
-                    <code class="rule-target" [title]="rule.target">{{
-                      rule.target
-                    }}</code>
-                    <mat-icon class="rule-arrow">arrow_forward</mat-icon>
-                    <div class="replacement-group">
-                      <input
-                        class="replacement-input"
-                        type="text"
-                        placeholder="(empty = delete)"
-                        [ngModel]="rule.replacement"
-                        (ngModelChange)="
-                          onRuleReplacementInput(rule.target, $event)
-                        "
-                      />
-                      @if (rule.isDeletion) {
-                        <span class="delete-badge">(delete)</span>
-                      }
-                    </div>
-                    <button
-                      mat-icon-button
-                      class="rule-action-btn rule-reset-btn"
-                      type="button"
-                      [matTooltip]="'Reset to ' + rule.defaultReplacement"
-                      [disabled]="rule.isDefaultReplacement"
-                      (click)="ruleResetReplacement.emit(rule.target)"
-                    >
-                      <mat-icon>restart_alt</mat-icon>
-                    </button>
-                    <button
-                      mat-icon-button
-                      class="rule-action-btn rule-remove-btn"
-                      type="button"
-                      matTooltip="Remove rule"
-                      (click)="ruleRemove.emit(rule.target)"
-                    >
-                      <mat-icon>delete_outline</mat-icon>
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </div>
+        <khi-mask-rule-list
+          class="tab-panel"
+          [rules]="rules()"
+          (ruleEnabledChange)="ruleEnabledChange.emit($event)"
+          (ruleReplacementChange)="ruleReplacementChange.emit($event)"
+          (ruleResetReplacement)="ruleResetReplacement.emit($event)"
+          (ruleRemove)="ruleRemove.emit($event)"
+        ></khi-mask-rule-list>
       </mat-tab>
     </mat-tab-group>
 
-    <div class="pane-footer">
-      @if (exportProgress(); as progress) {
-        <div class="export-progress-banner">
-          <div class="export-progress-top">
-            <div class="export-progress-label">
-              <mat-icon class="export-progress-icon">{{
-                exportPhaseIcon()
-              }}</mat-icon>
-              <span>{{ progress.phaseLabel }}</span>
-            </div>
-            <span class="export-progress-percent"
-              >{{ roundedExportProgress() }}%</span
-            >
-          </div>
-          <mat-progress-bar
-            class="export-progress-bar"
-            mode="determinate"
-            [value]="progress.progressPercentage"
-          ></mat-progress-bar>
-          @if (progress.message) {
-            <div class="export-progress-message">{{ progress.message }}</div>
-          }
-        </div>
-      } @else if (errorMessage()) {
-        <div class="footer-feedback error">{{ errorMessage() }}</div>
-      } @else if (statusMessage()) {
-        <div class="footer-feedback status">{{ statusMessage() }}</div>
-      }
-      <div class="footer-actions">
-        <button
-          mat-button
-          class="clear-btn"
-          type="button"
-          [disabled]="rules().length === 0 || isExporting()"
-          (click)="clearAllRules.emit()"
-        >
-          Clear All
-        </button>
-        <button
-          mat-flat-button
-          color="primary"
-          class="export-btn"
-          type="button"
-          [disabled]="!canExport()"
-          (click)="exportMaskedKhi.emit()"
-        >
-          <span>{{ exportButtonLabel() }}</span>
-        </button>
-      </div>
-    </div>
+    <khi-mask-export-footer
+      class="footer-area"
+      [ruleCount]="rules().length"
+      [enabledRuleCount]="enabledRuleCount()"
+      [isExporting]="isExporting()"
+      [exportProgress]="exportProgress()"
+      [statusMessage]="statusMessage()"
+      [errorMessage]="errorMessage()"
+      (clearAllRules)="clearAllRules.emit()"
+      (exportMaskedKhi)="exportMaskedKhi.emit()"
+    ></khi-mask-export-footer>
   }
 </div>

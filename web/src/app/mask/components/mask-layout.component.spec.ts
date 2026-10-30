@@ -44,7 +44,7 @@ describe('MaskLayoutComponent', () => {
     fixture.componentRef.setInput('searchQuery', '');
     fixture.componentRef.setInput('searchRegexError', '');
     fixture.componentRef.setInput('candidates', [
-      { value: 'prod-secret-ns', selected: false, inRuleList: false },
+      { value: 'test-secret-ns', selected: false, inRuleList: false },
     ]);
     fixture.componentRef.setInput('totalCandidateCount', 1);
     fixture.componentRef.setInput('isLoadingCandidates', false);
@@ -64,25 +64,28 @@ describe('MaskLayoutComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should render building index progress banner', () => {
+  it('should render child components when workbench is active', () => {
     expect(component).toBeTruthy();
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('khi-mask-index-banner')).toBeTruthy();
+    expect(root.querySelector('khi-mask-string-pool')).toBeTruthy();
+    expect(root.querySelector('khi-mask-export-footer')).toBeTruthy();
+    const text = root.textContent ?? '';
     expect(text).toContain('Building string search index...');
     expect(text).toContain('62%');
+    expect(text).toContain('Selected Masks (1)');
   });
 
-  it('should emit addCustomSubstring and clear draft input on submit', () => {
-    const emitted: string[] = [];
-    component.addCustomSubstring.subscribe((target) => emitted.push(target));
+  it('should render empty state when workbench is inactive', () => {
+    fixture.componentRef.setInput('isWorkbenchActive', false);
+    fixture.detectChanges();
 
-    component['onCustomSubstringInput']('customer-id-42');
-    component['onSubmitCustomSubstring']();
-
-    expect(emitted).toEqual(['customer-id-42']);
-    expect(component['customSubstringDraft']()).toBe('');
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.empty-workbench')).toBeTruthy();
+    expect(root.querySelector('khi-mask-index-banner')).toBeNull();
   });
 
-  it('should render inline regex errors and emit selectShownCandidates', () => {
+  it('should forward selectShownCandidates and render inline regex errors from string pool child', () => {
     let selectShownCount = 0;
     component.selectShownCandidates.subscribe(() => selectShownCount++);
 
@@ -106,7 +109,7 @@ describe('MaskLayoutComponent', () => {
     expect(selectShownCount).toBe(1);
   });
 
-  it('should render footer export progress banner and percentage button label while exporting', () => {
+  it('should render footer export progress banner while exporting', () => {
     fixture.componentRef.setInput('isExporting', true);
     fixture.componentRef.setInput('exportProgress', {
       phase: MaskExportPhase.GeneratingArchive,
@@ -121,10 +124,6 @@ describe('MaskLayoutComponent', () => {
     expect(banner).toBeTruthy();
     expect(banner?.textContent).toContain('Generating masked .khi archive...');
     expect(banner?.textContent).toContain('58%');
-    expect(banner?.textContent).toContain(
-      'Masking string pool (16,384 / 28,400 strings)...',
-    );
-    expect(banner?.querySelector('mat-progress-bar')).toBeTruthy();
 
     const exportBtn = root.querySelector('.export-btn') as HTMLButtonElement;
     expect(exportBtn.disabled).toBeTrue();

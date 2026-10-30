@@ -1,0 +1,138 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$pane-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$text-secondary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$accent-bg: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 50);
+$accent-border: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 200);
+$accent-text: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 800);
+$ready-text: mat.m2-get-color-from-palette(mat.$m2-green-palette, 800);
+$error-text: mat.m2-get-color-from-palette(mat.$m2-red-palette, 700);
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.pane-footer {
+  display: grid;
+  grid-template:
+    'feedback' auto
+    'actions' auto
+    / 1fr;
+  row-gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid $border-color;
+  background-color: $pane-bg;
+}
+
+.export-progress-banner {
+  grid-area: feedback;
+  display: grid;
+  row-gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: $accent-bg;
+  border: 1px solid $accent-border;
+  color: $accent-text;
+  font-size: 12px;
+  grid-template:
+    'top' auto
+    'bar' auto
+    'msg' auto
+    / 1fr;
+}
+
+.export-progress-top {
+  grid-area: top;
+  display: grid;
+  grid-template:
+    'label pct' auto
+    / 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.export-progress-label {
+  grid-area: label;
+  display: grid;
+  grid-template:
+    'icon text' auto
+    / auto 1fr;
+  align-items: center;
+  column-gap: 6px;
+  font-weight: 500;
+}
+
+.export-progress-icon {
+  grid-area: icon;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.export-progress-percent {
+  grid-area: pct;
+  font-weight: 600;
+}
+
+.export-progress-bar {
+  grid-area: bar;
+}
+
+.export-progress-message {
+  grid-area: msg;
+  font-size: 11px;
+  color: $text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footer-feedback {
+  grid-area: feedback;
+  font-size: 11px;
+
+  &.error {
+    color: $error-text;
+  }
+
+  &.status {
+    color: $ready-text;
+  }
+}
+
+.footer-actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'clear export' auto
+    / auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.clear-btn {
+  grid-area: clear;
+}
+
+.export-btn {
+  grid-area: export;
+  justify-self: end;
+}
