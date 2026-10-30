@@ -56,7 +56,7 @@ func NewWorkbenchHandler(manager *workbench.WorkbenchManager, renderer TimelineI
 func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "search_timelines",
-		Description: `Search the resource timeline tree with a filter and return matching nodes with event and revision counts and per-severity log counts including descendants. Timeline CEL uses path["<key>"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("field.path", "regex") (single dot-separated field path; combine multiple paths with ||), or 1-arg body("regex") (matches any field in the full log body including metadata like insertId). The Filter vocabulary section of khi://inspections/{id} and this response lists the path keys, timelineType values, and logType values of the inspection.`,
+		Description: `Search the resource timeline tree with a filter and return matching nodes with event and revision counts, per-severity log counts including descendants, and compressed revision state transitions. Timeline CEL uses path["<key>"], name, timelineType, match(), revision_body(), minSeverity(WARNING), hasSeverity(ERROR). Log CEL uses severity >= WARNING, logType, body("field.path", "regex") (single dot-separated field path; combine multiple paths with ||), or 1-arg body("regex") (matches any field in the full log body including metadata like insertId). The Filter vocabulary section of khi://inspections/{id} and this response lists the path keys, timelineType values, and logType values of the inspection.`,
 	}, h.handleSearchTimelines)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
@@ -76,7 +76,7 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "get_resource_revisions",
-		Description: `List the manifest revisions of a resource timeline, oldest first, with verb, state, principal, source log, and added/deleted line counts against the previous revision. Results are paginated; pass the pageToken from the last line to read the next page.`,
+		Description: `List the revisions of a timeline, oldest first, with verb, state, principal, source log, and added/deleted line counts against the previous revision. Results are paginated; pass the pageToken from the last line to read the next page.`,
 	}, h.handleGetResourceRevisions)
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{

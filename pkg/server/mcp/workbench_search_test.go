@@ -234,6 +234,107 @@ func TestFormatTimelineTreeLine(t *testing.T) {
 			sameDay: false,
 			want:    "[Cluster] my-cluster id=5",
 		},
+		{
+			name: "single revision state",
+			node: workbench.TimelineTreeNode{
+				ID:            10,
+				Depth:         1,
+				Type:          "Pod",
+				Name:          "pending-pod",
+				RevisionCount: 1,
+				StateSummary: workbench.RevisionStateSummary{
+					Prefix: []workbench.RevisionStateStep{
+						{States: []string{"Pod is pending"}, Count: 1},
+					},
+				},
+				FirstMatchTime: time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC),
+				LastMatchTime:  time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC),
+			},
+			sameDay: true,
+			want:    `  [Pod] pending-pod id=10 ev=0 rev=1 09:30:00..09:30:00 states="Pod is pending"`,
+		},
+		{
+			name: "cycle-folded container crash loop state transitions",
+			node: workbench.TimelineTreeNode{
+				ID:            11,
+				Depth:         2,
+				Type:          "Container",
+				Name:          "app",
+				EventCount:    5,
+				RevisionCount: 22,
+				SeverityCounts: []workbench.SeverityCount{
+					{Severity: testSeverityError, Count: 5},
+				},
+				StateSummary: workbench.RevisionStateSummary{
+					Prefix: []workbench.RevisionStateStep{
+						{States: []string{"Container status is unavailable"}, Count: 1},
+						{
+							States: []string{
+								"Container is waiting",
+								"Container is started, readiness unknown",
+								"Container is not ready",
+								"Container exited with error",
+							},
+							Count: 5,
+						},
+						{States: []string{"Container is waiting"}, Count: 1},
+					},
+					TotalTransitions: 21,
+				},
+				FirstMatchTime: time.Date(2026, 10, 1, 9, 30, 5, 0, time.UTC),
+				LastMatchTime:  time.Date(2026, 10, 1, 10, 45, 0, 0, time.UTC),
+			},
+			sameDay: true,
+			want:    `    [Container] app id=11 ev=5 rev=22 error=5 09:30:05..10:45:00 states="Container status is unavailable -> (Container is waiting -> Container is started, readiness unknown -> Container is not ready -> Container exited with error) x5 -> Container is waiting"`,
+		},
+		{
+			name: "truncated state summary without unseen middle states",
+			node: workbench.TimelineTreeNode{
+				ID:            12,
+				Depth:         1,
+				Type:          "Container",
+				Name:          "app",
+				RevisionCount: 20,
+				StateSummary: workbench.RevisionStateSummary{
+					Prefix: []workbench.RevisionStateStep{
+						{States: []string{"S1"}, Count: 1},
+						{States: []string{"S2"}, Count: 1},
+					},
+					Suffix: []workbench.RevisionStateStep{
+						{States: []string{"S19"}, Count: 1},
+						{States: []string{"S20"}, Count: 1},
+					},
+					TotalTransitions: 19,
+					Truncated:        true,
+				},
+			},
+			sameDay: true,
+			want:    `  [Container] app id=12 ev=0 rev=20 states="S1 -> S2 -> ... -> S19 -> S20 (19 transitions)"`,
+		},
+		{
+			name: "truncated state summary with omitted distinct middle states and extra count",
+			node: workbench.TimelineTreeNode{
+				ID:            13,
+				Depth:         1,
+				Type:          "Container",
+				Name:          "app",
+				RevisionCount: 25,
+				StateSummary: workbench.RevisionStateSummary{
+					Prefix: []workbench.RevisionStateStep{
+						{States: []string{"S1"}, Count: 1},
+					},
+					Suffix: []workbench.RevisionStateStep{
+						{States: []string{"S25"}, Count: 1},
+					},
+					OmittedStates:          []string{"Container exited with error", "Container is waiting"},
+					ExtraOmittedStateCount: 2,
+					TotalTransitions:       24,
+					Truncated:              true,
+				},
+			},
+			sameDay: true,
+			want:    `  [Container] app id=13 ev=0 rev=25 states="S1 -> ... (also: Container exited with error, Container is waiting, +2 more) -> S25 (24 transitions)"`,
+		},
 	}
 
 	for _, tc := range testCases {
