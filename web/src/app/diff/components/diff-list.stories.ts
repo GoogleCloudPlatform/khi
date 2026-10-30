@@ -45,7 +45,8 @@ const mockTimeline = {
     {
       id: 1,
       timelineId: 1,
-      legacyChangedTimeMs: new Date('2025-01-01T00:00:00Z').getTime(),
+      changedTime:
+        BigInt(new Date('2025-01-01T00:00:00Z').getTime()) * 1000000n,
       principal: 'system:serviceaccount:kube-system:replicaset-controller',
       verb: {
         id: 1,
@@ -60,7 +61,8 @@ const mockTimeline = {
     {
       id: 2,
       timelineId: 1,
-      legacyChangedTimeMs: new Date('2025-01-01T00:00:01Z').getTime(),
+      changedTime:
+        BigInt(new Date('2025-01-01T00:00:01Z').getTime()) * 1000000n,
       principal: 'user@example.com',
       verb: {
         id: 2,
@@ -76,7 +78,8 @@ const mockTimeline = {
     {
       id: 3,
       timelineId: 1,
-      legacyChangedTimeMs: new Date('2025-01-01T00:00:02Z').getTime(),
+      changedTime:
+        BigInt(new Date('2025-01-01T00:00:02Z').getTime()) * 1000000n,
       principal: 'admin@example.com',
       verb: {
         id: 3,

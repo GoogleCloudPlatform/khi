@@ -236,7 +236,7 @@ export class TimelineHoverOverlayComponent {
         ]),
         verbTypeLabel: revision.verb.label,
         time: revision.changedTime,
-        timeLabel: this.formatTimeLabel(revision.legacyChangedTimeMs),
+        timeLabel: this.formatTimeLabel(revision.changedTime),
         summary: log.summary,
         severityColor: RendererConvertUtil.hdrColorToCSSColor([
           log.severity.backgroundColor.r,
@@ -283,7 +283,7 @@ export class TimelineHoverOverlayComponent {
         verbTypeColor: '',
         verbTypeLabel: '',
         time: event.timestamp,
-        timeLabel: this.formatTimeLabel(event.legacyTimestamp),
+        timeLabel: this.formatTimeLabel(event.timestamp),
         summary: log.summary,
         severityColor: RendererConvertUtil.hdrColorToCSSColor([
           log.severity.backgroundColor.r,
@@ -305,9 +305,7 @@ export class TimelineHoverOverlayComponent {
         uniqueID: 'cursor-position',
         isCursor: true,
         time: timelineHoverOverlay.cursorTime,
-        timeLabel: this.formatTimeLabel(
-          BigIntTimeUtil.NsToNumberMs(timelineHoverOverlay.cursorTime),
-        ),
+        timeLabel: this.formatTimeLabel(timelineHoverOverlay.cursorTime),
         summary: '',
         logIndex: -1,
         isRevision: false,
@@ -435,7 +433,8 @@ export class TimelineHoverOverlayComponent {
     return TimelineChartItemHighlightType.None;
   }
 
-  private formatTimeLabel(timeInMs: number): string {
+  private formatTimeLabel(timeNs: bigint): string {
+    const timeInMs = BigIntTimeUtil.NsToNumberMs(timeNs);
     const timezoneShiftHours = this.timezoneShiftHours();
     const d = new Date(timeInMs + timezoneShiftHours * 60 * 60 * 1000);
     const h = d.getUTCHours().toString().padStart(2, '0');

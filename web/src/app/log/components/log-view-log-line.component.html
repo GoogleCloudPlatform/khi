@@ -37,6 +37,6 @@
       {{ severity().shortLabel }}
     </div>
   </div>
-  <div class="ts">{{ timestampMs() | tsf | async }}</div>
+  <div class="ts">{{ timestamp() | tsf | async }}</div>
   <div class="message">{{ summary() }}</div>
 </div>

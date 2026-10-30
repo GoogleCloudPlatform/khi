@@ -36,6 +36,7 @@ import { Timeline, Revision } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 class DiffListScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
@@ -73,18 +74,19 @@ export interface DiffListRowViewModel {
 }
 
 /**
- * Formats a given timestamp in milliseconds into a HH:mm:ss string, adjusted by a timezone shift.
- * @param timeInMs The absolute time in milliseconds since epoch.
+ * Formats a given timestamp in nanoseconds into a HH:mm:ss string, adjusted by a timezone shift.
+ * @param timeNs The absolute time in nanoseconds since epoch.
  * @param timezoneShiftHours The timezone offset in hours to apply.
  * @returns A string representation of the time in HH:mm:ss format.
  */
 export function formatTimeLabel(
-  timeInMs: number,
+  timeNs: bigint,
   timezoneShiftHours: number,
 ): string {
-  if (timeInMs === 0) {
+  if (timeNs === 0n) {
     return '??:??:??';
   }
+  const timeInMs = BigIntTimeUtil.NsToNumberMs(timeNs);
   const d = new Date(timeInMs + timezoneShiftHours * 60 * 60 * 1000);
   const h = d.getUTCHours().toString().padStart(2, '0');
   const m = d.getUTCMinutes().toString().padStart(2, '0');
@@ -211,7 +213,7 @@ export class DiffListComponent {
         log: log,
         index: index,
         isContentChanged: isContentChanged,
-        timeLabel: formatTimeLabel(rev.legacyChangedTimeMs, shift),
+        timeLabel: formatTimeLabel(rev.changedTime, shift),
         author: rev.principal ? parsePrincipal(rev.principal) : null,
         verbLabel: verb.label,
         verbStyle: {

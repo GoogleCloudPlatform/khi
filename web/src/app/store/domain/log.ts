@@ -17,7 +17,6 @@
 import { LogType, Severity } from 'src/app/store/domain/style';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
-import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 /**
  * Lazy adapter for a Log entry.
@@ -41,14 +40,6 @@ export class Log {
    */
   get timestamp(): bigint {
     return this.store.getTimestamp(this.id);
-  }
-
-  /**
-   * Gets the timestamp (in milliseconds) of the log entry.
-   * @deprecated Use {@link timestamp} instead, which returns the timestamp in nanoseconds.
-   */
-  get legacyTimestampMs(): number {
-    return BigIntTimeUtil.NsToNumberMs(this.timestamp);
   }
 
   /**

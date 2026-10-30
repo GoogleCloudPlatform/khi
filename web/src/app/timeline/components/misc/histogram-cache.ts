@@ -18,6 +18,7 @@ import { Severity } from 'src/app/store/domain/style';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 /**
  * Result of the histogram calculation.
@@ -133,8 +134,9 @@ export class HistogramCache {
       if (!logIds.has(log.id)) {
         continue;
       }
+      const logTimeMs = BigIntTimeUtil.NsToNumberMs(log.timestamp);
       const windowIndex =
-        (Math.floor(log.legacyTimestampMs / minBucketTime) * minBucketTime -
+        (Math.floor(logTimeMs / minBucketTime) * minBucketTime -
           this.alignedMinTimeMS) /
           minBucketTime +
         1;

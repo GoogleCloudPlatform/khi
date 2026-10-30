@@ -109,7 +109,7 @@ export class LogContentHeaderComponent {
       logType: l.logType,
       severity: l.severity,
       timestamp: LongTimestampFormatPipe.toLongDisplayTimestamp(
-        l.legacyTimestampMs,
+        l.timestamp,
         this.timezoneShift(),
       ),
       resourceRefs: this.resourceRefs(),

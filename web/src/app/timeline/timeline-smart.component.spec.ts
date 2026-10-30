@@ -184,18 +184,18 @@ describe('TimelineSmartComponent', () => {
     ).toEqual([mockNextRevision]);
   });
 
-  it('should compute cursorTimeMs from selectedRevision.legacyChangedTimeMs when a revision is selected', () => {
-    selectedLogSignal.set({ legacyTimestampMs: 5000 });
-    expect(component['cursorTimeMs']()).toBe(5000);
-    expect(component['secondaryCursorTimeMs']()).toBe(0);
+  it('should compute cursorTimeNs from selectedRevision.changedTime when a revision is selected', () => {
+    selectedLogSignal.set({ timestamp: 5000000000n });
+    expect(component['cursorTimeNs']()).toBe(5000000000n);
+    expect(component['secondaryCursorTimeNs']()).toBe(0n);
 
-    selectedRevisionSignal.set({ legacyChangedTimeMs: 1200 });
-    expect(component['cursorTimeMs']()).toBe(1200);
-    expect(component['secondaryCursorTimeMs']()).toBe(5000);
+    selectedRevisionSignal.set({ changedTime: 1200000000n });
+    expect(component['cursorTimeNs']()).toBe(1200000000n);
+    expect(component['secondaryCursorTimeNs']()).toBe(5000000000n);
 
-    selectedRevisionSignal.set({ legacyChangedTimeMs: 5000 });
-    expect(component['cursorTimeMs']()).toBe(5000);
-    expect(component['secondaryCursorTimeMs']()).toBe(0);
+    selectedRevisionSignal.set({ changedTime: 5000000000n });
+    expect(component['cursorTimeNs']()).toBe(5000000000n);
+    expect(component['secondaryCursorTimeNs']()).toBe(0n);
   });
 
   it('should set hoveredTime to revision.changedTime when hovering over a revision inside the viewport', () => {
@@ -207,10 +207,9 @@ describe('TimelineSmartComponent', () => {
         },
       },
     });
-    const mockLog = { timestamp: 5000000000n, legacyTimestampMs: 5000 };
+    const mockLog = { timestamp: 5000000000n };
     const mockRevision = {
       changedTime: 1200000000n,
-      legacyChangedTimeMs: 1200,
       getEndNs: () => 6000000000n,
       log: mockLog,
     };

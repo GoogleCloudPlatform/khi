@@ -190,35 +190,35 @@ export class TimelineSmartComponent {
   });
 
   /**
-   * The start time of the inspection data range.
+   * The start time of the inspection data range in nanoseconds.
    * Used to determine the minimum scrollable/viewable time.
    */
-  protected readonly minQueryLogTimeMS = computed(() => {
+  protected readonly minQueryLogTimeNs = computed<bigint>(() => {
     const header = this.inspectionData()?.metadata?.header;
     if (header) {
-      return header.startTimeUnixSeconds * 1000;
+      return BigInt(header.startTimeUnixSeconds) * 1_000_000_000n;
     }
     const logs = this.allLogs();
     if (logs.length === 0) {
-      return Date.now() - 60 * 60 * 1000;
+      return BigInt(Date.now() - 60 * 60 * 1000) * 1_000_000n;
     }
-    return logs[0].legacyTimestampMs;
+    return logs[0].timestamp;
   });
 
   /**
-   * The end time of the inspection data range.
+   * The end time of the inspection data range in nanoseconds.
    * Used to determine the maximum scrollable/viewable time.
    */
-  protected readonly maxQueryLogTimeMS = computed(() => {
+  protected readonly maxQueryLogTimeNs = computed<bigint>(() => {
     const header = this.inspectionData()?.metadata?.header;
     if (header) {
-      return header.endTimeUnixSeconds * 1000;
+      return BigInt(header.endTimeUnixSeconds) * 1_000_000_000n;
     }
     const logs = this.allLogs();
     if (logs.length === 0) {
-      return Date.now();
+      return BigInt(Date.now()) * 1_000_000n;
     }
-    return logs[logs.length - 1].legacyTimestampMs;
+    return logs[logs.length - 1].timestamp;
   });
 
   protected readonly viewportLeftTimeMs = toSignal(
@@ -321,38 +321,38 @@ export class TimelineSmartComponent {
   });
 
   /**
-   * The time of the currently selected revision or log in milliseconds.
+   * The time of the currently selected revision or log in nanoseconds.
    * Used to display the primary vertical cursor line on the timeline.
    */
-  protected readonly cursorTimeMs = computed(() => {
+  protected readonly cursorTimeNs = computed<bigint>(() => {
     const revision = this.selectedRevision();
     if (revision) {
-      return revision.legacyChangedTimeMs > 0
-        ? revision.legacyChangedTimeMs
-        : this.minQueryLogTimeMS();
+      return revision.changedTime > 0n
+        ? revision.changedTime
+        : this.minQueryLogTimeNs();
     }
     const log = this.selectedLog();
     if (!log) {
-      return 0;
+      return 0n;
     }
-    return log.legacyTimestampMs;
+    return log.timestamp;
   });
 
   /**
-   * The timestamp of the underlying log in milliseconds when a selected revision's changedTime differs from its log timestamp.
-   * Returns 0 when no revision is selected or when changedTime and log.timestamp are identical.
+   * The timestamp of the underlying log in nanoseconds when a selected revision's changedTime differs from its log timestamp.
+   * Returns 0n when no revision is selected or when changedTime and log.timestamp are identical.
    */
-  protected readonly secondaryCursorTimeMs = computed(() => {
+  protected readonly secondaryCursorTimeNs = computed<bigint>(() => {
     const revision = this.selectedRevision();
     const log = this.selectedLog();
     if (!revision || !log) {
-      return 0;
+      return 0n;
     }
-    const primaryTimeMs = this.cursorTimeMs();
-    if (log.legacyTimestampMs === primaryTimeMs) {
-      return 0;
+    const primaryTimeNs = this.cursorTimeNs();
+    if (log.timestamp === primaryTimeNs) {
+      return 0n;
     }
-    return log.legacyTimestampMs;
+    return log.timestamp;
   });
 
   private readonly hoveredTime = signal(0n);
@@ -485,8 +485,7 @@ export class TimelineSmartComponent {
     timeline: ReadonlyDomainElement<Timeline>,
     log: ReadonlyDomainElement<Log>,
   ): bigint {
-    const minQueryTimeNs =
-      BigInt(Math.floor(this.minQueryLogTimeMS())) * 1000000n;
+    const minQueryTimeNs = this.minQueryLogTimeNs();
     const highlightedRevision = this.highlightedRevision();
     if (
       highlightedRevision &&
@@ -827,12 +826,13 @@ export class TimelineSmartComponent {
       if (event.revisionIndex !== undefined) {
         const revision = event.timeline.revisions[event.revisionIndex];
         this.selectionManager.onHighlightRevision(revision);
+        const viewportLeftFromOffsetNs =
+          BigInt(Math.floor(this.viewportLeftTimeMs())) * 1000000n;
+        const minQueryTimeNs = this.minQueryLogTimeNs();
         const viewportLeftNs =
-          BigInt(
-            Math.floor(
-              Math.max(this.viewportLeftTimeMs(), this.minQueryLogTimeMS()),
-            ),
-          ) * 1000000n;
+          viewportLeftFromOffsetNs > minQueryTimeNs
+            ? viewportLeftFromOffsetNs
+            : minQueryTimeNs;
         if (revision.changedTime >= viewportLeftNs) {
           this.hoveredTime.set(revision.changedTime);
         } else {

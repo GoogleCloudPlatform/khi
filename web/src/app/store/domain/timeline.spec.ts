@@ -233,11 +233,9 @@ describe('Timeline', () => {
       expect(revs.length).toBe(1);
       expect(revs[0].id).toBe(100);
       expect(revs[0].changedTime).toBe(1234567890n);
-      expect(revs[0].legacyChangedTimeMs).toBe(1234.56789);
       expect(revs[0].principal).toBe('user-name');
       expect(revs[0].log.id).toBe(1);
       expect(revs[0].log.timestamp).toBe(100n);
-      expect(revs[0].log.legacyTimestampMs).toBe(0.0001);
     });
   });
 
@@ -292,7 +290,6 @@ describe('Timeline', () => {
       expect(events[0].id).toBe(200);
       expect(events[0].log.id).toBe(2);
       expect(events[0].log.timestamp).toBe(200n);
-      expect(events[0].log.legacyTimestampMs).toBe(0.0002);
     });
   });
 
@@ -782,11 +779,9 @@ describe('Timeline', () => {
         expect(revs[1].prev?.id).toBe(revs[0].id);
         expect(revs[1].next).toBeNull();
 
-        // Test: getEndNs() & legacyGetEndMs()
+        // Test: getEndNs()
         expect(revs[0].getEndNs()).toBe(200n);
-        expect(revs[0].legacyGetEndMs()).toBe(0.0002);
         expect(revs[1].getEndNs()).toBeNull();
-        expect(revs[1].legacyGetEndMs()).toBeNull();
 
         // Test: verb and state
         expect(revs[0].verb.id).toBe(1);
@@ -847,7 +842,6 @@ describe('Timeline', () => {
         expect(ev.timeline.id).toBe(timeline.id);
         expect(ev.logIndex).toBe(0);
         expect(ev.timestamp).toBe(100n);
-        expect(ev.legacyTimestamp).toBe(0.0001);
       });
     });
   });

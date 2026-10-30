@@ -82,6 +82,7 @@ import {
   getTickTimeMS,
 } from './calculator/human-friendly-tick';
 import { formatDurationMs } from 'src/app/utils/time-format-util';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 export interface TimeScaleEvent {
   event: WheelEvent;
@@ -249,15 +250,29 @@ export class TimelineFrameComponent implements AfterViewInit {
   readonly styleStore = input.required<StyleStoreLike>();
 
   /**
-   * The minimum time in milliseconds for the query range.
+   * The minimum time in nanoseconds for the query range.
    * This is used as the start time for the timeline view.
    */
-  readonly minQueryLogTimeMS = input<number>(0);
+  readonly minQueryLogTimeNs = input<bigint>(0n);
   /**
-   * The maximum time in milliseconds for the query range.
+   * The maximum time in nanoseconds for the query range.
    * This is used as the end time for the timeline view.
    */
-  readonly maxQueryLogTimeMS = input<number>(0);
+  readonly maxQueryLogTimeNs = input<bigint>(0n);
+
+  /**
+   * The minimum query time converted to milliseconds for pixel/scroll calculations.
+   */
+  protected readonly minQueryLogTimeMS = computed(() =>
+    BigIntTimeUtil.NsToNumberMs(this.minQueryLogTimeNs()),
+  );
+
+  /**
+   * The maximum query time converted to milliseconds for pixel/scroll calculations.
+   */
+  protected readonly maxQueryLogTimeMS = computed(() =>
+    BigIntTimeUtil.NsToNumberMs(this.maxQueryLogTimeNs()),
+  );
   /**
    * The list of all logs without filtering.
    * Used for calculating the background histogram.
@@ -494,22 +509,23 @@ export class TimelineFrameComponent implements AfterViewInit {
   });
 
   /**
-   * current cursor position time in milliseconds.
+   * Current cursor position time in nanoseconds.
    */
-  readonly cursorTimeMS = input<number>(0);
+  readonly cursorTimeNs = input<bigint>(0n);
 
   /**
-   * current cursor position offset from the left of the viewport in pixels.
+   * Current cursor position offset from the left of the viewport in pixels.
    */
   protected readonly cursorOffsetLeft = computed<number>(() => {
     const horizontalScrollCalculator = this.horizontalScrollCalculator();
-    const cursorTimeMS = this.cursorTimeMS();
-    const clampedTimeMS =
-      cursorTimeMS > 0
-        ? Math.max(cursorTimeMS, this.minQueryLogTimeMS())
-        : cursorTimeMS;
+    const cursorTimeNs = this.cursorTimeNs();
+    const minQueryLogTimeNs = this.minQueryLogTimeNs();
+    const clampedTimeNs =
+      cursorTimeNs > 0n && cursorTimeNs < minQueryLogTimeNs
+        ? minQueryLogTimeNs
+        : cursorTimeNs;
     return horizontalScrollCalculator.timeMSToOffsetLeft(
-      clampedTimeMS,
+      BigIntTimeUtil.NsToNumberMs(clampedTimeNs),
       this.pixelsPerMs(),
     );
   });
@@ -518,7 +534,7 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Formatted string of the current cursor time.
    */
   protected readonly cursorTimeString = computed(() => {
-    const cursorTimeMS = this.cursorTimeMS();
+    const cursorTimeMS = BigIntTimeUtil.NsToNumberMs(this.cursorTimeNs());
     const timezoneShiftHours = this.timezoneShiftHours();
     const cursorTimeDate = new Date(
       cursorTimeMS + timezoneShiftHours * 60 * 60 * 1000,
@@ -528,17 +544,17 @@ export class TimelineFrameComponent implements AfterViewInit {
   });
 
   /**
-   * Secondary cursor position time in milliseconds, representing the log timestamp when it differs from the selected revision's changedTime.
+   * Secondary cursor position time in nanoseconds, representing the log timestamp when it differs from the selected revision's changedTime.
    */
-  readonly secondaryCursorTimeMS = input<number>(0);
+  readonly secondaryCursorTimeNs = input<bigint>(0n);
 
   /**
    * Whether a secondary log timestamp cursor should be displayed.
    */
   protected readonly hasSecondaryCursor = computed<boolean>(() => {
-    const primary = this.cursorTimeMS();
-    const secondary = this.secondaryCursorTimeMS();
-    return primary > 0 && secondary > 0 && primary !== secondary;
+    const primary = this.cursorTimeNs();
+    const secondary = this.secondaryCursorTimeNs();
+    return primary > 0n && secondary > 0n && primary !== secondary;
   });
 
   /**
@@ -546,13 +562,14 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly secondaryCursorOffsetLeft = computed<number>(() => {
     const horizontalScrollCalculator = this.horizontalScrollCalculator();
-    const secondaryTimeMS = this.secondaryCursorTimeMS();
-    const clampedTimeMS =
-      secondaryTimeMS > 0
-        ? Math.max(secondaryTimeMS, this.minQueryLogTimeMS())
-        : secondaryTimeMS;
+    const secondaryTimeNs = this.secondaryCursorTimeNs();
+    const minQueryLogTimeNs = this.minQueryLogTimeNs();
+    const clampedTimeNs =
+      secondaryTimeNs > 0n && secondaryTimeNs < minQueryLogTimeNs
+        ? minQueryLogTimeNs
+        : secondaryTimeNs;
     return horizontalScrollCalculator.timeMSToOffsetLeft(
-      clampedTimeMS,
+      BigIntTimeUtil.NsToNumberMs(clampedTimeNs),
       this.pixelsPerMs(),
     );
   });
@@ -561,15 +578,18 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Formatted string of the secondary cursor time, including the delta from the primary cursor time.
    */
   protected readonly secondaryCursorTimeString = computed(() => {
-    const secondaryTimeMS = this.secondaryCursorTimeMS();
-    const primaryTimeMS = this.cursorTimeMS();
+    const secondaryTimeNs = this.secondaryCursorTimeNs();
+    const primaryTimeNs = this.cursorTimeNs();
+    const secondaryTimeMS = BigIntTimeUtil.NsToNumberMs(secondaryTimeNs);
     const timezoneShiftHours = this.timezoneShiftHours();
     const secondaryTimeDate = new Date(
       secondaryTimeMS + timezoneShiftHours * 60 * 60 * 1000,
     );
     const timeString = secondaryTimeDate.toISOString();
     const formattedTime = timeString.slice(0, timeString.length - 1);
-    const deltaMs = secondaryTimeMS - primaryTimeMS;
+    const deltaMs = BigIntTimeUtil.NsToNumberMs(
+      secondaryTimeNs - primaryTimeNs,
+    );
     const sign = deltaMs >= 0 ? '+' : '-';
     const deltaLabel = `${sign}${formatDurationMs(Math.abs(deltaMs))}`;
     return `Log: ${formattedTime} (${deltaLabel})`;
@@ -684,18 +704,22 @@ export class TimelineFrameComponent implements AfterViewInit {
     });
 
   protected onRulerTimeRangeSelected(range: TimeRangeMs): void {
-    let startMs = Math.max(0, range.startMs);
-    let endMs = Math.max(startMs, range.endMs);
-    const minLogMs = this.minQueryLogTimeMS();
-    const maxLogMs = this.maxQueryLogTimeMS();
-    if (maxLogMs > minLogMs) {
-      startMs = Math.max(minLogMs, Math.min(maxLogMs, startMs));
-      endMs = Math.max(startMs, Math.min(maxLogMs, endMs));
+    const startMs = Math.max(0, range.startMs);
+    const endMs = Math.max(startMs, range.endMs);
+    let startNs = BigInt(Math.round(startMs)) * 1000000n;
+    let endNs = BigInt(Math.round(endMs)) * 1000000n;
+    const minLogNs = this.minQueryLogTimeNs();
+    const maxLogNs = this.maxQueryLogTimeNs();
+    if (maxLogNs > minLogNs) {
+      if (startNs < minLogNs) startNs = minLogNs;
+      if (startNs > maxLogNs) startNs = maxLogNs;
+      if (endNs < startNs) endNs = startNs;
+      if (endNs > maxLogNs) endNs = maxLogNs;
     }
-    if (endMs > startMs) {
+    if (endNs > startNs) {
       this.timeRangeSelected.emit({
-        startTime: BigInt(Math.round(startMs)) * 1000000n,
-        endTime: BigInt(Math.round(endMs)) * 1000000n,
+        startTime: startNs,
+        endTime: endNs,
       });
     }
   }
@@ -1083,19 +1107,20 @@ export class TimelineFrameComponent implements AfterViewInit {
       this.viewportLeftTimeMS.set(viewportLeftTimeMS);
     });
 
-    // Updates the viewportLeftTimeMs property when the curosrTime is updated if that is outside of the viewport.
+    // Updates the viewportLeftTimeMs property when the cursorTime is updated if that is outside of the viewport.
     effect(() => {
-      const rawCursorTime = this.cursorTimeMS();
-      if (rawCursorTime === 0) {
+      const rawCursorTimeNs = this.cursorTimeNs();
+      if (rawCursorTimeNs === 0n) {
         // Do not scroll when there is no active log selection.
         return;
       }
-      const logMinTime = untracked(this.minQueryLogTimeMS);
-      if (rawCursorTime <= logMinTime) {
+      const logMinTimeNs = untracked(this.minQueryLogTimeNs);
+      if (rawCursorTimeNs <= logMinTimeNs) {
         // Do not force-scroll to the query start boundary when selecting a pre-existing initial revision.
         return;
       }
-      const cursorTime = rawCursorTime;
+      const cursorTime = BigIntTimeUtil.NsToNumberMs(rawCursorTimeNs);
+      const logMinTime = BigIntTimeUtil.NsToNumberMs(logMinTimeNs);
       const viewportLeftTimeMS = untracked(this.viewportLeftTimeMS);
       const viewportWidth = untracked(this.viewportWidth);
       const pixelsPerMs = untracked(this.pixelsPerMs);

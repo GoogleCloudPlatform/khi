@@ -19,7 +19,6 @@ import { LogStore } from 'src/app/store/domain/log-store';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
-import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 
 /**
@@ -62,10 +61,10 @@ export class LogViewLogLineComponent {
   );
 
   /**
-   * The timestamp of the log in milliseconds for display.
+   * The timestamp of the log in nanoseconds for display.
    */
-  protected readonly timestampMs = computed(() =>
-    BigIntTimeUtil.NsToNumberMs(this.logStore().getTimestamp(this.logId())),
+  protected readonly timestamp = computed(() =>
+    this.logStore().getTimestamp(this.logId()),
   );
 
   /**

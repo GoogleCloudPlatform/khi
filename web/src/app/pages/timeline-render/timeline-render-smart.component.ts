@@ -51,6 +51,7 @@ import {
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
   show: () => undefined,
@@ -158,28 +159,28 @@ export class TimelineRenderSmartComponent implements OnInit {
     );
   });
 
-  protected readonly minQueryLogTimeMS = computed(() => {
+  protected readonly minQueryLogTimeNs = computed<bigint>(() => {
     const header = this.inspectionDataStore.inspectionData()?.metadata?.header;
     if (header) {
-      return header.startTimeUnixSeconds * 1000;
+      return BigInt(header.startTimeUnixSeconds) * 1_000_000_000n;
     }
     const logs = this.allLogs();
     if (logs.length === 0) {
-      return Date.now() - 60 * 60 * 1000;
+      return BigInt(Date.now() - 60 * 60 * 1000) * 1_000_000n;
     }
-    return logs[0].legacyTimestampMs;
+    return logs[0].timestamp;
   });
 
-  protected readonly maxQueryLogTimeMS = computed(() => {
+  protected readonly maxQueryLogTimeNs = computed<bigint>(() => {
     const header = this.inspectionDataStore.inspectionData()?.metadata?.header;
     if (header) {
-      return header.endTimeUnixSeconds * 1000;
+      return BigInt(header.endTimeUnixSeconds) * 1_000_000_000n;
     }
     const logs = this.allLogs();
     if (logs.length === 0) {
-      return Date.now();
+      return BigInt(Date.now()) * 1_000_000n;
     }
-    return logs[logs.length - 1].legacyTimestampMs;
+    return logs[logs.length - 1].timestamp;
   });
 
   /**
@@ -412,8 +413,8 @@ export class TimelineRenderSmartComponent implements OnInit {
     requestedStartTimeMs?: number,
     requestedEndTimeMs?: number,
   ): { viewStartTimeMs: number; viewEndTimeMs: number } {
-    const minLogMs = this.minQueryLogTimeMS();
-    const maxLogMs = this.maxQueryLogTimeMS();
+    const minLogMs = BigIntTimeUtil.NsToNumberMs(this.minQueryLogTimeNs());
+    const maxLogMs = BigIntTimeUtil.NsToNumberMs(this.maxQueryLogTimeNs());
     const viewStartTimeMs = requestedStartTimeMs ?? minLogMs;
     const viewEndTimeMs = requestedEndTimeMs ?? maxLogMs;
     const durationMs = Math.max(1, viewEndTimeMs - viewStartTimeMs);

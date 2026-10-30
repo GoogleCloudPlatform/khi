@@ -101,6 +101,7 @@ describe('LogSmartComponent', () => {
     const mockLog = {
       id: 1,
       structId: 42,
+      timestamp: 0n,
       body: { message: 'hello from backend' },
     } as unknown as ReadonlyDomainElement<Log>;
 
@@ -124,6 +125,7 @@ describe('LogSmartComponent', () => {
     const mockLog = {
       id: 2,
       structId: 99,
+      timestamp: 0n,
       body: null,
     } as unknown as ReadonlyDomainElement<Log>;
 

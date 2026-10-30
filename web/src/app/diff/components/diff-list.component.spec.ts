@@ -24,30 +24,30 @@ describe('DiffListComponent utils', () => {
   describe('formatTimeLabel', () => {
     it('formats time with 0 timezone shift', () => {
       // 2024-01-01T12:34:56Z
-      const timeInMs = Date.UTC(2024, 0, 1, 12, 34, 56);
-      expect(formatTimeLabel(timeInMs, 0)).toBe('12:34:56');
+      const timeNs = BigInt(Date.UTC(2024, 0, 1, 12, 34, 56)) * 1000000n;
+      expect(formatTimeLabel(timeNs, 0)).toBe('12:34:56');
     });
 
     it('formats time with positive timezone shift', () => {
       // +9 hours (JST)
-      const timeInMs = Date.UTC(2024, 0, 1, 12, 34, 56);
-      expect(formatTimeLabel(timeInMs, 9)).toBe('21:34:56');
+      const timeNs = BigInt(Date.UTC(2024, 0, 1, 12, 34, 56)) * 1000000n;
+      expect(formatTimeLabel(timeNs, 9)).toBe('21:34:56');
     });
 
     it('formats time with negative timezone shift', () => {
       // -5 hours (EST)
-      const timeInMs = Date.UTC(2024, 0, 1, 12, 34, 56);
-      expect(formatTimeLabel(timeInMs, -5)).toBe('07:34:56');
+      const timeNs = BigInt(Date.UTC(2024, 0, 1, 12, 34, 56)) * 1000000n;
+      expect(formatTimeLabel(timeNs, -5)).toBe('07:34:56');
     });
 
     it('handles padding correctly for single digit times', () => {
       // 09:05:01
-      const timeInMs = Date.UTC(2024, 0, 1, 9, 5, 1);
-      expect(formatTimeLabel(timeInMs, 0)).toBe('09:05:01');
+      const timeNs = BigInt(Date.UTC(2024, 0, 1, 9, 5, 1)) * 1000000n;
+      expect(formatTimeLabel(timeNs, 0)).toBe('09:05:01');
     });
 
-    it('returns ??:??:?? if timeInMs is 0', () => {
-      expect(formatTimeLabel(0, 0)).toBe('??:??:??');
+    it('returns ??:??:?? if timeNs is 0n', () => {
+      expect(formatTimeLabel(0n, 0)).toBe('??:??:??');
     });
   });
 

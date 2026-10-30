@@ -72,8 +72,8 @@ interface TimelineFrameStoryViewModelReady {
   readonly timelines: readonly ReadonlyDomainElement<Timeline>[];
   readonly logs: ReadonlyDomainElement<Log>[];
   readonly filteredLogIds: IdBitset;
-  readonly minLogTime: number;
-  readonly maxLogTime: number;
+  readonly minLogTimeNs: bigint;
+  readonly maxLogTimeNs: bigint;
   readonly chartStyle: TimelineChartStyle;
   readonly rulerStyle: TimelineRulerStyle;
   readonly styleStore: StyleStoreLike;
@@ -88,14 +88,14 @@ type TimelineFrameStoryViewModel =
     @if (vm.ready) {
       <khi-timeline-frame
         [timelines]="vm.timelines"
-        [minQueryLogTimeMS]="vm.minLogTime"
-        [maxQueryLogTimeMS]="vm.maxLogTime"
+        [minQueryLogTimeNs]="vm.minLogTimeNs"
+        [maxQueryLogTimeNs]="vm.maxLogTimeNs"
         [viewportLeftTimeMS]="viewportLeftTimeMS()"
         [pixelsPerMs]="pixelsPerMs()"
         [timelineHighlights]="timelineHighlights()"
         [timelineChartItemHighlights]="timelineChartItemHighlights()"
-        [cursorTimeMS]="timeCursorMS()"
-        [secondaryCursorTimeMS]="secondaryTimeCursorMS()"
+        [cursorTimeNs]="timeCursorNs()"
+        [secondaryCursorTimeNs]="secondaryTimeCursorNs()"
         [timezoneShiftHours]="9"
         [allLogs]="vm.logs"
         [filteredLogIds]="vm.filteredLogIds"
@@ -142,20 +142,20 @@ class TimelineFrameStoriesComponent {
         ready: false,
       };
     }
-    const minTimeMs = data.metadata?.header
-      ? data.metadata.header.startTimeUnixSeconds * 1000
-      : 0;
-    const maxTimeMs = data.metadata?.header
-      ? data.metadata.header.endTimeUnixSeconds * 1000
-      : 0;
+    const minTimeNs = data.metadata?.header
+      ? BigInt(data.metadata.header.startTimeUnixSeconds) * 1_000_000_000n
+      : 0n;
+    const maxTimeNs = data.metadata?.header
+      ? BigInt(data.metadata.header.endTimeUnixSeconds) * 1_000_000_000n
+      : 0n;
     const logs = Array.from(data.logStore.logs());
     return {
       ready: true,
       timelines: data.timelineStore.timelines,
       logs,
       filteredLogIds: IdBitset.fromAll(logs.map((log) => log.id)),
-      minLogTime: minTimeMs,
-      maxLogTime: maxTimeMs,
+      minLogTimeNs: minTimeNs,
+      maxLogTimeNs: maxTimeNs,
       chartStyle: generateDefaultChartStyle(),
       rulerStyle: generateDefaultRulerStyle(data.styleStore),
       styleStore: data.styleStore,
@@ -170,9 +170,9 @@ class TimelineFrameStoriesComponent {
 
   timelineChartItemHighlights = signal<TimelineChartItemHighlight>({});
 
-  timeCursorMS = signal(0);
+  timeCursorNs = signal(0n);
 
-  secondaryTimeCursorMS = signal(0);
+  secondaryTimeCursorNs = signal(0n);
 
   timelineHoverRequest = signal<TimelineHoverOverlayRequest | null>(null);
 
@@ -269,11 +269,11 @@ class TimelineFrameStoriesComponent {
         ),
         [revision.logIndex]: TimelineChartItemHighlightType.Selected,
       });
-      this.timeCursorMS.set(revision.legacyChangedTimeMs);
-      this.secondaryTimeCursorMS.set(
-        revision.log.legacyTimestampMs !== revision.legacyChangedTimeMs
-          ? revision.log.legacyTimestampMs
-          : 0,
+      this.timeCursorNs.set(revision.changedTime);
+      this.secondaryTimeCursorNs.set(
+        revision.log.timestamp !== revision.changedTime
+          ? revision.log.timestamp
+          : 0n,
       );
 
       const events = e.timeline.lookupEventsInRangeNs(
@@ -303,15 +303,16 @@ class TimelineFrameStoriesComponent {
         ),
         [event.logIndex]: TimelineChartItemHighlightType.Selected,
       });
-      this.timeCursorMS.set(event.legacyTimestamp);
-      this.secondaryTimeCursorMS.set(0);
+      this.timeCursorNs.set(event.timestamp);
+      this.secondaryTimeCursorNs.set(0n);
+      const rangeNs = msToNs(timeRange);
       const events = e.timeline.lookupEventsInRangeNs(
-        msToNs(event.legacyTimestamp - timeRange),
-        msToNs(event.legacyTimestamp + timeRange),
+        event.timestamp - rangeNs,
+        event.timestamp + rangeNs,
       );
       const revisions = e.timeline.lookupRevisionsInRangeNs(
-        msToNs(event.legacyTimestamp - timeRange),
-        msToNs(event.legacyTimestamp + timeRange),
+        event.timestamp - rangeNs,
+        event.timestamp + rangeNs,
       );
       this.timelineHoverRequest.set({
         timelineId: e.timeline.id,

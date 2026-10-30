@@ -351,9 +351,9 @@ describe('TimelineFrameComponent - time range selection', () => {
     });
   });
 
-  it('should clamp selected time range to minQueryLogTimeMS and maxQueryLogTimeMS when inspection bounds are set', () => {
-    frameFixture.componentRef.setInput('minQueryLogTimeMS', 2000);
-    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
+  it('should clamp selected time range to minQueryLogTimeNs and maxQueryLogTimeNs when inspection bounds are set', () => {
+    frameFixture.componentRef.setInput('minQueryLogTimeNs', 2000000000n);
+    frameFixture.componentRef.setInput('maxQueryLogTimeNs', 5000000000n);
     frameFixture.detectChanges();
 
     let emittedRange: TimeRangeFilter | undefined;
@@ -495,11 +495,11 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(hoverOverlay.hideEvents()).toBeFalse();
   });
 
-  it('should clamp cursorOffsetLeft to minQueryLogTimeMS when cursorTimeMS precedes the query start time', () => {
-    frameFixture.componentRef.setInput('minQueryLogTimeMS', 2000);
-    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
+  it('should clamp cursorOffsetLeft to minQueryLogTimeNs when cursorTimeNs precedes the query start time', () => {
+    frameFixture.componentRef.setInput('minQueryLogTimeNs', 2000000000n);
+    frameFixture.componentRef.setInput('maxQueryLogTimeNs', 5000000000n);
     frameFixture.componentRef.setInput('pixelsPerMs', 1);
-    frameFixture.componentRef.setInput('cursorTimeMS', 1000);
+    frameFixture.componentRef.setInput('cursorTimeNs', 1000000000n);
     frameFixture.detectChanges();
 
     const offsetAtMinQueryTime = frameComponent[
@@ -508,9 +508,9 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(frameComponent['cursorOffsetLeft']()).toBe(offsetAtMinQueryTime);
   });
 
-  it('should render secondary cursor line and delta label only when secondaryCursorTimeMS differs from cursorTimeMS', () => {
-    frameFixture.componentRef.setInput('cursorTimeMS', 10000);
-    frameFixture.componentRef.setInput('secondaryCursorTimeMS', 0);
+  it('should render secondary cursor line and delta label only when secondaryCursorTimeNs differs from cursorTimeNs', () => {
+    frameFixture.componentRef.setInput('cursorTimeNs', 10000000000n);
+    frameFixture.componentRef.setInput('secondaryCursorTimeNs', 0n);
     frameFixture.detectChanges();
 
     expect(
@@ -519,7 +519,7 @@ describe('TimelineFrameComponent - time range selection', () => {
       ),
     ).toBeNull();
 
-    frameFixture.componentRef.setInput('secondaryCursorTimeMS', 14400);
+    frameFixture.componentRef.setInput('secondaryCursorTimeNs', 14400000000n);
     frameFixture.detectChanges();
 
     const labelEl = frameFixture.nativeElement.querySelector(

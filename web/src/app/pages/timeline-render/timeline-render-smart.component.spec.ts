@@ -50,8 +50,8 @@ class StubTimelineFrameComponent {
   readonly timelines = input<readonly ReadonlyDomainElement<Timeline>[]>([]);
   readonly collapsedTimelineIds = input<unknown>();
   readonly timezoneShiftHours = input<unknown>();
-  readonly minQueryLogTimeMS = input<unknown>();
-  readonly maxQueryLogTimeMS = input<unknown>();
+  readonly minQueryLogTimeNs = input<unknown>();
+  readonly maxQueryLogTimeNs = input<unknown>();
   readonly initialScaleApplied = input<unknown>();
   readonly allLogs = input<unknown>();
   readonly filteredLogIds = input<unknown>();
