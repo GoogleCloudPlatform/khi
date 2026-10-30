@@ -185,9 +185,15 @@ describe('TimelineSmartComponent', () => {
   it('should compute cursorTimeMs from selectedRevision.legacyChangedTimeMs when a revision is selected', () => {
     selectedLogSignal.set({ legacyTimestampMs: 5000 });
     expect(component['cursorTimeMs']()).toBe(5000);
+    expect(component['secondaryCursorTimeMs']()).toBe(0);
 
     selectedRevisionSignal.set({ legacyChangedTimeMs: 1200 });
     expect(component['cursorTimeMs']()).toBe(1200);
+    expect(component['secondaryCursorTimeMs']()).toBe(5000);
+
+    selectedRevisionSignal.set({ legacyChangedTimeMs: 5000 });
+    expect(component['cursorTimeMs']()).toBe(5000);
+    expect(component['secondaryCursorTimeMs']()).toBe(0);
   });
 
   it('should set hoveredTime to revision.changedTime when hovering over a revision inside the viewport', () => {

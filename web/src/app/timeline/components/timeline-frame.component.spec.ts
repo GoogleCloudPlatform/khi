@@ -507,4 +507,30 @@ describe('TimelineFrameComponent - time range selection', () => {
     ]().timeMSToOffsetLeft(2000, 1);
     expect(frameComponent['cursorOffsetLeft']()).toBe(offsetAtMinQueryTime);
   });
+
+  it('should render secondary cursor line and delta label only when secondaryCursorTimeMS differs from cursorTimeMS', () => {
+    frameFixture.componentRef.setInput('cursorTimeMS', 10000);
+    frameFixture.componentRef.setInput('secondaryCursorTimeMS', 0);
+    frameFixture.detectChanges();
+
+    expect(
+      frameFixture.nativeElement.querySelector(
+        '.secondary-cursor-time-label-container',
+      ),
+    ).toBeNull();
+
+    frameFixture.componentRef.setInput('secondaryCursorTimeMS', 14400);
+    frameFixture.detectChanges();
+
+    const labelEl = frameFixture.nativeElement.querySelector(
+      '.secondary-cursor-time-label',
+    ) as HTMLElement | null;
+    expect(labelEl).not.toBeNull();
+    expect(labelEl?.textContent).toContain('+4.4s');
+    expect(
+      frameFixture.nativeElement.querySelector(
+        '.secondary-cursor-vertical-line-body',
+      ),
+    ).not.toBeNull();
+  });
 });

@@ -81,6 +81,7 @@ import {
   getMinTimeSpanForHistogram,
   getTickTimeMS,
 } from './calculator/human-friendly-tick';
+import { formatDurationMs } from 'src/app/utils/time-format-util';
 
 export interface TimeScaleEvent {
   event: WheelEvent;
@@ -524,6 +525,54 @@ export class TimelineFrameComponent implements AfterViewInit {
     );
     const timeString = cursorTimeDate.toISOString();
     return timeString.slice(0, timeString.length - 1);
+  });
+
+  /**
+   * Secondary cursor position time in milliseconds, representing the log timestamp when it differs from the selected revision's changedTime.
+   */
+  readonly secondaryCursorTimeMS = input<number>(0);
+
+  /**
+   * Whether a secondary log timestamp cursor should be displayed.
+   */
+  protected readonly hasSecondaryCursor = computed<boolean>(() => {
+    const primary = this.cursorTimeMS();
+    const secondary = this.secondaryCursorTimeMS();
+    return primary > 0 && secondary > 0 && primary !== secondary;
+  });
+
+  /**
+   * Secondary cursor position offset from the left of the viewport in pixels.
+   */
+  protected readonly secondaryCursorOffsetLeft = computed<number>(() => {
+    const horizontalScrollCalculator = this.horizontalScrollCalculator();
+    const secondaryTimeMS = this.secondaryCursorTimeMS();
+    const clampedTimeMS =
+      secondaryTimeMS > 0
+        ? Math.max(secondaryTimeMS, this.minQueryLogTimeMS())
+        : secondaryTimeMS;
+    return horizontalScrollCalculator.timeMSToOffsetLeft(
+      clampedTimeMS,
+      this.pixelsPerMs(),
+    );
+  });
+
+  /**
+   * Formatted string of the secondary cursor time, including the delta from the primary cursor time.
+   */
+  protected readonly secondaryCursorTimeString = computed(() => {
+    const secondaryTimeMS = this.secondaryCursorTimeMS();
+    const primaryTimeMS = this.cursorTimeMS();
+    const timezoneShiftHours = this.timezoneShiftHours();
+    const secondaryTimeDate = new Date(
+      secondaryTimeMS + timezoneShiftHours * 60 * 60 * 1000,
+    );
+    const timeString = secondaryTimeDate.toISOString();
+    const formattedTime = timeString.slice(0, timeString.length - 1);
+    const deltaMs = secondaryTimeMS - primaryTimeMS;
+    const sign = deltaMs >= 0 ? '+' : '-';
+    const deltaLabel = `${sign}${formatDurationMs(Math.abs(deltaMs))}`;
+    return `Log: ${formattedTime} (${deltaLabel})`;
   });
 
   /**

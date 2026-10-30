@@ -334,6 +334,23 @@ export class TimelineSmartComponent {
     return log.legacyTimestampMs;
   });
 
+  /**
+   * The timestamp of the underlying log in milliseconds when a selected revision's changedTime differs from its log timestamp.
+   * Returns 0 when no revision is selected or when changedTime and log.timestamp are identical.
+   */
+  protected readonly secondaryCursorTimeMs = computed(() => {
+    const revision = this.selectedRevision();
+    const log = this.selectedLog();
+    if (!revision || !log) {
+      return 0;
+    }
+    const primaryTimeMs = this.cursorTimeMs();
+    if (log.legacyTimestampMs === primaryTimeMs) {
+      return 0;
+    }
+    return log.legacyTimestampMs;
+  });
+
   private readonly hoveredTime = signal(0n);
 
   private readonly isMouseOnTimeline = signal(false);
