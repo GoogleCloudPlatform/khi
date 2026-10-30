@@ -34,20 +34,21 @@ type WorkbenchHandler struct {
 	templates   *mdtemplate.Set
 	waitTimeout time.Duration
 	renderer    TimelineImageRenderer
-	imageStore  *RenderedTimelineStore
+	assetStore  *AssetStore
 }
 
 var _ DomainHandler = (*WorkbenchHandler)(nil)
 
 // NewWorkbenchHandler creates a new WorkbenchHandler.
-// renderer and imageStore may both be nil to omit the render_timelines tool; when renderer is non-nil, imageStore must also be non-nil.
-func NewWorkbenchHandler(manager *workbench.WorkbenchManager, renderer TimelineImageRenderer, imageStore *RenderedTimelineStore) *WorkbenchHandler {
+//
+// renderer may be nil to omit the render_timelines tool; when renderer is non-nil, assetStore must also be non-nil.
+func NewWorkbenchHandler(manager *workbench.WorkbenchManager, renderer TimelineImageRenderer, assetStore *AssetStore) *WorkbenchHandler {
 	return &WorkbenchHandler{
 		manager:     manager,
 		templates:   mdtemplate.MustParse(templateFS, "templates/*.md.tmpl"),
 		waitTimeout: defaultWorkbenchWaitTimeout,
 		renderer:    renderer,
-		imageStore:  imageStore,
+		assetStore:  assetStore,
 	}
 }
 

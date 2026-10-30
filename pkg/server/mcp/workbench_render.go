@@ -91,7 +91,7 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 		return mdtemplate.ErrorResult("RENDER_FAILED", fmt.Sprintf("Failed to render timelines: %s.", err.Error()))
 	}
 
-	grant := h.imageStore.Issue(renderRes.PNGBytes)
+	grant := h.assetStore.Issue(renderRes.PNGBytes, "image/png", ".png")
 
 	summaryText, err := h.templates.Render("render_timelines.md.tmpl", renderTimelinesTemplateData{
 		RenderedCount:   renderRes.RenderedCount,

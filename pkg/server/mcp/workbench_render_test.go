@@ -42,7 +42,7 @@ func TestRenderTimelines_Golden(t *testing.T) {
 		Height:          460,
 		ViewStartTime:   startTime,
 		ViewEndTime:     endTime,
-		ImageURL:        "http://127.0.0.1:8080/api/v1/rendered-timelines/ABCDEF.png",
+		ImageURL:        "http://127.0.0.1:8080/api/v1/mcp-assets/ABCDEF.png",
 		ExpiresAt:       time.Date(2026, 9, 24, 2, 30, 0, 0, time.UTC),
 		Applied: workbench.AppliedFilter{
 			TimelineQuery:               `timelineType == "Pod"`,
@@ -94,7 +94,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 		ServedPNG []byte
 	}
 
-	const placeholderURL = testRenderedTimelineBaseURL + "<TOKEN>.png"
+	const placeholderURL = testAssetBaseURL + "<TOKEN>.png"
 
 	testCases := []struct {
 		name     string
@@ -310,8 +310,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			imageStore := NewRenderedTimelineStore(testRenderedTimelineBaseURL, DefaultRenderedTimelineTTL)
-			handler := NewWorkbenchHandler(mgr, tc.renderer, imageStore)
+			assetStore := NewAssetStore(testAssetBaseURL, DefaultAssetTTL)
+			handler := NewWorkbenchHandler(mgr, tc.renderer, assetStore)
 			before := time.Now().UTC().Truncate(time.Second)
 
 			res, _, err := handler.handleRenderTimelines(context.Background(), nil, tc.input)
@@ -327,14 +327,14 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					if parseErr != nil {
 						t.Fatalf("Expires at %q failed RFC3339 parse: %v", expiresAtStr, parseErr)
 					}
-					if expiresAt.Before(before.Add(DefaultRenderedTimelineTTL)) {
-						t.Errorf("Expires at = %v, want at least %v", expiresAt, before.Add(DefaultRenderedTimelineTTL))
+					if expiresAt.Before(before.Add(DefaultAssetTTL)) {
+						t.Errorf("Expires at = %v, want at least %v", expiresAt, before.Add(DefaultAssetTTL))
 					}
 
-					fileName := strings.TrimPrefix(issuedURL, testRenderedTimelineBaseURL)
+					fileName := strings.TrimPrefix(issuedURL, testAssetBaseURL)
 					rec := httptest.NewRecorder()
 					req := httptest.NewRequest(http.MethodGet, issuedURL, nil)
-					imageStore.ServeImage(rec, req, fileName)
+					assetStore.ServeAsset(rec, req, fileName)
 					if rec.Code != http.StatusOK {
 						t.Fatalf("GET %s returned %d, want %d", issuedURL, rec.Code, http.StatusOK)
 					}
