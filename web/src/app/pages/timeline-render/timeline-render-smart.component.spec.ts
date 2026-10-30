@@ -87,10 +87,12 @@ function createFakeTimeline(
     id: nodeId,
     type: mockTimelineType,
     label: `node-${nodeId}`,
+    rawLabel: `node-${nodeId}`,
   }));
   return {
     id,
     name: `node-${id}`,
+    rawName: `node-${id}`,
     type: mockTimelineType,
     path: pathNodes,
     layer: pathNodes.length - 1,
