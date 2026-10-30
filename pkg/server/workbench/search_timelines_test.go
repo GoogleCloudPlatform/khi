@@ -328,6 +328,89 @@ func TestSearchTimelines(t *testing.T) {
 			wantErr:       true,
 			wantErrTarget: ErrWorkbenchClosed,
 		},
+		{
+			name: "populates revision state summaries including ancestor nodes under logQuery and time bounds",
+			filter: func() Filter {
+				start := time.Unix(0, 3500).UTC()
+				end := time.Unix(0, 4600).UTC()
+				return Filter{
+					LogQuery:  "severity >= ERROR",
+					StartTime: &start,
+					EndTime:   &end,
+				}
+			}(),
+			maxDepth: 0,
+			maxNodes: 10,
+			modify: func(wb *Workbench) {
+				// pod-a (ID 2) has INFO/WARNING revisions outside ERROR logQuery, so it appears as an ancestor of container-a1 (ID 4).
+				wb.searchIndex.TimelineMap[2].Revisions = []cel.RevisionInfo{
+					{LogID: 1, ChangedTime: 1000, State: "Resource exists"},
+					{LogID: 3, ChangedTime: 4200, State: "Resource is being deleted"},
+					{LogID: 0, ChangedTime: 5000, State: "Resource is deleted"},
+				}
+				wb.searchIndex.TimelineMap[4].Revisions = []cel.RevisionInfo{
+					{LogID: 0, ChangedTime: 2000, State: "Container is ready"},
+					{LogID: 0, ChangedTime: 4100, State: "Container is not ready"},
+					{LogID: 0, ChangedTime: 4500, State: "Container exited with error"},
+				}
+			},
+			want: &TimelineTreeResult{
+				MatchedTimelineCount: 3,
+				DirectMatchCount:     1,
+				AncestorNodeCount:    2,
+				ReturnedNodeCount:    3,
+				MaxDepth:             0,
+				MaxNodes:             10,
+				TimelineTypes:        allTimelineTypes,
+				Nodes: []TimelineTreeNode{
+					{
+						ID:   1,
+						Type: "Namespace",
+						Name: "ns-1",
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 1},
+						},
+					},
+					{
+						ID:    2,
+						Depth: 1,
+						Type:  "Pod",
+						Name:  "pod-a",
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 1},
+						},
+						StateSummary: RevisionStateSummary{
+							Prefix: []RevisionStateStep{
+								{States: []string{"Resource exists"}, Count: 1},
+								{States: []string{"Resource is being deleted"}, Count: 1},
+							},
+							TotalTransitions: 1,
+						},
+					},
+					{
+						ID:            4,
+						Depth:         2,
+						Type:          "Container",
+						Name:          "container-a1",
+						EventCount:    1,
+						RevisionCount: 2,
+						SeverityCounts: []SeverityCount{
+							{Severity: testSeverityError, Count: 1},
+						},
+						StateSummary: RevisionStateSummary{
+							Prefix: []RevisionStateStep{
+								{States: []string{"Container is ready"}, Count: 1},
+								{States: []string{"Container is not ready"}, Count: 1},
+								{States: []string{"Container exited with error"}, Count: 1},
+							},
+							TotalTransitions: 2,
+						},
+						FirstMatchTime: time.Unix(0, 4000).UTC(),
+						LastMatchTime:  time.Unix(0, 4500).UTC(),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

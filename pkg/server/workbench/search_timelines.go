@@ -43,7 +43,9 @@ type TimelineTreeNode struct {
 	EventCount    int
 	RevisionCount int
 	// SeverityCounts holds the number of matched logs per severity across the timeline and its filtered descendants, from the most severe.
-	SeverityCounts  []SeverityCount
+	SeverityCounts []SeverityCount
+	// StateSummary summarizes the effective revision state transitions of the timeline within the applied time range.
+	StateSummary    RevisionStateSummary
 	OmittedChildren int
 	FirstMatchTime  time.Time
 	LastMatchTime   time.Time
@@ -151,7 +153,8 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 	}
 	aggregateTimelineSeverities(roots, filteredChildren, metricsMap, resolveLogSeverity)
 	selected, nodeDepth := selectBFSNodes(roots, filteredChildren, maxDepth, maxNodes, matchedCount)
-	nodes, timelineTypes := emitTimelineTreeNodes(roots, filteredChildren, selected, nodeDepth, metricsMap, index, styles.timelineTypeDescriptionMap)
+	revBounds := newRevisionRangeBounds(filterOut.Applied.StartTime, filterOut.Applied.EndTime)
+	nodes, timelineTypes := emitTimelineTreeNodes(roots, filteredChildren, selected, nodeDepth, metricsMap, index, styles.timelineTypeDescriptionMap, revBounds)
 
 	res.ReturnedNodeCount = len(nodes)
 	res.TimelineTypes = timelineTypes
@@ -304,6 +307,7 @@ func emitTimelineTreeNodes(
 	metricsMap map[uint32]*nodeMetrics,
 	index *SearchIndex,
 	timelineTypeDescriptionMap map[string]string,
+	revBounds revisionRangeBounds,
 ) ([]TimelineTreeNode, []TimelineTypeDescription) {
 	seenTypes := make(map[string]bool)
 	var timelineTypes []TimelineTypeDescription
@@ -320,7 +324,7 @@ func emitTimelineTreeNodes(
 		if tl == nil {
 			return
 		}
-		nodes = append(nodes, buildTimelineTreeNode(tl, nodeDepth[id], filteredChildren[id], selected, metricsMap[id]))
+		nodes = append(nodes, buildTimelineTreeNode(tl, nodeDepth[id], filteredChildren[id], selected, metricsMap[id], revBounds))
 
 		if tl.TimelineType != "" && !seenTypes[tl.TimelineType] {
 			seenTypes[tl.TimelineType] = true
@@ -344,7 +348,7 @@ func emitTimelineTreeNodes(
 	return nodes, timelineTypes
 }
 
-func buildTimelineTreeNode(tl *cel.TimelineData, depth int, children []uint32, selected map[uint32]bool, m *nodeMetrics) TimelineTreeNode {
+func buildTimelineTreeNode(tl *cel.TimelineData, depth int, children []uint32, selected map[uint32]bool, m *nodeMetrics, revBounds revisionRangeBounds) TimelineTreeNode {
 	selectedChildren := 0
 	for _, childID := range children {
 		if selected[childID] {
@@ -366,6 +370,7 @@ func buildTimelineTreeNode(tl *cel.TimelineData, depth int, children []uint32, s
 		EventCount:      m.ownEv,
 		RevisionCount:   m.ownRev,
 		SeverityCounts:  m.aggSeverityCounts.sorted(),
+		StateSummary:    summarizeRevisionStatesWithBounds(tl.Revisions, revBounds),
 		OmittedChildren: len(children) - selectedChildren,
 		FirstMatchTime:  firstTime,
 		LastMatchTime:   lastTime,

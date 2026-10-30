@@ -225,7 +225,53 @@ func formatTimelineTreeLine(node workbench.TimelineTreeNode, sameDay bool) strin
 			node.LastMatchTime.UTC().Format(layout),
 		))
 	}
+	if !node.StateSummary.IsEmpty() {
+		tokens = append(tokens, fmt.Sprintf("states=%q", formatRevisionStateSummary(node.StateSummary)))
+	}
 	return strings.Join(tokens, " ")
+}
+
+func formatRevisionStateSummary(summary workbench.RevisionStateSummary) string {
+	if summary.IsEmpty() {
+		return ""
+	}
+	if !summary.Truncated {
+		parts := make([]string, len(summary.Prefix))
+		for i, step := range summary.Prefix {
+			parts[i] = formatRevisionStateStep(step)
+		}
+		return strings.Join(parts, " -> ")
+	}
+
+	parts := make([]string, 0, len(summary.Prefix)+1+len(summary.Suffix))
+	for _, step := range summary.Prefix {
+		parts = append(parts, formatRevisionStateStep(step))
+	}
+
+	ellipsis := "..."
+	if len(summary.OmittedStates) > 0 {
+		omitted := strings.Join(summary.OmittedStates, ", ")
+		if summary.ExtraOmittedStateCount > 0 {
+			omitted = fmt.Sprintf("%s, +%d more", omitted, summary.ExtraOmittedStateCount)
+		}
+		ellipsis = fmt.Sprintf("... (also: %s)", omitted)
+	}
+	parts = append(parts, ellipsis)
+
+	for _, step := range summary.Suffix {
+		parts = append(parts, formatRevisionStateStep(step))
+	}
+	return fmt.Sprintf("%s (%d transitions)", strings.Join(parts, " -> "), summary.TotalTransitions)
+}
+
+func formatRevisionStateStep(step workbench.RevisionStateStep) string {
+	if len(step.States) == 0 {
+		return ""
+	}
+	if step.Count > 1 {
+		return fmt.Sprintf("(%s) x%d", strings.Join(step.States, " -> "), step.Count)
+	}
+	return step.States[0]
 }
 
 func formatSeveritySummary(counts []workbench.SeverityCount) string {
