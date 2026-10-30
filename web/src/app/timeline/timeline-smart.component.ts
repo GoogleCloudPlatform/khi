@@ -485,14 +485,14 @@ export class TimelineSmartComponent {
     timeline: ReadonlyDomainElement<Timeline>,
     log: ReadonlyDomainElement<Log>,
   ): bigint {
+    const minQueryTimeNs =
+      BigInt(Math.floor(this.minQueryLogTimeMS())) * 1000000n;
     const highlightedRevision = this.highlightedRevision();
     if (
       highlightedRevision &&
       highlightedRevision.timelineId === timeline.id &&
       highlightedRevision.logId === log.id
     ) {
-      const minQueryTimeNs =
-        BigInt(Math.floor(this.minQueryLogTimeMS())) * 1000000n;
       return highlightedRevision.changedTime >= minQueryTimeNs
         ? highlightedRevision.changedTime
         : minQueryTimeNs;
@@ -502,8 +502,6 @@ export class TimelineSmartComponent {
     }
     const revision = timeline.lookupRevisionFromLog(log);
     if (revision !== null) {
-      const minQueryTimeNs =
-        BigInt(Math.floor(this.minQueryLogTimeMS())) * 1000000n;
       return revision.changedTime >= minQueryTimeNs
         ? revision.changedTime
         : minQueryTimeNs;

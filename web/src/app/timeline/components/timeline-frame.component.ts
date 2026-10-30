@@ -1095,7 +1095,7 @@ export class TimelineFrameComponent implements AfterViewInit {
         // Do not force-scroll to the query start boundary when selecting a pre-existing initial revision.
         return;
       }
-      const cursorTime = Math.max(rawCursorTime, logMinTime);
+      const cursorTime = rawCursorTime;
       const viewportLeftTimeMS = untracked(this.viewportLeftTimeMS);
       const viewportWidth = untracked(this.viewportWidth);
       const pixelsPerMs = untracked(this.pixelsPerMs);

@@ -65,6 +65,7 @@ limitations under the License.
               <div
                 class="ts"
                 [matTooltip]="row.timeTooltip"
+                [matTooltipDisabled]="!row.timeTooltip"
                 (click)="_selectRevision(row.revision)"
                 (mouseover)="_highlightRevision(row.revision)"
               >
