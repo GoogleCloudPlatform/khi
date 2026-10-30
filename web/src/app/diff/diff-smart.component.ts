@@ -276,7 +276,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    * @param r The resource revision hovered by the user.
    */
   _highlightRevision(r: ReadonlyDomainElement<Revision>) {
-    this.selectionManager.onHighlightLog(r.log);
+    this.selectionManager.onHighlightRevision(r);
   }
 
   /**

@@ -34,6 +34,7 @@ import {
   TimelineHighlightType,
 } from 'src/app/timeline/components/interaction-model';
 import { Timeline, Event, Revision } from 'src/app/store/domain/timeline';
+import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
@@ -311,13 +312,44 @@ export class TimelineSmartComponent {
     return this.selectionManager.selectedLog();
   });
 
+  private readonly selectedRevision = computed(() => {
+    return this.selectionManager.selectedRevision();
+  });
+
+  private readonly highlightedRevision = computed(() => {
+    return this.selectionManager.highlightedRevision();
+  });
+
   /**
-   * The time of the currently selected log.
-   * Used to display a vertical cursor line on the timeline.
+   * The time of the currently selected revision or log in milliseconds.
+   * Used to display the primary vertical cursor line on the timeline.
    */
   protected readonly cursorTimeMs = computed(() => {
+    const revision = this.selectedRevision();
+    if (revision) {
+      return revision.legacyChangedTimeMs > 0
+        ? revision.legacyChangedTimeMs
+        : this.minQueryLogTimeMS();
+    }
     const log = this.selectedLog();
     if (!log) {
+      return 0;
+    }
+    return log.legacyTimestampMs;
+  });
+
+  /**
+   * The timestamp of the underlying log in milliseconds when a selected revision's changedTime differs from its log timestamp.
+   * Returns 0 when no revision is selected or when changedTime and log.timestamp are identical.
+   */
+  protected readonly secondaryCursorTimeMs = computed(() => {
+    const revision = this.selectedRevision();
+    const log = this.selectedLog();
+    if (!revision || !log) {
+      return 0;
+    }
+    const primaryTimeMs = this.cursorTimeMs();
+    if (log.legacyTimestampMs === primaryTimeMs) {
       return 0;
     }
     return log.legacyTimestampMs;
@@ -389,17 +421,28 @@ export class TimelineSmartComponent {
       return null;
     }
     const targetLog = highlightedLogs[0];
-    const targetTimeNs = targetLog.timestamp;
 
     const currentSelected = this.selectedTimeline();
     if (currentSelected && currentSelected.hasLog(targetLog)) {
-      return { timeline: currentSelected, targetTimeNs };
+      return {
+        timeline: currentSelected,
+        targetTimeNs: this.resolveHighlightedLogTimeNs(
+          currentSelected,
+          targetLog,
+        ),
+      };
     }
 
     if (currentSelected) {
       for (const descendant of currentSelected.descendants()) {
         if (descendant.hasLog(targetLog)) {
-          return { timeline: descendant, targetTimeNs };
+          return {
+            timeline: descendant,
+            targetTimeNs: this.resolveHighlightedLogTimeNs(
+              descendant,
+              targetLog,
+            ),
+          };
         }
       }
     }
@@ -414,18 +457,56 @@ export class TimelineSmartComponent {
         for (const tId of filteredTimelineIds) {
           const t = timelineStore.getTimeline(tId);
           if (t.hasLog(targetLog)) {
-            return { timeline: t, targetTimeNs };
+            return {
+              timeline: t,
+              targetTimeNs: this.resolveHighlightedLogTimeNs(t, targetLog),
+            };
           }
         }
       } else {
         for (const t of timelineStore.timelines) {
           if (t.hasLog(targetLog)) {
-            return { timeline: t, targetTimeNs };
+            return {
+              timeline: t,
+              targetTimeNs: this.resolveHighlightedLogTimeNs(t, targetLog),
+            };
           }
         }
       }
     }
     return null;
+  }
+
+  /**
+   * Resolves the timestamp in nanoseconds for a highlighted log on a specific timeline.
+   * Uses the revision's changedTime when the log corresponds to a revision on the timeline.
+   */
+  private resolveHighlightedLogTimeNs(
+    timeline: ReadonlyDomainElement<Timeline>,
+    log: ReadonlyDomainElement<Log>,
+  ): bigint {
+    const minQueryTimeNs =
+      BigInt(Math.floor(this.minQueryLogTimeMS())) * 1000000n;
+    const highlightedRevision = this.highlightedRevision();
+    if (
+      highlightedRevision &&
+      highlightedRevision.timelineId === timeline.id &&
+      highlightedRevision.logId === log.id
+    ) {
+      return highlightedRevision.changedTime >= minQueryTimeNs
+        ? highlightedRevision.changedTime
+        : minQueryTimeNs;
+    }
+    if (timeline.lookupEventFromLog(log) !== null) {
+      return log.timestamp;
+    }
+    const revision = timeline.lookupRevisionFromLog(log);
+    if (revision !== null) {
+      return revision.changedTime >= minQueryTimeNs
+        ? revision.changedTime
+        : minQueryTimeNs;
+    }
+    return log.timestamp;
   }
 
   /**
@@ -569,6 +650,8 @@ export class TimelineSmartComponent {
           events: finalEvents,
           initialRevision: initialRevision,
           cursorTime: hasHighlightedLog ? null : targetTimeNs,
+          selectedRevisionId: this.selectedRevision()?.id ?? null,
+          highlightedRevisionId: this.highlightedRevision()?.id ?? null,
         },
       } as TimelineHoverOverlayRequest;
     });
@@ -742,9 +825,27 @@ export class TimelineSmartComponent {
       this.selectionManager.onHighlightLog();
     } else {
       if (event.revisionIndex !== undefined) {
-        const log = event.timeline.revisions[event.revisionIndex].log;
-        this.selectionManager.onHighlightLog(log);
-        this.hoveredTime.set(log.timestamp);
+        const revision = event.timeline.revisions[event.revisionIndex];
+        this.selectionManager.onHighlightRevision(revision);
+        const viewportLeftNs =
+          BigInt(
+            Math.floor(
+              Math.max(this.viewportLeftTimeMs(), this.minQueryLogTimeMS()),
+            ),
+          ) * 1000000n;
+        if (revision.changedTime >= viewportLeftNs) {
+          this.hoveredTime.set(revision.changedTime);
+        } else {
+          const hoverTimeNs = BigInt(Math.floor(event.timeMS)) * 1000000n;
+          const endNs = revision.getEndNs();
+          const clampedHoverNs =
+            hoverTimeNs < viewportLeftNs
+              ? viewportLeftNs
+              : endNs !== null && hoverTimeNs > endNs
+                ? endNs
+                : hoverTimeNs;
+          this.hoveredTime.set(clampedHoverNs);
+        }
       } else if (event.eventIndex !== undefined) {
         const log = event.timeline.events[event.eventIndex].log;
         this.selectionManager.onHighlightLog(log);

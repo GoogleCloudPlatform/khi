@@ -26,6 +26,7 @@
   [style.--content-render-width.px]="totalRenderContentWidth()"
   [style.--content-render-height.px]="totalContentRenderHeight()"
   [style.--cursor-offset-left.px]="cursorOffsetLeft()"
+  [style.--secondary-cursor-offset-left.px]="secondaryCursorOffsetLeft()"
   [style.--viewport-height.px]="viewportHeight()"
   [style.--viewport-width.px]="viewportWidth()"
   (shiftStatusChange)="shiftStatus.set($event)"
@@ -129,6 +130,21 @@
     <div class="cursor-vertical-line-body-container">
       <div class="cursor-vertical-line-body vertical-line"></div>
     </div>
+    @if (hasSecondaryCursor()) {
+      <div class="secondary-cursor-time-label-container">
+        <div
+          class="secondary-cursor-vertical-line-header secondary-vertical-line"
+        ></div>
+        <p class="secondary-cursor-time-label">
+          {{ secondaryCursorTimeString() }}
+        </p>
+      </div>
+      <div class="secondary-cursor-vertical-line-body-container">
+        <div
+          class="secondary-cursor-vertical-line-body secondary-vertical-line"
+        ></div>
+      </div>
+    }
 
     @if (timelineHoverOverlay()) {
       <div

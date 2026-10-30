@@ -95,6 +95,7 @@ type TimelineFrameStoryViewModel =
         [timelineHighlights]="timelineHighlights()"
         [timelineChartItemHighlights]="timelineChartItemHighlights()"
         [cursorTimeMS]="timeCursorMS()"
+        [secondaryCursorTimeMS]="secondaryTimeCursorMS()"
         [timezoneShiftHours]="9"
         [allLogs]="vm.logs"
         [filteredLogIds]="vm.filteredLogIds"
@@ -170,6 +171,8 @@ class TimelineFrameStoriesComponent {
   timelineChartItemHighlights = signal<TimelineChartItemHighlight>({});
 
   timeCursorMS = signal(0);
+
+  secondaryTimeCursorMS = signal(0);
 
   timelineHoverRequest = signal<TimelineHoverOverlayRequest | null>(null);
 
@@ -267,6 +270,11 @@ class TimelineFrameStoriesComponent {
         [revision.logIndex]: TimelineChartItemHighlightType.Selected,
       });
       this.timeCursorMS.set(revision.legacyChangedTimeMs);
+      this.secondaryTimeCursorMS.set(
+        revision.log.legacyTimestampMs !== revision.legacyChangedTimeMs
+          ? revision.log.legacyTimestampMs
+          : 0,
+      );
 
       const events = e.timeline.lookupEventsInRangeNs(
         msToNs(e.timeMS - timeRange),
@@ -296,6 +304,7 @@ class TimelineFrameStoriesComponent {
         [event.logIndex]: TimelineChartItemHighlightType.Selected,
       });
       this.timeCursorMS.set(event.legacyTimestamp);
+      this.secondaryTimeCursorMS.set(0);
       const events = e.timeline.lookupEventsInRangeNs(
         msToNs(event.legacyTimestamp - timeRange),
         msToNs(event.legacyTimestamp + timeRange),

@@ -45,6 +45,18 @@ $preview-range-border-color: mat.m2-get-color-from-palette(
   mat.$m2-cyan-palette,
   700
 );
+$secondary-cursor-line-color: mat.m2-get-color-from-palette(
+  mat.$m2-amber-palette,
+  700
+);
+$secondary-cursor-label-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-amber-palette,
+  100
+);
+$secondary-cursor-label-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  900
+);
 
 // stick-to-header mixin is for the container element sticky to the header area.
 // margin-left is applied to align with the right grid area (header or chart) without considering the size of the gutter.
@@ -309,6 +321,53 @@ $preview-range-border-color: mat.m2-get-color-from-palette(
 
 .cursor-vertical-line-body {
   width: 1px;
+  height: 100%;
+}
+
+.secondary-vertical-line {
+  width: 0;
+  border-left: 1.5px dashed $secondary-cursor-line-color;
+  transform: translateX(-50%);
+  opacity: 0.9;
+}
+
+.secondary-cursor-time-label-container {
+  @include stick-to-header(0);
+  width: 0;
+  z-index: $z-index-cursor-header;
+  pointer-events: none;
+  transform: translateX(var(--secondary-cursor-offset-left));
+
+  .secondary-cursor-vertical-line-header {
+    position: absolute;
+    top: 34px;
+    bottom: 0;
+  }
+
+  .secondary-cursor-time-label {
+    position: absolute;
+    white-space: nowrap;
+    left: 8px;
+    top: 34px;
+    margin: 0;
+    background-color: $secondary-cursor-label-bg-color;
+    color: $secondary-cursor-label-text-color;
+    border: 1px dashed $secondary-cursor-line-color;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
+
+.secondary-cursor-vertical-line-body-container {
+  @include chart-item(var(--secondary-cursor-offset-left), 0);
+  z-index: $z-index-cursor-body;
+  height: 100%;
+  pointer-events: none;
+}
+
+.secondary-cursor-vertical-line-body {
   height: 100%;
 }
 

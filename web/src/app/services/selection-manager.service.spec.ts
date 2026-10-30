@@ -387,4 +387,145 @@ describe('SelectionManager', () => {
     expect(service.selectedLog()?.id).toBe(targetLog.id);
     expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
+
+  it('should preserve the explicitly selected revision when multiple revisions share the same log and onSelectLog is called', async () => {
+    const internPool = InternPoolStore.create();
+    const styleStore = new StyleStore();
+    styleStore.addSeverities([
+      {
+        id: 1,
+        label: 'Info',
+        shortLabel: 'I',
+        backgroundColor: { r: 0, g: 0, b: 1, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        order: 1,
+      },
+    ]);
+    styleStore.addLogTypes([
+      {
+        id: 2,
+        label: 'K8sAudit',
+        description: 'Audit',
+        backgroundColor: { r: 0, g: 1, b: 0, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      },
+    ]);
+    styleStore.addTimelineTypes([
+      {
+        id: 4,
+        label: 'Container',
+        description: 'Container',
+        icon: 'description',
+        backgroundColor: { r: 1, g: 0.5, b: 0, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        typeChipBackgroundColor: { r: 1, g: 0.5, b: 0, a: 1 },
+        typeChipForegroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        visible: true,
+        sortPriority: 4,
+        height: 1,
+      },
+    ]);
+    styleStore.addVerbs([
+      {
+        id: 1,
+        label: 'PATCH',
+        backgroundColor: { r: 0, g: 0.5, b: 1, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        visible: true,
+      },
+    ]);
+    styleStore.addRevisionStates([
+      {
+        id: 1,
+        label: 'Running',
+        icon: '',
+        description: 'Running',
+        backgroundColor: { r: 0, g: 0, b: 1, a: 1 },
+        style: 0,
+      },
+      {
+        id: 2,
+        label: 'Terminated',
+        icon: '',
+        description: 'Terminated',
+        backgroundColor: { r: 1, g: 0, b: 0, a: 1 },
+        style: 0,
+      },
+    ]);
+    internPool.addStrings([
+      { id: 1, value: 'main' },
+      { id: 2, value: 'Pod status patched' },
+      { id: 3, value: 'system:node:node-1' },
+    ]);
+    const multiRevLogStore = LogStore.create(internPool, styleStore, 1);
+    multiRevLogStore.addLogs([
+      {
+        id: 1,
+        ts: 1700000010000000000n,
+        logTypeId: 2,
+        severityTypeId: 1,
+        summaryStringId: 2,
+      },
+    ]);
+    multiRevLogStore.shrinkToFit();
+    const multiRevTimelineStore = TimelineStore.create(
+      internPool,
+      styleStore,
+      multiRevLogStore,
+      1,
+      2,
+      0,
+    );
+    multiRevTimelineStore.addRevisions([
+      {
+        id: 1,
+        logId: 1,
+        changedTime: 1700000001000000000n,
+        principalStringId: 3,
+        verbTypeId: 1,
+        stateTypeId: 1,
+      },
+      {
+        id: 2,
+        logId: 1,
+        changedTime: 1700000005000000000n,
+        principalStringId: 3,
+        verbTypeId: 1,
+        stateTypeId: 2,
+      },
+    ]);
+    multiRevTimelineStore.addTimelines([
+      {
+        id: 1,
+        timelineTypeId: 4,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [1, 2],
+        eventIds: [],
+      },
+    ]);
+    multiRevTimelineStore.shrinkToFit();
+    dataStore.setNewInspectionData({
+      internPool,
+      styleStore,
+      logStore: multiRevLogStore,
+      timelineStore: multiRevTimelineStore,
+      structStore: StructStore.create(internPool),
+    });
+
+    const timeline = multiRevTimelineStore.getTimeline(1);
+    const secondRevision = timeline.revisions[1];
+
+    service.onSelectRevision(secondRevision);
+    expect(service.selectedRevision()?.id).toBe(2);
+
+    await service.onSelectLog(secondRevision.log);
+    expect(service.selectedRevision()?.id).toBe(2);
+
+    service.onHighlightTimeline(timeline);
+    service.onHighlightRevision(secondRevision);
+    expect(
+      service.highlightedRevisionsOnCurrentTimeline().map((r) => r.id),
+    ).toEqual([2]);
+  });
 });

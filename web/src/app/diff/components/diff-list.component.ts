@@ -152,6 +152,13 @@ export class DiffListComponent {
   readonly selectedLogIndex = input.required<number>();
 
   /**
+   * The currently selected revision, used to disambiguate when multiple revisions share the same log index.
+   */
+  readonly selectedRevision = input<ReadonlyDomainElement<Revision> | null>(
+    null,
+  );
+
+  /**
    * Set of indices for highlighted logs.
    */
   readonly highlightedLogIndices = input.required<Set<number>>();
@@ -237,6 +244,7 @@ export class DiffListComponent {
   constructor() {
     effect(() => {
       const index = this.selectedLogIndex();
+      const selectedRev = this.selectedRevision();
       const timeline = this.timeline();
       const viewPort = this.viewPort();
 
@@ -247,9 +255,10 @@ export class DiffListComponent {
       if (timeline === null) {
         return;
       }
-      const revisionIndex = timeline.revisions.findIndex(
-        (rev) => rev.logIndex === index,
-      );
+      const revisionIndex =
+        selectedRev !== null && selectedRev.timelineId === timeline.id
+          ? selectedRev.index
+          : timeline.revisions.findIndex((rev) => rev.logIndex === index);
       if (revisionIndex !== -1) {
         viewPort?.scrollToIndex(revisionIndex, 'smooth');
       }

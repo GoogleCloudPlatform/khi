@@ -81,6 +81,7 @@ import {
   getMinTimeSpanForHistogram,
   getTickTimeMS,
 } from './calculator/human-friendly-tick';
+import { formatDurationMs } from 'src/app/utils/time-format-util';
 
 export interface TimeScaleEvent {
   event: WheelEvent;
@@ -502,8 +503,13 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly cursorOffsetLeft = computed<number>(() => {
     const horizontalScrollCalculator = this.horizontalScrollCalculator();
+    const cursorTimeMS = this.cursorTimeMS();
+    const clampedTimeMS =
+      cursorTimeMS > 0
+        ? Math.max(cursorTimeMS, this.minQueryLogTimeMS())
+        : cursorTimeMS;
     return horizontalScrollCalculator.timeMSToOffsetLeft(
-      this.cursorTimeMS(),
+      clampedTimeMS,
       this.pixelsPerMs(),
     );
   });
@@ -519,6 +525,54 @@ export class TimelineFrameComponent implements AfterViewInit {
     );
     const timeString = cursorTimeDate.toISOString();
     return timeString.slice(0, timeString.length - 1);
+  });
+
+  /**
+   * Secondary cursor position time in milliseconds, representing the log timestamp when it differs from the selected revision's changedTime.
+   */
+  readonly secondaryCursorTimeMS = input<number>(0);
+
+  /**
+   * Whether a secondary log timestamp cursor should be displayed.
+   */
+  protected readonly hasSecondaryCursor = computed<boolean>(() => {
+    const primary = this.cursorTimeMS();
+    const secondary = this.secondaryCursorTimeMS();
+    return primary > 0 && secondary > 0 && primary !== secondary;
+  });
+
+  /**
+   * Secondary cursor position offset from the left of the viewport in pixels.
+   */
+  protected readonly secondaryCursorOffsetLeft = computed<number>(() => {
+    const horizontalScrollCalculator = this.horizontalScrollCalculator();
+    const secondaryTimeMS = this.secondaryCursorTimeMS();
+    const clampedTimeMS =
+      secondaryTimeMS > 0
+        ? Math.max(secondaryTimeMS, this.minQueryLogTimeMS())
+        : secondaryTimeMS;
+    return horizontalScrollCalculator.timeMSToOffsetLeft(
+      clampedTimeMS,
+      this.pixelsPerMs(),
+    );
+  });
+
+  /**
+   * Formatted string of the secondary cursor time, including the delta from the primary cursor time.
+   */
+  protected readonly secondaryCursorTimeString = computed(() => {
+    const secondaryTimeMS = this.secondaryCursorTimeMS();
+    const primaryTimeMS = this.cursorTimeMS();
+    const timezoneShiftHours = this.timezoneShiftHours();
+    const secondaryTimeDate = new Date(
+      secondaryTimeMS + timezoneShiftHours * 60 * 60 * 1000,
+    );
+    const timeString = secondaryTimeDate.toISOString();
+    const formattedTime = timeString.slice(0, timeString.length - 1);
+    const deltaMs = secondaryTimeMS - primaryTimeMS;
+    const sign = deltaMs >= 0 ? '+' : '-';
+    const deltaLabel = `${sign}${formatDurationMs(Math.abs(deltaMs))}`;
+    return `Log: ${formattedTime} (${deltaLabel})`;
   });
 
   /**
@@ -1031,11 +1085,17 @@ export class TimelineFrameComponent implements AfterViewInit {
 
     // Updates the viewportLeftTimeMs property when the curosrTime is updated if that is outside of the viewport.
     effect(() => {
-      const cursorTime = this.cursorTimeMS();
-      if (cursorTime === 0) {
+      const rawCursorTime = this.cursorTimeMS();
+      if (rawCursorTime === 0) {
         // Do not scroll when there is no active log selection.
         return;
       }
+      const logMinTime = untracked(this.minQueryLogTimeMS);
+      if (rawCursorTime <= logMinTime) {
+        // Do not force-scroll to the query start boundary when selecting a pre-existing initial revision.
+        return;
+      }
+      const cursorTime = rawCursorTime;
       const viewportLeftTimeMS = untracked(this.viewportLeftTimeMS);
       const viewportWidth = untracked(this.viewportWidth);
       const pixelsPerMs = untracked(this.pixelsPerMs);
@@ -1044,7 +1104,6 @@ export class TimelineFrameComponent implements AfterViewInit {
       const maxCursorTime =
         viewportLeftTimeMS +
         (viewportWidth - this.CURSOR_SCROLL_MARGIN_IN_PX) / pixelsPerMs;
-      const logMinTime = untracked(this.minQueryLogTimeMS);
       const horizontalOverdrawInPx = untracked(this.horizontalOverdrawInPx);
 
       if (cursorTime < minCursorTime || cursorTime > maxCursorTime) {
