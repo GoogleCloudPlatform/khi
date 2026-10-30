@@ -36,7 +36,6 @@ import { Timeline, Revision } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
-import { formatDurationMs } from 'src/app/utils/time-format-util';
 
 class DiffListScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
@@ -65,7 +64,6 @@ export interface DiffListRowViewModel {
   index: number;
   isContentChanged: boolean;
   timeLabel: string;
-  timeTooltip: string;
   author: ResourceOperatorPrincipal | null;
   verbLabel: string;
   verbStyle: {
@@ -208,29 +206,12 @@ export class DiffListComponent {
         verb.foregroundColor.a,
       ]);
 
-      const timeLabel = formatTimeLabel(rev.legacyChangedTimeMs, shift);
-      let timeTooltip = '';
-      if (log !== null) {
-        const logTimeLabel = formatTimeLabel(log.legacyTimestampMs, shift);
-        if (rev.legacyChangedTimeMs === 0) {
-          timeTooltip = `Initial state inferred from log at ${logTimeLabel}`;
-        } else {
-          const deltaMs = log.legacyTimestampMs - rev.legacyChangedTimeMs;
-          if (Math.abs(deltaMs) >= 1000) {
-            const sign = deltaMs >= 0 ? '+' : '-';
-            const deltaStr = `${sign}${formatDurationMs(Math.abs(deltaMs))}`;
-            timeTooltip = `State changed at ${timeLabel}, logged at ${logTimeLabel} (${deltaStr})`;
-          }
-        }
-      }
-
       return {
         revision: rev,
         log: log,
         index: index,
         isContentChanged: isContentChanged,
-        timeLabel: timeLabel,
-        timeTooltip: timeTooltip,
+        timeLabel: formatTimeLabel(rev.legacyChangedTimeMs, shift),
         author: rev.principal ? parsePrincipal(rev.principal) : null,
         verbLabel: verb.label,
         verbStyle: {
