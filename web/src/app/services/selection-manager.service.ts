@@ -52,6 +52,12 @@ export class SelectionManager {
     signal<ReadonlyDomainElement<Revision> | null>(null);
 
   /**
+   * Holds the currently highlighted revision when hovering a specific revision item.
+   */
+  public readonly highlightedRevision =
+    signal<ReadonlyDomainElement<Revision> | null>(null);
+
+  /**
    * Indicates whether child timelines should be included in the timeline selection.
    */
   public readonly timelineSelectionShouldIncludeChildren =
@@ -133,6 +139,10 @@ export class SelectionManager {
     const logIndices = this.highlightedLogIndices();
     const result: ReadonlyDomainElement<Revision>[] = [];
     if (timeline === null) return result;
+    const directRevision = this.highlightedRevision();
+    if (directRevision !== null && directRevision.timelineId === timeline.id) {
+      return [directRevision];
+    }
     for (const revision of timeline.revisions) {
       if (logIndices.has(revision.logIndex)) {
         result.push(revision);
@@ -200,7 +210,21 @@ export class SelectionManager {
    * Highlights specific log entries.
    */
   public onHighlightLog(...logs: ReadonlyDomainElement<Log>[]) {
+    this.highlightedRevision.set(null);
     this.highlightedLogIds.set(new Set(logs.map((log) => log.id)));
+  }
+
+  /**
+   * Highlights a specific revision and its underlying log entry.
+   */
+  public onHighlightRevision(
+    revision?: ReadonlyDomainElement<Revision> | null,
+  ) {
+    const nextRevision = revision ?? null;
+    this.highlightedRevision.set(nextRevision);
+    this.highlightedLogIds.set(
+      nextRevision ? new Set([nextRevision.logId]) : new Set(),
+    );
   }
 
   /**
@@ -236,6 +260,14 @@ export class SelectionManager {
       selectedTimeline &&
       (!filteredTimelineIds || filteredTimelineIds.has(selectedTimeline.id))
     ) {
+      const currentRevision = this.selectedRevision();
+      if (
+        currentRevision &&
+        currentRevision.timelineId === selectedTimeline.id &&
+        currentRevision.logId === log.id
+      ) {
+        return;
+      }
       const revision = selectedTimeline.lookupRevisionFromLog(log);
       if (revision) {
         this.selectedRevision.set(revision);
@@ -250,10 +282,18 @@ export class SelectionManager {
 
     // Priority 2: Check descendant timelines of the selected timeline (if visible).
     if (currentTimelines.length > 1) {
+      const currentRevision = this.selectedRevision();
       for (const timeline of currentTimelines) {
         if (timeline === selectedTimeline) continue;
         if (filteredTimelineIds && !filteredTimelineIds.has(timeline.id)) {
           continue;
+        }
+        if (
+          currentRevision &&
+          currentRevision.timelineId === timeline.id &&
+          currentRevision.logId === log.id
+        ) {
+          return;
         }
         const revision = timeline.lookupRevisionFromLog(log);
         if (revision) {

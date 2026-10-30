@@ -73,6 +73,7 @@ describe('TimelineSmartComponent', () => {
         'onHighlightTimeline',
         'onSelectTimeline',
         'onHighlightLog',
+        'onHighlightRevision',
         'onSelectRevision',
         'onSelectEvent',
       ],
@@ -84,6 +85,7 @@ describe('TimelineSmartComponent', () => {
         highlightedLogIndices: signal(null),
         selectedLog: selectedLogSignal,
         selectedRevision: selectedRevisionSignal,
+        highlightedRevision: signal(null),
         highlightedLogs: signal([]),
       },
     );
@@ -227,8 +229,8 @@ describe('TimelineSmartComponent', () => {
       clientY: 200,
     });
 
-    expect(mockSelectionManager.onHighlightLog).toHaveBeenCalledWith(
-      mockLog as never,
+    expect(mockSelectionManager.onHighlightRevision).toHaveBeenCalledWith(
+      mockRevision as never,
     );
     expect(component['hoveredTime']()).toBe(1200000000n);
   });

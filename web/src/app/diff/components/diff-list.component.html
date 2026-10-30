@@ -20,6 +20,7 @@ limitations under the License.
     <div class="all-columns"></div>
   } @else {
     @let li = selectedLogIndex();
+    @let selectedRev = selectedRevision();
     @let hlis = highlightedLogIndices();
     <cdk-virtual-scroll-viewport>
       <div class="revision-list">
@@ -30,7 +31,11 @@ limitations under the License.
           @if (row.log) {
             <div
               class="revision-row"
-              [class.selected]="li === row.revision.logIndex"
+              [class.selected]="
+                selectedRev !== null
+                  ? selectedRev.index === row.index
+                  : li === row.revision.logIndex
+              "
               [class.highlight]="hlis.has(row.revision.logIndex)"
             >
               <div
@@ -59,6 +64,7 @@ limitations under the License.
               </div>
               <div
                 class="ts"
+                [matTooltip]="row.timeTooltip"
                 (click)="_selectRevision(row.revision)"
                 (mouseover)="_highlightRevision(row.revision)"
               >

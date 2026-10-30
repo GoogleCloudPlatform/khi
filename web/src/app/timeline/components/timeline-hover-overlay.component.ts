@@ -43,6 +43,8 @@ export interface TimelineHoverOverlay {
   events: ReadonlyDomainElement<Event>[];
   initialRevision: ReadonlyDomainElement<Revision> | null;
   cursorTime: bigint | null;
+  selectedRevisionId?: number | null;
+  highlightedRevisionId?: number | null;
 }
 
 enum StatusContinousMode {
@@ -198,8 +200,12 @@ export class TimelineHoverOverlayComponent {
     for (let i = 0; i < revisions.length; i++) {
       const revision = revisions[i];
       const log = revision.log;
-      const highlightType =
-        highlights[log.logIndex] ?? TimelineChartItemHighlightType.None;
+      const highlightType = this.resolveRevisionHighlightType(
+        revision,
+        highlights,
+        timelineHoverOverlay.selectedRevisionId ?? null,
+        timelineHoverOverlay.highlightedRevisionId ?? null,
+      );
       viewModel.logs.push({
         uniqueID: `revision-${i}`,
         logIndex: log.logIndex,
@@ -399,6 +405,35 @@ export class TimelineHoverOverlayComponent {
     }
     return viewModel;
   });
+
+  private resolveRevisionHighlightType(
+    revision: ReadonlyDomainElement<Revision>,
+    highlights: TimelineChartItemHighlight,
+    selectedRevisionId: number | null,
+    highlightedRevisionId: number | null,
+  ): TimelineChartItemHighlightType {
+    const baseHighlight =
+      highlights[revision.log.logIndex] ?? TimelineChartItemHighlightType.None;
+    if (baseHighlight === TimelineChartItemHighlightType.Selected) {
+      if (selectedRevisionId !== null && revision.id !== selectedRevisionId) {
+        return highlightedRevisionId !== null &&
+          revision.id === highlightedRevisionId
+          ? TimelineChartItemHighlightType.Hovered
+          : TimelineChartItemHighlightType.None;
+      }
+      return TimelineChartItemHighlightType.Selected;
+    }
+    if (baseHighlight === TimelineChartItemHighlightType.Hovered) {
+      if (
+        highlightedRevisionId !== null &&
+        revision.id !== highlightedRevisionId
+      ) {
+        return TimelineChartItemHighlightType.None;
+      }
+      return TimelineChartItemHighlightType.Hovered;
+    }
+    return TimelineChartItemHighlightType.None;
+  }
 
   private formatTimeLabel(timeInMs: number): string {
     const timezoneShiftHours = this.timezoneShiftHours();

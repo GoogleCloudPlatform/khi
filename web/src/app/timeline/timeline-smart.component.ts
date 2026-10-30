@@ -316,6 +316,10 @@ export class TimelineSmartComponent {
     return this.selectionManager.selectedRevision();
   });
 
+  private readonly highlightedRevision = computed(() => {
+    return this.selectionManager.highlightedRevision();
+  });
+
   /**
    * The time of the currently selected revision or log in milliseconds.
    * Used to display the primary vertical cursor line on the timeline.
@@ -481,6 +485,18 @@ export class TimelineSmartComponent {
     timeline: ReadonlyDomainElement<Timeline>,
     log: ReadonlyDomainElement<Log>,
   ): bigint {
+    const highlightedRevision = this.highlightedRevision();
+    if (
+      highlightedRevision &&
+      highlightedRevision.timelineId === timeline.id &&
+      highlightedRevision.logId === log.id
+    ) {
+      const minQueryTimeNs =
+        BigInt(Math.floor(this.minQueryLogTimeMS())) * 1000000n;
+      return highlightedRevision.changedTime >= minQueryTimeNs
+        ? highlightedRevision.changedTime
+        : minQueryTimeNs;
+    }
     if (timeline.lookupEventFromLog(log) !== null) {
       return log.timestamp;
     }
@@ -636,6 +652,8 @@ export class TimelineSmartComponent {
           events: finalEvents,
           initialRevision: initialRevision,
           cursorTime: hasHighlightedLog ? null : targetTimeNs,
+          selectedRevisionId: this.selectedRevision()?.id ?? null,
+          highlightedRevisionId: this.highlightedRevision()?.id ?? null,
         },
       } as TimelineHoverOverlayRequest;
     });
@@ -809,7 +827,7 @@ export class TimelineSmartComponent {
     } else {
       if (event.revisionIndex !== undefined) {
         const revision = event.timeline.revisions[event.revisionIndex];
-        this.selectionManager.onHighlightLog(revision.log);
+        this.selectionManager.onHighlightRevision(revision);
         const viewportLeftNs =
           BigInt(
             Math.floor(
