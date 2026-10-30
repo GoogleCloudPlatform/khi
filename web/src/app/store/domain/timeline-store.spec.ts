@@ -501,5 +501,51 @@ describe('TimelineStore', () => {
         largeStore.shrinkToFit();
       }).not.toThrow();
     });
+
+    it('should preserve rawName/rawLabel while reflecting live mask transforms on name/label', () => {
+      internPool.addStrings([
+        { id: 1, value: 'prod-namespace' },
+        { id: 2, value: 'secret-pod-1' },
+      ]);
+
+      store = TimelineStore.create(internPool, styleStore, logStore, 2);
+      store.addTimelines([
+        {
+          id: 1,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 2,
+          timelineTypeId: 1,
+          nameStringId: 2,
+          parentTimelineId: 1,
+          revisionIds: [],
+          eventIds: [],
+        },
+      ]);
+      store.shrinkToFit();
+
+      const child = store.getTimeline(2);
+      // Cache path prior to setting maskTransform to ensure getter updates reactively.
+      expect(child.path.map((n) => n.label)).toEqual([
+        'prod-namespace',
+        'secret-pod-1',
+      ]);
+
+      internPool.setMaskTransform((val) =>
+        val.replace('prod-', '').replace('secret-pod-1', ''),
+      );
+
+      expect(child.name).toBe('');
+      expect(child.rawName).toBe('secret-pod-1');
+      expect(child.path[0].label).toBe('namespace');
+      expect(child.path[0].rawLabel).toBe('prod-namespace');
+      expect(child.path[1].label).toBe('');
+      expect(child.path[1].rawLabel).toBe('secret-pod-1');
+    });
   });
 });

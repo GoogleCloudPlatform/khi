@@ -32,6 +32,9 @@ import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.componen
 import { LogSmartComponent } from 'src/app/log/log-smart.component';
 import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
+import { MaskSmartComponent } from 'src/app/mask/mask-smart.component';
+import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
+import { PROGRESS_DIALOG_STATUS_UPDATOR } from 'src/app/services/progress/progress-interface';
 import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
 
 @Component({
@@ -70,6 +73,8 @@ describe('LayoutService', () => {
         LayoutService,
         MenuManager,
         { provide: MatDialog, useValue: dialogSpy },
+        { provide: BACKEND_API, useValue: {} },
+        { provide: PROGRESS_DIALOG_STATUS_UPDATOR, useValue: {} },
       ],
     })
       .overrideComponent(TimelineSmartComponent, {
@@ -83,6 +88,9 @@ describe('LayoutService', () => {
       })
       .overrideComponent(GraphSmartComponent, {
         set: { template: '<div>Graph</div>', imports: [] },
+      })
+      .overrideComponent(MaskSmartComponent, {
+        set: { template: '<div>Mask</div>', imports: [] },
       })
       .compileComponents();
 
@@ -312,6 +320,48 @@ describe('LayoutService', () => {
       expect(
         viewGroup?.items.find((item) => item.id === 'style-override'),
       ).toBeUndefined();
+    } finally {
+      hostEl.remove();
+    }
+  });
+
+  it('should not include Mask pane in default layout and should focus existing Mask pane when openMaskPane is called twice', () => {
+    const hostEl = hostComponent.layoutContainer().nativeElement;
+    document.body.appendChild(hostEl);
+
+    try {
+      let maskCreatedCount = 0;
+      const originalCreateComponent =
+        hostComponent.viewContainerRef.createComponent.bind(
+          hostComponent.viewContainerRef,
+        );
+      spyOn(hostComponent.viewContainerRef, 'createComponent').and.callFake(
+        (componentType: unknown) => {
+          if (componentType === MaskSmartComponent) {
+            maskCreatedCount++;
+          }
+          return originalCreateComponent(componentType as Type<unknown>);
+        },
+      );
+
+      layoutService.init(hostEl, hostComponent.viewContainerRef);
+      layoutService.loadDefaultLayout();
+
+      expect(maskCreatedCount).toBe(0);
+
+      layoutService.openMaskPane();
+      expect(maskCreatedCount).toBe(1);
+
+      // Calling openMaskPane again focuses existing tab rather than creating a duplicate pane.
+      layoutService.openMaskPane();
+      expect(maskCreatedCount).toBe(1);
+
+      const viewGroup = menuManager.groups().find((g) => g.id === 'view');
+      const openMaskItem = viewGroup?.items.find(
+        (item) => item.id === 'open-mask',
+      );
+      expect(openMaskItem).toBeDefined();
+      expect(openMaskItem?.disabled?.()).toBeTrue();
     } finally {
       hostEl.remove();
     }

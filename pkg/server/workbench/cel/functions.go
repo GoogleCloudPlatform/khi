@@ -25,18 +25,7 @@ import (
 )
 
 var (
-	regexCache   sync.Map
-	regexCompile = func(pattern string) (*regexp.Regexp, error) {
-		if val, ok := regexCache.Load(pattern); ok {
-			return val.(*regexp.Regexp), nil
-		}
-		re, err := regexp.Compile("(?i)" + pattern)
-		if err != nil {
-			return nil, err
-		}
-		regexCache.Store(pattern, re)
-		return re, nil
-	}
+	regexCache = sync.Map{}
 
 	directYAMLSerializerPool = sync.Pool{
 		New: func() any {
@@ -44,6 +33,19 @@ var (
 		},
 	}
 )
+
+// CompileCaseInsensitiveRegex compiles and caches a case-insensitive RE2 regular expression.
+func CompileCaseInsensitiveRegex(pattern string) (*regexp.Regexp, error) {
+	if val, ok := regexCache.Load(pattern); ok {
+		return val.(*regexp.Regexp), nil
+	}
+	re, err := regexp.Compile("(?i)" + pattern)
+	if err != nil {
+		return nil, err
+	}
+	regexCache.Store(pattern, re)
+	return re, nil
+}
 
 func combinePatterns(patterns []string) string {
 	if len(patterns) == 0 {
@@ -92,7 +94,7 @@ func MatchTimelinePath(t *TimelineData, key string, patterns []string, tlMap map
 	}
 
 	combinedPattern := combinePatterns(patterns)
-	re, err := regexCompile(combinedPattern)
+	re, err := CompileCaseInsensitiveRegex(combinedPattern)
 	if err != nil {
 		return false
 	}
@@ -176,7 +178,7 @@ func MatchLogField(
 		if !ok {
 			return false, nil
 		}
-		re, err := regexCompile(combinedPattern)
+		re, err := CompileCaseInsensitiveRegex(combinedPattern)
 		if err != nil {
 			return false, nil
 		}
@@ -196,7 +198,7 @@ func matchNodeField(node structured.Node, pathKey string, pattern string) bool {
 		return false
 	}
 
-	re, err := regexCompile(pattern)
+	re, err := CompileCaseInsensitiveRegex(pattern)
 	if err != nil {
 		return false
 	}

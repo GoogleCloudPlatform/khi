@@ -201,6 +201,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         openStartupDialog(this.dialog);
       },
     });
+    this.menuManager.addItem('file', {
+      id: 'mask-export-khi',
+      label: 'Mask & Export .khi...',
+      type: MenuItemType.Button,
+      icon: 'visibility_off',
+      priority: 2,
+      action: () => {
+        this.layoutService.openMaskPane();
+      },
+    });
     this.menuManager.addGroup('help', 'Help', 99, 'help');
     this.menuManager.addItem('help', {
       id: 'release-notes',

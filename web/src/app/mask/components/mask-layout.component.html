@@ -1,0 +1,89 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="mask-pane">
+  <div class="pane-header">
+    <div class="header-title-group">
+      <mat-icon class="header-icon">visibility_off</mat-icon>
+      <span class="header-title">Mask Sensitive Strings</span>
+    </div>
+    <mat-slide-toggle
+      class="preview-toggle"
+      color="primary"
+      [checked]="livePreviewEnabled()"
+      (change)="livePreviewChange.emit($event.checked)"
+    >
+      Live preview
+    </mat-slide-toggle>
+  </div>
+
+  @if (!isWorkbenchActive()) {
+    <div class="empty-workbench">
+      <mat-icon class="empty-icon">folder_off</mat-icon>
+      <p class="empty-title">No inspection loaded</p>
+      <p class="empty-description">
+        Open an inspection dataset to browse strings, preview masks, and export
+        a sanitized .khi file.
+      </p>
+    </div>
+  } @else {
+    <khi-mask-index-banner
+      class="status-banners"
+      [indexStatus]="indexStatus()"
+    ></khi-mask-index-banner>
+
+    <mat-tab-group class="mask-tabs" animationDuration="0ms">
+      <mat-tab label="String Pool">
+        <khi-mask-string-pool
+          class="tab-panel"
+          [searchQuery]="searchQuery()"
+          [searchRegexError]="searchRegexError()"
+          [candidates]="candidates()"
+          [totalCandidateCount]="totalCandidateCount()"
+          [isLoadingCandidates]="isLoadingCandidates()"
+          (searchQueryChange)="searchQueryChange.emit($event)"
+          (selectShownCandidates)="selectShownCandidates.emit()"
+          (loadMoreCandidates)="loadMoreCandidates.emit()"
+          (candidateToggle)="candidateToggle.emit($event)"
+          (addCustomSubstring)="addCustomSubstring.emit($event)"
+        ></khi-mask-string-pool>
+      </mat-tab>
+
+      <mat-tab [label]="selectedMasksTabLabel()">
+        <khi-mask-rule-list
+          class="tab-panel"
+          [rules]="rules()"
+          (ruleEnabledChange)="ruleEnabledChange.emit($event)"
+          (ruleReplacementChange)="ruleReplacementChange.emit($event)"
+          (ruleResetReplacement)="ruleResetReplacement.emit($event)"
+          (ruleRemove)="ruleRemove.emit($event)"
+        ></khi-mask-rule-list>
+      </mat-tab>
+    </mat-tab-group>
+
+    <khi-mask-export-footer
+      class="footer-area"
+      [ruleCount]="rules().length"
+      [enabledRuleCount]="enabledRuleCount()"
+      [isExporting]="isExporting()"
+      [exportProgress]="exportProgress()"
+      [statusMessage]="statusMessage()"
+      [errorMessage]="errorMessage()"
+      (clearAllRules)="clearAllRules.emit()"
+      (exportMaskedKhi)="exportMaskedKhi.emit()"
+    ></khi-mask-export-footer>
+  }
+</div>

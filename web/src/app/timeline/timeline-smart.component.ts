@@ -654,7 +654,8 @@ export class TimelineSmartComponent {
   protected excludeTimeline(timeline: Timeline): void {
     if (this.viewStateService.isAdvancedMode()) {
       const currentExpr = this.viewStateService.advancedTimelineExcludeCel();
-      const escapedName = timeline.name
+      const rawName = timeline.rawName || timeline.name;
+      const escapedName = rawName
         .replace(/\\/g, '\\\\')
         .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         .replace(/"/g, '\\"');

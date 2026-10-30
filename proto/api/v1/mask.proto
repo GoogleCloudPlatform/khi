@@ -1,0 +1,179 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+import "api/v1/workbench.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// MaskService provides string pool candidate search and masked .khi archive export for active Workbench sessions.
+service MaskService {
+  // Watches the construction progress and status of the on-demand string pool trigram index used for mask candidate search. The server terminates the stream every 30s to accommodate proxy timeouts, and clients are expected to reconnect.
+  rpc WatchStringPoolIndexProgress(WatchStringPoolIndexProgressRequest) returns (stream WatchStringPoolIndexProgressResponse);
+
+  // Pulls the construction progress and status snapshot of the on-demand string pool trigram index without opening a persistent stream.
+  rpc PullStringPoolIndexProgress(PullStringPoolIndexProgressRequest) returns (PullStringPoolIndexProgressResponse);
+
+  // Lists unique strings contained in the Workbench dataset for sensitive data masking.
+  rpc ListWorkbenchStrings(ListWorkbenchStringsRequest) returns (ListWorkbenchStringsResponse);
+
+  // Creates and registers a new inspection dataset with the specified string masking rules applied, streaming progress updates followed by the final dataset metadata.
+  rpc CreateMaskedInspection(CreateMaskedInspectionRequest) returns (stream CreateMaskedInspectionResponse);
+
+  // Starts or polls an asynchronous masked inspection creation task without opening a persistent stream.
+  rpc CreateMaskedInspectionSync(CreateMaskedInspectionSyncRequest) returns (CreateMaskedInspectionSyncResponse);
+
+  // Cancels an in-progress asynchronous masked inspection creation task.
+  rpc CancelCreateMaskedInspectionSync(CancelCreateMaskedInspectionSyncRequest) returns (CancelCreateMaskedInspectionSyncResponse);
+}
+
+// Request to watch the construction progress of the on-demand string pool trigram index.
+message WatchStringPoolIndexProgressRequest {
+  // Active workbench session identifier whose string pool index is monitored.
+  string workbench_id = 1;
+}
+
+// Progress update or terminal state of string pool trigram index construction.
+message WatchStringPoolIndexProgressResponse {
+  // Lifecycle state of string pool trigram index construction.
+  WatchIndexProgressResponse.IndexState state = 1;
+  // Index construction progress percentage from 0 to 100.
+  double progress_percentage = 2;
+  // Human-readable description of the current indexing phase.
+  string message = 3;
+}
+
+// Request to pull a snapshot of string pool trigram index construction progress without streaming.
+message PullStringPoolIndexProgressRequest {
+  // Active workbench session identifier whose string pool index status is requested.
+  string workbench_id = 1;
+}
+
+// Snapshot of string pool trigram index construction progress.
+message PullStringPoolIndexProgressResponse {
+  // Lifecycle state of string pool trigram index construction.
+  WatchIndexProgressResponse.IndexState state = 1;
+  // Index construction progress percentage from 0 to 100.
+  double progress_percentage = 2;
+  // Human-readable description of the current indexing phase.
+  string message = 3;
+}
+
+// Request to query unique strings contained in an active Workbench dataset for sensitive data masking.
+message ListWorkbenchStringsRequest {
+  // Active workbench session identifier to list candidate strings from.
+  string workbench_id = 1;
+  // Filter pattern applied to candidate strings, evaluated as a case-insensitive RE2 regular expression. Empty string returns all unique strings ordered by masking priority.
+  string query = 2;
+  // Zero-based offset into the matched string list for pagination.
+  uint32 offset = 3;
+  // Maximum number of strings to return in a single page. Defaults to 200 and caps at 1000.
+  uint32 limit = 4;
+}
+
+// Paginated list of unique strings matching a masking search query.
+message ListWorkbenchStringsResponse {
+  // Page of unique strings matching the query.
+  repeated string values = 1;
+  // Total number of unique strings matching the query across all pages.
+  uint32 total_count = 2;
+}
+
+// StringMaskRule defines a single substring masking substitution rule.
+message StringMaskRule {
+  // Exact non-empty substring to match and mask across metadata and interned string pools.
+  string target = 1;
+  // Replacement text substituted for target. When unset, defaults to sequential numbered placeholders ("<masked_1>", "<masked_2>", ...) that preserve identity across occurrences. When explicitly set to an empty string, deletes matching substrings while preserving non-empty timeline labels.
+  string replacement = 2;
+}
+
+// Request to generate and register a new inspection dataset with string masking rules applied.
+message CreateMaskedInspectionRequest {
+  // Active workbench session identifier providing the source dataset.
+  string workbench_id = 1;
+  // Masking rules applied in longest-target-first single-pass order.
+  repeated StringMaskRule rules = 2;
+}
+
+// Intermediate progress update emitted while generating a masked .khi archive.
+message MaskedInspectionProgress {
+  // Completion percentage of the server-side masked archive creation from 0 to 100.
+  double progress_percentage = 1;
+  // Human-readable description of the current archive generation phase.
+  string message = 2;
+}
+
+// Final metadata describing a newly created and registered masked inspection dataset.
+message MaskedInspectionResult {
+  // Newly registered inspection identifier for downloading or opening the masked dataset.
+  string inspection_id = 1;
+  // Display name recorded in the masked dataset header metadata.
+  string inspection_name = 2;
+  // Suggested filename for downloading the masked .khi archive.
+  string suggested_filename = 3;
+  // Total byte size of the generated masked .khi archive.
+  int64 file_size_bytes = 4;
+}
+
+// Streamed message emitted during CreateMaskedInspection execution.
+message CreateMaskedInspectionResponse {
+  // Payload containing either an intermediate progress notification or the final masked dataset metadata.
+  oneof payload {
+    // Intermediate progress notification emitted while rewriting chunks and string pools.
+    MaskedInspectionProgress progress = 1;
+    // Terminal metadata describing the registered masked inspection dataset.
+    MaskedInspectionResult result = 2;
+  }
+}
+
+// Request to start or poll an asynchronous masked inspection creation task.
+message CreateMaskedInspectionSyncRequest {
+  // Active workbench session identifier providing the source dataset.
+  string workbench_id = 1;
+  // Masking rules applied when starting a new export job.
+  repeated StringMaskRule rules = 2;
+  // Job identifier returned from a previous call, or empty to start a new export task.
+  string job_id = 3;
+}
+
+// Response containing current progress or final metadata of a masked inspection creation task.
+message CreateMaskedInspectionSyncResponse {
+  // Unique job identifier tracking this masked export task.
+  string job_id = 1;
+  // Whether the masked export task has completed.
+  bool is_done = 2;
+  // Current intermediate progress update.
+  MaskedInspectionProgress progress = 3;
+  // Final masked dataset metadata, populated only when is_done is true and error_message is empty.
+  MaskedInspectionResult result = 4;
+  // Error description if the masked export task failed.
+  string error_message = 5;
+}
+
+// Request to cancel an ongoing masked inspection creation task.
+message CancelCreateMaskedInspectionSyncRequest {
+  // Active workbench session identifier owning the export job.
+  string workbench_id = 1;
+  // Job identifier of the masked export task to cancel.
+  string job_id = 2;
+}
+
+// Response confirming cancellation of the masked inspection creation task.
+message CancelCreateMaskedInspectionSyncResponse {
+  // Whether the masked export job was found and canceled.
+  bool canceled = 1;
+}

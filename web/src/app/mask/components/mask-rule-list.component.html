@@ -1,0 +1,74 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="rules-panel">
+  @if (rules().length === 0) {
+    <div class="empty-list-message">
+      Select strings from the String Pool tab or add a custom substring to
+      create masking rules.
+    </div>
+  } @else {
+    <div class="rules-list">
+      @for (rule of rules(); track rule.target) {
+        <div class="rule-card" [class.disabled]="!rule.enabled">
+          <div class="rule-main-row">
+            <mat-checkbox
+              class="rule-enable"
+              color="primary"
+              [checked]="rule.enabled"
+              (change)="onRuleEnabledToggle(rule.target, $event.checked)"
+            ></mat-checkbox>
+            <code class="rule-target" [title]="rule.target">{{
+              rule.target
+            }}</code>
+            <mat-icon class="rule-arrow">arrow_forward</mat-icon>
+            <div class="replacement-group">
+              <input
+                class="replacement-input"
+                type="text"
+                placeholder="(empty = delete)"
+                [ngModel]="rule.replacement"
+                (ngModelChange)="onRuleReplacementInput(rule.target, $event)"
+              />
+              @if (rule.isDeletion) {
+                <span class="delete-badge">(delete)</span>
+              }
+            </div>
+            <button
+              mat-icon-button
+              class="rule-action-btn rule-reset-btn"
+              type="button"
+              [matTooltip]="'Reset to ' + rule.defaultReplacement"
+              [disabled]="rule.isDefaultReplacement"
+              (click)="ruleResetReplacement.emit(rule.target)"
+            >
+              <mat-icon>restart_alt</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              class="rule-action-btn rule-remove-btn"
+              type="button"
+              matTooltip="Remove rule"
+              (click)="ruleRemove.emit(rule.target)"
+            >
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

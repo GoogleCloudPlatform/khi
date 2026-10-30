@@ -22,6 +22,7 @@ import { FileParameterUploadService } from 'src/app/generated/api/v1/file_parame
 import { ImportInspectionService } from 'src/app/generated/api/v1/import_inspection_pb';
 import { PopupService } from 'src/app/generated/api/v1/popup_pb';
 import { ServerStatusService } from 'src/app/generated/api/v1/server_status_pb';
+import { MaskService } from 'src/app/generated/api/v1/mask_pb';
 import { WorkbenchService } from 'src/app/generated/api/v1/workbench_pb';
 import { InspectionService } from 'src/app/generated/api/v1/inspection_pb';
 import { InspectionTaskGraphService } from 'src/app/generated/api/v1/inspection_task_graph_pb';
@@ -48,6 +49,14 @@ export class ConnectClientService {
    */
   public readonly workbenchClient: Client<typeof WorkbenchService> =
     createClient(WorkbenchService, this.transport);
+
+  /**
+   * MaskService Connect-RPC client.
+   */
+  public readonly maskClient: Client<typeof MaskService> = createClient(
+    MaskService,
+    this.transport,
+  );
 
   /**
    * CELValidationService Connect-RPC client.

@@ -15,9 +15,11 @@
  */
 
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
+import { create } from '@bufbuild/protobuf';
 import { ConnectError, Code } from '@connectrpc/connect';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { UserIdentityService } from 'src/app/services/api/workbench/user-identity.service';
+import { StringMaskRuleSchema } from 'src/app/generated/api/v1/mask_pb';
 import {
   FilterResultMode,
   OpenWorkbenchResponse_Stage,
@@ -67,6 +69,56 @@ export interface FilterTimelineResult {
   readonly logMode?: FilterResultMode;
   readonly logBitset?: SparseBitset;
 }
+
+/**
+ * Paginated list of candidate strings returned by ListWorkbenchStrings.
+ */
+export interface WorkbenchStringsPage {
+  readonly values: readonly string[];
+  readonly totalCount: number;
+}
+
+/**
+ * Substring masking rule input passed when generating a masked inspection archive.
+ */
+export interface MaskInspectionRuleInput {
+  readonly target: string;
+  readonly replacement: string;
+}
+
+/**
+ * Metadata describing a newly registered masked inspection archive.
+ */
+export interface MaskedInspectionResult {
+  readonly inspectionId: string;
+  readonly inspectionName: string;
+  readonly suggestedFilename: string;
+  readonly fileSizeBytes: bigint;
+}
+
+/**
+ * Callback invoked when server-side masked inspection archive generation reports progress.
+ */
+export type MaskedInspectionProgressCallback = (
+  progressPercentage: number,
+  message: string,
+) => void;
+
+/**
+ * Progress snapshot for on-demand string pool trigram index construction.
+ */
+export interface StringPoolIndexProgressUpdate {
+  readonly state: WatchIndexProgressResponse_IndexState;
+  readonly progressPercentage: number;
+  readonly message: string;
+}
+
+/**
+ * Callback invoked when string pool trigram index construction progress updates.
+ */
+export type StringPoolIndexProgressCallback = (
+  update: StringPoolIndexProgressUpdate,
+) => void;
 
 /**
  * Configuration options for batch-loading cached resources in Workbench.
@@ -817,6 +869,172 @@ export class WorkbenchClientService implements OnDestroy {
     } catch (e) {
       this.handleSessionError(e);
       throw e;
+    }
+  }
+
+  /**
+   * Lists paginated unique candidate strings from the active Workbench session for data masking.
+   *
+   * @param query Case-insensitive RE2 regular expression query.
+   * @param offset Zero-based pagination offset.
+   * @param limit Maximum number of strings to return.
+   * @param signal Optional AbortSignal to cancel the RPC.
+   */
+  public async listWorkbenchStrings(
+    query = '',
+    offset = 0,
+    limit = 200,
+    signal?: AbortSignal,
+  ): Promise<WorkbenchStringsPage> {
+    const workbenchId = this.activeWorkbenchIdSignal();
+    if (!workbenchId) {
+      throw new Error('No active Workbench session found.');
+    }
+
+    try {
+      const res = await this.connectClient.maskClient.listWorkbenchStrings(
+        {
+          workbenchId,
+          query,
+          offset,
+          limit,
+        },
+        { signal },
+      );
+      return {
+        values: res.values,
+        totalCount: res.totalCount,
+      };
+    } catch (e) {
+      this.handleSessionError(e);
+      throw e;
+    }
+  }
+
+  /**
+   * Creates and registers a new inspection archive with the provided string masking rules applied,
+   * streaming intermediate archive generation progress before returning the registered dataset metadata.
+   *
+   * @param rules Active masking rules (explicit empty replacement deletes matching substrings).
+   * @param onProgress Optional callback receiving server-side progress percentage (0 - 100) and status message.
+   * @param signal Optional AbortSignal to cancel the export stream.
+   */
+  public async createMaskedInspection(
+    rules: readonly MaskInspectionRuleInput[],
+    onProgress?: MaskedInspectionProgressCallback,
+    signal?: AbortSignal,
+  ): Promise<MaskedInspectionResult> {
+    const workbenchId = this.activeWorkbenchIdSignal();
+    if (!workbenchId) {
+      throw new Error('No active Workbench session found.');
+    }
+
+    try {
+      const responseStream =
+        this.connectClient.maskClient.createMaskedInspection(
+          {
+            workbenchId,
+            rules: rules.map((r) =>
+              create(StringMaskRuleSchema, {
+                target: r.target,
+                replacement: r.replacement,
+              }),
+            ),
+          },
+          { signal },
+        );
+
+      let finalResult: MaskedInspectionResult | null = null;
+      for await (const res of responseStream) {
+        if (res.payload.case === 'progress') {
+          onProgress?.(
+            res.payload.value.progressPercentage,
+            res.payload.value.message,
+          );
+        } else if (res.payload.case === 'result') {
+          finalResult = {
+            inspectionId: res.payload.value.inspectionId,
+            inspectionName: res.payload.value.inspectionName,
+            suggestedFilename: res.payload.value.suggestedFilename,
+            fileSizeBytes: res.payload.value.fileSizeBytes,
+          };
+        }
+      }
+
+      if (!finalResult) {
+        throw new Error(
+          'CreateMaskedInspection stream ended without a result.',
+        );
+      }
+      return finalResult;
+    } catch (e) {
+      this.handleSessionError(e);
+      throw e;
+    }
+  }
+
+  /**
+   * Watches on-demand string pool trigram index construction progress for the active Workbench,
+   * automatically reconnecting across 30s stream cycles until READY, FAILED, or aborted.
+   */
+  public async watchStringPoolIndexProgress(
+    onUpdate: StringPoolIndexProgressCallback,
+    abortSignal?: AbortSignal,
+  ): Promise<void> {
+    while (!abortSignal?.aborted) {
+      const workbenchId = this.activeWorkbenchIdSignal();
+      if (!workbenchId) {
+        return;
+      }
+      try {
+        const responseStream =
+          this.connectClient.maskClient.watchStringPoolIndexProgress(
+            { workbenchId },
+            { signal: abortSignal },
+          );
+        if (!responseStream) {
+          return;
+        }
+        for await (const res of responseStream) {
+          if (abortSignal?.aborted) {
+            return;
+          }
+          onUpdate({
+            state: res.state,
+            progressPercentage: res.progressPercentage,
+            message: res.message,
+          });
+          if (
+            res.state === WatchIndexProgressResponse_IndexState.READY ||
+            res.state === WatchIndexProgressResponse_IndexState.FAILED
+          ) {
+            return;
+          }
+        }
+      } catch (e) {
+        if (abortSignal?.aborted) {
+          return;
+        }
+        this.handleSessionError(e);
+        if (this.isWorkbenchExpiredSignal()) {
+          return;
+        }
+        console.warn(
+          `[WorkbenchClient] WatchStringPoolIndexProgress failed for ${workbenchId}:`,
+          e,
+        );
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(() => {
+            abortSignal?.removeEventListener('abort', onAbort);
+            resolve();
+          }, 1000);
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          abortSignal?.addEventListener('abort', onAbort, { once: true });
+        });
+      }
     }
   }
 

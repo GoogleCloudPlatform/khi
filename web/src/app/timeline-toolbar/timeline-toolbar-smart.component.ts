@@ -43,6 +43,22 @@ import { TimelineType } from 'src/app/store/domain/style';
 import { ToolbarFrameComponent } from './components/toolbar-frame.component';
 
 /**
+ * Resolves a masked timeline display label back to its underlying unmasked raw labels for backend CEL queries.
+ */
+export type MaskedTimelineLabelResolver = (
+  timelineType: string,
+  maskedLabel: string,
+) => readonly string[];
+
+interface MaskedTimelineLabelMap {
+  readonly byType: ReadonlyMap<
+    string,
+    ReadonlyMap<string, ReadonlySet<string>>
+  >;
+  readonly allTypes: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+/**
  * Acts as a single unified smart container logic controller for both standard and advanced timeline toolbars.
  */
 @Component({
@@ -186,6 +202,48 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     return this.getCandidatesForType(selectedType);
   });
 
+  /**
+   * Maps masked display labels back to original unmasked raw labels so backend FilterTimeline
+   * queries match the unmasked SearchIndex during live masking preview.
+   */
+  private readonly maskedTimelineLabelMap = computed<MaskedTimelineLabelMap>(
+    () => {
+      const store = this.inspectionData()?.timelineStore;
+      const byType = new Map<string, Map<string, Set<string>>>();
+      const allTypes = new Map<string, Set<string>>();
+      if (!store) {
+        return { byType, allTypes };
+      }
+      for (const t of store.timelines) {
+        for (const node of t.path) {
+          const typeLower = node.type.label.toLowerCase();
+          const maskedLabel = node.label;
+          const rawLabel = node.rawLabel;
+
+          let typeEntries = byType.get(typeLower);
+          if (!typeEntries) {
+            typeEntries = new Map<string, Set<string>>();
+            byType.set(typeLower, typeEntries);
+          }
+          let typeRawSet = typeEntries.get(maskedLabel);
+          if (!typeRawSet) {
+            typeRawSet = new Set<string>();
+            typeEntries.set(maskedLabel, typeRawSet);
+          }
+          typeRawSet.add(rawLabel);
+
+          let allRawSet = allTypes.get(maskedLabel);
+          if (!allRawSet) {
+            allRawSet = new Set<string>();
+            allTypes.set(maskedLabel, allRawSet);
+          }
+          allRawSet.add(rawLabel);
+        }
+      }
+      return { byType, allTypes };
+    },
+  );
+
   /** Summary count metrics. */
   protected readonly typeCandidateCounts = computed<Record<string, number>>(
     () => {
@@ -277,9 +335,32 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
         const filters = this.timelineFilters();
         const severity = this.selectedSeverity();
         const searchTerms = this.logSearchTerms();
+        const labelMap = this.maskedTimelineLabelMap();
+        const resolveRawLabels: MaskedTimelineLabelResolver = (
+          timelineType: string,
+          maskedLabel: string,
+        ) => {
+          const rawSet =
+            timelineType === '*'
+              ? labelMap.allTypes.get(maskedLabel)
+              : labelMap.byType
+                  .get(timelineType.toLowerCase())
+                  ?.get(maskedLabel);
+          if (!rawSet || rawSet.size === 0) {
+            return [maskedLabel];
+          }
+          return Array.from(rawSet);
+        };
 
-        const timelineQuery = compileFiltersToCel(filters, severity);
-        const timelineExclusionQuery = compileExclusionFiltersToCel(filters);
+        const timelineQuery = compileFiltersToCel(
+          filters,
+          severity,
+          resolveRawLabels,
+        );
+        const timelineExclusionQuery = compileExclusionFiltersToCel(
+          filters,
+          resolveRawLabels,
+        );
         const logQuery = compileLogFiltersToCel(severity, searchTerms);
 
         this.viewStateService.advancedTimelineIncludeCel.set(timelineQuery);
@@ -477,12 +558,36 @@ export function compileLogFiltersToCel(
   return parts.join(' && ');
 }
 
+function expandSelectionFilterRawValues(
+  filter: TimelineFilterConfig,
+  resolveRawLabels?: MaskedTimelineLabelResolver,
+): string[] {
+  const selectedLabels = filter.value.split('|');
+  if (!resolveRawLabels) {
+    return selectedLabels;
+  }
+  const seen = new Set<string>();
+  const expanded: string[] = [];
+  for (const label of selectedLabels) {
+    const resolved = resolveRawLabels(filter.timelineType, label);
+    const candidates = resolved.length > 0 ? resolved : [label];
+    for (const raw of candidates) {
+      if (!seen.has(raw)) {
+        seen.add(raw);
+        expanded.push(raw);
+      }
+    }
+  }
+  return expanded;
+}
+
 /**
  * Compiles a list of standard timeline filters and a severity level into a CEL expression for inclusion.
  */
 export function compileFiltersToCel(
   filters: TimelineFilterConfig[],
   severity: string = 'ANY',
+  resolveRawLabels?: MaskedTimelineLabelResolver,
 ): string {
   const parts: string[] = [];
   if (severity && severity !== 'ANY') {
@@ -494,7 +599,8 @@ export function compileFiltersToCel(
       .map((f) => {
         let celValue = f.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         if (f.mode === 'selection') {
-          const escapedParts = f.value.split('|').map((val) =>
+          const rawValues = expandSelectionFilterRawValues(f, resolveRawLabels);
+          const escapedParts = rawValues.map((val) =>
             val
               .replace(/\\/g, '\\\\')
               .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -519,6 +625,7 @@ export function compileFiltersToCel(
  */
 export function compileExclusionFiltersToCel(
   filters: TimelineFilterConfig[],
+  resolveRawLabels?: MaskedTimelineLabelResolver,
 ): string {
   const excludeFilters = filters.filter((f) => f.action === 'exclude');
   if (excludeFilters.length === 0) {
@@ -528,7 +635,8 @@ export function compileExclusionFiltersToCel(
     .map((f) => {
       let celValue = f.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       if (f.mode === 'selection') {
-        const escapedParts = f.value.split('|').map((val) =>
+        const rawValues = expandSelectionFilterRawValues(f, resolveRawLabels);
+        const escapedParts = rawValues.map((val) =>
           val
             .replace(/\\/g, '\\\\')
             .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

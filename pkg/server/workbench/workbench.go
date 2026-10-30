@@ -85,6 +85,11 @@ type Workbench struct {
 	cancelIndex      context.CancelFunc
 	indexManager     *InspectionIndexManager
 	filterJobs       *streamingutil.AsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult]
+	maskedExportJobs *streamingutil.AsyncJobManager[*apiv1.MaskedInspectionProgress, *apiv1.MaskedInspectionResult]
+
+	stringPoolMu     sync.Mutex
+	stringPoolIndex  *StringPoolIndex
+	cancelStringPool context.CancelFunc
 }
 
 // rawTimeline stores intermediate flat timeline attributes to avoid holding protobuf messages in memory.
@@ -125,6 +130,7 @@ func NewWorkbench(id string, inspectionID string) *Workbench {
 		inspectionID:     inspectionID,
 		internPool:       khifilev6model.NewReadonlyInternPool(),
 		filterJobs:       streamingutil.NewAsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult](15*time.Second, 1*time.Minute),
+		maskedExportJobs: streamingutil.NewAsyncJobManager[*apiv1.MaskedInspectionProgress, *apiv1.MaskedInspectionResult](15*time.Second, 1*time.Minute),
 		rawTimelineItems: make(map[uint32]*rawTimelineItems),
 		seenTimelineIDs:  make(map[uint32]bool),
 	}
@@ -133,6 +139,11 @@ func NewWorkbench(id string, inspectionID string) *Workbench {
 // FilterJobManager returns the AsyncJobManager tracking timeline filter jobs for this workbench.
 func (w *Workbench) FilterJobManager() *streamingutil.AsyncJobManager[*apiv1.FilterProgress, *apiv1.FilterResult] {
 	return w.filterJobs
+}
+
+// MaskedExportJobManager returns the AsyncJobManager tracking asynchronous masked .khi export jobs for this workbench.
+func (w *Workbench) MaskedExportJobManager() *streamingutil.AsyncJobManager[*apiv1.MaskedInspectionProgress, *apiv1.MaskedInspectionResult] {
+	return w.maskedExportJobs
 }
 
 // SetIndexManager sets the InspectionIndexManager used to retrieve or wait for background TrigramIndex instances.
@@ -441,7 +452,21 @@ func (w *Workbench) Close() {
 	w.indexSubscribers = nil
 	w.indexMu.Unlock()
 
+	w.stringPoolMu.Lock()
+	if w.cancelStringPool != nil {
+		w.cancelStringPool()
+		w.cancelStringPool = nil
+	}
+	if w.stringPoolIndex != nil {
+		w.stringPoolIndex.Close()
+		w.stringPoolIndex = nil
+	}
+	w.stringPoolMu.Unlock()
+
 	if w.filterJobs != nil {
 		w.filterJobs.Close()
+	}
+	if w.maskedExportJobs != nil {
+		w.maskedExportJobs.Close()
 	}
 }

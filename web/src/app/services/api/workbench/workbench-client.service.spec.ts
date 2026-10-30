@@ -49,6 +49,13 @@ describe('WorkbenchClientService', () => {
         getArchitectureGraph: jasmine.createSpy('getArchitectureGraph'),
         closeWorkbench: jasmine.createSpy('closeWorkbench'),
       },
+      maskClient: {
+        listWorkbenchStrings: jasmine.createSpy('listWorkbenchStrings'),
+        createMaskedInspection: jasmine.createSpy('createMaskedInspection'),
+        watchStringPoolIndexProgress: jasmine.createSpy(
+          'watchStringPoolIndexProgress',
+        ),
+      },
     });
 
     TestBed.configureTestingModule({
@@ -1008,6 +1015,137 @@ describe('WorkbenchClientService', () => {
         notFoundErr,
       );
       expect(service.isWorkbenchExpired()).toBeTrue();
+    });
+  });
+
+  describe('string pool and masking RPCs', () => {
+    it('should list workbench strings and create masked inspection preserving empty replacement', async () => {
+      (
+        mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+      ).and.returnValue(mockOpenWorkbenchReady('wb-mask-1'));
+      await service.openWorkbench('session-1', 'insp-1');
+
+      (
+        mockConnectClient.maskClient.listWorkbenchStrings as jasmine.Spy
+      ).and.returnValue(
+        Promise.resolve({
+          values: ['prod-ns', 'secret-pod-1'],
+          totalCount: 2,
+        }),
+      );
+
+      const page = await service.listWorkbenchStrings('^prod-.*', 0, 100);
+      expect(page).toEqual({
+        values: ['prod-ns', 'secret-pod-1'],
+        totalCount: 2,
+      });
+      expect(
+        mockConnectClient.maskClient.listWorkbenchStrings,
+      ).toHaveBeenCalledWith(
+        {
+          workbenchId: 'wb-mask-1',
+          query: '^prod-.*',
+          offset: 0,
+          limit: 100,
+        },
+        { signal: undefined },
+      );
+
+      (
+        mockConnectClient.maskClient.createMaskedInspection as jasmine.Spy
+      ).and.returnValue(
+        (async function* () {
+          yield {
+            payload: {
+              case: 'progress' as const,
+              value: {
+                progressPercentage: 40,
+                message: 'Masking string pool...',
+              },
+            },
+          };
+          yield {
+            payload: {
+              case: 'result' as const,
+              value: {
+                inspectionId: 'masked-insp-1',
+                inspectionName: 'demo (masked)',
+                suggestedFilename: 'demo-masked.khi',
+                fileSizeBytes: 2048n,
+              },
+            },
+          };
+        })(),
+      );
+
+      const observedProgress: { pct: number; msg: string }[] = [];
+      const created = await service.createMaskedInspection(
+        [
+          { target: 'prod-', replacement: '' },
+          { target: 'secret', replacement: '<masked_1>' },
+        ],
+        (pct, msg) => observedProgress.push({ pct, msg }),
+      );
+      expect(created.inspectionId).toBe('masked-insp-1');
+      expect(observedProgress).toEqual([
+        { pct: 40, msg: 'Masking string pool...' },
+      ]);
+      expect(
+        mockConnectClient.maskClient.createMaskedInspection,
+      ).toHaveBeenCalledWith(
+        {
+          workbenchId: 'wb-mask-1',
+          rules: [
+            jasmine.objectContaining({ target: 'prod-', replacement: '' }),
+            jasmine.objectContaining({
+              target: 'secret',
+              replacement: '<masked_1>',
+            }),
+          ],
+        },
+        { signal: undefined },
+      );
+    });
+
+    it('should reconnect watchStringPoolIndexProgress across 30s stream cycles until READY', async () => {
+      (
+        mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+      ).and.returnValue(mockOpenWorkbenchReady('wb-mask-2'));
+      await service.openWorkbench('session-2', 'insp-2');
+
+      let callCount = 0;
+      (
+        mockConnectClient.maskClient.watchStringPoolIndexProgress as jasmine.Spy
+      ).and.callFake(() => {
+        callCount++;
+        if (callCount === 1) {
+          return (async function* () {
+            yield {
+              state: WatchIndexProgressResponse_IndexState.BUILDING,
+              progressPercentage: 55,
+              message: 'Building string pool trigram index...',
+            };
+          })();
+        }
+        return (async function* () {
+          yield {
+            state: WatchIndexProgressResponse_IndexState.READY,
+            progressPercentage: 100,
+            message: 'String pool search index ready.',
+          };
+        })();
+      });
+
+      const observedStates: WatchIndexProgressResponse_IndexState[] = [];
+      await service.watchStringPoolIndexProgress((update) => {
+        observedStates.push(update.state);
+      });
+
+      expect(callCount).toBe(2);
+      expect(observedStates).toEqual([
+        WatchIndexProgressResponse_IndexState.BUILDING,
+        WatchIndexProgressResponse_IndexState.READY,
+      ]);
     });
   });
 });

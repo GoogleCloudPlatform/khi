@@ -20,12 +20,18 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/importinspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/streamingutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 var (
@@ -203,6 +209,7 @@ type WorkbenchManager struct {
 	maxLoadedInspections int
 	now                  func() time.Time
 	openJobs             *streamingutil.AsyncJobManager[*apiv1.OpenWorkbenchSyncResponse, string]
+	maskedIDGen          idgenerator.IDGenerator
 }
 
 // NewWorkbenchManager creates a WorkbenchManager that keeps at most maxLoadedInspections inspections loaded, except while loads are still in progress.
@@ -217,7 +224,13 @@ func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, 
 		maxLoadedInspections: maxLoadedInspections,
 		now:                  time.Now,
 		openJobs:             streamingutil.NewAsyncJobManager[*apiv1.OpenWorkbenchSyncResponse, string](15*time.Second, 1*time.Minute),
+		maskedIDGen:          idgenerator.NewPrefixIDGenerator("inspection-masked-"),
 	}
+}
+
+// IndexManager returns the InspectionIndexManager associated with this manager.
+func (m *WorkbenchManager) IndexManager() *InspectionIndexManager {
+	return m.indexManager
 }
 
 // OpenJobManager returns the AsyncJobManager tracking asynchronous workbench open tasks.
@@ -410,4 +423,136 @@ func (m *WorkbenchManager) loadInspectionData(inspectionID string) (io.ReadClose
 		return nil, 0, err
 	}
 	return reader, int64(size), nil
+}
+
+// MaskedInspectionResult holds metadata for a newly created and registered masked inspection dataset.
+type MaskedInspectionResult struct {
+	InspectionID      string
+	InspectionName    string
+	SuggestedFilename string
+	FileSizeBytes     int64
+}
+
+// MaskedExportProgressCallback receives progress updates from 0 to 100 while creating and registering a masked inspection.
+type MaskedExportProgressCallback func(progressPercentage float64, message string) error
+
+// CreateMaskedInspection exports a masked copy of the active workbench's inspection dataset and registers it in InspectionTaskServer.
+func (m *WorkbenchManager) CreateMaskedInspection(
+	ctx context.Context,
+	workbenchID string,
+	rules []khifilev6model.MaskRule,
+	onProgress MaskedExportProgressCallback,
+) (*MaskedInspectionResult, error) {
+	if m.inspectionServer == nil {
+		return nil, errors.New("inspection server is not available")
+	}
+
+	report := func(pct float64, message string) error {
+		if onProgress == nil {
+			return nil
+		}
+		return onProgress(pct, message)
+	}
+
+	wb, err := m.Get(workbenchID, AccessorBrowser)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := report(0, "Opening source inspection dataset..."); err != nil {
+		return nil, err
+	}
+
+	reader, totalSize, err := m.loadInspectionData(wb.InspectionID())
+	if err != nil {
+		return nil, fmt.Errorf("failed to load source inspection data: %w", err)
+	}
+	defer reader.Close()
+
+	destDir := os.TempDir()
+	if m.indexManager != nil && m.indexManager.DataDir() != "" {
+		destDir = m.indexManager.DataDir()
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	newInspectionID := m.maskedIDGen.Generate()
+	tmpPath := filepath.Join(destDir, newInspectionID+".khi.tmp")
+	finalPath := filepath.Join(destDir, newInspectionID+".khi")
+
+	tmpFile, err := os.Create(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary masked inspection file: %w", err)
+	}
+	cleanupTmp := true
+	defer func() {
+		_ = tmpFile.Close()
+		if cleanupTmp {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	replacer := khifilev6model.NewMaskReplacer(rules)
+	if err := khifilev6model.ExportMaskedKHIFile(
+		ctx,
+		reader,
+		totalSize,
+		tmpFile,
+		replacer,
+		func(progress float64, message string) error {
+			return report(5.0+progress*83.0, message)
+		},
+	); err != nil {
+		return nil, fmt.Errorf("failed to write masked KHI archive: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to flush masked KHI archive: %w", err)
+	}
+
+	if err := report(90, "Validating masked .khi archive..."); err != nil {
+		return nil, err
+	}
+
+	header, metadataMap, err := importinspection.ValidateAndExtractMetadata(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate masked KHI archive: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := report(96, "Registering masked inspection dataset..."); err != nil {
+		return nil, err
+	}
+
+	if err := os.Rename(tmpPath, finalPath); err != nil {
+		return nil, fmt.Errorf("failed to persist masked KHI archive: %w", err)
+	}
+	cleanupTmp = false
+
+	store := inspectioncore.NewFileSystemInspectionResultRepository(finalPath)
+	fileSize, err := store.GetInspectionResultSizeInBytes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect masked KHI archive size: %w", err)
+	}
+	header.FileSize = fileSize
+
+	m.inspectionServer.RegisterImportedInspection(newInspectionID, store, metadataMap)
+
+	if m.indexManager != nil {
+		m.indexManager.InvalidateInspectionIndex(newInspectionID)
+		m.indexManager.StartAsyncIndexing(context.Background(), newInspectionID)
+	}
+
+	if err := report(100, "Masked inspection ready for download."); err != nil {
+		return nil, err
+	}
+
+	return &MaskedInspectionResult{
+		InspectionID:      newInspectionID,
+		InspectionName:    header.InspectionName,
+		SuggestedFilename: header.SuggestedFileName,
+		FileSizeBytes:     int64(fileSize),
+	}, nil
 }

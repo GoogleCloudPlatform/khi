@@ -236,6 +236,46 @@ describe('TimelineToolbarSmart compilation helpers', () => {
         'match("K8sResource", "pod-.*") || match("^(?:ns-1)$")',
       );
     });
+
+    it('should expand masked selection labels back to raw labels when resolver is provided', () => {
+      const includeFilters: TimelineFilterConfig[] = [
+        {
+          id: '1',
+          timelineType: 'pod',
+          mode: 'selection',
+          value: '<masked>|app-xxxxxx',
+          action: 'include',
+        },
+      ];
+      const excludeFilters: TimelineFilterConfig[] = [
+        {
+          id: '2',
+          timelineType: 'node',
+          mode: 'selection',
+          value: 'gke-xxxxxx-node',
+          action: 'exclude',
+        },
+      ];
+      const resolver = (type: string, masked: string): readonly string[] => {
+        if (type === 'pod' && masked === '<masked>') {
+          return ['secret-pod-1', 'secret-pod-2'];
+        }
+        if (type === 'pod' && masked === 'app-xxxxxx') {
+          return ['app-prod01'];
+        }
+        if (type === 'node' && masked === 'gke-xxxxxx-node') {
+          return ['gke-prod01-node'];
+        }
+        return [masked];
+      };
+
+      expect(compileFiltersToCel(includeFilters, 'ANY', resolver)).toBe(
+        'match("pod", "^(?:secret-pod-1|secret-pod-2|app-prod01)$")',
+      );
+      expect(compileExclusionFiltersToCel(excludeFilters, resolver)).toBe(
+        'match("node", "^(?:gke-prod01-node)$")',
+      );
+    });
   });
 });
 

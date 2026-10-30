@@ -1,0 +1,66 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="pane-footer">
+  @if (exportProgress(); as progress) {
+    <div class="export-progress-banner">
+      <div class="export-progress-top">
+        <div class="export-progress-label">
+          <mat-icon class="export-progress-icon">{{
+            exportPhaseIcon()
+          }}</mat-icon>
+          <span>{{ progress.phaseLabel }}</span>
+        </div>
+        <span class="export-progress-percent"
+          >{{ roundedExportProgress() }}%</span
+        >
+      </div>
+      <mat-progress-bar
+        class="export-progress-bar"
+        mode="determinate"
+        [value]="progress.progressPercentage"
+      ></mat-progress-bar>
+      @if (progress.message) {
+        <div class="export-progress-message">{{ progress.message }}</div>
+      }
+    </div>
+  } @else if (errorMessage()) {
+    <div class="footer-feedback error">{{ errorMessage() }}</div>
+  } @else if (statusMessage()) {
+    <div class="footer-feedback status">{{ statusMessage() }}</div>
+  }
+  <div class="footer-actions">
+    <button
+      mat-button
+      class="clear-btn"
+      type="button"
+      [disabled]="!canClearAll()"
+      (click)="clearAllRules.emit()"
+    >
+      Clear All
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      class="export-btn"
+      type="button"
+      [disabled]="!canExport()"
+      (click)="exportMaskedKhi.emit()"
+    >
+      <span>{{ exportButtonLabel() }}</span>
+    </button>
+  </div>
+</div>

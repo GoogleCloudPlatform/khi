@@ -123,3 +123,51 @@ func TestReadonlyInternPool_IngestAndResolve(t *testing.T) {
 		})
 	}
 }
+
+func TestReadonlyInternPool_ClientAndServerStrings(t *testing.T) {
+	type snapshot struct {
+		Client []string
+		Server []string
+	}
+	testCases := []struct {
+		name  string
+		chunk *pbv6.InterningPoolChunk
+		want  snapshot
+	}{
+		{
+			name:  "empty pool returns nil slices",
+			chunk: &pbv6.InterningPoolChunk{},
+			want:  snapshot{},
+		},
+		{
+			name: "returns copied client and server string slices",
+			chunk: &pbv6.InterningPoolChunk{
+				Strings: []*pbv6.InternString{
+					{Id: proto.Uint32(1), Value: proto.String("client-a")},
+					{Id: proto.Uint32(3), Value: proto.String("client-b")},
+					{Id: proto.Uint32(id.ServerStringIDBase), Value: proto.String("server-0")},
+					{Id: proto.Uint32(id.ServerStringIDBase + 1), Value: proto.String("server-1")},
+				},
+			},
+			want: snapshot{
+				Client: []string{"", "client-a", "", "client-b"},
+				Server: []string{"server-0", "server-1"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pool := NewReadonlyInternPool()
+			pool.IngestChunk(tc.chunk)
+
+			got := snapshot{
+				Client: pool.ClientStrings(),
+				Server: pool.ServerStrings(),
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ClientStrings/ServerStrings mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

@@ -56,6 +56,11 @@ func NewInspectionIndexManager(inspectionServer *coreinspection.InspectionTaskSe
 	}
 }
 
+// DataDir returns the directory path used for persistent inspection and index files.
+func (m *InspectionIndexManager) DataDir() string {
+	return m.dataDir
+}
+
 // GetTrigramIndex returns the cached TrigramIndex if available in memory or fast-loaded from disk.
 func (m *InspectionIndexManager) GetTrigramIndex(inspectionID string) (*cel.TrigramIndex, bool) {
 	m.mu.RLock()

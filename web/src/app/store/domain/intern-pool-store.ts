@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
+import { signal } from '@angular/core';
 import {
   BufferLayoutBuilder,
   nextCapacity,
 } from 'src/app/store/domain/buffer-util';
 import { allocateBuffer } from 'src/app/store/domain/types';
+
+/**
+ * Function that transforms raw interned string values for live masking preview.
+ */
+export type StringMaskTransform = (value: string) => string;
 
 /**
  * Represents an entry in the interned string pool.
@@ -87,6 +93,7 @@ export class InternPoolStore {
 
   private _maxStringId = 0;
   private stringCount = 0;
+  private readonly maskTransform = signal<StringMaskTransform | null>(null);
 
   // Private constructor
   private constructor(
@@ -241,13 +248,22 @@ export class InternPoolStore {
   }
 
   /**
-   * Retrieves a string value by its ID from the pool.
+   * Configures a reactive transform applied when reading strings via {@link getString}.
+   *
+   * @param transform The masking transform function, or null to disable live masking.
+   */
+  public setMaskTransform(transform: StringMaskTransform | null): void {
+    this.maskTransform.set(transform);
+  }
+
+  /**
+   * Retrieves the original unmasked string value by its ID from the pool.
    *
    * @param id The ID of the string.
-   * @returns The string value.
+   * @returns The unmasked string value.
    * @throws Error if the ID is not found in the pool.
    */
-  public getString(id: number): string {
+  public getRawString(id: number): string {
     if (id < 0 || id >= this.bufferIndices.length) {
       throw new Error(`String ID ${id} not found in pool`);
     }
@@ -264,6 +280,19 @@ export class InternPoolStore {
     const buffer = this.buffers[bufferIndex];
     const bytes = buffer.subarray(offset, offset + length);
     return this.decoder.decode(bytes);
+  }
+
+  /**
+   * Retrieves a string value by its ID from the pool, applying any active live mask transform.
+   *
+   * @param id The ID of the string.
+   * @returns The string value after applying the active mask transform.
+   * @throws Error if the ID is not found in the pool.
+   */
+  public getString(id: number): string {
+    const raw = this.getRawString(id);
+    const transform = this.maskTransform();
+    return transform ? transform(raw) : raw;
   }
 
   /**

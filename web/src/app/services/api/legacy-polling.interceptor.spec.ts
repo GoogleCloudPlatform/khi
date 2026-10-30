@@ -56,6 +56,16 @@ import {
   ServerStatusService,
 } from 'src/app/generated/api/v1/server_status_pb';
 import {
+  CancelCreateMaskedInspectionSyncResponseSchema,
+  CreateMaskedInspectionSyncRequest,
+  CreateMaskedInspectionSyncResponseSchema,
+  MaskedInspectionProgressSchema,
+  MaskedInspectionResultSchema,
+  MaskService,
+  PullStringPoolIndexProgressResponseSchema,
+  StringMaskRuleSchema,
+} from 'src/app/generated/api/v1/mask_pb';
+import {
   CancelFilterTimelineSyncResponseSchema,
   CancelOpenWorkbenchSyncResponseSchema,
   FilterProgressSchema,
@@ -319,6 +329,43 @@ describe('LegacyPollingInterceptor', () => {
       const client = createClient(WorkbenchService, clientTransport);
       const states: WatchIndexProgressResponse_IndexState[] = [];
       for await (const res of client.watchIndexProgress({
+        workbenchId: 'wb-1',
+      })) {
+        states.push(res.state);
+      }
+
+      expect(states).toEqual([
+        WatchIndexProgressResponse_IndexState.BUILDING,
+        WatchIndexProgressResponse_IndexState.READY,
+      ]);
+    });
+
+    it('adapts WatchStringPoolIndexProgress and terminates on READY', async () => {
+      let callCount = 0;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'PullStringPoolIndexProgress') {
+          callCount++;
+          if (callCount === 1) {
+            return create(PullStringPoolIndexProgressResponseSchema, {
+              state: WatchIndexProgressResponse_IndexState.BUILDING,
+              progressPercentage: 45.0,
+              message: 'Building string pool trigram index...',
+            });
+          }
+          return create(PullStringPoolIndexProgressResponseSchema, {
+            state: WatchIndexProgressResponse_IndexState.READY,
+            progressPercentage: 100.0,
+            message: 'String pool search index ready.',
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(MaskService, clientTransport);
+      const states: WatchIndexProgressResponse_IndexState[] = [];
+      for await (const res of client.watchStringPoolIndexProgress({
         workbenchId: 'wb-1',
       })) {
         states.push(res.state);
@@ -795,6 +842,118 @@ describe('LegacyPollingInterceptor', () => {
           }
         })(),
       ).toBeRejectedWithError(ConnectError);
+    });
+
+    it('adapts CreateMaskedInspection, sends rules only on initial poll, and yields progress and result', async () => {
+      let pollCalls = 0;
+      const observedRuleCounts: number[] = [];
+      const mockTransport = createMockUnaryTransport((methodName, reqMsg) => {
+        if (methodName === 'CreateMaskedInspectionSync') {
+          const req = reqMsg as CreateMaskedInspectionSyncRequest;
+          observedRuleCounts.push(req.rules?.length ?? 0);
+          pollCalls++;
+          if (pollCalls === 1) {
+            return create(CreateMaskedInspectionSyncResponseSchema, {
+              jobId: 'job-mask-1',
+              isDone: false,
+              progress: create(MaskedInspectionProgressSchema, {
+                progressPercentage: 45,
+                message: 'Masking string pool...',
+              }),
+            });
+          }
+          return create(CreateMaskedInspectionSyncResponseSchema, {
+            jobId: 'job-mask-1',
+            isDone: true,
+            result: create(MaskedInspectionResultSchema, {
+              inspectionId: 'inspection-masked-1',
+              inspectionName: 'demo (Masked)',
+              suggestedFilename: 'demo-masked.khi',
+              fileSizeBytes: 4096n,
+            }),
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(MaskService, clientTransport);
+      const events: string[] = [];
+
+      for await (const res of client.createMaskedInspection({
+        workbenchId: 'wb-1',
+        rules: [
+          create(StringMaskRuleSchema, {
+            target: 'secret',
+            replacement: '<masked_1>',
+          }),
+        ],
+      })) {
+        if (res.payload.case === 'progress') {
+          events.push(
+            `progress:${res.payload.value.progressPercentage}:${res.payload.value.message}`,
+          );
+        } else if (res.payload.case === 'result') {
+          events.push(`result:${res.payload.value.inspectionId}`);
+        }
+      }
+
+      expect(pollCalls).toBe(2);
+      expect(observedRuleCounts).toEqual([1, 0]);
+      expect(events).toEqual([
+        'progress:45:Masking string pool...',
+        'result:inspection-masked-1',
+      ]);
+    });
+
+    it('adapts CreateMaskedInspection and sends cancellation on abort', async () => {
+      let pollCalls = 0;
+      let canceled = false;
+      const mockTransport = createMockUnaryTransport((methodName) => {
+        if (methodName === 'CreateMaskedInspectionSync') {
+          pollCalls++;
+          return create(CreateMaskedInspectionSyncResponseSchema, {
+            jobId: 'job-mask-cancel',
+            isDone: false,
+            progress: create(MaskedInspectionProgressSchema, {
+              progressPercentage: 25,
+              message: 'Masking metadata...',
+            }),
+          });
+        }
+        if (methodName === 'CancelCreateMaskedInspectionSync') {
+          canceled = true;
+          return create(CancelCreateMaskedInspectionSyncResponseSchema, {
+            canceled: true,
+          });
+        }
+        throw new Error(`Unexpected method: ${methodName}`);
+      });
+
+      const interceptor = createLegacyPollingInterceptor(mockTransport, true);
+      const clientTransport = createMockStreamTransport(interceptor);
+      const client = createClient(MaskService, clientTransport);
+      const abortCtrl = new AbortController();
+
+      for await (const res of client.createMaskedInspection(
+        {
+          workbenchId: 'wb-1',
+          rules: [
+            create(StringMaskRuleSchema, {
+              target: 'secret',
+              replacement: '<masked_1>',
+            }),
+          ],
+        },
+        { signal: abortCtrl.signal },
+      )) {
+        expect(res.payload.case).toBe('progress');
+        abortCtrl.abort();
+      }
+
+      expect(pollCalls).toBeGreaterThan(0);
+      expect(canceled).toBeTrue();
     });
   });
 });

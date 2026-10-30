@@ -152,3 +152,27 @@ func (p *ReadonlyInternPool) AllStructIDs() []uint32 {
 	defer p.mu.RUnlock()
 	return p.flatStructs.AllIDs()
 }
+
+// ClientStrings returns a copy of the client-visible interned string table indexed by string ID.
+func (p *ReadonlyInternPool) ClientStrings() []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if len(p.clientStrings) == 0 {
+		return nil
+	}
+	out := make([]string, len(p.clientStrings))
+	copy(out, p.clientStrings)
+	return out
+}
+
+// ServerStrings returns a copy of the server-only interned string table indexed by offset from ServerStringIDBase.
+func (p *ReadonlyInternPool) ServerStrings() []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if len(p.serverStrings) == 0 {
+		return nil
+	}
+	out := make([]string, len(p.serverStrings))
+	copy(out, p.serverStrings)
+	return out
+}
