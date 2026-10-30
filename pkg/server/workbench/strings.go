@@ -383,27 +383,17 @@ func collectWorkbenchStrings(
 
 	// Tier 1b: Header metadata and quoted literals from inspection queries.
 	for _, metaChunk := range metadataChunks {
-		if metaChunk == nil {
-			continue
-		}
-		for _, item := range metaChunk.Metadata {
-			if header := item.GetHeader(); header != nil {
-				addValue(header.GetInspectionName())
-				addValue(header.GetSuggestedFilename())
-			}
-			if queryMeta := item.GetQuery(); queryMeta != nil {
-				for _, q := range queryMeta.Queries {
-					if q == nil {
-						continue
-					}
-					addValue(q.GetName())
-					matches := quotedQueryLiteralPattern.FindAllStringSubmatch(q.GetQuery(), -1)
-					for _, match := range matches {
-						if match[1] != "" {
-							addValue(match[1])
-						} else if match[2] != "" {
-							addValue(match[2])
-						}
+		for _, item := range metaChunk.GetMetadata() {
+			addValue(item.GetHeader().GetInspectionName())
+			addValue(item.GetHeader().GetSuggestedFilename())
+			for _, q := range item.GetQuery().GetQueries() {
+				addValue(q.GetName())
+				matches := quotedQueryLiteralPattern.FindAllStringSubmatch(q.GetQuery(), -1)
+				for _, match := range matches {
+					if match[1] != "" {
+						addValue(match[1])
+					} else if match[2] != "" {
+						addValue(match[2])
 					}
 				}
 			}
@@ -420,16 +410,9 @@ func collectWorkbenchStrings(
 		}
 	}
 	for _, metaChunk := range metadataChunks {
-		if metaChunk == nil {
-			continue
-		}
-		for _, item := range metaChunk.Metadata {
-			if queryMeta := item.GetQuery(); queryMeta != nil {
-				for _, q := range queryMeta.Queries {
-					if q != nil {
-						addValue(q.GetQuery())
-					}
-				}
+		for _, item := range metaChunk.GetMetadata() {
+			for _, q := range item.GetQuery().GetQueries() {
+				addValue(q.GetQuery())
 			}
 		}
 	}

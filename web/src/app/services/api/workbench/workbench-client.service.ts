@@ -1023,7 +1023,17 @@ export class WorkbenchClientService implements OnDestroy {
           `[WorkbenchClient] WatchStringPoolIndexProgress failed for ${workbenchId}:`,
           e,
         );
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(() => {
+            abortSignal?.removeEventListener('abort', onAbort);
+            resolve();
+          }, 1000);
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          abortSignal?.addEventListener('abort', onAbort, { once: true });
+        });
       }
     }
   }
