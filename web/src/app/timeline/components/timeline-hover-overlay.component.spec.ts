@@ -46,7 +46,6 @@ describe('TimelineHoverOverlayComponent', () => {
       id: logIndex,
       logIndex,
       timestamp: BigInt(timeMs) * 1000000n,
-      legacyTimestampMs: timeMs,
       summary: `log-${logIndex}`,
       logType: {
         id: 1,
@@ -74,7 +73,6 @@ describe('TimelineHoverOverlayComponent', () => {
       id,
       timelineId: 1,
       index: id,
-      legacyChangedTimeMs: changedTimeMs,
       changedTime: BigInt(changedTimeMs) * 1000000n,
       log,
       state: {

@@ -61,8 +61,8 @@ interface HitTestRequest {
 }
 
 export interface TimelineRendererRenderArgs {
-  leftEdgeTime: number;
-  pixelsPerMs: number;
+  leftEdgeTime: bigint;
+  pixelsPerNs: number;
 }
 
 /**
@@ -218,7 +218,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       width: this.width,
       height: this.height,
       devicePixelRatio: this.dpr,
-      pixelsPerMs: args.pixelsPerMs,
+      pixelsPerNs: args.pixelsPerNs,
       leftEdgeTime: args.leftEdgeTime,
       selectedLogIndex: this.selectedLogIndex,
     });
@@ -507,11 +507,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.revisionSharedResource,
       this.timelineSharedResource,
     );
-    renderer.setup(
-      gl,
-      this.tmpBuffer,
-      BigInt(Math.round(this.chartViewModel!.logEndTime)) * 1_000_000n,
-    );
+    renderer.setup(gl, this.tmpBuffer, this.chartViewModel!.logEndTime);
     this.revisionRenderers.put(t.id.toString(), renderer);
     return renderer;
   }

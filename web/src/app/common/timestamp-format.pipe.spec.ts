@@ -56,7 +56,8 @@ describe('TimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(TimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.000+00:00');
-    const date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    const date = pipe.transform(timeNs);
     date.subscribe((d) => expect(d).toBe('17:06:07'));
   });
   it('should timestamp transform works valid with positive time offset', () => {
@@ -71,7 +72,8 @@ describe('TimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(TimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.000+00:00');
-    const date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    const date = pipe.transform(timeNs);
     date.subscribe((d) => expect(d).toBe('20:06:07'));
   });
 
@@ -87,8 +89,9 @@ describe('TimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(TimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.000+00:00');
-    let date = pipe.transform(time.getTime());
-    date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    let date = pipe.transform(timeNs);
+    date = pipe.transform(timeNs);
     date.subscribe((d) => expect(d).toBe('12:06:07'));
   });
   it('should timestamp transform works valid with float point offset', () => {
@@ -103,8 +106,9 @@ describe('TimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(TimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.000+00:00');
-    let date = pipe.transform(time.getTime());
-    date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    let date = pipe.transform(timeNs);
+    date = pipe.transform(timeNs);
     date.subscribe((d) => expect(d).toBe('18:36:07'));
   });
 });
@@ -135,7 +139,8 @@ describe('LongTimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(LongTimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.800+00:00');
-    const date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    const date = pipe.transform(timeNs);
     date.subscribe((d) => expect(d).toBe('2022-03-04T17:06:07.800+00:00'));
   });
   it('should timestamp transform works valid with positive time offset', () => {
@@ -150,7 +155,8 @@ describe('LongTimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(LongTimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.800+00:00');
-    const date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    const date = pipe.transform(timeNs);
     date.subscribe((d) => expect(d).toBe('2022-03-04T20:06:07.800+03:00'));
   });
 
@@ -166,8 +172,9 @@ describe('LongTimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(LongTimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.800+00:00');
-    let date = pipe.transform(time.getTime());
-    date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    let date = pipe.transform(timeNs);
+    date = pipe.transform(timeNs);
     date.subscribe((date) =>
       expect(date).toBe('2022-03-04T12:06:07.800-05:00'),
     );
@@ -184,8 +191,9 @@ describe('LongTimestampFormatPipe', () => {
     });
     const pipe = TestBed.inject(LongTimestampFormatPipe);
     const time = new Date('2022-03-04T17:06:07.800+00:00');
-    let date = pipe.transform(time.getTime());
-    date = pipe.transform(time.getTime());
+    const timeNs = BigInt(time.getTime()) * 1000000n;
+    let date = pipe.transform(timeNs);
+    date = pipe.transform(timeNs);
     date.subscribe((date) =>
       expect(date).toBe('2022-03-04T18:36:07.800+01:30'),
     );

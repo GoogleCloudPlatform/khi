@@ -19,15 +19,15 @@ import { TimelineRulerComponent } from './timeline-ruler.component';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
 import { generateDefaultRulerStyle } from 'src/app/timeline/components/style-model';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
-import { TimeRangeMs } from './interaction-model';
+import { TimeRangeNs } from './interaction-model';
 
 describe('TimelineRulerComponent', () => {
   let fixture: ComponentFixture<TimelineRulerComponent>;
 
   const mockViewModel: TimelineRulerViewModel = {
-    tickTimeMS: 1000,
-    histogramBucketTimeMS: 1000,
-    histogramBeginTimeMS: 0,
+    tickTimeNs: 1000n,
+    histogramBucketTimeNs: 1000n,
+    histogramBeginTimeNs: 0n,
     histogramBuckets: [],
     ticks: [],
     timeLabels: [],
@@ -51,8 +51,8 @@ describe('TimelineRulerComponent', () => {
     fixture = TestBed.createComponent(TimelineRulerComponent);
     fixture.componentRef.setInput('viewModel', mockViewModel);
     fixture.componentRef.setInput('rulerStyle', generateDefaultRulerStyle());
-    fixture.componentRef.setInput('leftEdgeTime', 1000);
-    fixture.componentRef.setInput('pixelsPerMs', 2);
+    fixture.componentRef.setInput('leftEdgeTime', 1000n);
+    fixture.componentRef.setInput('pixelsPerNs', 2);
     fixture.detectChanges();
   });
 
@@ -68,9 +68,9 @@ describe('TimelineRulerComponent', () => {
   });
 
   it('should render active range overlay with expected position and width', () => {
-    fixture.componentRef.setInput('activeTimeRangeMs', {
-      startMs: 1500,
-      endMs: 2000,
+    fixture.componentRef.setInput('activeTimeRangeNs', {
+      startNs: 1500n,
+      endNs: 2000n,
     });
     fixture.detectChanges();
 
@@ -85,9 +85,9 @@ describe('TimelineRulerComponent', () => {
   });
 
   it('should render preview range overlay with expected position and width', () => {
-    fixture.componentRef.setInput('previewTimeRangeMs', {
-      startMs: 1100,
-      endMs: 1200,
+    fixture.componentRef.setInput('previewTimeRangeNs', {
+      startNs: 1100n,
+      endNs: 1200n,
     });
     fixture.detectChanges();
 
@@ -101,7 +101,7 @@ describe('TimelineRulerComponent', () => {
     );
   });
 
-  it('should update previewRangeStyle, emit previewTimeRangeMs, and emit timeRangeSelected on mouseup', () => {
+  it('should update previewRangeStyle, emit previewTimeRangeNs, and emit timeRangeSelected on mouseup', () => {
     const container = fixture.nativeElement.querySelector(
       '.container',
     ) as HTMLElement;
@@ -112,12 +112,12 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let previewRange: TimeRangeMs | null | undefined;
-    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+    let previewRange: TimeRangeNs | null | undefined;
+    fixture.componentInstance.previewTimeRangeNs.subscribe((range) => {
       previewRange = range;
     });
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
@@ -139,7 +139,7 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(previewRange).toEqual({ startMs: 1050, endMs: 1150 });
+    expect(previewRange).toEqual({ startNs: 1050n, endNs: 1150n });
     const previewOverlay = fixture.nativeElement.querySelector(
       '.time-range-ruler-overlay.preview-range',
     );
@@ -156,7 +156,7 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(selectedRange).toEqual({ startMs: 1050, endMs: 1150 });
+    expect(selectedRange).toEqual({ startNs: 1050n, endNs: 1150n });
     expect(previewRange).toBeNull();
     expect(
       fixture.nativeElement.querySelector(
@@ -165,7 +165,7 @@ describe('TimelineRulerComponent', () => {
     ).toBeNull();
   });
 
-  it('should normalize startMs <= endMs when dragging from right to left', () => {
+  it('should normalize startNs <= endNs when dragging from right to left', () => {
     const container = fixture.nativeElement.querySelector(
       '.container',
     ) as HTMLElement;
@@ -176,7 +176,7 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
@@ -205,7 +205,7 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(selectedRange).toEqual({ startMs: 1050, endMs: 1150 });
+    expect(selectedRange).toEqual({ startNs: 1050n, endNs: 1150n });
   });
 
   it('should cancel drag selection and not emit timeRangeSelected when Escape is pressed', () => {
@@ -219,12 +219,12 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let previewRange: TimeRangeMs | null | undefined;
-    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+    let previewRange: TimeRangeNs | null | undefined;
+    fixture.componentInstance.previewTimeRangeNs.subscribe((range) => {
       previewRange = range;
     });
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
@@ -246,7 +246,7 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(previewRange).toEqual({ startMs: 1050, endMs: 1150 });
+    expect(previewRange).toEqual({ startNs: 1050n, endNs: 1150n });
 
     window.dispatchEvent(
       new KeyboardEvent('keydown', {
@@ -285,7 +285,7 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
@@ -310,10 +310,10 @@ describe('TimelineRulerComponent', () => {
     expect(selectedRange).toBeUndefined();
   });
 
-  it('should adjust start edge when dragging .range-resize-handle.start while preserving endMs', () => {
-    fixture.componentRef.setInput('activeTimeRangeMs', {
-      startMs: 1200,
-      endMs: 1600,
+  it('should adjust start edge when dragging .range-resize-handle.start while preserving endNs', () => {
+    fixture.componentRef.setInput('activeTimeRangeNs', {
+      startNs: 1200n,
+      endNs: 1600n,
     });
     fixture.detectChanges();
 
@@ -327,12 +327,12 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let previewRange: TimeRangeMs | null | undefined;
-    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+    let previewRange: TimeRangeNs | null | undefined;
+    fixture.componentInstance.previewTimeRangeNs.subscribe((range) => {
       previewRange = range;
     });
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
@@ -352,8 +352,8 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    // clientX = 300 -> relativeX = 200 -> ms = 1000 + 200 / 2 = 1100
-    // anchor is endMs = 1600
+    // clientX = 300 -> relativeX = 200 -> ns = 1000 + 200 / 2 = 1100
+    // anchor is endNs = 1600
     window.dispatchEvent(
       new MouseEvent('mousemove', {
         clientX: 300,
@@ -361,7 +361,7 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(previewRange).toEqual({ startMs: 1100, endMs: 1600 });
+    expect(previewRange).toEqual({ startNs: 1100n, endNs: 1600n });
 
     window.dispatchEvent(
       new MouseEvent('mouseup', {
@@ -370,13 +370,13 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(selectedRange).toEqual({ startMs: 1100, endMs: 1600 });
+    expect(selectedRange).toEqual({ startNs: 1100n, endNs: 1600n });
   });
 
-  it('should adjust end edge when dragging .range-resize-handle.end while preserving startMs', () => {
-    fixture.componentRef.setInput('activeTimeRangeMs', {
-      startMs: 1200,
-      endMs: 1600,
+  it('should adjust end edge when dragging .range-resize-handle.end while preserving startNs', () => {
+    fixture.componentRef.setInput('activeTimeRangeNs', {
+      startNs: 1200n,
+      endNs: 1600n,
     });
     fixture.detectChanges();
 
@@ -390,7 +390,7 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
@@ -410,8 +410,8 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    // clientX = 1500 -> relativeX = 1400 -> ms = 1000 + 1400 / 2 = 1700
-    // anchor is startMs = 1200
+    // clientX = 1500 -> relativeX = 1400 -> ns = 1000 + 1400 / 2 = 1700
+    // anchor is startNs = 1200
     window.dispatchEvent(
       new MouseEvent('mousemove', {
         clientX: 1500,
@@ -426,13 +426,13 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(selectedRange).toEqual({ startMs: 1200, endMs: 1700 });
+    expect(selectedRange).toEqual({ startNs: 1200n, endNs: 1700n });
   });
 
   it('should hide active range overlay during edge resize drag and restore it after mouseup', () => {
-    fixture.componentRef.setInput('activeTimeRangeMs', {
-      startMs: 1200,
-      endMs: 1600,
+    fixture.componentRef.setInput('activeTimeRangeNs', {
+      startNs: 1200n,
+      endNs: 1600n,
     });
     fixture.detectChanges();
 
@@ -495,9 +495,9 @@ describe('TimelineRulerComponent', () => {
   });
 
   it('should emit timeRangeCleared when clicking .range-clear-button without emitting timeRangeSelected or starting a drag', () => {
-    fixture.componentRef.setInput('activeTimeRangeMs', {
-      startMs: 1200,
-      endMs: 1600,
+    fixture.componentRef.setInput('activeTimeRangeNs', {
+      startNs: 1200n,
+      endNs: 1600n,
     });
     fixture.detectChanges();
 
@@ -506,13 +506,13 @@ describe('TimelineRulerComponent', () => {
       clearedEmitted = true;
     });
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
 
-    let previewRange: TimeRangeMs | null | undefined;
-    fixture.componentInstance.previewTimeRangeMs.subscribe((range) => {
+    let previewRange: TimeRangeNs | null | undefined;
+    fixture.componentInstance.previewTimeRangeNs.subscribe((range) => {
       previewRange = range;
     });
 
@@ -546,9 +546,9 @@ describe('TimelineRulerComponent', () => {
   });
 
   it('should invert bounds when the start handle is dragged past the end edge', () => {
-    fixture.componentRef.setInput('activeTimeRangeMs', {
-      startMs: 1200,
-      endMs: 1600,
+    fixture.componentRef.setInput('activeTimeRangeNs', {
+      startNs: 1200n,
+      endNs: 1600n,
     });
     fixture.detectChanges();
 
@@ -562,7 +562,7 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });
@@ -582,8 +582,8 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    // clientX = 1500 -> relativeX = 1400 -> ms = 1000 + 1400 / 2 = 1700
-    // anchor is endMs = 1600, so dragged past anchor
+    // clientX = 1500 -> relativeX = 1400 -> ns = 1000 + 1400 / 2 = 1700
+    // anchor is endNs = 1600, so dragged past anchor
     window.dispatchEvent(
       new MouseEvent('mousemove', {
         clientX: 1500,
@@ -598,13 +598,13 @@ describe('TimelineRulerComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(selectedRange).toEqual({ startMs: 1600, endMs: 1700 });
+    expect(selectedRange).toEqual({ startNs: 1600n, endNs: 1700n });
   });
 
   it('should cancel an edge resize and restore the active range overlay when Escape is pressed', () => {
-    fixture.componentRef.setInput('activeTimeRangeMs', {
-      startMs: 1200,
-      endMs: 1600,
+    fixture.componentRef.setInput('activeTimeRangeNs', {
+      startNs: 1200n,
+      endNs: 1600n,
     });
     fixture.detectChanges();
 
@@ -618,7 +618,7 @@ describe('TimelineRulerComponent', () => {
       height: 60,
     } as DOMRect);
 
-    let selectedRange: TimeRangeMs | undefined;
+    let selectedRange: TimeRangeNs | undefined;
     fixture.componentInstance.timeRangeSelected.subscribe((range) => {
       selectedRange = range;
     });

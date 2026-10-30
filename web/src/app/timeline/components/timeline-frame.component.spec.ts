@@ -305,13 +305,13 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(overlay).not.toBeNull();
   });
 
-  it('should render .time-range-body-overlay.preview-range when previewTimeRangeMs is updated from ruler', () => {
+  it('should render .time-range-body-overlay.preview-range when previewTimeRangeNs is updated from ruler', () => {
     const rulerDebugEl = frameFixture.debugElement.query(
       (el) => el.componentInstance instanceof TimelineRulerComponent,
     );
-    rulerDebugEl.componentInstance.previewTimeRangeMs.set({
-      startMs: 1000,
-      endMs: 2000,
+    rulerDebugEl.componentInstance.previewTimeRangeNs.set({
+      startNs: 1_000_000_000n,
+      endNs: 2_000_000_000n,
     });
     frameFixture.detectChanges();
 
@@ -320,7 +320,7 @@ describe('TimelineFrameComponent - time range selection', () => {
     );
     expect(overlay).not.toBeNull();
 
-    rulerDebugEl.componentInstance.previewTimeRangeMs.set(null);
+    rulerDebugEl.componentInstance.previewTimeRangeNs.set(null);
     frameFixture.detectChanges();
 
     expect(
@@ -340,8 +340,8 @@ describe('TimelineFrameComponent - time range selection', () => {
       (el) => el.componentInstance instanceof TimelineRulerComponent,
     );
     rulerDebugEl.componentInstance.timeRangeSelected.emit({
-      startMs: 1500,
-      endMs: 3500,
+      startNs: 1_500_000_000n,
+      endNs: 3_500_000_000n,
     });
     frameFixture.detectChanges();
 
@@ -351,9 +351,9 @@ describe('TimelineFrameComponent - time range selection', () => {
     });
   });
 
-  it('should clamp selected time range to minQueryLogTimeMS and maxQueryLogTimeMS when inspection bounds are set', () => {
-    frameFixture.componentRef.setInput('minQueryLogTimeMS', 2000);
-    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
+  it('should clamp selected time range to minQueryLogTimeNs and maxQueryLogTimeNs when inspection bounds are set', () => {
+    frameFixture.componentRef.setInput('minQueryLogTimeNs', 2000000000n);
+    frameFixture.componentRef.setInput('maxQueryLogTimeNs', 5000000000n);
     frameFixture.detectChanges();
 
     let emittedRange: TimeRangeFilter | undefined;
@@ -365,8 +365,8 @@ describe('TimelineFrameComponent - time range selection', () => {
       (el) => el.componentInstance instanceof TimelineRulerComponent,
     );
     rulerDebugEl.componentInstance.timeRangeSelected.emit({
-      startMs: 1000,
-      endMs: 6000,
+      startNs: 1_000_000_000n,
+      endNs: 6_000_000_000n,
     });
     frameFixture.detectChanges();
 
@@ -432,15 +432,15 @@ describe('TimelineFrameComponent - time range selection', () => {
       chart.invalidate = false;
     });
 
-    frameComponent.syncViewportAndInvalidate(2000, 2);
+    frameComponent.syncViewportAndInvalidate(2_000_000_000n, 2e-6);
 
     expect({
-      viewportLeftTimeMS: frameComponent.viewportLeftTimeMS(),
-      pixelsPerMs: frameComponent.pixelsPerMs(),
+      viewportLeftTimeNs: frameComponent.viewportLeftTimeNs(),
+      pixelsPerNs: frameComponent.pixelsPerNs(),
       invalidated: charts.map((chart) => chart.invalidate),
     }).toEqual({
-      viewportLeftTimeMS: 2000,
-      pixelsPerMs: 2,
+      viewportLeftTimeNs: 2_000_000_000n,
+      pixelsPerNs: 2e-6,
       invalidated: charts.map(() => true),
     });
   });
@@ -449,7 +449,7 @@ describe('TimelineFrameComponent - time range selection', () => {
     const timelineA = new MockTimeline(1);
     frameFixture.componentRef.setInput('timelines', [timelineA]);
     frameFixture.componentRef.setInput('timelineHoverOverlayRequest', {
-      timeMs: 1000,
+      timeNs: 1_000_000_000n,
       timelineId: 1,
       isMouseOnTimeline: true,
       overlay: {
@@ -495,22 +495,22 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(hoverOverlay.hideEvents()).toBeFalse();
   });
 
-  it('should clamp cursorOffsetLeft to minQueryLogTimeMS when cursorTimeMS precedes the query start time', () => {
-    frameFixture.componentRef.setInput('minQueryLogTimeMS', 2000);
-    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
-    frameFixture.componentRef.setInput('pixelsPerMs', 1);
-    frameFixture.componentRef.setInput('cursorTimeMS', 1000);
+  it('should clamp cursorOffsetLeft to minQueryLogTimeNs when cursorTimeNs precedes the query start time', () => {
+    frameFixture.componentRef.setInput('minQueryLogTimeNs', 2000000000n);
+    frameFixture.componentRef.setInput('maxQueryLogTimeNs', 5000000000n);
+    frameFixture.componentRef.setInput('pixelsPerNs', 1e-6);
+    frameFixture.componentRef.setInput('cursorTimeNs', 1000000000n);
     frameFixture.detectChanges();
 
     const offsetAtMinQueryTime = frameComponent[
       'horizontalScrollCalculator'
-    ]().timeMSToOffsetLeft(2000, 1);
+    ]().timeNsToOffsetLeft(2_000_000_000n, 1e-6);
     expect(frameComponent['cursorOffsetLeft']()).toBe(offsetAtMinQueryTime);
   });
 
-  it('should render secondary cursor line and delta label only when secondaryCursorTimeMS differs from cursorTimeMS', () => {
-    frameFixture.componentRef.setInput('cursorTimeMS', 10000);
-    frameFixture.componentRef.setInput('secondaryCursorTimeMS', 0);
+  it('should render secondary cursor line and delta label only when secondaryCursorTimeNs differs from cursorTimeNs', () => {
+    frameFixture.componentRef.setInput('cursorTimeNs', 10000000000n);
+    frameFixture.componentRef.setInput('secondaryCursorTimeNs', 0n);
     frameFixture.detectChanges();
 
     expect(
@@ -519,7 +519,7 @@ describe('TimelineFrameComponent - time range selection', () => {
       ),
     ).toBeNull();
 
-    frameFixture.componentRef.setInput('secondaryCursorTimeMS', 14400);
+    frameFixture.componentRef.setInput('secondaryCursorTimeNs', 14400000000n);
     frameFixture.detectChanges();
 
     const labelEl = frameFixture.nativeElement.querySelector(

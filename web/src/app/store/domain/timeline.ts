@@ -22,7 +22,6 @@ import {
   DomainFieldAnnotation,
   ReadonlyDomainElement,
 } from 'src/app/store/domain/types';
-import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { bisectLeft } from 'src/app/common/misc-util';
 
 /**
@@ -75,15 +74,6 @@ export class Revision {
   }
 
   /**
-   * Gets the end time of this revision in milliseconds.
-   * @deprecated Use {@link getEndNs} instead.
-   */
-  public legacyGetEndMs(): number | null {
-    const n = this.next;
-    return n ? n.legacyChangedTimeMs : null;
-  }
-
-  /**
    * Gets the timeline this revision belongs to.
    */
   get timeline(): ReadonlyDomainElement<Timeline> {
@@ -95,14 +85,6 @@ export class Revision {
    */
   get changedTime(): bigint {
     return this.timelineStore._getRevisionChangedTime(this.id);
-  }
-
-  /**
-   * Gets the Unix timestamp (in milliseconds) when the state changed.
-   * @deprecated Use {@link changedTime} instead, which returns the timestamp in nanoseconds.
-   */
-  get legacyChangedTimeMs(): number {
-    return BigIntTimeUtil.NsToNumberMs(this.changedTime);
   }
 
   /**
@@ -217,14 +199,6 @@ export class Event {
    */
   get timestamp(): bigint {
     return this.log.timestamp;
-  }
-
-  /**
-   * Gets the timestamp in milliseconds.
-   * @deprecated Use log.timestamp.
-   */
-  get legacyTimestamp(): number {
-    return this.log.legacyTimestampMs;
   }
 }
 

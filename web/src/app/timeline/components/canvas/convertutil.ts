@@ -82,30 +82,16 @@ export class RendererConvertUtil {
   }
 
   /**
-   * Split float unix seconds into seconds and nano seconds.
-   * @deprecated TODO: The original time held in frontend must be changed to seconds and nano seconds in integers later.
-   * Converting flaot to 2 long values are not solving the precision issue. Use splitBigIntTimeToSecondsAndNanoSeconds instead.
-   * @returns [seconds, nanoSeconds]
-   */
-  public static splitTimeToSecondsAndNanoSeconds(
-    unixMillis: number,
-  ): [number, number] {
-    const unixSeconds = unixMillis / 1000;
-    const seconds = Math.floor(unixSeconds);
-    const nanoSeconds = (unixSeconds - seconds) * 1e9;
-    return [seconds, nanoSeconds];
-  }
-
-  /**
    * Split bigint unix nanoseconds into seconds and nano seconds.
    * @returns [seconds, nanoSeconds]
    */
   public static splitBigIntTimeToSecondsAndNanoSeconds(
     unixNanos: bigint,
   ): [number, number] {
-    const unixSeconds = unixNanos / 1000_000_000n;
-    const seconds = Math.floor(Number(unixSeconds));
-    const nanoSeconds = unixNanos - BigInt(seconds) * 1000_000_000n;
-    return [seconds, Number(nanoSeconds)];
+    const q = unixNanos / 1000_000_000n;
+    const r = unixNanos % 1000_000_000n;
+    const unixSeconds = r < 0n ? q - 1n : q;
+    const nanoSeconds = unixNanos - unixSeconds * 1000_000_000n;
+    return [Number(unixSeconds), Number(nanoSeconds)];
   }
 }

@@ -62,15 +62,6 @@ describe('RendererConvertUtil', () => {
     });
   });
 
-  describe('splitTimeToSecondsAndNanoSeconds', () => {
-    it('should split milliseconds to seconds and nanoseconds', () => {
-      const result =
-        RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(1500.5);
-      expect(result[0]).toBe(1);
-      expect(result[1]).toBeCloseTo(500500000, -1); // 1.5005 * 10^9 - 1 * 10^9 = 500500000
-    });
-  });
-
   describe('splitBigIntTimeToSecondsAndNanoSeconds', () => {
     it('should split nanoseconds bigint to seconds and nanoseconds', () => {
       const result =

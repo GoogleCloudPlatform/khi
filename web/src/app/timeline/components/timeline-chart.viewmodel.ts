@@ -21,7 +21,7 @@ import { StyleStoreLike } from 'src/app/store/domain/style-store';
 export interface TimelineChartViewModel {
   inspectionDataUniqueID: string;
   timelinesInDrawArea: ReadonlyDomainElement<Timeline>[];
-  logBeginTime: number;
-  logEndTime: number;
+  logBeginTime: bigint;
+  logEndTime: bigint;
   styleStore: StyleStoreLike;
 }

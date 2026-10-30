@@ -72,8 +72,8 @@ describe('RulerViewModelBuilder', () => {
 
     const defaultHistogramData: HistogramInfo = {
       bucketCount: 10,
-      bucketTimeMs: 100,
-      histogramBeginTimeMs: 0,
+      bucketTimeNs: 100_000_000n,
+      histogramBeginTimeNs: 0n,
       maxBucketSumRatio: 1,
       totalLogCount: 0,
       logRatios: logRatios,
@@ -104,8 +104,8 @@ describe('RulerViewModelBuilder', () => {
 
       const mockData = {
         bucketCount: bucketCount,
-        bucketTimeMs: 100,
-        histogramBeginTimeMs: 0,
+        bucketTimeNs: 100_000_000n,
+        histogramBeginTimeNs: 0n,
         maxBucketSumRatio: 10,
         totalLogCount: 15,
         logRatios: logRatios,
@@ -115,8 +115,8 @@ describe('RulerViewModelBuilder', () => {
       mockFilteredLogsHistogramCache.getHistogramData.and.returnValue(mockData);
 
       const viewModel = builder.generateRulerViewModel(
-        0,
-        1,
+        0n,
+        1e-6,
         100,
         0,
         mockAllLogsHistogramCache,

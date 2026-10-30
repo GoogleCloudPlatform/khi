@@ -19,6 +19,18 @@ import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 
+function floorDiv(a: bigint, b: bigint): bigint {
+  const q = a / b;
+  const r = a % b;
+  return r !== 0n && a < 0n !== b < 0n ? q - 1n : q;
+}
+
+function ceilDiv(a: bigint, b: bigint): bigint {
+  const q = a / b;
+  const r = a % b;
+  return r !== 0n && a < 0n === b < 0n ? q + 1n : q;
+}
+
 /**
  * Result of the histogram calculation.
  */
@@ -33,9 +45,9 @@ export interface HistogramInfo {
    */
   bucketCount: number;
   /**
-   * The duration of each window in milliseconds.
+   * The duration of each window in nanoseconds.
    */
-  bucketTimeMs: number;
+  bucketTimeNs: bigint;
 
   /**
    * The total number of logs used for calculating the ratio.
@@ -50,21 +62,21 @@ export interface HistogramInfo {
   /**
    * The start time of the histogram and its the left most time of the first window.
    */
-  histogramBeginTimeMs: number;
+  histogramBeginTimeNs: bigint;
 }
 
 /**
  * Data structure for caching histogram data to optimize rendering performance.
  *
- * It aggregates cumulative counts of logs for each {@link Severity} at a granularity of `minBucketTime`.
- * When querying for histogram data with a specific `windowTimeMS` (which should be an integer multiple of `minBucketTime`),
+ * It aggregates cumulative counts of logs for each {@link Severity} at a granularity of `minBucketTimeNs`.
+ * When querying for histogram data with a specific `bucketTimeNs` (which should be an integer multiple of `minBucketTimeNs`),
  * it efficiently calculates the log counts for that window width using the pre-calculated cumulative sums.
  */
 export class HistogramCache {
   /**
    * Cumulative sum of log counts for each severity.
    * `cumulativeSums[severity][i]` stores the total number of logs with that severity
-   * from `alignedMinTimeMS` up to the end of the i-th timer tick.
+   * from `alignedMinTimeNs` up to the end of the i-th timer tick.
    * Used to calculate the number of logs in any time window in O(1) time.
    */
   private readonly cumulativeSums: { [severityId: number]: Int32Array };
@@ -75,36 +87,36 @@ export class HistogramCache {
   private readonly resultCache: { [severityId: number]: Float32Array };
 
   /**
-   * The start time (timestamp in milliseconds) of the histogram cache, aligned to `minBucketTimeMS`.
+   * The start time (timestamp in nanoseconds) of the histogram cache, aligned to `minBucketTimeNs`.
    * This corresponds to index 0 in the `cumulativeSums` arrays.
    */
-  private readonly alignedMinTimeMS: number;
+  private readonly alignedMinTimeNs: bigint;
 
   /**
    * Creates a new HistogramCache.
    *
    * The range is given by the caller rather than derived from the logs because
-   * `minBucketTime` is chosen from the same range. Deriving the range from the logs
+   * `minBucketTimeNs` is chosen from the same range. Deriving the range from the logs
    * lets a single log far outside the range inflate the bucket count without bound.
    * Logs outside the range are not counted.
    *
    * @param severities - The list of severities.
    * @param logs - The list of logs to be indexed.
    * @param logIds - The bitset of active log IDs to include in the histogram.
-   * @param minBucketTime - The resolution of the cache in milliseconds.
-   * @param rangeBeginTimeMs - The start time of the histogram range in milliseconds.
-   * @param rangeEndTimeMs - The end time of the histogram range in milliseconds. The bucket containing this time is included.
+   * @param minBucketTimeNs - The resolution of the cache in nanoseconds.
+   * @param rangeBeginTimeNs - The start time of the histogram range in nanoseconds.
+   * @param rangeEndTimeNs - The end time of the histogram range in nanoseconds. The bucket containing this time is included.
    */
   constructor(
     public readonly severities: readonly ReadonlyDomainElement<Severity>[],
     logs: readonly ReadonlyDomainElement<Log>[],
     logIds: IdBitset,
-    private readonly minBucketTime: number,
-    rangeBeginTimeMs: number,
-    rangeEndTimeMs: number,
+    private readonly minBucketTimeNs: bigint,
+    rangeBeginTimeNs: bigint,
+    rangeEndTimeNs: bigint,
   ) {
     if (logs.length === 0 || logIds.size === 0) {
-      this.alignedMinTimeMS = 0;
+      this.alignedMinTimeNs = 0n;
       this.cumulativeSums = {} as { [severityId: number]: Int32Array };
       this.resultCache = {} as { [severityId: number]: Float32Array };
       for (const severity of this.severities) {
@@ -114,13 +126,12 @@ export class HistogramCache {
       return;
     }
 
-    this.alignedMinTimeMS =
-      Math.floor(rangeBeginTimeMs / minBucketTime) * minBucketTime;
-    const alignedMaxTimeMS =
-      (Math.floor(rangeEndTimeMs / minBucketTime) + 1) * minBucketTime;
+    this.alignedMinTimeNs =
+      floorDiv(rangeBeginTimeNs, minBucketTimeNs) * minBucketTimeNs;
+    const alignedMaxTimeNs =
+      (floorDiv(rangeEndTimeNs, minBucketTimeNs) + 1n) * minBucketTimeNs;
     const windowCount =
-      Math.round((alignedMaxTimeMS - this.alignedMinTimeMS) / minBucketTime) +
-      1;
+      Number((alignedMaxTimeNs - this.alignedMinTimeNs) / minBucketTimeNs) + 1;
 
     this.cumulativeSums = {} as { [severityId: number]: Int32Array };
     this.resultCache = {} as { [severityId: number]: Float32Array };
@@ -134,10 +145,11 @@ export class HistogramCache {
         continue;
       }
       const windowIndex =
-        (Math.floor(log.legacyTimestampMs / minBucketTime) * minBucketTime -
-          this.alignedMinTimeMS) /
-          minBucketTime +
-        1;
+        Number(
+          (floorDiv(log.timestamp, minBucketTimeNs) * minBucketTimeNs -
+            this.alignedMinTimeNs) /
+            minBucketTimeNs,
+        ) + 1;
       // Index 0 is the empty prefix of the cumulative sums, so logs before the range (index <= 0) and after it are skipped.
       if (windowIndex > 0 && windowIndex < windowCount) {
         this.cumulativeSums[log.severity.id][windowIndex]++;
@@ -155,18 +167,20 @@ export class HistogramCache {
   /**
    * Retrieves histogram data for the specified time range and window size.
    *
-   * @param timeAlignedMinTimeMS - The start time of the range, aligned to the tick time.
-   * @param timeAlignedMaxTimeMS - The end time of the range, aligned to the tick time.
-   * @param bucketTimeMs - The duration of each window in milliseconds. Must be equal to or greater than `minBucketTimeMS`.
+   * @param timeAlignedMinTimeNs - The start time of the range, aligned to the tick time.
+   * @param timeAlignedMaxTimeNs - The end time of the range, aligned to the tick time.
+   * @param bucketTimeNs - The duration of each window in nanoseconds. Must be equal to or greater than `minBucketTimeNs`.
    * @returns The histogram information containing log ratios per severity.
    */
   public getHistogramData(
-    timeAlignedMinTimeMS: number,
-    timeAlignedMaxTimeMS: number,
-    bucketTimeMs: number,
+    timeAlignedMinTimeNs: bigint,
+    timeAlignedMaxTimeNs: bigint,
+    bucketTimeNs: bigint,
     totalLogCount?: number,
   ): HistogramInfo {
-    bucketTimeMs = Math.max(bucketTimeMs, this.minBucketTime);
+    if (bucketTimeNs < this.minBucketTimeNs) {
+      bucketTimeNs = this.minBucketTimeNs;
+    }
     const firstSeverityId = this.severities[0]?.id;
     if (
       firstSeverityId === undefined ||
@@ -175,23 +189,23 @@ export class HistogramCache {
       return {
         logRatios: this.resultCache,
         bucketCount: 0,
-        bucketTimeMs: bucketTimeMs,
+        bucketTimeNs: bucketTimeNs,
         totalLogCount: 0,
         maxBucketSumRatio: 0,
-        histogramBeginTimeMs: 0,
+        histogramBeginTimeNs: 0n,
       };
     }
-    const windowStride = Math.round(bucketTimeMs / this.minBucketTime);
+    const windowStride = Number(bucketTimeNs / this.minBucketTimeNs);
     const logRatios: { [severityId: number]: Float32Array } = this.resultCache;
-    const histogramBeginTimeMs =
-      Math.floor(timeAlignedMinTimeMS / bucketTimeMs) * bucketTimeMs;
-    const histogramEndTimeMs =
-      Math.ceil(timeAlignedMaxTimeMS / bucketTimeMs) * bucketTimeMs;
-    const leftMostTimeIndex = Math.round(
-      (histogramBeginTimeMs - this.alignedMinTimeMS) / this.minBucketTime,
+    const histogramBeginTimeNs =
+      floorDiv(timeAlignedMinTimeNs, bucketTimeNs) * bucketTimeNs;
+    const histogramEndTimeNs =
+      ceilDiv(timeAlignedMaxTimeNs, bucketTimeNs) * bucketTimeNs;
+    const leftMostTimeIndex = Number(
+      (histogramBeginTimeNs - this.alignedMinTimeNs) / this.minBucketTimeNs,
     );
-    const rightMostTimeIndex = Math.round(
-      (histogramEndTimeMs - this.alignedMinTimeMS) / this.minBucketTime,
+    const rightMostTimeIndex = Number(
+      (histogramEndTimeNs - this.alignedMinTimeNs) / this.minBucketTimeNs,
     );
 
     // When totalLogCount is not provided, calculate it from the logs array.
@@ -200,8 +214,8 @@ export class HistogramCache {
       for (const severity of this.severities) {
         totalLogCount += this.logCountForSeverity(
           severity.id,
-          histogramBeginTimeMs,
-          histogramEndTimeMs,
+          histogramBeginTimeNs,
+          histogramEndTimeNs,
         );
       }
     }
@@ -213,17 +227,18 @@ export class HistogramCache {
         currentTimeIndex < rightMostTimeIndex;
         currentTimeIndex += windowStride
       ) {
-        const beginWindowTime =
-          currentTimeIndex * this.minBucketTime + this.alignedMinTimeMS;
-        const endWindowTime =
-          (currentTimeIndex + windowStride) * this.minBucketTime +
-          this.alignedMinTimeMS;
+        const beginWindowTimeNs =
+          BigInt(currentTimeIndex) * this.minBucketTimeNs +
+          this.alignedMinTimeNs;
+        const endWindowTimeNs =
+          BigInt(currentTimeIndex + windowStride) * this.minBucketTimeNs +
+          this.alignedMinTimeNs;
         if (totalLogCount > 0) {
           logRatios[severity.id][currentResultIndex] =
             this.logCountForSeverity(
               severity.id,
-              beginWindowTime,
-              endWindowTime,
+              beginWindowTimeNs,
+              endWindowTimeNs,
             ) / totalLogCount;
         } else {
           logRatios[severity.id][currentResultIndex] = 0;
@@ -231,8 +246,8 @@ export class HistogramCache {
         currentResultIndex++;
       }
     }
-    const bucketCount = Math.round(
-      (histogramEndTimeMs - histogramBeginTimeMs) / bucketTimeMs,
+    const bucketCount = Number(
+      (histogramEndTimeNs - histogramBeginTimeNs) / bucketTimeNs,
     );
     let maxBucketSumRatio = -Infinity;
     for (let i = 0; i < bucketCount; i++) {
@@ -245,10 +260,10 @@ export class HistogramCache {
     return {
       logRatios,
       bucketCount,
-      bucketTimeMs,
+      bucketTimeNs,
       totalLogCount,
       maxBucketSumRatio,
-      histogramBeginTimeMs,
+      histogramBeginTimeNs,
     };
   }
 
@@ -257,20 +272,20 @@ export class HistogramCache {
    * This method uses the pre-calculated `cumulativeSums` to perform the calculation in O(1) time.
    *
    * @param severityId - The severity ID of the logs to count.
-   * @param alignedLeftTimeMS - The start time of the range (inclusive), aligned to `minTickTimeMS`.
-   * @param alignedRightTimeMS - The end time of the range (exclusive), aligned to `minTickTimeMS`.
+   * @param alignedLeftTimeNs - The start time of the range (inclusive), aligned to `minBucketTimeNs`.
+   * @param alignedRightTimeNs - The end time of the range (exclusive), aligned to `minBucketTimeNs`.
    * @returns The number of logs in the specified range.
    */
   private logCountForSeverity(
     severityId: number,
-    alignedLeftTimeMS: number,
-    alignedRightTimeMS: number,
+    alignedLeftTimeNs: bigint,
+    alignedRightTimeNs: bigint,
   ): number {
-    const minIndex = Math.round(
-      (alignedLeftTimeMS - this.alignedMinTimeMS) / this.minBucketTime,
+    const minIndex = Number(
+      (alignedLeftTimeNs - this.alignedMinTimeNs) / this.minBucketTimeNs,
     );
-    const maxIndex = Math.round(
-      (alignedRightTimeMS - this.alignedMinTimeMS) / this.minBucketTime,
+    const maxIndex = Number(
+      (alignedRightTimeNs - this.alignedMinTimeNs) / this.minBucketTimeNs,
     );
     let maxValue =
       this.cumulativeSums[severityId][

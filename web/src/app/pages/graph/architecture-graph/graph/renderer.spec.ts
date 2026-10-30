@@ -100,7 +100,7 @@ describe('Graph renderer', () => {
           $service('foo-service', 'kube-system'),
           $service('bar-service', 'qux-namespace'),
         ],
-        graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0, 0),
+        graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0n, 0),
         podOwnerOwners: {
           cronjob: [],
           deployment: [],
@@ -159,7 +159,7 @@ describe('Graph renderer', () => {
         $service('foo-service', 'kube-system'),
         $service('bar-service', 'qux-namespace'),
       ],
-      graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0, 0),
+      graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0n, 0),
       podOwnerOwners: {
         cronjob: [],
         deployment: [],
@@ -177,7 +177,7 @@ describe('Graph renderer', () => {
   const MOCK_SIMPLE_GRAPH_DATA: GraphData = {
     nodes: [$node('node-bar')],
     services: [],
-    graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0, 0),
+    graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0n, 0),
     podOwnerOwners: { cronjob: [], deployment: [] },
     podOwners: { daemonset: [], job: [], replicaset: [] },
   };

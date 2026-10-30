@@ -51,21 +51,21 @@ export class TimelineRulerRenderer {
    * Clears the canvas and renders the ruler components: histogram, foreground overlay, and ruler lines.
    *
    * @param viewModel The view model containing data to render (histogram buckets, ticks).
-   * @param leftEdgeTimeMS The time at the left edge of the viewport in milliseconds.
-   * @param pixelsPerMs The current scale in pixels per millisecond.
+   * @param leftEdgeTimeNs The time at the left edge of the viewport in nanoseconds.
+   * @param pixelsPerNs The current scale in pixels per nanosecond.
    */
   render(
     viewModel: TimelineRulerViewModel,
-    leftEdgeTimeMS: number,
-    pixelsPerMs: number,
+    leftEdgeTimeNs: bigint,
+    pixelsPerNs: number,
     style: TimelineRulerStyle,
   ) {
     this.style = style;
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ctx.scale(this.dpr, this.dpr);
-    this.drawHeaderHistogram(viewModel, leftEdgeTimeMS, pixelsPerMs);
-    this.drawRulerLines(viewModel, pixelsPerMs);
+    this.drawHeaderHistogram(viewModel, leftEdgeTimeNs, pixelsPerNs);
+    this.drawRulerLines(viewModel, pixelsPerNs);
   }
 
   /**
@@ -73,12 +73,12 @@ export class TimelineRulerRenderer {
    */
   private drawHeaderHistogram(
     viewModel: TimelineRulerViewModel,
-    leftEdgeTime: number,
-    pixelsPerMs: number,
+    leftEdgeTimeNs: bigint,
+    pixelsPerNs: number,
   ) {
-    const windowWidth = viewModel.histogramBucketTimeMS * pixelsPerMs;
+    const windowWidth = Number(viewModel.histogramBucketTimeNs) * pixelsPerNs;
     let currentX =
-      (viewModel.histogramBeginTimeMS - leftEdgeTime) * pixelsPerMs;
+      Number(viewModel.histogramBeginTimeNs - leftEdgeTimeNs) * pixelsPerNs;
     const t = this.style.histogramLineThickness / 2;
     this.ctx.lineWidth = this.style.histogramLineThickness;
     const headerHeight = this.style.headerHeightInPx;
@@ -128,9 +128,9 @@ export class TimelineRulerRenderer {
    */
   private drawRulerLines(
     viewModel: TimelineRulerViewModel,
-    pixelsPerMs: number,
+    pixelsPerNs: number,
   ) {
-    const windowWidth = viewModel.tickTimeMS * pixelsPerMs;
+    const windowWidth = Number(viewModel.tickTimeNs) * pixelsPerNs;
     let currentX = 0;
     for (const window of viewModel.ticks) {
       const t =

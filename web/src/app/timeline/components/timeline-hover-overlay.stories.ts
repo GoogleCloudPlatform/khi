@@ -112,7 +112,6 @@ function createMockLog(
     id: logIndex,
     logIndex,
     timestamp: BigInt(timeMs) * 1000000n,
-    legacyTimestampMs: timeMs,
     summary,
     logType,
     severity,
@@ -128,7 +127,6 @@ function createMockRevision(
     id: log.logIndex,
     timelineId: 1,
     index: 0,
-    legacyChangedTimeMs: startAt,
     changedTime: BigInt(startAt) * 1000000n,
     log,
     state,
@@ -144,7 +142,7 @@ function createMockEvent(
     id: log.logIndex,
     timelineId: 1,
     log,
-    legacyTimestamp: ts,
+    timestamp: BigInt(ts) * 1000000n,
   } as unknown as ReadonlyDomainElement<Event>;
 }
 

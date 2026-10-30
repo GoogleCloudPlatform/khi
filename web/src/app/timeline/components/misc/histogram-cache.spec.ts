@@ -29,10 +29,10 @@ enum Severity {
 }
 
 function createCacheWithLogs(
-  severityTimes: { severity: Severity; timeMs: number }[],
-  minBucketTime: number,
-  rangeBeginTimeMs: number,
-  rangeEndTimeMs: number,
+  severityTimes: { severity: Severity; timeNs: bigint }[],
+  minBucketTimeNs: bigint,
+  rangeBeginTimeNs: bigint,
+  rangeEndTimeNs: bigint,
   filterLogIds?: IdBitset,
 ): HistogramCache {
   const internPool = InternPoolStore.create();
@@ -59,7 +59,7 @@ function createCacheWithLogs(
 
   const logsDto = severityTimes.map((item, index) => ({
     id: index + 1,
-    ts: BigInt(item.timeMs) * 1000000n,
+    ts: item.timeNs,
     logTypeId: 0,
     severityTypeId: item.severity,
     summaryStringId: 0,
@@ -74,28 +74,28 @@ function createCacheWithLogs(
     styleStore.severities,
     logs,
     logIds,
-    minBucketTime,
-    rangeBeginTimeMs,
-    rangeEndTimeMs,
+    minBucketTimeNs,
+    rangeBeginTimeNs,
+    rangeEndTimeNs,
   );
 }
 
 describe('HistogramCache', () => {
   it('should correctly calculate ratios for a basic scenario', () => {
-    // 1000ms ticks, Range: 0 - 3000ms
+    // 1000n ticks, Range: 0n - 3000n
     const cache = createCacheWithLogs(
       [
-        { severity: Severity.SeverityError, timeMs: 500 }, // Window 0 (0-1000)
-        { severity: Severity.SeverityError, timeMs: 1500 }, // Window 1 (1000-2000)
-        { severity: Severity.SeverityInfo, timeMs: 2500 }, // Window 2 (2000-3000)
+        { severity: Severity.SeverityError, timeNs: 500n }, // Window 0 (0-1000)
+        { severity: Severity.SeverityError, timeNs: 1500n }, // Window 1 (1000-2000)
+        { severity: Severity.SeverityInfo, timeNs: 2500n }, // Window 2 (2000-3000)
       ],
-      1000,
-      0,
-      3000,
+      1000n,
+      0n,
+      3000n,
     );
 
-    // Get data for 0-3000ms with window 1000ms
-    const result = cache.getHistogramData(0, 3000, 1000);
+    // Get data for 0-3000 with window 1000
+    const result = cache.getHistogramData(0n, 3000n, 1000n);
 
     // Total Logs: 3 (2 Errors + 1 Info)
 
@@ -114,24 +114,24 @@ describe('HistogramCache', () => {
     expect(result.logRatios[Severity.SeverityInfo][0]).toBeCloseTo(0);
     expect(result.logRatios[Severity.SeverityInfo][1]).toBeCloseTo(0);
     expect(result.logRatios[Severity.SeverityInfo][2]).toBeCloseTo(1 / 3);
-    // Total windows should be 3 (3000ms / 1000ms)
+    // Total windows should be 3 (3000 / 1000)
     expect(result.bucketCount).toBe(3);
   });
 
   it('should handle aggregated windows', () => {
-    // Min tick 1000ms, Window 2000ms
+    // Min tick 1000n, Window 2000n
     const cache = createCacheWithLogs(
       [
-        { severity: Severity.SeverityError, timeMs: 500 }, // Window 0 (0-2000)
-        { severity: Severity.SeverityError, timeMs: 1500 }, // Window 0 (0-2000)
-        { severity: Severity.SeverityError, timeMs: 2500 }, // Window 1 (2000-4000)
+        { severity: Severity.SeverityError, timeNs: 500n }, // Window 0 (0-2000)
+        { severity: Severity.SeverityError, timeNs: 1500n }, // Window 0 (0-2000)
+        { severity: Severity.SeverityError, timeNs: 2500n }, // Window 1 (2000-4000)
       ],
-      1000,
-      0,
-      4000,
+      1000n,
+      0n,
+      4000n,
     );
 
-    const result = cache.getHistogramData(0, 4000, 2000);
+    const result = cache.getHistogramData(0n, 4000n, 2000n);
 
     // Total Error logs: 3
     // Window 0 (0-2000): 2 logs -> 2/3
@@ -140,34 +140,34 @@ describe('HistogramCache', () => {
     expect(result.logRatios[Severity.SeverityError][0]).toBeCloseTo(2 / 3);
     expect(result.logRatios[Severity.SeverityError][1]).toBeCloseTo(1 / 3);
 
-    // Total windows should be 2 (4000ms / 2000ms)
+    // Total windows should be 2 (4000 / 2000)
     expect(result.bucketCount).toBe(2);
   });
 
   it('should handle no logs gracefully', () => {
-    const cache = createCacheWithLogs([], 1000, 0, 3000);
-    const result = cache.getHistogramData(0, 3000, 1000);
+    const cache = createCacheWithLogs([], 1000n, 0n, 3000n);
+    const result = cache.getHistogramData(0n, 3000n, 1000n);
 
     expect(result.logRatios[Severity.SeverityError].length).toBe(0);
     expect(result.bucketCount).toBe(0);
   });
 
   it('should handle non-zero start time correctly', () => {
-    // 1000ms ticks. The cache range is 0-4000ms and the query below starts at 2000ms.
+    // 1000n ticks. The cache range is 0-4000 and the query below starts at 2000.
     const cache = createCacheWithLogs(
       [
-        { severity: Severity.SeverityError, timeMs: 500 },
-        { severity: Severity.SeverityError, timeMs: 1500 },
-        { severity: Severity.SeverityInfo, timeMs: 2500 },
-        { severity: Severity.SeverityError, timeMs: 3500 },
+        { severity: Severity.SeverityError, timeNs: 500n },
+        { severity: Severity.SeverityError, timeNs: 1500n },
+        { severity: Severity.SeverityInfo, timeNs: 2500n },
+        { severity: Severity.SeverityError, timeNs: 3500n },
       ],
-      1000,
-      0,
-      4000,
+      1000n,
+      0n,
+      4000n,
     );
 
     // Total logs in [2000, 4000): 2500 (Info), 3500 (Error). Total 2.
-    const result = cache.getHistogramData(2000, 4000, 1000);
+    const result = cache.getHistogramData(2000n, 4000n, 1000n);
 
     // Index 0 (2000-3000): Info (1). Ratio 1/2.
     expect(result.logRatios[Severity.SeverityInfo][0]).toBeCloseTo(0.5);
@@ -178,18 +178,18 @@ describe('HistogramCache', () => {
     expect(result.logRatios[Severity.SeverityError][1]).toBeCloseTo(0.5);
   });
 
-  it('should treat windowTimeMS smaller than minTickTimeMS as minTickTimeMS', () => {
-    // 1000ms ticks.
+  it('should treat bucketTimeNs smaller than minBucketTimeNs as minBucketTimeNs', () => {
+    // 1000n ticks.
     const cache = createCacheWithLogs(
-      [{ severity: Severity.SeverityError, timeMs: 500 }],
-      1000,
-      0,
-      1000,
+      [{ severity: Severity.SeverityError, timeNs: 500n }],
+      1000n,
+      0n,
+      1000n,
     );
 
-    // Request window 500ms (< 1000ms)
-    // Should behave as 1000ms window.
-    const result = cache.getHistogramData(0, 1000, 500);
+    // Request window 500n (< 1000n)
+    // Should behave as 1000n window.
+    const result = cache.getHistogramData(0n, 1000n, 500n);
 
     // Window 0 (0-1000): 1 log. Total 1. Ratio 1.0.
     expect(result.logRatios[Severity.SeverityError][0]).toBeCloseTo(1.0);
@@ -200,17 +200,17 @@ describe('HistogramCache', () => {
     // 3 logs with IDs 1, 2, 3
     const cache = createCacheWithLogs(
       [
-        { severity: Severity.SeverityError, timeMs: 500 }, // ID 1
-        { severity: Severity.SeverityError, timeMs: 1500 }, // ID 2
-        { severity: Severity.SeverityInfo, timeMs: 2500 }, // ID 3
+        { severity: Severity.SeverityError, timeNs: 500n }, // ID 1
+        { severity: Severity.SeverityError, timeNs: 1500n }, // ID 2
+        { severity: Severity.SeverityInfo, timeNs: 2500n }, // ID 3
       ],
-      1000,
-      0,
-      3000,
+      1000n,
+      0n,
+      3000n,
       IdBitset.fromAll([1, 3]), // Include only ID 1 and ID 3
     );
 
-    const result = cache.getHistogramData(0, 3000, 1000);
+    const result = cache.getHistogramData(0n, 3000n, 1000n);
 
     // Total filtered logs: 2 (ID 1 Error, ID 3 Info)
     expect(result.totalLogCount).toBe(2);
@@ -223,47 +223,52 @@ describe('HistogramCache', () => {
   });
 
   it('should ignore logs outside the range without growing the cache', () => {
-    const baseMs = 1_700_000_000_000;
-    const hourMs = 60 * 60 * 1000;
-    const yearMs = 365 * 24 * hourMs;
+    const baseNs = 1_700_000_000_000_000_000n;
+    const hourNs = 60n * 60n * 1_000_000_000n;
+    const yearNs = 365n * 24n * hourNs;
+    const bucketNs = 500_000_000n;
     const cache = createCacheWithLogs(
       [
         // Years before the range, like a snapshot log stamped with an old change time.
-        { severity: Severity.SeverityError, timeMs: baseMs - 8 * yearMs },
+        { severity: Severity.SeverityError, timeNs: baseNs - 8n * yearNs },
         // Within one bucket before the range start.
-        { severity: Severity.SeverityError, timeMs: baseMs - 250 },
-        { severity: Severity.SeverityError, timeMs: baseMs + 1000 },
-        { severity: Severity.SeverityInfo, timeMs: baseMs + 2000 },
+        { severity: Severity.SeverityError, timeNs: baseNs - 250_000_000n },
+        { severity: Severity.SeverityError, timeNs: baseNs + 1_000_000_000n },
+        { severity: Severity.SeverityInfo, timeNs: baseNs + 2_000_000_000n },
         // After the range end.
-        { severity: Severity.SeverityError, timeMs: baseMs + 2 * hourMs },
+        { severity: Severity.SeverityError, timeNs: baseNs + 2n * hourNs },
       ],
-      500,
-      baseMs,
-      baseMs + hourMs,
+      bucketNs,
+      baseNs,
+      baseNs + hourNs,
     );
 
     // Start one bucket before the range so that logs counted before the range would be included.
-    const result = cache.getHistogramData(baseMs - 500, baseMs + hourMs, 500);
+    const result = cache.getHistogramData(
+      baseNs - bucketNs,
+      baseNs + hourNs,
+      bucketNs,
+    );
 
     expect(result.totalLogCount).toBe(2);
     // One prefix slot plus the buckets covering the range, including the bucket containing the range end.
     expect(result.logRatios[Severity.SeverityError].length).toBe(
-      hourMs / 500 + 2,
+      Number(hourNs / bucketNs) + 2,
     );
   });
 
   it('should count a log exactly at the range end', () => {
     const cache = createCacheWithLogs(
       [
-        { severity: Severity.SeverityError, timeMs: 500 },
-        { severity: Severity.SeverityError, timeMs: 3000 },
+        { severity: Severity.SeverityError, timeNs: 500n },
+        { severity: Severity.SeverityError, timeNs: 3000n },
       ],
-      1000,
-      0,
-      3000,
+      1000n,
+      0n,
+      3000n,
     );
 
-    const result = cache.getHistogramData(0, 4000, 1000);
+    const result = cache.getHistogramData(0n, 4000n, 1000n);
 
     expect(result.totalLogCount).toBe(2);
     expect(result.logRatios[Severity.SeverityError][0]).toBeCloseTo(0.5);

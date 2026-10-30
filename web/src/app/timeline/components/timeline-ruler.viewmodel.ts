@@ -17,28 +17,34 @@
 import { HistogramCache } from './misc/histogram-cache';
 import {
   getRulerStep,
-  MSTimeToLabelConverter,
+  NsTimeToLabelConverter,
 } from './calculator/human-friendly-tick';
+
+function floorDiv(a: bigint, b: bigint): bigint {
+  const q = a / b;
+  const r = a % b;
+  return r !== 0n && a < 0n !== b < 0n ? q - 1n : q;
+}
 
 /**
  * The view model for the timeline ruler(header part of the timeline component).
  */
 export interface TimelineRulerViewModel {
   /**
-   * The time duration of the smallest scale step.
+   * The time duration of the smallest scale step in nanoseconds.
    */
-  tickTimeMS: number;
+  tickTimeNs: bigint;
 
   /**
-   * The time duration of a histogram bucket.
-   * This must be divisible by tickTimeMS to align the historam and scales.
+   * The time duration of a histogram bucket in nanoseconds.
+   * This must be divisible by tickTimeNs to align the histogram and scales.
    */
-  histogramBucketTimeMS: number;
+  histogramBucketTimeNs: bigint;
 
   /**
-   * The start time of the histogram.
+   * The start time of the histogram in nanoseconds.
    */
-  histogramBeginTimeMS: number;
+  histogramBeginTimeNs: bigint;
 
   /**
    * The histogram buckets.
@@ -113,8 +119,8 @@ export class RulerViewModelBuilder {
   /**
    * Generates the complete view model for the timeline ruler, including ticks, histogram bars, and time labels.
    *
-   * @param leftEdgeTimeMS The time at the left edge of the viewport (ms).
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
+   * @param leftEdgeTimeNs The time at the left edge of the viewport (ns).
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
    * @param viewportWidth The width of the viewport (px).
    * @param timezoneShiftHours The timezone offset in hours to adjust time labels.
    * @param allLogsHistogramCache Cache for all logs histogram data.
@@ -122,30 +128,30 @@ export class RulerViewModelBuilder {
    * @returns The generated TimelineRulerViewModel.
    */
   generateRulerViewModel(
-    leftEdgeTimeMS: number,
-    pixelsPerMs: number,
+    leftEdgeTimeNs: bigint,
+    pixelsPerNs: number,
     viewportWidth: number,
     timezoneShiftHours: number,
     allLogsHistogramCache: HistogramCache,
     filteredLogsHistogramCache: HistogramCache,
   ): TimelineRulerViewModel {
-    const step = getRulerStep(pixelsPerMs, this.minTickWidthInPx);
+    const step = getRulerStep(pixelsPerNs, this.minTickWidthInPx);
 
-    const tickTimeMS = step.low;
-    const startTickIndex = Math.floor(leftEdgeTimeMS / tickTimeMS);
+    const tickTimeNs = step.low;
+    const startTickIndex = floorDiv(leftEdgeTimeNs, tickTimeNs);
 
     const numberOfTicks =
       Math.ceil(
         (viewportWidth + this.extraOffsetWidthInPx * 2) /
-          (tickTimeMS * pixelsPerMs),
+          (Number(tickTimeNs) * pixelsPerNs),
       ) + 1; // +1 for buffer
     const ticks: RulerTickViewModel[] = new Array(numberOfTicks);
     for (let i = 0; i < numberOfTicks; i++) {
-      const currentTickIndex = startTickIndex + i;
+      const currentTickIndex = startTickIndex + BigInt(i);
       let importance = TickImportance.Low;
-      if (currentTickIndex % step.highMultiplier === 0) {
+      if (currentTickIndex % step.highMultiplier === 0n) {
         importance = TickImportance.High;
-      } else if (currentTickIndex % step.middleMultiplier === 0) {
+      } else if (currentTickIndex % step.middleMultiplier === 0n) {
         importance = TickImportance.Middle;
       }
       ticks[i] = {
@@ -154,14 +160,14 @@ export class RulerViewModelBuilder {
     }
 
     const histogramData = allLogsHistogramCache.getHistogramData(
-      startTickIndex * tickTimeMS,
-      (startTickIndex + numberOfTicks) * tickTimeMS,
-      tickTimeMS,
+      startTickIndex * tickTimeNs,
+      (startTickIndex + BigInt(numberOfTicks)) * tickTimeNs,
+      tickTimeNs,
     );
     const filteredHistogramData = filteredLogsHistogramCache.getHistogramData(
-      startTickIndex * tickTimeMS,
-      (startTickIndex + numberOfTicks) * tickTimeMS,
-      tickTimeMS,
+      startTickIndex * tickTimeNs,
+      (startTickIndex + BigInt(numberOfTicks)) * tickTimeNs,
+      tickTimeNs,
       histogramData.totalLogCount,
     );
     const windows: HistogramBucketViewModel[] = new Array(
@@ -181,9 +187,9 @@ export class RulerViewModelBuilder {
     }
 
     const timeLabels = this.generateTimeLabels(
-      leftEdgeTimeMS,
-      tickTimeMS,
-      pixelsPerMs,
+      leftEdgeTimeNs,
+      tickTimeNs,
+      pixelsPerNs,
       timezoneShiftHours,
       ticks,
       step.minimumTimeLabelSpaceInPx,
@@ -191,9 +197,9 @@ export class RulerViewModelBuilder {
     );
 
     return {
-      tickTimeMS: tickTimeMS,
-      histogramBucketTimeMS: histogramData.bucketTimeMs,
-      histogramBeginTimeMS: histogramData.histogramBeginTimeMs,
+      tickTimeNs: tickTimeNs,
+      histogramBucketTimeNs: histogramData.bucketTimeNs,
+      histogramBeginTimeNs: histogramData.histogramBeginTimeNs,
       ticks,
       histogramBuckets: windows,
       timeLabels,
@@ -204,43 +210,43 @@ export class RulerViewModelBuilder {
    * Generates time labels for the ruler, ensuring they don't overlap.
    */
   private generateTimeLabels(
-    leftEdgeTimeMS: number,
-    windowTimeMS: number,
-    pixelsPerMs: number,
+    leftEdgeTimeNs: bigint,
+    windowTimeNs: bigint,
+    pixelsPerNs: number,
     timezoneShiftHours: number,
     ticks: RulerTickViewModel[],
     minimumTimeLabelSpaceInPx: number,
-    labelConverter: MSTimeToLabelConverter,
+    labelConverter: NsTimeToLabelConverter,
   ): RulerTimeLabelViewModel[] {
     let labels: RulerTimeLabelViewModel[] = [];
-    const labelIndices: number[] = [];
-    let currentTime = leftEdgeTimeMS;
-    let edgeIndex = Math.floor(leftEdgeTimeMS / windowTimeMS);
+    const labelIndices: bigint[] = [];
+    let currentTimeNs = leftEdgeTimeNs;
+    let edgeIndex = floorDiv(leftEdgeTimeNs, windowTimeNs);
+    const timezoneShiftInNs = BigInt(
+      Math.round(timezoneShiftHours * 60 * 60 * 1_000_000_000),
+    );
     for (const tick of ticks) {
       if (tick.leftEdgeTimeImportance === TickImportance.High) {
         labels.push({
-          offsetLeftInPx: (currentTime - leftEdgeTimeMS) * pixelsPerMs,
-          label: labelConverter(
-            edgeIndex * windowTimeMS + timezoneShiftHours * 60 * 60 * 1000,
-          ),
+          offsetLeftInPx: Number(currentTimeNs - leftEdgeTimeNs) * pixelsPerNs,
+          label: labelConverter(edgeIndex * windowTimeNs + timezoneShiftInNs),
         });
         labelIndices.push(edgeIndex);
       }
-      currentTime += windowTimeMS;
+      currentTimeNs += windowTimeNs;
       edgeIndex++;
     }
-    const renderAreaWidth = ticks.length * windowTimeMS * pixelsPerMs;
+    const renderAreaWidth = ticks.length * Number(windowTimeNs) * pixelsPerNs;
     const maxLabelCount = Math.ceil(
       renderAreaWidth / minimumTimeLabelSpaceInPx,
     );
-    const decimateRatio = Math.max(
-      1,
-      Math.ceil(Math.log2(labels.length / maxLabelCount)),
+    const decimateRatio = BigInt(
+      Math.max(1, Math.ceil(Math.log2(labels.length / maxLabelCount))),
     ); // 2^decimateRatio is the ratio to decimate
     if (labels.length > 2) {
       const stride = labelIndices[1] - labelIndices[0];
       labels = labels.filter(
-        (_, index) => labelIndices[index] % (stride * decimateRatio) === 0,
+        (_, index) => labelIndices[index] % (stride * decimateRatio) === 0n,
       );
     }
     return labels;

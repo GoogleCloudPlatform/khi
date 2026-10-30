@@ -51,6 +51,7 @@ import {
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
   show: () => undefined,
@@ -98,8 +99,8 @@ export class TimelineRenderSmartComponent implements OnInit {
   );
 
   private loadedInspectionId: string | null = null;
-  private pendingPixelsPerMs = 0.01;
-  private pendingViewportLeftTimeMs = 0;
+  private pendingPixelsPerNs = 1e-8;
+  private pendingViewportLeftTimeNs = 0n;
 
   private readonly inspectionDataUniqueIDs = new WeakMap<
     InspectionData,
@@ -114,9 +115,9 @@ export class TimelineRenderSmartComponent implements OnInit {
 
   protected readonly timezoneShiftHours = signal<number>(0);
 
-  protected readonly pixelsPerMs = signal<number>(0.01);
+  protected readonly pixelsPerNs = signal<number>(1e-8);
 
-  protected readonly viewportLeftTimeMs = signal<number>(0);
+  protected readonly viewportLeftTimeNs = signal<bigint>(0n);
 
   protected readonly styleStore = computed<StyleStoreLike>(() => {
     return this.styleOverrideService;
@@ -158,28 +159,28 @@ export class TimelineRenderSmartComponent implements OnInit {
     );
   });
 
-  protected readonly minQueryLogTimeMS = computed(() => {
+  protected readonly minQueryLogTimeNs = computed<bigint>(() => {
     const header = this.inspectionDataStore.inspectionData()?.metadata?.header;
     if (header) {
-      return header.startTimeUnixSeconds * 1000;
+      return BigInt(header.startTimeUnixSeconds) * 1_000_000_000n;
     }
     const logs = this.allLogs();
     if (logs.length === 0) {
-      return Date.now() - 60 * 60 * 1000;
+      return BigInt(Date.now() - 60 * 60 * 1000) * 1_000_000n;
     }
-    return logs[0].legacyTimestampMs;
+    return logs[0].timestamp;
   });
 
-  protected readonly maxQueryLogTimeMS = computed(() => {
+  protected readonly maxQueryLogTimeNs = computed<bigint>(() => {
     const header = this.inspectionDataStore.inspectionData()?.metadata?.header;
     if (header) {
-      return header.endTimeUnixSeconds * 1000;
+      return BigInt(header.endTimeUnixSeconds) * 1_000_000_000n;
     }
     const logs = this.allLogs();
     if (logs.length === 0) {
-      return Date.now();
+      return BigInt(Date.now()) * 1_000_000n;
     }
-    return logs[logs.length - 1].legacyTimestampMs;
+    return logs[logs.length - 1].timestamp;
   });
 
   /**
@@ -288,19 +289,19 @@ export class TimelineRenderSmartComponent implements OnInit {
     this.appRef.tick();
     await this.nextAnimationFrame();
 
-    this.pixelsPerMs.set(this.pendingPixelsPerMs);
-    this.viewportLeftTimeMs.set(this.pendingViewportLeftTimeMs);
+    this.pixelsPerNs.set(this.pendingPixelsPerNs);
+    this.viewportLeftTimeNs.set(this.pendingViewportLeftTimeNs);
     this.appRef.tick();
     frame.syncViewportAndInvalidate(
-      this.pendingViewportLeftTimeMs,
-      this.pendingPixelsPerMs,
+      this.pendingViewportLeftTimeNs,
+      this.pendingPixelsPerNs,
     );
 
     await this.nextAnimationFrame();
     this.appRef.tick();
     frame.syncViewportAndInvalidate(
-      this.pendingViewportLeftTimeMs,
-      this.pendingPixelsPerMs,
+      this.pendingViewportLeftTimeNs,
+      this.pendingPixelsPerNs,
     );
     await this.nextAnimationFrame();
   }
@@ -412,11 +413,20 @@ export class TimelineRenderSmartComponent implements OnInit {
     requestedStartTimeMs?: number,
     requestedEndTimeMs?: number,
   ): { viewStartTimeMs: number; viewEndTimeMs: number } {
-    const minLogMs = this.minQueryLogTimeMS();
-    const maxLogMs = this.maxQueryLogTimeMS();
-    const viewStartTimeMs = requestedStartTimeMs ?? minLogMs;
-    const viewEndTimeMs = requestedEndTimeMs ?? maxLogMs;
-    const durationMs = Math.max(1, viewEndTimeMs - viewStartTimeMs);
+    const minLogNs = this.minQueryLogTimeNs();
+    const maxLogNs = this.maxQueryLogTimeNs();
+    const viewStartTimeNs =
+      requestedStartTimeMs !== undefined
+        ? BigInt(Math.round(requestedStartTimeMs)) * 1_000_000n
+        : minLogNs;
+    const viewEndTimeNs =
+      requestedEndTimeMs !== undefined
+        ? BigInt(Math.round(requestedEndTimeMs)) * 1_000_000n
+        : maxLogNs;
+    const durationNs = Math.max(
+      1_000_000,
+      Number(viewEndTimeNs - viewStartTimeNs),
+    );
 
     const chartViewportWidth = Math.max(
       100,
@@ -424,14 +434,17 @@ export class TimelineRenderSmartComponent implements OnInit {
         TimelineRenderSmartComponent.INDEX_PANE_WIDTH -
         TimelineRenderSmartComponent.GUTTER_WIDTH,
     );
-    const pixelsPerMs = chartViewportWidth / durationMs;
+    const pixelsPerNs = chartViewportWidth / durationNs;
 
-    this.pendingPixelsPerMs = pixelsPerMs;
-    this.pendingViewportLeftTimeMs = viewStartTimeMs;
-    this.pixelsPerMs.set(pixelsPerMs);
-    this.viewportLeftTimeMs.set(viewStartTimeMs);
+    this.pendingPixelsPerNs = pixelsPerNs;
+    this.pendingViewportLeftTimeNs = viewStartTimeNs;
+    this.pixelsPerNs.set(pixelsPerNs);
+    this.viewportLeftTimeNs.set(viewStartTimeNs);
 
-    return { viewStartTimeMs, viewEndTimeMs };
+    return {
+      viewStartTimeMs: BigIntTimeUtil.NsToNumberMs(viewStartTimeNs),
+      viewEndTimeMs: BigIntTimeUtil.NsToNumberMs(viewEndTimeNs),
+    };
   }
 
   private nextAnimationFrame(): Promise<void> {

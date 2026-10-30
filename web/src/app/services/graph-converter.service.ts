@@ -262,7 +262,7 @@ export class GraphConverterService {
     }
 
     const graphTime = LongTimestampFormatPipe.toLongDisplayTimestamp(
-      Number(timestampNs / 1_000_000n),
+      timestampNs,
       this.timezoneShift() ?? 0,
     );
 

@@ -41,10 +41,6 @@ import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
-function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * 1000000n;
-}
-
 function filterChartItemHighlight(
   highlights: TimelineChartItemHighlight,
   predicate: (highlight: TimelineChartItemHighlightType) => boolean,
@@ -72,8 +68,8 @@ interface TimelineFrameStoryViewModelReady {
   readonly timelines: readonly ReadonlyDomainElement<Timeline>[];
   readonly logs: ReadonlyDomainElement<Log>[];
   readonly filteredLogIds: IdBitset;
-  readonly minLogTime: number;
-  readonly maxLogTime: number;
+  readonly minLogTimeNs: bigint;
+  readonly maxLogTimeNs: bigint;
   readonly chartStyle: TimelineChartStyle;
   readonly rulerStyle: TimelineRulerStyle;
   readonly styleStore: StyleStoreLike;
@@ -88,14 +84,14 @@ type TimelineFrameStoryViewModel =
     @if (vm.ready) {
       <khi-timeline-frame
         [timelines]="vm.timelines"
-        [minQueryLogTimeMS]="vm.minLogTime"
-        [maxQueryLogTimeMS]="vm.maxLogTime"
-        [viewportLeftTimeMS]="viewportLeftTimeMS()"
-        [pixelsPerMs]="pixelsPerMs()"
+        [minQueryLogTimeNs]="vm.minLogTimeNs"
+        [maxQueryLogTimeNs]="vm.maxLogTimeNs"
+        [viewportLeftTimeNs]="viewportLeftTimeNs()"
+        [pixelsPerNs]="pixelsPerNs()"
         [timelineHighlights]="timelineHighlights()"
         [timelineChartItemHighlights]="timelineChartItemHighlights()"
-        [cursorTimeMS]="timeCursorMS()"
-        [secondaryCursorTimeMS]="secondaryTimeCursorMS()"
+        [cursorTimeNs]="timeCursorNs()"
+        [secondaryCursorTimeNs]="secondaryTimeCursorNs()"
         [timezoneShiftHours]="9"
         [allLogs]="vm.logs"
         [filteredLogIds]="vm.filteredLogIds"
@@ -123,14 +119,16 @@ class TimelineFrameStoriesComponent {
     effect(() => {
       const inspectionData = this.khiInspectionData.value();
       if (inspectionData) {
-        const minTimeMs = inspectionData.metadata?.header
-          ? inspectionData.metadata.header.startTimeUnixSeconds * 1000
-          : 0;
-        const maxTimeMs = inspectionData.metadata?.header
-          ? inspectionData.metadata.header.endTimeUnixSeconds * 1000
-          : 1;
-        this.pixelsPerMs.set(3000 / (maxTimeMs - minTimeMs));
-        this.viewportLeftTimeMS.set(minTimeMs);
+        const minTimeNs = inspectionData.metadata?.header
+          ? BigInt(inspectionData.metadata.header.startTimeUnixSeconds) *
+            1_000_000_000n
+          : 0n;
+        const maxTimeNs = inspectionData.metadata?.header
+          ? BigInt(inspectionData.metadata.header.endTimeUnixSeconds) *
+            1_000_000_000n
+          : 1_000_000n;
+        this.pixelsPerNs.set(3000 / Math.max(1, Number(maxTimeNs - minTimeNs)));
+        this.viewportLeftTimeNs.set(minTimeNs);
       }
     });
   }
@@ -142,37 +140,37 @@ class TimelineFrameStoriesComponent {
         ready: false,
       };
     }
-    const minTimeMs = data.metadata?.header
-      ? data.metadata.header.startTimeUnixSeconds * 1000
-      : 0;
-    const maxTimeMs = data.metadata?.header
-      ? data.metadata.header.endTimeUnixSeconds * 1000
-      : 0;
+    const minTimeNs = data.metadata?.header
+      ? BigInt(data.metadata.header.startTimeUnixSeconds) * 1_000_000_000n
+      : 0n;
+    const maxTimeNs = data.metadata?.header
+      ? BigInt(data.metadata.header.endTimeUnixSeconds) * 1_000_000_000n
+      : 0n;
     const logs = Array.from(data.logStore.logs());
     return {
       ready: true,
       timelines: data.timelineStore.timelines,
       logs,
       filteredLogIds: IdBitset.fromAll(logs.map((log) => log.id)),
-      minLogTime: minTimeMs,
-      maxLogTime: maxTimeMs,
+      minLogTimeNs: minTimeNs,
+      maxLogTimeNs: maxTimeNs,
       chartStyle: generateDefaultChartStyle(),
       rulerStyle: generateDefaultRulerStyle(data.styleStore),
       styleStore: data.styleStore,
     };
   });
 
-  viewportLeftTimeMS = signal(0);
+  viewportLeftTimeNs = signal(0n);
 
-  pixelsPerMs = signal(1);
+  pixelsPerNs = signal(1e-6);
 
   timelineHighlights = signal<TimelineHighlight>({});
 
   timelineChartItemHighlights = signal<TimelineChartItemHighlight>({});
 
-  timeCursorMS = signal(0);
+  timeCursorNs = signal(0n);
 
-  secondaryTimeCursorMS = signal(0);
+  secondaryTimeCursorNs = signal(0n);
 
   timelineHoverRequest = signal<TimelineHoverOverlayRequest | null>(null);
 
@@ -258,8 +256,8 @@ class TimelineFrameStoriesComponent {
       this.timelineHighlights.set({});
       return;
     }
-    const pixelsPerMs = this.pixelsPerMs();
-    const timeRange = 300 / pixelsPerMs; // select 30 pixel around
+    const pixelsPerNs = this.pixelsPerNs();
+    const rangeNs = BigInt(Math.round(300 / pixelsPerNs)); // select 300 pixel around
     if (e.revisionIndex !== undefined) {
       const revision = e.timeline.revisions[e.revisionIndex];
       this.timelineChartItemHighlights.set({
@@ -269,24 +267,24 @@ class TimelineFrameStoriesComponent {
         ),
         [revision.logIndex]: TimelineChartItemHighlightType.Selected,
       });
-      this.timeCursorMS.set(revision.legacyChangedTimeMs);
-      this.secondaryTimeCursorMS.set(
-        revision.log.legacyTimestampMs !== revision.legacyChangedTimeMs
-          ? revision.log.legacyTimestampMs
-          : 0,
+      this.timeCursorNs.set(revision.changedTime);
+      this.secondaryTimeCursorNs.set(
+        revision.log.timestamp !== revision.changedTime
+          ? revision.log.timestamp
+          : 0n,
       );
 
       const events = e.timeline.lookupEventsInRangeNs(
-        msToNs(e.timeMS - timeRange),
-        msToNs(e.timeMS + timeRange),
+        e.timeNs - rangeNs,
+        e.timeNs + rangeNs,
       );
       const revisions = e.timeline.lookupRevisionsInRangeNs(
-        msToNs(e.timeMS - timeRange),
-        msToNs(e.timeMS + timeRange),
+        e.timeNs - rangeNs,
+        e.timeNs + rangeNs,
       );
       this.timelineHoverRequest.set({
         timelineId: e.timeline.id,
-        timeMs: e.timeMS,
+        timeNs: e.timeNs,
         overlay: {
           timeline: e.timeline,
           revisions: revisions,
@@ -303,19 +301,19 @@ class TimelineFrameStoriesComponent {
         ),
         [event.logIndex]: TimelineChartItemHighlightType.Selected,
       });
-      this.timeCursorMS.set(event.legacyTimestamp);
-      this.secondaryTimeCursorMS.set(0);
+      this.timeCursorNs.set(event.timestamp);
+      this.secondaryTimeCursorNs.set(0n);
       const events = e.timeline.lookupEventsInRangeNs(
-        msToNs(event.legacyTimestamp - timeRange),
-        msToNs(event.legacyTimestamp + timeRange),
+        event.timestamp - rangeNs,
+        event.timestamp + rangeNs,
       );
       const revisions = e.timeline.lookupRevisionsInRangeNs(
-        msToNs(event.legacyTimestamp - timeRange),
-        msToNs(event.legacyTimestamp + timeRange),
+        event.timestamp - rangeNs,
+        event.timestamp + rangeNs,
       );
       this.timelineHoverRequest.set({
         timelineId: e.timeline.id,
-        timeMs: e.timeMS,
+        timeNs: e.timeNs,
         overlay: {
           timeline: e.timeline,
           revisions: revisions,

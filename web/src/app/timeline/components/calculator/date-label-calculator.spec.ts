@@ -17,18 +17,18 @@
 import { calculateDateLabels } from './date-label-calculator';
 
 describe('calculateDateLabels', () => {
-  const DAY = 24 * 60 * 60 * 1000;
+  const DAY_NS = 24n * 60n * 60n * 1_000_000_000n;
 
   it('should calculate correct basic UTC day boundaries', () => {
-    // 2026-03-12T00:00:00Z is 1773273600000
-    const leftEdgeTime = new Date('2026-03-11T12:00:00Z').getTime();
-    const visibleDuration = DAY * 2; // 2 days visible
-    const pixelsPerMs = 1 / 1000 / 60; // 1 pixel per minute
+    const leftEdgeTimeNs =
+      BigInt(new Date('2026-03-11T12:00:00Z').getTime()) * 1_000_000n;
+    const visibleDurationNs = DAY_NS * 2n; // 2 days visible
+    const pixelsPerNs = 1 / 1_000_000_000 / 60; // 1 pixel per minute
 
     const labels = calculateDateLabels(
-      leftEdgeTime,
-      visibleDuration,
-      pixelsPerMs,
+      leftEdgeTimeNs,
+      visibleDurationNs,
+      pixelsPerNs,
       0,
     );
 
@@ -37,12 +37,12 @@ describe('calculateDateLabels', () => {
     // Boundary 1: 2026-03-11T00:00:00Z (before left edge)
     expect(labels[0].labelLeft).toBe('2026/03/10');
     expect(labels[0].labelRight).toBe('2026/03/11');
-    expect(labels[0].offsetX).toBe(-720);
+    expect(labels[0].offsetX).toBeCloseTo(-720);
 
     // Boundary 2: 2026-03-12T00:00:00Z
     expect(labels[1].labelLeft).toBe('2026/03/11');
     expect(labels[1].labelRight).toBe('2026/03/12');
-    expect(labels[1].offsetX).toBe(720);
+    expect(labels[1].offsetX).toBeCloseTo(720);
 
     // Boundary 3: 2026-03-13T00:00:00Z
     expect(labels[2].labelLeft).toBe('2026/03/12');
@@ -51,47 +51,51 @@ describe('calculateDateLabels', () => {
 
   it('should calculate correct day boundaries with +9 hours timezone shift', () => {
     // 2026-03-12T00:00:00+09:00 is 2026-03-11T15:00:00Z
-    const leftEdgeTime = new Date('2026-03-11T12:00:00Z').getTime(); // 21:00:00+09:00
-    const visibleDuration = DAY * 2;
-    const pixelsPerMs = 1;
+    const leftEdgeTimeNs =
+      BigInt(new Date('2026-03-11T12:00:00Z').getTime()) * 1_000_000n; // 21:00:00+09:00
+    const visibleDurationNs = DAY_NS * 2n;
+    const pixelsPerNs = 1e-6;
 
     // Boundary 1: 2026-03-11T00:00:00+09:00 (2026-03-10T15:00:00Z)
     // Boundary 2: 2026-03-12T00:00:00+09:00 (2026-03-11T15:00:00Z)
-    const expectedOffsetTime =
-      new Date('2026-03-11T15:00:00Z').getTime() - leftEdgeTime;
+    const expectedOffsetTimeNs =
+      BigInt(new Date('2026-03-11T15:00:00Z').getTime()) * 1_000_000n -
+      leftEdgeTimeNs;
 
     const labels = calculateDateLabels(
-      leftEdgeTime,
-      visibleDuration,
-      pixelsPerMs,
+      leftEdgeTimeNs,
+      visibleDurationNs,
+      pixelsPerNs,
       9,
     );
 
     expect(labels[1].labelLeft).toBe('2026/03/11');
     expect(labels[1].labelRight).toBe('2026/03/12');
-    expect(labels[1].offsetX).toBe(expectedOffsetTime * pixelsPerMs);
+    expect(labels[1].offsetX).toBe(Number(expectedOffsetTimeNs) * pixelsPerNs);
   });
 
   it('should calculate correct day boundaries with negative timezone shift (-8 hours)', () => {
     // 2026-03-12T00:00:00-08:00 is 2026-03-12T08:00:00Z
-    const leftEdgeTime = new Date('2026-03-12T04:00:00Z').getTime(); // 20:00:00-08:00
-    const visibleDuration = DAY * 2;
-    const pixelsPerMs = 1;
+    const leftEdgeTimeNs =
+      BigInt(new Date('2026-03-12T04:00:00Z').getTime()) * 1_000_000n; // 20:00:00-08:00
+    const visibleDurationNs = DAY_NS * 2n;
+    const pixelsPerNs = 1e-6;
 
     // Boundary 1: 2026-03-11T00:00:00-08:00 (2026-03-11T08:00:00Z)
     // Boundary 2: 2026-03-12T00:00:00-08:00 (2026-03-12T08:00:00Z)
-    const expectedOffsetTime =
-      new Date('2026-03-12T08:00:00Z').getTime() - leftEdgeTime;
+    const expectedOffsetTimeNs =
+      BigInt(new Date('2026-03-12T08:00:00Z').getTime()) * 1_000_000n -
+      leftEdgeTimeNs;
 
     const labels = calculateDateLabels(
-      leftEdgeTime,
-      visibleDuration,
-      pixelsPerMs,
+      leftEdgeTimeNs,
+      visibleDurationNs,
+      pixelsPerNs,
       -8,
     );
 
     expect(labels[1].labelLeft).toBe('2026/03/11');
     expect(labels[1].labelRight).toBe('2026/03/12');
-    expect(labels[1].offsetX).toBe(expectedOffsetTime * pixelsPerMs);
+    expect(labels[1].offsetX).toBe(Number(expectedOffsetTimeNs) * pixelsPerNs);
   });
 });
