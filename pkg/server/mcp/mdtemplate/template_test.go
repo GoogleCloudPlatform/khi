@@ -587,6 +587,22 @@ func TestFormatAppliedFilter(t *testing.T) {
 				"excludeTimelinesWithoutLogs: false\n" +
 				"```",
 		},
+		{
+			name: "query containing triple backticks expands outer fence",
+			input: workbench.AppliedFilter{
+				TimelineQuery: `t.name == "` + "```" + `"`,
+			},
+			want: "## Applied filter\n" +
+				"Enter these values in the KHI Web UI filter to see the same data.\n\n" +
+				"````yaml\n" +
+				"timelineQuery: |-\n  t.name == \"```\"\n" +
+				"timelineExclusionQuery: \"\"\n" +
+				"logQuery: \"\"\n" +
+				"startTime: \"\"\n" +
+				"endTime: \"\"\n" +
+				"excludeTimelinesWithoutLogs: false\n" +
+				"````",
+		},
 	}
 
 	type parsedQueries struct {
@@ -601,12 +617,20 @@ func TestFormatAppliedFilter(t *testing.T) {
 				t.Errorf("FormatAppliedFilter() mismatch (-want +got):\n%s", diff)
 			}
 
-			_, yamlBody, found := strings.Cut(got, "```yaml\n")
+			prefix, rest, found := strings.Cut(got, "yaml\n")
 			if !found {
 				t.Fatalf("FormatAppliedFilter() output has no yaml block: %q", got)
 			}
+			fence := prefix[strings.LastIndex(prefix, "\n")+1:]
+			if len(fence) < 3 || strings.Trim(fence, "`") != "" {
+				t.Fatalf("invalid opening yaml fence %q in %q", fence, got)
+			}
+			if !strings.HasSuffix(rest, "\n"+fence) {
+				t.Fatalf("FormatAppliedFilter() output does not end with matching fence %q: %q", fence, got)
+			}
+			yamlBody := strings.TrimSuffix(rest, "\n"+fence)
 			var gotQueries parsedQueries
-			if err := yaml.Unmarshal([]byte(strings.TrimSuffix(yamlBody, "```")), &gotQueries); err != nil {
+			if err := yaml.Unmarshal([]byte(yamlBody), &gotQueries); err != nil {
 				t.Fatalf("failed to parse the yaml block: %v", err)
 			}
 			normalizeLF := func(s string) string {
