@@ -36,9 +36,15 @@ describe('TimelineSmartComponent', () => {
   let mockStyleOverrideService: jasmine.SpyObj<StyleOverrideService>;
 
   let timeRangeFilterSignal: WritableSignal<TimeRangeFilter | null>;
+  let inspectionDataSignal: WritableSignal<unknown>;
+  let selectedLogSignal: WritableSignal<unknown>;
+  let selectedRevisionSignal: WritableSignal<unknown>;
 
   beforeEach(async () => {
     timeRangeFilterSignal = signal<TimeRangeFilter | null>(null);
+    inspectionDataSignal = signal<unknown>(null);
+    selectedLogSignal = signal<unknown>(null);
+    selectedRevisionSignal = signal<unknown>(null);
 
     mockViewStateService = jasmine.createSpyObj(
       'ViewStateService',
@@ -57,7 +63,7 @@ describe('TimelineSmartComponent', () => {
     );
 
     mockInspectionDataStore = jasmine.createSpyObj('InspectionDataStore', [], {
-      inspectionData: signal(null),
+      inspectionData: inspectionDataSignal,
       timelineView: signal(null),
     });
 
@@ -76,7 +82,8 @@ describe('TimelineSmartComponent', () => {
         highlightedChildrenOfSelectedTimeline: signal(null),
         selectedLogIndex: signal(undefined),
         highlightedLogIndices: signal(null),
-        selectedLog: signal(null),
+        selectedLog: selectedLogSignal,
+        selectedRevision: selectedRevisionSignal,
         highlightedLogs: signal([]),
       },
     );
@@ -173,5 +180,50 @@ describe('TimelineSmartComponent', () => {
     expect(
       component['lookupSucceedingLogs'](mockTimeline, 2000n, 10, true),
     ).toEqual([mockNextRevision]);
+  });
+
+  it('should compute cursorTimeMs from selectedRevision.legacyChangedTimeMs when a revision is selected', () => {
+    selectedLogSignal.set({ legacyTimestampMs: 5000 });
+    expect(component['cursorTimeMs']()).toBe(5000);
+
+    selectedRevisionSignal.set({ legacyChangedTimeMs: 1200 });
+    expect(component['cursorTimeMs']()).toBe(1200);
+  });
+
+  it('should set hoveredTime to revision.changedTime when hovering over a revision inside the viewport', () => {
+    inspectionDataSignal.set({
+      metadata: {
+        header: {
+          startTimeUnixSeconds: 1,
+          endTimeUnixSeconds: 10,
+        },
+      },
+    });
+    const mockLog = { timestamp: 5000000000n, legacyTimestampMs: 5000 };
+    const mockRevision = {
+      changedTime: 1200000000n,
+      legacyChangedTimeMs: 1200,
+      getEndNs: () => 6000000000n,
+      log: mockLog,
+    };
+    const mockTimeline = {
+      id: 1,
+      revisions: [mockRevision],
+      events: [],
+    };
+
+    component['hoverOnTimelineItem']({
+      event: new MouseEvent('mousemove'),
+      timeline: mockTimeline as never,
+      revisionIndex: 0,
+      timeMS: 1500,
+      clientX: 100,
+      clientY: 200,
+    });
+
+    expect(mockSelectionManager.onHighlightLog).toHaveBeenCalledWith(
+      mockLog as never,
+    );
+    expect(component['hoveredTime']()).toBe(1200000000n);
   });
 });

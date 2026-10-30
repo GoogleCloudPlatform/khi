@@ -502,8 +502,13 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly cursorOffsetLeft = computed<number>(() => {
     const horizontalScrollCalculator = this.horizontalScrollCalculator();
+    const cursorTimeMS = this.cursorTimeMS();
+    const clampedTimeMS =
+      cursorTimeMS > 0
+        ? Math.max(cursorTimeMS, this.minQueryLogTimeMS())
+        : cursorTimeMS;
     return horizontalScrollCalculator.timeMSToOffsetLeft(
-      this.cursorTimeMS(),
+      clampedTimeMS,
       this.pixelsPerMs(),
     );
   });
@@ -1031,11 +1036,17 @@ export class TimelineFrameComponent implements AfterViewInit {
 
     // Updates the viewportLeftTimeMs property when the curosrTime is updated if that is outside of the viewport.
     effect(() => {
-      const cursorTime = this.cursorTimeMS();
-      if (cursorTime === 0) {
+      const rawCursorTime = this.cursorTimeMS();
+      if (rawCursorTime === 0) {
         // Do not scroll when there is no active log selection.
         return;
       }
+      const logMinTime = untracked(this.minQueryLogTimeMS);
+      if (rawCursorTime <= logMinTime) {
+        // Do not force-scroll to the query start boundary when selecting a pre-existing initial revision.
+        return;
+      }
+      const cursorTime = Math.max(rawCursorTime, logMinTime);
       const viewportLeftTimeMS = untracked(this.viewportLeftTimeMS);
       const viewportWidth = untracked(this.viewportWidth);
       const pixelsPerMs = untracked(this.pixelsPerMs);
@@ -1044,7 +1055,6 @@ export class TimelineFrameComponent implements AfterViewInit {
       const maxCursorTime =
         viewportLeftTimeMS +
         (viewportWidth - this.CURSOR_SCROLL_MARGIN_IN_PX) / pixelsPerMs;
-      const logMinTime = untracked(this.minQueryLogTimeMS);
       const horizontalOverdrawInPx = untracked(this.horizontalOverdrawInPx);
 
       if (cursorTime < minCursorTime || cursorTime > maxCursorTime) {

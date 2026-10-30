@@ -494,4 +494,17 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(charts.map((chart) => chart.hideEvents())).toEqual([false, false]);
     expect(hoverOverlay.hideEvents()).toBeFalse();
   });
+
+  it('should clamp cursorOffsetLeft to minQueryLogTimeMS when cursorTimeMS precedes the query start time', () => {
+    frameFixture.componentRef.setInput('minQueryLogTimeMS', 2000);
+    frameFixture.componentRef.setInput('maxQueryLogTimeMS', 5000);
+    frameFixture.componentRef.setInput('pixelsPerMs', 1);
+    frameFixture.componentRef.setInput('cursorTimeMS', 1000);
+    frameFixture.detectChanges();
+
+    const offsetAtMinQueryTime = frameComponent[
+      'horizontalScrollCalculator'
+    ]().timeMSToOffsetLeft(2000, 1);
+    expect(frameComponent['cursorOffsetLeft']()).toBe(offsetAtMinQueryTime);
+  });
 });
