@@ -36,10 +36,10 @@ export interface TimelineRendererSharedResourceState {
   height: number;
   /** The device pixel ratio (DPR) for handling high-DPI displays. */
   devicePixelRatio: number;
-  /** The current zoom level in pixels per millisecond. */
-  pixelsPerMs: number;
-  /** The time (in unix milliseconds) at the left edge of the viewport. */
-  leftEdgeTime: number;
+  /** The current zoom level in pixels per nanosecond. */
+  pixelsPerNs: number;
+  /** The time (in unix nanoseconds) at the left edge of the viewport. */
+  leftEdgeTime: bigint;
   /** The index of the selected log, or 0xFFFFFFFF if none. */
   selectedLogIndex: number;
 }
@@ -255,9 +255,11 @@ export class TimelineRendererSharedResource {
     dv.setFloat32(0, state.width, true);
     dv.setFloat32(4, state.height, true);
     dv.setFloat32(8, state.devicePixelRatio, true);
-    dv.setFloat32(12, state.pixelsPerMs, true);
+    dv.setFloat32(12, state.pixelsPerNs * 1e6, true);
     const [seconds, nanoSeconds] =
-      RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(state.leftEdgeTime);
+      RendererConvertUtil.splitBigIntTimeToSecondsAndNanoSeconds(
+        state.leftEdgeTime,
+      );
     dv.setUint32(16, seconds, true);
     dv.setUint32(20, nanoSeconds, true);
     dv.setUint32(24, state.selectedLogIndex, true);

@@ -84,17 +84,17 @@ describe('TimelineChartComponent', () => {
     component.invalidate = false;
     expect(component.invalidate).toBeFalse();
 
-    fixture.componentRef.setInput('leftEdgeTime', 5000);
+    fixture.componentRef.setInput('leftEdgeTime', 5000n);
     fixture.detectChanges();
 
     expect(component.invalidate).toBeTrue();
   });
 
-  it('should set invalidate to true when pixelsPerMs changes', () => {
+  it('should set invalidate to true when pixelsPerNs changes', () => {
     component.invalidate = false;
     expect(component.invalidate).toBeFalse();
 
-    fixture.componentRef.setInput('pixelsPerMs', 2.5);
+    fixture.componentRef.setInput('pixelsPerNs', 2.5e-6);
     fixture.detectChanges();
 
     expect(component.invalidate).toBeTrue();

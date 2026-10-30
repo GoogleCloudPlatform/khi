@@ -69,7 +69,7 @@ export class TimelineBackgroundRenderer {
    * @param leftEdgeTime - The time at the left edge of the viewport in nanoseconds.
    * @param pixelsPerNs - The rendering scale in pixels per nanosecond.
    */
-  render(leftEdgeTime: number, pixelsPerNs: number) {
+  render(leftEdgeTime: bigint, pixelsPerNs: number) {
     if (
       this.rulerStyle === null ||
       this.rulerViewModel === null ||
@@ -119,10 +119,10 @@ export class TimelineBackgroundRenderer {
   private drawRulers(
     viewModel: TimelineRulerViewModel,
     style: TimelineRulerStyle,
-    pixelsPerMs: number,
+    pixelsPerNs: number,
   ) {
     let currentX = 0;
-    const windowWidth = viewModel.tickTimeMS * pixelsPerMs;
+    const windowWidth = Number(viewModel.tickTimeNs) * pixelsPerNs;
     for (const tick of viewModel.ticks) {
       const t = style.rulerThicknessByImportance[tick.leftEdgeTimeImportance];
       this.ctx.lineWidth = t;
@@ -168,8 +168,8 @@ export class TimelineBackgroundRenderer {
   private drawOutsideLogPeriod(
     viewModel: TimelineChartViewModel,
     style: TimelineChartStyle,
-    leftEdgeTime: number,
-    pixelsPerMs: number,
+    leftEdgeTime: bigint,
+    pixelsPerNs: number,
   ) {
     this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColor(
       style.outsideOfLogPeriodColor,
@@ -178,11 +178,12 @@ export class TimelineBackgroundRenderer {
       this.ctx.fillRect(
         0,
         0,
-        (viewModel.logBeginTime - leftEdgeTime) * pixelsPerMs,
+        Number(viewModel.logBeginTime - leftEdgeTime) * pixelsPerNs,
         this.height,
       );
     }
-    const rightEdgeX = (viewModel.logEndTime - leftEdgeTime) * pixelsPerMs;
+    const rightEdgeX =
+      Number(viewModel.logEndTime - leftEdgeTime) * pixelsPerNs;
     if (rightEdgeX < this.width) {
       this.ctx.fillRect(rightEdgeX, 0, this.width - rightEdgeX, this.height);
     }

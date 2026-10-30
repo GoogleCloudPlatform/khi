@@ -69,11 +69,11 @@ export type TimelineChartItemHighlight = {
 };
 
 /**
- * Represents a time window in milliseconds for timeline overlays.
+ * Represents a time window in nanoseconds for timeline overlays.
  */
-export interface TimeRangeMs {
-  readonly startMs: number;
-  readonly endMs: number;
+export interface TimeRangeNs {
+  readonly startNs: bigint;
+  readonly endNs: bigint;
 }
 
 /**

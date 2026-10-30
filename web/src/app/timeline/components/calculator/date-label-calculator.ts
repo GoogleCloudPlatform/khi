@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
+
+function floorDiv(a: bigint, b: bigint): bigint {
+  const q = a / b;
+  const r = a % b;
+  return r !== 0n && a < 0n !== b < 0n ? q - 1n : q;
+}
+
 /**
  * Represents a date label on the timeline ruler at a specific day boundary.
  *
@@ -38,37 +46,40 @@ export interface DateLabel {
  * The calculation mathematically aligns to the exact local time midnight boundary by factoring in
  * the given timezone shift, ensuring that the visual representation maps exactly to the viewer's local day.
  *
- * @param leftEdgeTime The timestamp (in UTC milliseconds) corresponding to the visible left edge of the timeline.
- * @param visibleDuration The total duration (in milliseconds) visible on the screen.
- * @param pixelsPerMs The current zoom level, expressed as pixels per millisecond.
+ * @param leftEdgeTimeNs The timestamp (in UTC nanoseconds) corresponding to the visible left edge of the timeline.
+ * @param visibleDurationNs The total duration (in nanoseconds) visible on the screen.
+ * @param pixelsPerNs The current zoom level, expressed as pixels per nanosecond.
  * @param timezoneShiftHours The timezone offset in hours to apply. Positive values move ahead of UTC, negative values move behind.
  * @returns An array of `DateLabel` objects representing the day boundaries within the visible range.
  */
 export function calculateDateLabels(
-  leftEdgeTime: number,
-  visibleDuration: number,
-  pixelsPerMs: number,
+  leftEdgeTimeNs: bigint,
+  visibleDurationNs: bigint,
+  pixelsPerNs: number,
   timezoneShiftHours: number,
 ): DateLabel[] {
   const labels: DateLabel[] = [];
-  const DAY = 60 * 60 * 24 * 1000;
-  const timezoneShiftInMs = timezoneShiftHours * 60 * 60 * 1000;
+  const DAY_NS = 24n * 60n * 60n * 1_000_000_000n;
+  const timezoneShiftInNs = BigInt(
+    Math.round(timezoneShiftHours * 60 * 60 * 1_000_000_000),
+  );
 
-  const localLeftEdgeTime = leftEdgeTime + timezoneShiftInMs;
-  const localPrevMidnight = Math.floor(localLeftEdgeTime / DAY) * DAY - DAY;
-  let prevDayTime = localPrevMidnight - timezoneShiftInMs;
+  const localLeftEdgeTimeNs = leftEdgeTimeNs + timezoneShiftInNs;
+  const localPrevMidnightNs =
+    floorDiv(localLeftEdgeTimeNs, DAY_NS) * DAY_NS - DAY_NS;
+  let prevDayTimeNs = localPrevMidnightNs - timezoneShiftInNs;
 
   while (true) {
-    const currentDayTime = prevDayTime + DAY;
-    if (currentDayTime > leftEdgeTime + visibleDuration) {
+    const currentDayTimeNs = prevDayTimeNs + DAY_NS;
+    if (currentDayTimeNs > leftEdgeTimeNs + visibleDurationNs) {
       break;
     }
     labels.push({
-      offsetX: (currentDayTime - leftEdgeTime) * pixelsPerMs,
-      labelLeft: toDateLabel(currentDayTime - 1, timezoneShiftHours),
-      labelRight: toDateLabel(currentDayTime, timezoneShiftHours),
+      offsetX: Number(currentDayTimeNs - leftEdgeTimeNs) * pixelsPerNs,
+      labelLeft: toDateLabel(currentDayTimeNs - 1_000_000n, timezoneShiftInNs),
+      labelRight: toDateLabel(currentDayTimeNs, timezoneShiftInNs),
     });
-    prevDayTime = currentDayTime;
+    prevDayTimeNs = currentDayTimeNs;
   }
   return labels;
 }
@@ -76,12 +87,14 @@ export function calculateDateLabels(
 /**
  * Formats a given timestamp into a date string (YYYY/MM/DD) according to the configured timezone shift.
  *
- * @param time The timestamp in milliseconds to format.
- * @param timezoneShiftHours The timezone offset in hours applied to the formatting.
+ * @param timeNs The timestamp in nanoseconds to format.
+ * @param timezoneShiftInNs The timezone offset in nanoseconds applied to the formatting.
  * @returns The formatted date string.
  */
-function toDateLabel(time: number, timezoneShiftHours: number): string {
-  const date = new Date(time + timezoneShiftHours * 60 * 60 * 1000);
+function toDateLabel(timeNs: bigint, timezoneShiftInNs: bigint): string {
+  const date = new Date(
+    BigIntTimeUtil.NsToNumberMs(timeNs + timezoneShiftInNs),
+  );
   const year = date.getUTCFullYear();
   const month = ('' + (date.getUTCMonth() + 1)).padStart(2, '0');
   const day = ('' + date.getUTCDate()).padStart(2, '0');

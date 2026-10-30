@@ -19,21 +19,21 @@ import { HorizontalScrollCalculator } from './horizontal-scroll-calculator';
 describe('HorizontalScrollCalculator', () => {
   describe('totalWidth', () => {
     it('returns total needed width for rendering without offset & margin', () => {
-      const calculator = new HorizontalScrollCalculator(0, 1000, 0);
-      // 1000ms & 1px/ms => 1000 px
+      const calculator = new HorizontalScrollCalculator(0n, 1000n, 0);
+      // 1000ns & 1px/ns => 1000 px
       expect(calculator.totalWidth(1)).toBeCloseTo(1000);
       expect(calculator.totalWidth(3)).toBeCloseTo(3000);
     });
 
     it('returns total needed width for rendering with offset', () => {
-      const calculator = new HorizontalScrollCalculator(1000, 2000, 0);
+      const calculator = new HorizontalScrollCalculator(1000n, 2000n, 0);
       expect(calculator.totalWidth(1)).toBeCloseTo(1000);
       expect(calculator.totalWidth(3)).toBeCloseTo(3000);
     });
 
     it('returns total needed width for rendering with offset & margin', () => {
-      const calculator = new HorizontalScrollCalculator(1000, 2000, 300);
-      // 1000ms & 1px/ms => 1000 px
+      const calculator = new HorizontalScrollCalculator(1000n, 2000n, 300);
+      // 1000ns & 1px/ns => 1000 px
       // 300px margin on both sides
       expect(calculator.totalWidth(1)).toBeCloseTo(1000 + 300 * 2);
       expect(calculator.totalWidth(3)).toBeCloseTo(3000 + 300 * 2);
@@ -42,36 +42,36 @@ describe('HorizontalScrollCalculator', () => {
 
   describe('totalRenderWidth', () => {
     it('returns viewport width + extra offset width', () => {
-      const calculator = new HorizontalScrollCalculator(0, 1000, 300);
+      const calculator = new HorizontalScrollCalculator(0n, 1000n, 300);
       expect(calculator.totalRenderWidth(1000)).toBeCloseTo(1000 + 300 * 2);
     });
   });
 
-  describe('leftDrawAreaTimeMS', () => {
-    it('returns aligned time based on tickTimeMS', () => {
-      const calculator = new HorizontalScrollCalculator(0, 1000, 300);
-      // tickTimeMS = 100
-      // extraOffsetTimeMS (at 1px/ms) = 300ms
-      // viewportLeftTimeMS = 550
-      // (550 - 300) / 100 = 2.5 -> floor -> 2 -> 200
-      expect(calculator.leftDrawAreaTimeMS(550, 100, 1)).toBeCloseTo(200);
+  describe('leftDrawAreaTimeNs', () => {
+    it('returns aligned time based on tickTimeNs', () => {
+      const calculator = new HorizontalScrollCalculator(0n, 1000n, 300);
+      // tickTimeNs = 100n
+      // extraOffsetTimeNs (at 1px/ns) = 300n
+      // viewportLeftTimeNs = 550n
+      // (550 - 300) / 100 = 2.5 -> floor -> 2 -> 200n
+      expect(calculator.leftDrawAreaTimeNs(550n, 100n, 1)).toBe(200n);
     });
 
-    it('returns aligned time based on tickTimeMS with different pixelsPerMs', () => {
-      const calculator = new HorizontalScrollCalculator(0, 1000, 300);
-      // tickTimeMS = 100
-      // extraOffsetTimeMS (at 10px/ms) = 300/10 = 30ms
-      // viewportLeftTimeMS = 155
-      // (155 - 30) / 100 = 1.25 -> floor -> 1 -> 100
-      expect(calculator.leftDrawAreaTimeMS(155, 100, 10)).toBeCloseTo(100);
+    it('returns aligned time based on tickTimeNs with different pixelsPerNs', () => {
+      const calculator = new HorizontalScrollCalculator(0n, 1000n, 300);
+      // tickTimeNs = 100n
+      // extraOffsetTimeNs (at 10px/ns) = 300/10 = 30n
+      // viewportLeftTimeNs = 155n
+      // (155 - 30) / 100 = 1.25 -> floor -> 1 -> 100n
+      expect(calculator.leftDrawAreaTimeNs(155n, 100n, 10)).toBe(100n);
     });
   });
 
   describe('calculateZoomScrollLeft', () => {
     it('calculates correct new scroll position when zooming in without extra offset', () => {
-      const calculator = new HorizontalScrollCalculator(1000, 2000, 0);
-      const currentPpm = 1;
-      const newPpm = 2;
+      const calculator = new HorizontalScrollCalculator(1000n, 2000n, 0);
+      const currentPpn = 1;
+      const newPpn = 2;
       const mousePos = 100;
       const currentScrollLeft = 0;
 
@@ -87,8 +87,8 @@ describe('HorizontalScrollCalculator', () => {
       // newScrollLeft = (1050 - 1000) * 2 = 100
 
       const newScrollLeft = calculator.calculateZoomScrollLeft(
-        currentPpm,
-        newPpm,
+        currentPpn,
+        newPpn,
         mousePos,
         currentScrollLeft,
       );
@@ -96,9 +96,9 @@ describe('HorizontalScrollCalculator', () => {
     });
 
     it('calculates correct new scroll position when zooming in with extra offset', () => {
-      const calculator = new HorizontalScrollCalculator(1000, 2000, 300);
-      const currentPpm = 1;
-      const newPpm = 2;
+      const calculator = new HorizontalScrollCalculator(1000n, 2000n, 300);
+      const currentPpn = 1;
+      const newPpn = 2;
       const mousePos = 100;
       // Let's assume scrolled a bit
       // minScrollableTime(1) = 700
@@ -114,8 +114,8 @@ describe('HorizontalScrollCalculator', () => {
       // newScrollLeft = (850 - 850) * 2 = 0
 
       const newScrollLeft = calculator.calculateZoomScrollLeft(
-        currentPpm,
-        newPpm,
+        currentPpn,
+        newPpn,
         mousePos,
         currentScrollLeft,
       );
@@ -123,28 +123,34 @@ describe('HorizontalScrollCalculator', () => {
     });
 
     it('keeps the time at mouse position constant', () => {
-      const calculator = new HorizontalScrollCalculator(1000, 5000, 300);
-      const currentPpm = 2;
-      const newPpm = 5.5; // Arbitrary zoom
+      const calculator = new HorizontalScrollCalculator(
+        1_000_000_000n,
+        5_000_000_000n,
+        300,
+      );
+      const currentPpn = 2e-6;
+      const newPpn = 5.5e-6; // Arbitrary zoom
       const mousePos = 453; // Arbitrary mouse position
       const currentScrollLeft = 1500; // Arbitrary scroll
 
       const prevTimeAtMouse =
-        calculator.scrollToViewportLeftTime(currentScrollLeft, currentPpm) +
-        mousePos / currentPpm;
+        Number(
+          calculator.scrollToViewportLeftTimeNs(currentScrollLeft, currentPpn),
+        ) +
+        mousePos / currentPpn;
 
       const newScrollLeft = calculator.calculateZoomScrollLeft(
-        currentPpm,
-        newPpm,
+        currentPpn,
+        newPpn,
         mousePos,
         currentScrollLeft,
       );
 
       const newTimeAtMouse =
-        calculator.scrollToViewportLeftTime(newScrollLeft, newPpm) +
-        mousePos / newPpm;
+        Number(calculator.scrollToViewportLeftTimeNs(newScrollLeft, newPpn)) +
+        mousePos / newPpn;
 
-      expect(newTimeAtMouse).toBeCloseTo(prevTimeAtMouse);
+      expect(newTimeAtMouse).toBeCloseTo(prevTimeAtMouse, -1);
     });
   });
 });

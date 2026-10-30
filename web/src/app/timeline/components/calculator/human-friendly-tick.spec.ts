@@ -17,52 +17,53 @@
 import {
   getMinTimeSpanForHistogram,
   getRulerStep,
-  getTickTimeMS,
+  getTickTimeNs,
 } from './human-friendly-tick';
 
 describe('human-friendly-tick', () => {
   describe('getMinTimeSpanForHistogram', () => {
     it('should return the smallest step that fits within maxHistogramSize', () => {
-      // 1000ms duration, max size 100 -> step 10ms (1000/10 = 100 <= 100)
-      // RULER_STEPS_MS has 1, 5, 10, 50, 100...
-      // 1000 / 1 = 1000 > 100
-      // 1000 / 5 = 200 > 100
-      // 1000 / 10 = 100 <= 100 -> returns 10
-      expect(getMinTimeSpanForHistogram(100, 0, 1000)).toBe(10);
+      // 1000ms (1_000_000_000ns) duration, max size 100 -> step 10ms (10_000_000ns)
+      // RULER_STEPS_NS has 1ms, 5ms, 10ms, 50ms, 100ms...
+      expect(getMinTimeSpanForHistogram(100, 0n, 1_000_000_000n)).toBe(
+        10_000_000n,
+      );
     });
 
     it('should return the first step if it fits exactly', () => {
-      // 100ms duration, max size 100 -> step 1ms (100/1 = 100 <= 100)
-      expect(getMinTimeSpanForHistogram(100, 0, 100)).toBe(1);
+      // 100ms (100_000_000ns) duration, max size 100 -> step 1ms (1_000_000ns)
+      expect(getMinTimeSpanForHistogram(100, 0n, 100_000_000n)).toBe(
+        1_000_000n,
+      );
     });
   });
 
   describe('getRulerStep', () => {
-    it('should return the smallest step larger than minTimeSpanMS', () => {
-      // pixelsPerMs = 1, minGridWidthPx = 100 -> minTimeSpanMS = 100
-      // RULER_STEPS_MS usually contains ... 50, 100, 500 ...
-      // Should pick 100
-      const step = getRulerStep(1, 100);
-      expect(step.low).toBe(100);
+    it('should return the smallest step larger than minTimeSpanNs', () => {
+      // pixelsPerNs = 1e-6 (1 px/ms), minGridWidthPx = 100 -> minTimeSpanNs = 100_000_000
+      // RULER_STEPS_NS contains ... 50ms, 100ms, 500ms ...
+      // Should pick 100ms (100_000_000n)
+      const step = getRulerStep(1e-6, 100);
+      expect(step.low).toBe(100_000_000n);
     });
 
-    it('should return the step if minTimeSpanMS exactly matches a step', () => {
-      const step = getRulerStep(1, 50); // 50ms
-      expect(step.low).toBe(50);
+    it('should return the step if minTimeSpanNs exactly matches a step', () => {
+      const step = getRulerStep(1e-6, 50); // 50ms (50_000_000n)
+      expect(step.low).toBe(50_000_000n);
     });
 
-    it('should return the next larger step if minTimeSpanMS is between steps', () => {
-      // minTimeSpanMS = 75 (between 50 and 100)
-      // Should pick 100
-      const step = getRulerStep(1, 75);
-      expect(step.low).toBe(100);
+    it('should return the next larger step if minTimeSpanNs is between steps', () => {
+      // minTimeSpanNs = 75_000_000 (between 50ms and 100ms)
+      // Should pick 100ms (100_000_000n)
+      const step = getRulerStep(1e-6, 75);
+      expect(step.low).toBe(100_000_000n);
     });
   });
 
-  describe('getTickTimeMS', () => {
+  describe('getTickTimeNs', () => {
     it('should return the low value of the selected ruler step', () => {
       // Same logic as getRulerStep
-      expect(getTickTimeMS(1, 75)).toBe(100);
+      expect(getTickTimeNs(1e-6, 75)).toBe(100_000_000n);
     });
   });
 });

@@ -119,11 +119,11 @@ export class ViewStateService {
   public timelineStateResetCommand: Observable<null> =
     this.timelineStateResetCommandSubject;
 
-  private timeOffsetSubject = new BehaviorSubject(0);
+  private timeOffsetSubject = new BehaviorSubject<bigint>(0n);
 
-  public timeOffset: Observable<number> = this.timeOffsetSubject;
+  public timeOffset: Observable<bigint> = this.timeOffsetSubject;
 
-  private pixelPerTimeSubject = new BehaviorSubject<number>(0.01);
+  private pixelPerTimeSubject = new BehaviorSubject<number>(1e-8);
 
   public pixelPerTime: Observable<number> = this.pixelPerTimeSubject;
 
@@ -152,13 +152,13 @@ export class ViewStateService {
 
   /**
    * Set the offset of timeline view
-   * @param offset offset time of left most edge of the timeline view
+   * @param offset offset time of left most edge of the timeline view in nanoseconds
    */
-  public setTimeOffset(offset: number): void {
+  public setTimeOffset(offset: bigint): void {
     this.timeOffsetSubject.next(offset);
   }
 
-  public getTimeOffset(): number {
+  public getTimeOffset(): bigint {
     return this.timeOffsetSubject.value;
   }
 

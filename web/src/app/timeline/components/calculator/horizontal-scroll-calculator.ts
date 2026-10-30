@@ -14,34 +14,40 @@
  * limitations under the License.
  */
 
+function floorDiv(a: bigint, b: bigint): bigint {
+  const q = a / b;
+  const r = a % b;
+  return r !== 0n && a < 0n !== b < 0n ? q - 1n : q;
+}
+
 /**
  * HorizontalScrollCalculator calculates horizontal virtual scrolling for the timeline.
- * It manages the conversion between time (ms) and pixel coordinates, taking into account
- * zoom levels (pixels per millisecond) and extra buffer offsets.
+ * It manages the conversion between time (ns) and pixel coordinates, taking into account
+ * zoom levels (pixels per nanosecond) and extra buffer offsets.
  */
 export class HorizontalScrollCalculator {
   /**
-   * @param minTimeMs The minimum timestamp (start time) of the log data.
-   * @param maxTimeMs The maximum timestamp (end time) of the log data.
+   * @param minTimeNs The minimum timestamp (start time) of the log data in nanoseconds.
+   * @param maxTimeNs The maximum timestamp (end time) of the log data in nanoseconds.
    * @param extraOffsetWidthInPx Extra width in pixels to render outside the viewport for buffering. Defaults to 300.
    */
   constructor(
-    readonly minTimeMs: number,
-    readonly maxTimeMs: number,
+    readonly minTimeNs: bigint,
+    readonly maxTimeNs: bigint,
     readonly extraOffsetWidthInPx: number = 300,
   ) {}
 
   /**
    * The total width of the scrollable area in pixels.
    *
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
    * @returns Total width in pixels.
    */
-  totalWidth(pixelsPerMs: number): number {
-    const timeSpan =
-      this.maxScrollableTimeMS(pixelsPerMs) -
-      this.minScrollableTimeMS(pixelsPerMs);
-    return timeSpan * pixelsPerMs;
+  totalWidth(pixelsPerNs: number): number {
+    const timeSpanNs =
+      this.maxScrollableTimeNs(pixelsPerNs) -
+      this.minScrollableTimeNs(pixelsPerNs);
+    return Number(timeSpanNs) * pixelsPerNs;
   }
 
   /**
@@ -55,23 +61,24 @@ export class HorizontalScrollCalculator {
   }
 
   /**
-   * Calculates the starting time (ms) for the content to be rendered based on the viewport's position.
+   * Calculates the starting time (ns) for the content to be rendered based on the viewport's position.
    * It aligns the start time to the nearest tick interval.
    *
-   * @param viewportLeftTimeMS The time at the left edge of the visible viewport.
-   * @param tickTimeMS The current tick interval in milliseconds.
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
-   * @returns The aligned start time (ms) for rendering.
+   * @param viewportLeftTimeNs The time at the left edge of the visible viewport (ns).
+   * @param tickTimeNs The current tick interval in nanoseconds.
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
+   * @returns The aligned start time (ns) for rendering.
    */
-  leftDrawAreaTimeMS(
-    viewportLeftTimeMS: number,
-    tickTimeMS: number,
-    pixelsPerMs: number,
-  ): number {
+  leftDrawAreaTimeNs(
+    viewportLeftTimeNs: bigint,
+    tickTimeNs: bigint,
+    pixelsPerNs: number,
+  ): bigint {
     return (
-      Math.floor(
-        (viewportLeftTimeMS - this.extraOffsetTimeMS(pixelsPerMs)) / tickTimeMS,
-      ) * tickTimeMS
+      floorDiv(
+        viewportLeftTimeNs - this.extraOffsetTimeNs(pixelsPerNs),
+        tickTimeNs,
+      ) * tickTimeNs
     );
   }
 
@@ -79,135 +86,137 @@ export class HorizontalScrollCalculator {
    * Calculates the CSS `left` offset for the rendered content area.
    * This aligns the content with the virtual scroll position.
    *
-   * @param viewportLeftTimeMS The time at the left edge of the visible viewport.
-   * @param tickTimeMS The current tick interval in milliseconds.
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
+   * @param viewportLeftTimeNs The time at the left edge of the visible viewport (ns).
+   * @param tickTimeNs The current tick interval in nanoseconds.
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
    * @returns The pixel offset for the left edge of the rendered content.
    */
   leftDrawAreaOffset(
-    viewportLeftTimeMS: number,
-    tickTimeMS: number,
-    pixelsPerMs: number,
+    viewportLeftTimeNs: bigint,
+    tickTimeNs: bigint,
+    pixelsPerNs: number,
   ): number {
     const vpLeftToDrawAreaLeftInPx =
-      (viewportLeftTimeMS -
-        this.leftDrawAreaTimeMS(viewportLeftTimeMS, tickTimeMS, pixelsPerMs)) *
-      pixelsPerMs;
+      Number(
+        viewportLeftTimeNs -
+          this.leftDrawAreaTimeNs(viewportLeftTimeNs, tickTimeNs, pixelsPerNs),
+      ) * pixelsPerNs;
     return (
-      (viewportLeftTimeMS - this.minScrollableTimeMS(pixelsPerMs)) *
-        pixelsPerMs -
+      Number(viewportLeftTimeNs - this.minScrollableTimeNs(pixelsPerNs)) *
+        pixelsPerNs -
       vpLeftToDrawAreaLeftInPx
     );
   }
 
   /**
-   * Calculates the minimum zoom level (pixels per ms) required to fit the entire timeline in the viewport.
+   * Calculates the minimum zoom level (pixels per ns) required to fit the entire timeline in the viewport.
    *
    * @param viewportWidth The width of the viewport (px).
-   * @returns The minimum pixels per millisecond.
+   * @returns The minimum pixels per nanosecond.
    */
-  minPixelPerMs(viewportWidth: number): number {
-    const logTimeMS = this.maxTimeMs - this.minTimeMs;
-    return viewportWidth / logTimeMS;
+  minPixelPerNs(viewportWidth: number): number {
+    const logTimeNs = Number(this.maxTimeNs - this.minTimeNs);
+    return viewportWidth / logTimeNs;
   }
 
   /**
    * Returns the maximum allowed zoom level.
    *
-   * @returns The maximum pixels per millisecond.
+   * @returns The maximum pixels per nanosecond.
    */
-  maxPixelPerMs(): number {
-    return 10;
+  maxPixelPerNs(): number {
+    return 1e-5;
   }
 
   /**
    * Calculates the minimum scrollable time (start of the scrollable area), including the buffer.
    *
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
-   * @returns The minimum scrollable time in milliseconds.
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
+   * @returns The minimum scrollable time in nanoseconds.
    */
-  minScrollableTimeMS(pixelsPerMs: number): number {
-    return this.minTimeMs - this.extraOffsetTimeMS(pixelsPerMs);
+  minScrollableTimeNs(pixelsPerNs: number): bigint {
+    return this.minTimeNs - this.extraOffsetTimeNs(pixelsPerNs);
   }
 
   /**
    * Calculates the maximum scrollable time (end of the scrollable area), including the buffer.
    *
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
-   * @returns The maximum scrollable time in milliseconds.
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
+   * @returns The maximum scrollable time in nanoseconds.
    */
-  maxScrollableTimeMS(pixelsPerMs: number): number {
-    return this.maxTimeMs + this.extraOffsetTimeMS(pixelsPerMs);
+  maxScrollableTimeNs(pixelsPerNs: number): bigint {
+    return this.maxTimeNs + this.extraOffsetTimeNs(pixelsPerNs);
   }
 
   /**
    * Converts a timestamp to its left offset in pixels relative to the start of the scrollable area.
    *
-   * @param time The timestamp to convert (ms).
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
+   * @param timeNs The timestamp to convert (ns).
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
    * @returns The left offset in pixels.
    */
-  timeMSToOffsetLeft(time: number, pixelsPerMs: number): number {
-    return (time - this.minScrollableTimeMS(pixelsPerMs)) * pixelsPerMs;
+  timeNsToOffsetLeft(timeNs: bigint, pixelsPerNs: number): number {
+    return Number(timeNs - this.minScrollableTimeNs(pixelsPerNs)) * pixelsPerNs;
   }
 
   /**
    * Calculates the maximum possible horizontal scroll position (scrollLeft).
    *
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
    * @param viewportWidth The width of the viewport (px).
    * @returns The maximum scrollLeft value (px).
    */
-  maxScrollLeft(pixelsPerMs: number, viewportWidth: number): number {
+  maxScrollLeft(pixelsPerNs: number, viewportWidth: number): number {
     return (
-      (this.maxTimeMs -
-        (viewportWidth - this.extraOffsetWidthInPx) / pixelsPerMs -
-        this.minTimeMs) *
-      pixelsPerMs
+      Number(this.maxTimeNs - this.minTimeNs) * pixelsPerNs -
+      (viewportWidth - this.extraOffsetWidthInPx)
     );
   }
 
   /**
    * Calculates the time duration corresponding to the extra buffer offset.
    *
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
-   * @returns The buffer duration in milliseconds.
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
+   * @returns The buffer duration in nanoseconds.
    */
-  extraOffsetTimeMS(pixelsPerMs: number): number {
-    return this.extraOffsetWidthInPx / pixelsPerMs;
+  extraOffsetTimeNs(pixelsPerNs: number): bigint {
+    return BigInt(Math.round(this.extraOffsetWidthInPx / pixelsPerNs));
   }
 
   /**
    * Converts the horizontal scroll position (scrollLeft) to the corresponding time at the left edge.
    *
    * @param scrollX The horizontal scroll position (px).
-   * @param pixelsPerMs The current zoom level in pixels per millisecond.
-   * @returns The time at the left edge of the visible area (ms).
+   * @param pixelsPerNs The current zoom level in pixels per nanosecond.
+   * @returns The time at the left edge of the visible area (ns).
    */
-  scrollToViewportLeftTime(scrollX: number, pixelsPerMs: number): number {
-    return scrollX / pixelsPerMs + this.minScrollableTimeMS(pixelsPerMs);
+  scrollToViewportLeftTimeNs(scrollX: number, pixelsPerNs: number): bigint {
+    return (
+      BigInt(Math.round(scrollX / pixelsPerNs)) +
+      this.minScrollableTimeNs(pixelsPerNs)
+    );
   }
 
   /**
    * Calculates the scroll position keeping mouse position time fixed after a zoom operation.
    *
-   * @param currentPixelsPerMs The current zoom level in pixels per millisecond.
-   * @param newPixelsPerMs The new zoom level in pixels per millisecond.
+   * @param currentPixelsPerNs The current zoom level in pixels per nanosecond.
+   * @param newPixelsPerNs The new zoom level in pixels per nanosecond.
    * @param viewportRelativeMousePosition The relative position of the mouse within the viewport.
    * @param currentScrollLeft The current scroll position.
    * @returns The new scroll position after the zoom operation.
    */
   calculateZoomScrollLeft(
-    currentPixelsPerMs: number,
-    newPixelsPerMs: number,
+    currentPixelsPerNs: number,
+    newPixelsPerNs: number,
     viewportRelativeMousePosition: number,
     currentScrollLeft: number,
   ): number {
-    const cMinSc = this.minScrollableTimeMS(currentPixelsPerMs);
-    const nMinSc = this.minScrollableTimeMS(newPixelsPerMs);
+    const cMinSc = this.minScrollableTimeNs(currentPixelsPerNs);
+    const nMinSc = this.minScrollableTimeNs(newPixelsPerNs);
     return (
-      newPixelsPerMs * (cMinSc - nMinSc) +
-      (newPixelsPerMs / currentPixelsPerMs) *
+      newPixelsPerNs * Number(cMinSc - nMinSc) +
+      (newPixelsPerNs / currentPixelsPerNs) *
         (currentScrollLeft + viewportRelativeMousePosition) -
       viewportRelativeMousePosition
     );

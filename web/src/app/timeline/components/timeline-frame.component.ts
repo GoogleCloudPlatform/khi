@@ -67,7 +67,7 @@ import {
   TimelineChartItemHighlight,
   TimelineHighlightType,
   TimelineChartItemHighlightType,
-  TimeRangeMs,
+  TimeRangeNs,
   TimeRangeOverlayStyle,
 } from './interaction-model';
 import { TimeRangeFilter } from 'src/app/services/view-state.service';
@@ -79,18 +79,13 @@ import {
 } from 'src/app/timeline/components/style-model';
 import {
   getMinTimeSpanForHistogram,
-  getTickTimeMS,
+  getTickTimeNs,
 } from './calculator/human-friendly-tick';
 import { formatDurationMs } from 'src/app/utils/time-format-util';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
-export interface TimeScaleEvent {
-  event: WheelEvent;
-  centerTimeMs: number;
-}
-
 export interface TimelineHoverOverlayRequest {
-  timeMs: number;
+  timeNs: bigint;
   timelineId: number;
   overlay: TimelineHoverOverlay;
   isMouseOnTimeline?: boolean;
@@ -168,15 +163,15 @@ export class TimelineFrameComponent implements AfterViewInit {
   });
 
   /**
-   * Synchronizes the scroll container position with the target viewportLeftTimeMS and pixelsPerMs,
+   * Synchronizes the scroll container position with the target viewportLeftTimeNs and pixelsPerNs,
    * and marks all child timeline charts as invalidated so they redraw on the next animation frame.
    */
   public syncViewportAndInvalidate(
-    viewportLeftTimeMS = this.viewportLeftTimeMS(),
-    pixelsPerMs = this.pixelsPerMs(),
+    viewportLeftTimeNs = this.viewportLeftTimeNs(),
+    pixelsPerNs = this.pixelsPerNs(),
   ): void {
-    this.viewportLeftTimeMS.set(viewportLeftTimeMS);
-    this.pixelsPerMs.set(pixelsPerMs);
+    this.viewportLeftTimeNs.set(viewportLeftTimeNs);
+    this.pixelsPerNs.set(pixelsPerNs);
     const container = this.container();
     if (container) {
       const rect = container.nativeElement.getBoundingClientRect();
@@ -192,9 +187,9 @@ export class TimelineFrameComponent implements AfterViewInit {
         }
       }
       const calculator = this.horizontalScrollCalculator();
-      const targetScrollLeft = calculator.timeMSToOffsetLeft(
-        viewportLeftTimeMS,
-        pixelsPerMs,
+      const targetScrollLeft = calculator.timeNsToOffsetLeft(
+        viewportLeftTimeNs,
+        pixelsPerNs,
       );
       this.currentAction = 'moving';
       container.nativeElement.scrollTop = 0;
@@ -261,19 +256,6 @@ export class TimelineFrameComponent implements AfterViewInit {
   readonly maxQueryLogTimeNs = input<bigint>(0n);
 
   /**
-   * The minimum query time converted to milliseconds for pixel/scroll calculations.
-   */
-  protected readonly minQueryLogTimeMS = computed(() =>
-    BigIntTimeUtil.NsToNumberMs(this.minQueryLogTimeNs()),
-  );
-
-  /**
-   * The maximum query time converted to milliseconds for pixel/scroll calculations.
-   */
-  protected readonly maxQueryLogTimeMS = computed(() =>
-    BigIntTimeUtil.NsToNumberMs(this.maxQueryLogTimeNs()),
-  );
-  /**
    * The list of all logs without filtering.
    * Used for calculating the background histogram.
    */
@@ -296,8 +278,8 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Calculated based on the total time range and the maximum number of buckets.
    */
   protected readonly minTimeSpanForHistogram = computed(() => {
-    const minQueryTime = this.minQueryLogTimeMS();
-    const maxQueryTime = this.maxQueryLogTimeMS();
+    const minQueryTime = this.minQueryLogTimeNs();
+    const maxQueryTime = this.maxQueryLogTimeNs();
     return getMinTimeSpanForHistogram(
       this.MAX_HISTOGRAM_SIZE,
       minQueryTime,
@@ -310,8 +292,8 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly allLogsHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
-    const minQueryTime = this.minQueryLogTimeMS();
-    const maxQueryTime = this.maxQueryLogTimeMS();
+    const minQueryTime = this.minQueryLogTimeNs();
+    const maxQueryTime = this.maxQueryLogTimeNs();
     const allLogs = this.allLogs();
     const allLogIds = this.allLogIds();
     return new HistogramCache(
@@ -330,8 +312,8 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly filteredLogsHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
-    const minQueryTime = this.minQueryLogTimeMS();
-    const maxQueryTime = this.maxQueryLogTimeMS();
+    const minQueryTime = this.minQueryLogTimeNs();
+    const maxQueryTime = this.maxQueryLogTimeNs();
     const allLogs = this.allLogs();
     const filteredLogIds = this.filteredLogIds();
     return new HistogramCache(
@@ -345,16 +327,16 @@ export class TimelineFrameComponent implements AfterViewInit {
   });
 
   /**
-   * The time at the left edge of the viewport in milliseconds.
+   * The time at the left edge of the viewport in nanoseconds.
    * This is a two-way bound signal (model).
    */
-  readonly viewportLeftTimeMS = model<number>(0);
+  readonly viewportLeftTimeNs = model<bigint>(0n);
 
   /**
-   * The scale of the timeline in pixels per millisecond.
+   * The scale of the timeline in pixels per nanosecond.
    * This is a two-way bound signal (model).
    */
-  readonly pixelsPerMs = model<number>(1.0);
+  readonly pixelsPerNs = model<number>(1e-6);
 
   /**
    * Whether the initial scale calculation has already been applied.
@@ -394,12 +376,13 @@ export class TimelineFrameComponent implements AfterViewInit {
       return null;
     }
     if (!request.isMouseOnTimeline) {
-      const vpLeftTime = this.viewportLeftTimeMS();
+      const vpLeftTimeNs = this.viewportLeftTimeNs();
       const vpWidth = this.viewportWidth();
-      const pixelsPerMs = this.pixelsPerMs();
-      const vpRightTime = vpLeftTime + vpWidth / pixelsPerMs;
+      const pixelsPerNs = this.pixelsPerNs();
+      const vpRightTimeNs =
+        vpLeftTimeNs + BigInt(Math.round(vpWidth / pixelsPerNs));
 
-      if (request.timeMs < vpLeftTime || request.timeMs > vpRightTime) {
+      if (request.timeNs < vpLeftTimeNs || request.timeNs > vpRightTimeNs) {
         return null;
       }
 
@@ -421,12 +404,11 @@ export class TimelineFrameComponent implements AfterViewInit {
       return 0;
     }
     const horizontalScrollCalculator = this.horizontalScrollCalculator();
-    const pixelsPerMs = this.pixelsPerMs();
-    const timeMSToOffsetLeft = horizontalScrollCalculator.timeMSToOffsetLeft(
-      request.timeMs,
-      pixelsPerMs,
+    const pixelsPerNs = this.pixelsPerNs();
+    return horizontalScrollCalculator.timeNsToOffsetLeft(
+      request.timeNs,
+      pixelsPerNs,
     );
-    return timeMSToOffsetLeft;
   });
   protected readonly timelineHoverOverlayOffsetY = computed(() => {
     const request = this.timelineHoverOverlayRequest();
@@ -451,11 +433,9 @@ export class TimelineFrameComponent implements AfterViewInit {
       }
     }
     const verticalScrollCalculator = this.verticalScrollCalculator();
-    const timeMSToOffsetLeft =
-      verticalScrollCalculator.timelineIDToTimelineBottomOffset(
-        request.timelineId,
-      );
-    return timeMSToOffsetLeft;
+    return verticalScrollCalculator.timelineIDToTimelineBottomOffset(
+      request.timelineId,
+    );
   });
 
   /**
@@ -524,9 +504,9 @@ export class TimelineFrameComponent implements AfterViewInit {
       cursorTimeNs > 0n && cursorTimeNs < minQueryLogTimeNs
         ? minQueryLogTimeNs
         : cursorTimeNs;
-    return horizontalScrollCalculator.timeMSToOffsetLeft(
-      BigIntTimeUtil.NsToNumberMs(clampedTimeNs),
-      this.pixelsPerMs(),
+    return horizontalScrollCalculator.timeNsToOffsetLeft(
+      clampedTimeNs,
+      this.pixelsPerNs(),
     );
   });
 
@@ -568,9 +548,9 @@ export class TimelineFrameComponent implements AfterViewInit {
       secondaryTimeNs > 0n && secondaryTimeNs < minQueryLogTimeNs
         ? minQueryLogTimeNs
         : secondaryTimeNs;
-    return horizontalScrollCalculator.timeMSToOffsetLeft(
-      BigIntTimeUtil.NsToNumberMs(clampedTimeNs),
-      this.pixelsPerMs(),
+    return horizontalScrollCalculator.timeNsToOffsetLeft(
+      clampedTimeNs,
+      this.pixelsPerNs(),
     );
   });
 
@@ -670,44 +650,44 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   readonly timeRangeCleared = output<void>();
 
-  protected readonly activeTimeRangeMs = computed<TimeRangeMs | null>(() => {
+  protected readonly activeTimeRangeNs = computed<TimeRangeNs | null>(() => {
     const filter = this.timeRangeFilter();
     if (!filter) return null;
     return {
-      startMs: Number(filter.startTime / 1000000n),
-      endMs: Number(filter.endTime / 1000000n),
+      startNs: filter.startTime,
+      endNs: filter.endTime,
     };
   });
 
-  protected readonly previewTimeRangeMs = signal<TimeRangeMs | null>(null);
+  protected readonly previewTimeRangeNs = signal<TimeRangeNs | null>(null);
 
   protected readonly activeRangeBodyStyle =
     computed<TimeRangeOverlayStyle | null>(() => {
-      const range = this.activeTimeRangeMs();
+      const range = this.activeTimeRangeNs();
       if (!range) return null;
       const calc = this.horizontalScrollCalculator();
+      const pixelsPerNs = this.pixelsPerNs();
       return {
-        left: calc.timeMSToOffsetLeft(range.startMs, this.pixelsPerMs()),
-        width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
+        left: calc.timeNsToOffsetLeft(range.startNs, pixelsPerNs),
+        width: Math.max(2, Number(range.endNs - range.startNs) * pixelsPerNs),
       };
     });
 
   protected readonly previewRangeBodyStyle =
     computed<TimeRangeOverlayStyle | null>(() => {
-      const range = this.previewTimeRangeMs();
+      const range = this.previewTimeRangeNs();
       if (!range) return null;
       const calc = this.horizontalScrollCalculator();
+      const pixelsPerNs = this.pixelsPerNs();
       return {
-        left: calc.timeMSToOffsetLeft(range.startMs, this.pixelsPerMs()),
-        width: Math.max(2, (range.endMs - range.startMs) * this.pixelsPerMs()),
+        left: calc.timeNsToOffsetLeft(range.startNs, pixelsPerNs),
+        width: Math.max(2, Number(range.endNs - range.startNs) * pixelsPerNs),
       };
     });
 
-  protected onRulerTimeRangeSelected(range: TimeRangeMs): void {
-    const startMs = Math.max(0, range.startMs);
-    const endMs = Math.max(startMs, range.endMs);
-    let startNs = BigInt(Math.round(startMs)) * 1000000n;
-    let endNs = BigInt(Math.round(endMs)) * 1000000n;
+  protected onRulerTimeRangeSelected(range: TimeRangeNs): void {
+    let startNs = range.startNs > 0n ? range.startNs : 0n;
+    let endNs = range.endNs > startNs ? range.endNs : startNs;
     const minLogNs = this.minQueryLogTimeNs();
     const maxLogNs = this.maxQueryLogTimeNs();
     if (maxLogNs > minLogNs) {
@@ -753,8 +733,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     return {
       inspectionDataUniqueID: this.inspectionDataUniqueID(),
       timelinesInDrawArea: this.visibleTimelines(),
-      logBeginTime: this.minQueryLogTimeMS(),
-      logEndTime: this.maxQueryLogTimeMS(),
+      logBeginTime: this.minQueryLogTimeNs(),
+      logEndTime: this.maxQueryLogTimeNs(),
       styleStore: this.styleStore(),
     };
   });
@@ -767,18 +747,18 @@ export class TimelineFrameComponent implements AfterViewInit {
       return {
         inspectionDataUniqueID: this.inspectionDataUniqueID(),
         timelinesInDrawArea: this.stickyTimelines(),
-        logBeginTime: this.minQueryLogTimeMS(),
-        logEndTime: this.maxQueryLogTimeMS(),
+        logBeginTime: this.minQueryLogTimeNs(),
+        logEndTime: this.maxQueryLogTimeNs(),
         styleStore: this.styleStore(),
       };
     },
   );
 
   /**
-   * Interval of ticks in milliseconds for the ruler.
+   * Interval of ticks in nanoseconds for the ruler.
    */
-  protected readonly tickTimeMS = computed(() => {
-    return getTickTimeMS(this.pixelsPerMs(), this.MIN_TICK_WIDTH_PX);
+  protected readonly tickTimeNs = computed(() => {
+    return getTickTimeNs(this.pixelsPerNs(), this.MIN_TICK_WIDTH_PX);
   });
 
   /**
@@ -787,7 +767,7 @@ export class TimelineFrameComponent implements AfterViewInit {
   protected readonly rulerViewModel = computed<TimelineRulerViewModel>(() => {
     return this.rulerViewModelCalculator().generateRulerViewModel(
       this.contentLeftTime(),
-      this.pixelsPerMs(),
+      this.pixelsPerNs(),
       this.viewportWidth(),
       this.timezoneShiftHours(),
       this.allLogsHistogramCache(),
@@ -812,8 +792,8 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly horizontalScrollCalculator = computed(() => {
     return new HorizontalScrollCalculator(
-      this.minQueryLogTimeMS(),
-      this.maxQueryLogTimeMS(),
+      this.minQueryLogTimeNs(),
+      this.maxQueryLogTimeNs(),
       this.horizontalOverdrawInPx(),
     );
   });
@@ -962,7 +942,7 @@ export class TimelineFrameComponent implements AfterViewInit {
    * The total width of the content in pixels if purely based on time range and scale.
    */
   protected readonly totalContentWidth = computed(() => {
-    return this.horizontalScrollCalculator().totalWidth(this.pixelsPerMs());
+    return this.horizontalScrollCalculator().totalWidth(this.pixelsPerNs());
   });
   /**
    * The width of the rendered content (horizontal subset) in pixels.
@@ -980,20 +960,20 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly contentHorizontalOffset = computed(() => {
     return this.horizontalScrollCalculator().leftDrawAreaOffset(
-      this.viewportLeftTimeMS(),
-      this.tickTimeMS(),
-      this.pixelsPerMs(),
+      this.viewportLeftTimeNs(),
+      this.tickTimeNs(),
+      this.pixelsPerNs(),
     );
   });
 
   /**
-   * The time corresponding to the left edge of the rendered content area.
+   * The time corresponding to the left edge of the rendered content area in nanoseconds.
    */
   protected readonly contentLeftTime = computed(() => {
-    return this.horizontalScrollCalculator().leftDrawAreaTimeMS(
-      this.viewportLeftTimeMS(),
-      this.tickTimeMS(),
-      this.pixelsPerMs(),
+    return this.horizontalScrollCalculator().leftDrawAreaTimeNs(
+      this.viewportLeftTimeNs(),
+      this.tickTimeNs(),
+      this.pixelsPerNs(),
     );
   });
 
@@ -1024,8 +1004,8 @@ export class TimelineFrameComponent implements AfterViewInit {
 
   /**
    * The source of truth for the horizontal scroll position.
-   * "scroll" means the viewportLeftTimeMS property is updated by the scroll event.
-   * "property" means the scroll position is updated by the viewportLeftTimeMS property.
+   * "scroll" means the viewportLeftTimeNs property is updated by the scroll event.
+   * "property" means the scroll position is updated by the viewportLeftTimeNs property.
    *
    * This property is usually kept as "property" but changed to "scroll" only when users triggers scrolling animation.
    */
@@ -1038,11 +1018,11 @@ export class TimelineFrameComponent implements AfterViewInit {
   private currentScrollEventID = 0;
 
   constructor() {
-    // Updates the scrollLeft property of the container element when the viewportLeftTimeMS changes.
+    // Updates the scrollLeft property of the container element when the viewportLeftTimeNs changes.
     effect(() => {
       const calculator = this.horizontalScrollCalculator();
-      const vpLT = this.viewportLeftTimeMS();
-      const pixelsPerMs = this.pixelsPerMs();
+      const vpLT = this.viewportLeftTimeNs();
+      const pixelsPerNs = this.pixelsPerNs();
 
       const container = this.container();
       if (!container) {
@@ -1054,7 +1034,7 @@ export class TimelineFrameComponent implements AfterViewInit {
       if (this.horizontalScrollSourceOfTruth === 'scroll') {
         return;
       }
-      const targetScrollLeft = calculator.timeMSToOffsetLeft(vpLT, pixelsPerMs);
+      const targetScrollLeft = calculator.timeNsToOffsetLeft(vpLT, pixelsPerNs);
       // The scroll target may take few frames to complete its resize.
       // If the element is smaller than the expected size, wait a frame to apply. If it failed on the next frame, it'll retry the next frame and so on.
       this.currentScrollEventID++;
@@ -1077,11 +1057,11 @@ export class TimelineFrameComponent implements AfterViewInit {
       };
       moveToTargetScroll();
     });
-    // Updates the viewportLeftTimeMS property and pxielsPerMs when the loaded inspection data is updated and viewport size is ready.
+    // Updates the viewportLeftTimeNs property and pixelsPerNs when the loaded inspection data is updated and viewport size is ready.
     effect(() => {
       const dataID = this.inspectionDataUniqueID();
-      const minTime = this.minQueryLogTimeMS();
-      const maxTime = this.maxQueryLogTimeMS();
+      const minTimeNs = this.minQueryLogTimeNs();
+      const maxTimeNs = this.maxQueryLogTimeNs();
       const viewportWidth = this.viewportWidth();
 
       if (
@@ -1091,23 +1071,24 @@ export class TimelineFrameComponent implements AfterViewInit {
       ) {
         return;
       }
-      if (maxTime <= minTime) {
+      if (maxTimeNs <= minTimeNs) {
         return;
       }
       this.initialScaleApplied.set(true);
 
       const overdrawX = untracked(this.horizontalOverdrawInPx);
       const drawMargin = overdrawX * 0.1; // Scroll and scale to match viewport to show 10% of margin area.
-      const pixelsPerMs =
+      const pixelsPerNs =
         Math.max(1, viewportWidth + 2 * drawMargin) /
-        Math.max(1, maxTime - minTime);
-      const viewportLeftTimeMS = minTime - drawMargin / pixelsPerMs;
+        Math.max(1, Number(maxTimeNs - minTimeNs));
+      const viewportLeftTimeNs =
+        minTimeNs - BigInt(Math.round(drawMargin / pixelsPerNs));
 
-      this.pixelsPerMs.set(pixelsPerMs);
-      this.viewportLeftTimeMS.set(viewportLeftTimeMS);
+      this.pixelsPerNs.set(pixelsPerNs);
+      this.viewportLeftTimeNs.set(viewportLeftTimeNs);
     });
 
-    // Updates the viewportLeftTimeMs property when the cursorTime is updated if that is outside of the viewport.
+    // Updates the viewportLeftTimeNs property when the cursorTime is updated if that is outside of the viewport.
     effect(() => {
       const rawCursorTimeNs = this.cursorTimeNs();
       if (rawCursorTimeNs === 0n) {
@@ -1119,23 +1100,30 @@ export class TimelineFrameComponent implements AfterViewInit {
         // Do not force-scroll to the query start boundary when selecting a pre-existing initial revision.
         return;
       }
-      const cursorTime = BigIntTimeUtil.NsToNumberMs(rawCursorTimeNs);
-      const logMinTime = BigIntTimeUtil.NsToNumberMs(logMinTimeNs);
-      const viewportLeftTimeMS = untracked(this.viewportLeftTimeMS);
+      const viewportLeftTimeNs = untracked(this.viewportLeftTimeNs);
       const viewportWidth = untracked(this.viewportWidth);
-      const pixelsPerMs = untracked(this.pixelsPerMs);
-      const minCursorTime =
-        viewportLeftTimeMS + this.CURSOR_SCROLL_MARGIN_IN_PX / pixelsPerMs;
-      const maxCursorTime =
-        viewportLeftTimeMS +
-        (viewportWidth - this.CURSOR_SCROLL_MARGIN_IN_PX) / pixelsPerMs;
+      const pixelsPerNs = untracked(this.pixelsPerNs);
+      const marginNs = BigInt(
+        Math.round(this.CURSOR_SCROLL_MARGIN_IN_PX / pixelsPerNs),
+      );
+      const minCursorTimeNs = viewportLeftTimeNs + marginNs;
+      const maxCursorTimeNs =
+        viewportLeftTimeNs +
+        BigInt(
+          Math.round(
+            (viewportWidth - this.CURSOR_SCROLL_MARGIN_IN_PX) / pixelsPerNs,
+          ),
+        );
       const horizontalOverdrawInPx = untracked(this.horizontalOverdrawInPx);
 
-      if (cursorTime < minCursorTime || cursorTime > maxCursorTime) {
-        const newVPLT =
-          cursorTime - this.CURSOR_SCROLL_MARGIN_IN_PX / pixelsPerMs;
+      if (
+        rawCursorTimeNs < minCursorTimeNs ||
+        rawCursorTimeNs > maxCursorTimeNs
+      ) {
+        const newVPLTN = rawCursorTimeNs - marginNs;
         const newScrollLeft =
-          (newVPLT - logMinTime) * pixelsPerMs + horizontalOverdrawInPx;
+          Number(newVPLTN - logMinTimeNs) * pixelsPerNs +
+          horizontalOverdrawInPx;
         this.horizontalScrollSourceOfTruth = 'scroll';
         this.container()?.nativeElement.scrollTo({
           left: newScrollLeft,
@@ -1344,9 +1332,9 @@ export class TimelineFrameComponent implements AfterViewInit {
     this.currentAction = 'moving';
     this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
       this.currentAction = 'none';
-      const pixelsPerMS = this.pixelsPerMs();
+      const pixelsPerNs = this.pixelsPerNs();
       const maxScrollLeft = horizontalScrollCalculator.maxScrollLeft(
-        pixelsPerMS,
+        pixelsPerNs,
         this.viewportWidth(),
       );
       const scrollLeft = Math.min(
@@ -1354,10 +1342,10 @@ export class TimelineFrameComponent implements AfterViewInit {
         maxScrollLeft,
       );
       this.viewportScrollTop.set(container.nativeElement.scrollTop);
-      this.viewportLeftTimeMS.set(
-        horizontalScrollCalculator.scrollToViewportLeftTime(
+      this.viewportLeftTimeNs.set(
+        horizontalScrollCalculator.scrollToViewportLeftTimeNs(
           scrollLeft,
-          pixelsPerMS,
+          pixelsPerNs,
         ),
       );
     });
@@ -1383,7 +1371,7 @@ export class TimelineFrameComponent implements AfterViewInit {
       this.currentAction = 'none';
       const calculator = this.horizontalScrollCalculator();
 
-      const currentPixelsPerMs = this.pixelsPerMs();
+      const currentPixelsPerNs = this.pixelsPerNs();
       // Zoom factor: 1.001 per delta unit.
       // -deltaY because negative deltaY (scroll up) usually means zoom in.
       const vpWidth = this.viewportWidth();
@@ -1392,27 +1380,27 @@ export class TimelineFrameComponent implements AfterViewInit {
       if (event.ctrlKey) {
         scaleSensitivity *= this.spreadGestureSensitivity();
       }
-      const newPixelsPerMs = Math.min(
-        calculator.maxPixelPerMs(),
+      const newPixelsPerNs = Math.min(
+        calculator.maxPixelPerNs(),
         Math.max(
-          calculator.minPixelPerMs(vpWidth),
-          currentPixelsPerMs *
+          calculator.minPixelPerNs(vpWidth),
+          currentPixelsPerNs *
             Math.pow(1 + scaleSensitivity, -Math.sign(event.deltaY)), // Only checks the sign of deltaY because the amount is completely different depending on the platform. https://developer.mozilla.org/en-US/docs/Web/API/Element/mousewheel_event#chrome
         ),
       );
 
       // Calculate new scroll position to keep the mouse pointer time consistent
       const newScrollLeft = calculator.calculateZoomScrollLeft(
-        currentPixelsPerMs,
-        newPixelsPerMs,
+        currentPixelsPerNs,
+        newPixelsPerNs,
         viewportRelativeMousePosition,
         container.nativeElement.scrollLeft,
       );
       this.viewportScrollTop.set(container.nativeElement.scrollTop);
-      this.viewportLeftTimeMS.set(
-        calculator.scrollToViewportLeftTime(newScrollLeft, newPixelsPerMs),
+      this.viewportLeftTimeNs.set(
+        calculator.scrollToViewportLeftTimeNs(newScrollLeft, newPixelsPerNs),
       );
-      this.pixelsPerMs.set(newPixelsPerMs);
+      this.pixelsPerNs.set(newPixelsPerNs);
     });
   }
 }

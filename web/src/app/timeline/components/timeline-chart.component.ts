@@ -57,9 +57,9 @@ export interface TimelineChartMouseEvent extends HitTestResult {
    */
   event: MouseEvent;
   /**
-   * The time in milliseconds corresponding to the mouse position.
+   * The time in nanoseconds corresponding to the mouse position.
    */
-  timeMS: number;
+  timeNs: bigint;
 }
 
 /**
@@ -115,14 +115,14 @@ export class TimelineChartComponent implements AfterViewInit {
   readonly timelineHighlights = input<TimelineHighlight>({});
 
   /**
-   * The current time at the left edge of the viewport (scroll position) in milliseconds.
+   * The current time at the left edge of the viewport (scroll position) in nanoseconds.
    */
-  readonly leftEdgeTime = input<number>(0);
+  readonly leftEdgeTime = input<bigint>(0n);
 
   /**
-   * The current zoom level in pixels per millisecond.
+   * The current zoom level in pixels per nanosecond.
    */
-  readonly pixelsPerMs = input<number>(1);
+  readonly pixelsPerNs = input<number>(1e-6);
 
   /**
    * The index of the selected log, or 0xFFFFFFFF if none.
@@ -194,7 +194,7 @@ export class TimelineChartComponent implements AfterViewInit {
         this.timelineRenderer.invalidateStyles();
       }
       this.leftEdgeTime();
-      this.pixelsPerMs();
+      this.pixelsPerNs();
       this.filteredLogIds();
       this.selectedLogIndex();
       this.highlightedLogIndexBitset();
@@ -253,9 +253,9 @@ export class TimelineChartComponent implements AfterViewInit {
       }
       this.contextManager.render({
         leftEdgeTime: this.leftEdgeTime(),
-        pixelsPerMs: this.pixelsPerMs(),
+        pixelsPerNs: this.pixelsPerNs(),
       });
-      this.backgroundRenderer.render(this.leftEdgeTime(), this.pixelsPerMs());
+      this.backgroundRenderer.render(this.leftEdgeTime(), this.pixelsPerNs());
       this.invalidate = false;
     });
   }
@@ -300,12 +300,13 @@ export class TimelineChartComponent implements AfterViewInit {
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const timeMS = this.leftEdgeTime() + x / this.pixelsPerMs();
+    const timeNs =
+      this.leftEdgeTime() + BigInt(Math.round(x / this.pixelsPerNs()));
     this.timelineRenderer.hittest(x, y).then((result) => {
       event.emit({
         event: e,
         ...result,
-        timeMS,
+        timeNs,
       });
     });
     this.invalidate = true; // hittest needs redraw

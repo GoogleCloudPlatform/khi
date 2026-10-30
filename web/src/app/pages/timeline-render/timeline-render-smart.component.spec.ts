@@ -58,8 +58,8 @@ class StubTimelineFrameComponent {
   readonly showLegend = input<unknown>();
   readonly showResizerHandle = input<unknown>();
   readonly readyToRender = signal(true);
-  readonly pixelsPerMs = model<number>(1.0);
-  readonly viewportLeftTimeMS = model<number>(0);
+  readonly pixelsPerNs = model<number>(1e-6);
+  readonly viewportLeftTimeNs = model<bigint>(0n);
   public readonly syncViewportAndInvalidate = jasmine.createSpy(
     'syncViewportAndInvalidate',
   );
@@ -324,7 +324,7 @@ describe('TimelineRenderSmartComponent', () => {
       inspectionId: 'insp-1',
       width: 1308, // chartViewportWidth = 1308 - 308 = 1000px
       viewStartTimeMs: 1200_000,
-      viewEndTimeMs: 1400_000, // duration = 200_000ms -> pixelsPerMs = 1000 / 200_000 = 0.005
+      viewEndTimeMs: 1400_000, // duration = 200_000_000_000ns -> pixelsPerNs = 1000 / 200_000_000_000 = 5e-9
     });
     fixture.detectChanges();
 
@@ -338,11 +338,11 @@ describe('TimelineRenderSmartComponent', () => {
       viewEndTimeMs: 1_400_000,
     });
     expect({
-      viewportLeftTimeMs: stubFrame.viewportLeftTimeMS(),
-      pixelsPerMs: stubFrame.pixelsPerMs(),
+      viewportLeftTimeNs: stubFrame.viewportLeftTimeNs(),
+      pixelsPerNs: stubFrame.pixelsPerNs(),
     }).toEqual({
-      viewportLeftTimeMs: 1_200_000,
-      pixelsPerMs: 0.005,
+      viewportLeftTimeNs: 1_200_000_000_000n,
+      pixelsPerNs: 5e-9,
     });
   });
 
@@ -357,7 +357,7 @@ describe('TimelineRenderSmartComponent', () => {
 
     stubFrame.readyToRender.set(false);
     // Simulate a scroll event mutating the two-way bound model signal before waitForStableFrame runs.
-    stubFrame.viewportLeftTimeMS.set(999_000);
+    stubFrame.viewportLeftTimeNs.set(999_000_000_000n);
     fixture.detectChanges();
 
     let rafCount = 0;
@@ -376,15 +376,15 @@ describe('TimelineRenderSmartComponent', () => {
     fixture.detectChanges();
 
     expect({
-      viewportLeftTimeMs: stubFrame.viewportLeftTimeMS(),
-      pixelsPerMs: stubFrame.pixelsPerMs(),
+      viewportLeftTimeNs: stubFrame.viewportLeftTimeNs(),
+      pixelsPerNs: stubFrame.pixelsPerNs(),
     }).toEqual({
-      viewportLeftTimeMs: 1_200_000,
-      pixelsPerMs: 0.005,
+      viewportLeftTimeNs: 1_200_000_000_000n,
+      pixelsPerNs: 5e-9,
     });
     expect(stubFrame.syncViewportAndInvalidate.calls.allArgs()).toEqual([
-      [1_200_000, 0.005],
-      [1_200_000, 0.005],
+      [1_200_000_000_000n, 5e-9],
+      [1_200_000_000_000n, 5e-9],
     ]);
   });
 

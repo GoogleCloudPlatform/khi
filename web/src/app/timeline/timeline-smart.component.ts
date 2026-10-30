@@ -48,7 +48,6 @@ import {
 import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
 import { bisectLeft } from 'src/app/common/misc-util';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
-import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 
 /**
@@ -102,9 +101,9 @@ export class TimelineSmartComponent {
     );
   });
 
-  protected readonly pixelsPerMs = toSignal(
+  protected readonly pixelsPerNs = toSignal(
     this.viewStateService.pixelPerTime,
-    { initialValue: 0.01 },
+    { initialValue: 1e-8 },
   );
 
   private readonly inspectionDataUniqueIDs = new WeakMap<
@@ -221,9 +220,9 @@ export class TimelineSmartComponent {
     return logs[logs.length - 1].timestamp;
   });
 
-  protected readonly viewportLeftTimeMs = toSignal(
+  protected readonly viewportLeftTimeNs = toSignal(
     this.viewStateService.timeOffset,
-    { initialValue: 0 },
+    { initialValue: 0n },
   );
 
   protected readonly timezoneShiftHours = toSignal(
@@ -557,10 +556,9 @@ export class TimelineSmartComponent {
     if (remainingCount <= 0) {
       return [];
     }
-    const rangeNs =
-      BigInt(
-        Math.floor(this.HOVER_VIEW_SELECTABLE_RANGE_IN_PX / this.pixelsPerMs()),
-      ) * 1000000n;
+    const rangeNs = BigInt(
+      Math.round(this.HOVER_VIEW_SELECTABLE_RANGE_IN_PX / this.pixelsPerNs()),
+    );
     const maxTimeNs = targetTimeNs + rangeNs;
 
     const nextEvents = hideEvents
@@ -596,7 +594,6 @@ export class TimelineSmartComponent {
         return null;
       }
       const { timeline, targetTimeNs } = resolved;
-      const targetTimeMs = BigIntTimeUtil.NsToNumberMs(targetTimeNs);
       const hideEvents = this.hideEvents();
 
       const prevLogs = this.lookupPrecedingLogs(
@@ -640,7 +637,7 @@ export class TimelineSmartComponent {
         this.selectionManager.highlightedLogs().length > 0;
       return {
         timelineId: timeline.id,
-        timeMs: targetTimeMs,
+        timeNs: targetTimeNs,
         isMouseOnTimeline: this.isMouseOnTimeline(),
         isStickyHeaderHover: this.isMouseOnStickyHeader(),
         overlay: {
@@ -656,19 +653,19 @@ export class TimelineSmartComponent {
     });
 
   /**
-   * Handles changes to the zoom level (pixels per millisecond).
+   * Handles changes to the zoom level (pixels per nanosecond).
    * Updates the global view state.
    */
-  protected onPixelsPerMsChange(pixelsPerMs: number): void {
-    this.viewStateService.setPixelPerTime(pixelsPerMs);
+  protected onPixelsPerNsChange(pixelsPerNs: number): void {
+    this.viewStateService.setPixelPerTime(pixelsPerNs);
   }
 
   /**
    * Handles changes to the viewport's left time (scrolling).
    * Updates the global view state.
    */
-  protected onViewportLeftTimeMsChange(viewportLeftTimeMs: number): void {
-    this.viewStateService.setTimeOffset(viewportLeftTimeMs);
+  protected onViewportLeftTimeNsChange(viewportLeftTimeNs: bigint): void {
+    this.viewStateService.setTimeOffset(viewportLeftTimeNs);
   }
 
   /**
@@ -826,8 +823,7 @@ export class TimelineSmartComponent {
       if (event.revisionIndex !== undefined) {
         const revision = event.timeline.revisions[event.revisionIndex];
         this.selectionManager.onHighlightRevision(revision);
-        const viewportLeftFromOffsetNs =
-          BigInt(Math.floor(this.viewportLeftTimeMs())) * 1000000n;
+        const viewportLeftFromOffsetNs = this.viewportLeftTimeNs();
         const minQueryTimeNs = this.minQueryLogTimeNs();
         const viewportLeftNs =
           viewportLeftFromOffsetNs > minQueryTimeNs
@@ -836,7 +832,7 @@ export class TimelineSmartComponent {
         if (revision.changedTime >= viewportLeftNs) {
           this.hoveredTime.set(revision.changedTime);
         } else {
-          const hoverTimeNs = BigInt(Math.floor(event.timeMS)) * 1000000n;
+          const hoverTimeNs = event.timeNs;
           const endNs = revision.getEndNs();
           const clampedHoverNs =
             hoverTimeNs < viewportLeftNs
@@ -852,7 +848,7 @@ export class TimelineSmartComponent {
         this.hoveredTime.set(log.timestamp);
       } else {
         this.selectionManager.onHighlightLog();
-        this.hoveredTime.set(BigInt(Math.floor(event.timeMS)) * 1000000n);
+        this.hoveredTime.set(event.timeNs);
       }
     }
   }

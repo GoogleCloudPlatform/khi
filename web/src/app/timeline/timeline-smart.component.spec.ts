@@ -55,8 +55,8 @@ describe('TimelineSmartComponent', () => {
         'setTimeOffset',
       ],
       {
-        pixelPerTime: of(0.01),
-        timeOffset: of(0),
+        pixelPerTime: of(1e-8),
+        timeOffset: of(0n),
         timezoneShift: of(0),
         timeRangeFilter: timeRangeFilterSignal,
       },
@@ -223,7 +223,7 @@ describe('TimelineSmartComponent', () => {
       event: new MouseEvent('mousemove'),
       timeline: mockTimeline as never,
       revisionIndex: 0,
-      timeMS: 1500,
+      timeNs: 1_500_000_000n,
       clientX: 100,
       clientY: 200,
     });

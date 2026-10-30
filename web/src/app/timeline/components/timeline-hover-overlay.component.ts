@@ -150,7 +150,7 @@ export class TimelineHoverOverlayComponent {
     const base: TimelineChartMouseEvent = {
       event: e,
       timeline,
-      timeMS: BigIntTimeUtil.NsToNumberMs(log.time),
+      timeNs: log.time,
       clientX: e.clientX,
       clientY: e.clientY,
     };

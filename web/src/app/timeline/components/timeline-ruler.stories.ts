@@ -143,8 +143,8 @@ enum MockSeverity {
   Fatal = 4,
 }
 
-const START_TIME = Date.parse('2025-12-31T23:30:00Z');
-const DURATION = 60 * 60 * 24 * 1000; // 24 hour
+const START_TIME_NS = BigInt(Date.parse('2025-12-31T23:30:00Z')) * 1_000_000n;
+const DURATION_NS = 60n * 60n * 24n * 1_000_000_000n; // 24 hour
 const VIEWPORT_WIDTH = window.innerWidth;
 
 function generateMockLogs(
@@ -168,7 +168,8 @@ function generateMockLogs(
 
   const logDataList = [];
   for (let i = 0; i < count; i++) {
-    const time = START_TIME + Math.random() * DURATION;
+    const offsetNs = BigInt(Math.floor(Math.random() * Number(DURATION_NS)));
+    const timeNs = START_TIME_NS + offsetNs;
     const rand = Math.random();
     let severity: MockSeverity = MockSeverity.Info;
     for (let j = 0; j < culmativeRatios.length; j++) {
@@ -182,7 +183,7 @@ function generateMockLogs(
     }
     logDataList.push({
       id: i + 1,
-      ts: BigInt(Math.floor(time)) * 1000000n,
+      ts: timeNs,
       logTypeId: 1,
       severityTypeId: severity,
       summaryStringId: 0,
@@ -206,22 +207,22 @@ function generateViewModel(
     sharedStyleStore.severities,
     logs,
     allLogIds,
-    1000,
-    START_TIME,
-    START_TIME + DURATION,
+    1_000_000_000n,
+    START_TIME_NS,
+    START_TIME_NS + DURATION_NS,
   ); // 1s bucket
   const filteredLogsCache = new HistogramCache(
     sharedStyleStore.severities,
     logs,
     filterLogIds,
-    1000,
-    START_TIME,
-    START_TIME + DURATION,
+    1_000_000_000n,
+    START_TIME_NS,
+    START_TIME_NS + DURATION_NS,
   );
 
   return calculator.generateRulerViewModel(
-    START_TIME,
-    VIEWPORT_WIDTH / DURATION, // pixelsPerMs
+    START_TIME_NS,
+    VIEWPORT_WIDTH / Number(DURATION_NS), // pixelsPerNs
     VIEWPORT_WIDTH, // viewportWidth
     0, // timezoneShiftHours
     allLogsCache,
@@ -256,16 +257,16 @@ export const Default: Story = {
         [MockSeverity.Fatal]: 1,
       }),
     ),
-    leftEdgeTime: START_TIME,
-    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+    leftEdgeTime: START_TIME_NS,
+    pixelsPerNs: VIEWPORT_WIDTH / Number(DURATION_NS),
   },
 };
 
 export const NoLogs: Story = {
   args: {
     viewModel: generateViewModel([]),
-    leftEdgeTime: START_TIME,
-    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+    leftEdgeTime: START_TIME_NS,
+    pixelsPerNs: VIEWPORT_WIDTH / Number(DURATION_NS),
   },
 };
 
@@ -280,8 +281,8 @@ export const HighError: Story = {
         [MockSeverity.Fatal]: 1,
       }),
     ),
-    leftEdgeTime: START_TIME,
-    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+    leftEdgeTime: START_TIME_NS,
+    pixelsPerNs: VIEWPORT_WIDTH / Number(DURATION_NS),
   },
 };
 
@@ -298,8 +299,8 @@ const filtered = filterLogs(
 export const Filtered: Story = {
   args: {
     viewModel: generateViewModel(filtered.allLogs, filtered.filteredLogIds),
-    leftEdgeTime: START_TIME,
-    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+    leftEdgeTime: START_TIME_NS,
+    pixelsPerNs: VIEWPORT_WIDTH / Number(DURATION_NS),
   },
 };
 
@@ -314,8 +315,8 @@ export const WithTimezoneshift: Story = {
         [MockSeverity.Fatal]: 1,
       }),
     ),
-    leftEdgeTime: START_TIME,
-    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+    leftEdgeTime: START_TIME_NS,
+    pixelsPerNs: VIEWPORT_WIDTH / Number(DURATION_NS),
     timezoneShift: 5.5,
   },
 };
@@ -323,9 +324,9 @@ export const WithTimezoneshift: Story = {
 export const WithActiveTimeRange: Story = {
   args: {
     ...Default.args,
-    activeTimeRangeMs: {
-      startMs: START_TIME + DURATION * 0.25,
-      endMs: START_TIME + DURATION * 0.5,
+    activeTimeRangeNs: {
+      startNs: START_TIME_NS + DURATION_NS / 4n,
+      endNs: START_TIME_NS + DURATION_NS / 2n,
     },
   },
 };

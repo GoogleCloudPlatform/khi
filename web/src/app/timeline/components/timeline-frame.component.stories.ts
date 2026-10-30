@@ -41,10 +41,6 @@ import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
-function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * 1000000n;
-}
-
 function filterChartItemHighlight(
   highlights: TimelineChartItemHighlight,
   predicate: (highlight: TimelineChartItemHighlightType) => boolean,
@@ -90,8 +86,8 @@ type TimelineFrameStoryViewModel =
         [timelines]="vm.timelines"
         [minQueryLogTimeNs]="vm.minLogTimeNs"
         [maxQueryLogTimeNs]="vm.maxLogTimeNs"
-        [viewportLeftTimeMS]="viewportLeftTimeMS()"
-        [pixelsPerMs]="pixelsPerMs()"
+        [viewportLeftTimeNs]="viewportLeftTimeNs()"
+        [pixelsPerNs]="pixelsPerNs()"
         [timelineHighlights]="timelineHighlights()"
         [timelineChartItemHighlights]="timelineChartItemHighlights()"
         [cursorTimeNs]="timeCursorNs()"
@@ -123,14 +119,16 @@ class TimelineFrameStoriesComponent {
     effect(() => {
       const inspectionData = this.khiInspectionData.value();
       if (inspectionData) {
-        const minTimeMs = inspectionData.metadata?.header
-          ? inspectionData.metadata.header.startTimeUnixSeconds * 1000
-          : 0;
-        const maxTimeMs = inspectionData.metadata?.header
-          ? inspectionData.metadata.header.endTimeUnixSeconds * 1000
-          : 1;
-        this.pixelsPerMs.set(3000 / (maxTimeMs - minTimeMs));
-        this.viewportLeftTimeMS.set(minTimeMs);
+        const minTimeNs = inspectionData.metadata?.header
+          ? BigInt(inspectionData.metadata.header.startTimeUnixSeconds) *
+            1_000_000_000n
+          : 0n;
+        const maxTimeNs = inspectionData.metadata?.header
+          ? BigInt(inspectionData.metadata.header.endTimeUnixSeconds) *
+            1_000_000_000n
+          : 1_000_000n;
+        this.pixelsPerNs.set(3000 / Math.max(1, Number(maxTimeNs - minTimeNs)));
+        this.viewportLeftTimeNs.set(minTimeNs);
       }
     });
   }
@@ -162,9 +160,9 @@ class TimelineFrameStoriesComponent {
     };
   });
 
-  viewportLeftTimeMS = signal(0);
+  viewportLeftTimeNs = signal(0n);
 
-  pixelsPerMs = signal(1);
+  pixelsPerNs = signal(1e-6);
 
   timelineHighlights = signal<TimelineHighlight>({});
 
@@ -258,8 +256,8 @@ class TimelineFrameStoriesComponent {
       this.timelineHighlights.set({});
       return;
     }
-    const pixelsPerMs = this.pixelsPerMs();
-    const timeRange = 300 / pixelsPerMs; // select 30 pixel around
+    const pixelsPerNs = this.pixelsPerNs();
+    const rangeNs = BigInt(Math.round(300 / pixelsPerNs)); // select 300 pixel around
     if (e.revisionIndex !== undefined) {
       const revision = e.timeline.revisions[e.revisionIndex];
       this.timelineChartItemHighlights.set({
@@ -277,16 +275,16 @@ class TimelineFrameStoriesComponent {
       );
 
       const events = e.timeline.lookupEventsInRangeNs(
-        msToNs(e.timeMS - timeRange),
-        msToNs(e.timeMS + timeRange),
+        e.timeNs - rangeNs,
+        e.timeNs + rangeNs,
       );
       const revisions = e.timeline.lookupRevisionsInRangeNs(
-        msToNs(e.timeMS - timeRange),
-        msToNs(e.timeMS + timeRange),
+        e.timeNs - rangeNs,
+        e.timeNs + rangeNs,
       );
       this.timelineHoverRequest.set({
         timelineId: e.timeline.id,
-        timeMs: e.timeMS,
+        timeNs: e.timeNs,
         overlay: {
           timeline: e.timeline,
           revisions: revisions,
@@ -305,7 +303,6 @@ class TimelineFrameStoriesComponent {
       });
       this.timeCursorNs.set(event.timestamp);
       this.secondaryTimeCursorNs.set(0n);
-      const rangeNs = msToNs(timeRange);
       const events = e.timeline.lookupEventsInRangeNs(
         event.timestamp - rangeNs,
         event.timestamp + rangeNs,
@@ -316,7 +313,7 @@ class TimelineFrameStoriesComponent {
       );
       this.timelineHoverRequest.set({
         timelineId: e.timeline.id,
-        timeMs: e.timeMS,
+        timeNs: e.timeNs,
         overlay: {
           timeline: e.timeline,
           revisions: revisions,

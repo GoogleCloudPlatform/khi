@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-/**
- * Function type for converting a timestamp (in milliseconds) to a human-readable string label.
- */
-export type MSTimeToLabelConverter = (ms: number) => string;
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
-const formatHHMMSSSSS = (ms: number) => {
-  const d = new Date(ms);
+/**
+ * Function type for converting a timestamp (in nanoseconds) to a human-readable string label.
+ */
+export type NsTimeToLabelConverter = (ns: bigint) => string;
+
+const formatHHMMSSSSS = (ns: bigint) => {
+  const d = new Date(BigIntTimeUtil.NsToNumberMs(ns));
   const h = d.getUTCHours().toString().padStart(2, '0');
   const m = d.getUTCMinutes().toString().padStart(2, '0');
   const s = d.getUTCSeconds().toString().padStart(2, '0');
@@ -28,24 +30,24 @@ const formatHHMMSSSSS = (ms: number) => {
   return `${h}:${m}:${s}.${S}`;
 };
 
-const formatHHMMSS = (ms: number) => {
-  const d = new Date(ms);
+const formatHHMMSS = (ns: bigint) => {
+  const d = new Date(BigIntTimeUtil.NsToNumberMs(ns));
   const h = d.getUTCHours().toString().padStart(2, '0');
   const m = d.getUTCMinutes().toString().padStart(2, '0');
   const s = d.getUTCSeconds().toString().padStart(2, '0');
   return `${h}:${m}:${s}`;
 };
 
-const formatHHMM = (ms: number) => {
-  const d = new Date(ms);
+const formatHHMM = (ns: bigint) => {
+  const d = new Date(BigIntTimeUtil.NsToNumberMs(ns));
   const h = d.getUTCHours().toString().padStart(2, '0');
   const m = d.getUTCMinutes().toString().padStart(2, '0');
   return `${h}:${m}`;
 };
 
 interface HumanFriendlyStep {
-  ms: number;
-  labelConverter: MSTimeToLabelConverter;
+  ns: bigint;
+  labelConverter: NsTimeToLabelConverter;
   minimumTimeLabelSpaceInPx: number;
 }
 
@@ -54,97 +56,109 @@ interface HumanFriendlyStep {
  * Describes how to divide the timeline and format labels for a specific zoom level.
  */
 export interface RulerStepDefinition {
-  /** The time interval (in ms) for the smallest tick. */
-  low: number;
+  /** The time interval (in ns) for the smallest tick. */
+  low: bigint;
   /** The multiplier to get the next level of ticks (middle importance). */
-  middleMultiplier: number;
+  middleMultiplier: bigint;
   /** The multiplier to get the highest level of ticks (high importance). */
-  highMultiplier: number;
-  /** The function to convert time (ms) to a label string. */
-  labelConverter: MSTimeToLabelConverter;
+  highMultiplier: bigint;
+  /** The function to convert time (ns) to a label string. */
+  labelConverter: NsTimeToLabelConverter;
   /** The minimum space (px) required for the time label. */
   minimumTimeLabelSpaceInPx: number;
 }
 
-const MS = 1;
-const SEC = 1000 * MS;
-const MIN = 60 * SEC;
-const HOUR = 60 * MIN;
+const MS = 1_000_000n;
+const SEC = 1000n * MS;
+const MIN = 60n * SEC;
+const HOUR = 60n * MIN;
 
-const DAY = 24 * HOUR;
+const DAY = 24n * HOUR;
 
 const HUMAN_FRIENDLY_STEPS: HumanFriendlyStep[] = [
   // ms
   {
-    ms: 1 * MS,
+    ns: 1n * MS,
     labelConverter: formatHHMMSSSSS,
     minimumTimeLabelSpaceInPx: 500,
   },
   {
-    ms: 5 * MS,
+    ns: 5n * MS,
     labelConverter: formatHHMMSSSSS,
     minimumTimeLabelSpaceInPx: 500,
   },
   {
-    ms: 10 * MS,
+    ns: 10n * MS,
     labelConverter: formatHHMMSSSSS,
     minimumTimeLabelSpaceInPx: 500,
   },
   {
-    ms: 50 * MS,
+    ns: 50n * MS,
     labelConverter: formatHHMMSSSSS,
     minimumTimeLabelSpaceInPx: 500,
   },
   {
-    ms: 100 * MS,
+    ns: 100n * MS,
     labelConverter: formatHHMMSSSSS,
     minimumTimeLabelSpaceInPx: 500,
   },
   {
-    ms: 500 * MS,
+    ns: 500n * MS,
     labelConverter: formatHHMMSSSSS,
     minimumTimeLabelSpaceInPx: 500,
   },
   // sec
-  { ms: 1 * SEC, labelConverter: formatHHMMSS, minimumTimeLabelSpaceInPx: 300 },
-  { ms: 5 * SEC, labelConverter: formatHHMMSS, minimumTimeLabelSpaceInPx: 300 },
   {
-    ms: 10 * SEC,
+    ns: 1n * SEC,
     labelConverter: formatHHMMSS,
     minimumTimeLabelSpaceInPx: 300,
   },
   {
-    ms: 30 * SEC,
+    ns: 5n * SEC,
+    labelConverter: formatHHMMSS,
+    minimumTimeLabelSpaceInPx: 300,
+  },
+  {
+    ns: 10n * SEC,
+    labelConverter: formatHHMMSS,
+    minimumTimeLabelSpaceInPx: 300,
+  },
+  {
+    ns: 30n * SEC,
     labelConverter: formatHHMMSS,
     minimumTimeLabelSpaceInPx: 300,
   },
   // min
-  { ms: 1 * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
-  { ms: 5 * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
-  { ms: 10 * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
-  { ms: 30 * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  { ns: 1n * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  { ns: 5n * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  { ns: 10n * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  { ns: 30n * MIN, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
   // hour
-  { ms: 1 * HOUR, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
-  { ms: 3 * HOUR, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
-  { ms: 6 * HOUR, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
-  { ms: 12 * HOUR, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
-  { ms: 1 * DAY, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  { ns: 1n * HOUR, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  { ns: 3n * HOUR, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  { ns: 6n * HOUR, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
+  {
+    ns: 12n * HOUR,
+    labelConverter: formatHHMM,
+    minimumTimeLabelSpaceInPx: 200,
+  },
+  { ns: 1n * DAY, labelConverter: formatHHMM, minimumTimeLabelSpaceInPx: 200 },
 ];
 
 /**
  * A list of ruler steps derived from human-friendly intervals.
  * Used to determine the appropriate tick interval for the current zoom level.
  */
-export const RULER_STEPS_MS: RulerStepDefinition[] = [];
+export const RULER_STEPS_NS: RulerStepDefinition[] = [];
 
 for (let i = 0; i < HUMAN_FRIENDLY_STEPS.length - 2; i++) {
   const low = HUMAN_FRIENDLY_STEPS[i];
   const middle = HUMAN_FRIENDLY_STEPS[i + 1];
   const high = HUMAN_FRIENDLY_STEPS[i + 2];
-  RULER_STEPS_MS.push({
-    low: low.ms,
-    middleMultiplier: Math.round(middle.ms / low.ms),
-    highMultiplier: Math.round(high.ms / low.ms),
+  RULER_STEPS_NS.push({
+    low: low.ns,
+    middleMultiplier: middle.ns / low.ns,
+    highMultiplier: high.ns / low.ns,
     labelConverter: high.labelConverter,
     minimumTimeLabelSpaceInPx: high.minimumTimeLabelSpaceInPx,
   });
@@ -155,49 +169,50 @@ for (let i = 0; i < HUMAN_FRIENDLY_STEPS.length - 2; i++) {
  * It tries to find a human-friendly step that fits within the max histogram size.
  *
  * @param maxHistogramSize The maximum number of buckets allowed in the histogram.
- * @param minQueryTime The start time of the query range (ms).
- * @param maxQueryTime The end time of the query range (ms).
- * @returns The selected time span (in ms) for each histogram bucket.
+ * @param minQueryTimeNs The start time of the query range (ns).
+ * @param maxQueryTimeNs The end time of the query range (ns).
+ * @returns The selected time span (in ns) for each histogram bucket.
  */
 export function getMinTimeSpanForHistogram(
   maxHistogramSize: number,
-  minQueryTime: number,
-  maxQueryTime: number,
-): number {
-  const timeSpan = maxQueryTime - minQueryTime;
+  minQueryTimeNs: bigint,
+  maxQueryTimeNs: bigint,
+): bigint {
+  const timeSpanNs = maxQueryTimeNs - minQueryTimeNs;
+  const maxBuckets = BigInt(maxHistogramSize);
   return (
-    RULER_STEPS_MS.find((step) => timeSpan / step.low <= maxHistogramSize)
-      ?.low ?? timeSpan
+    RULER_STEPS_NS.find((step) => timeSpanNs <= step.low * maxBuckets)?.low ??
+    timeSpanNs
   );
 }
 
 /**
- * Returns the time interval between ticks (ms) for the current zoom level.
+ * Returns the time interval between ticks (ns) for the current zoom level.
  *
- * @param pixelsPerMs The current zoom level in pixels per millisecond.
- * @returns The tick time interval in milliseconds.
+ * @param pixelsPerNs The current zoom level in pixels per nanosecond.
+ * @returns The tick time interval in nanoseconds.
  */
-export function getTickTimeMS(
-  pixelsPerMs: number,
+export function getTickTimeNs(
+  pixelsPerNs: number,
   minGridWidthPx: number,
-): number {
-  const step = getRulerStep(pixelsPerMs, minGridWidthPx);
+): bigint {
+  const step = getRulerStep(pixelsPerNs, minGridWidthPx);
   return step.low;
 }
 
 /**
  * Determines the appropriate ruler step (tick interval) based on the zoom level.
  *
- * @param pixelsPerMs The current zoom level in pixels per millisecond.
+ * @param pixelsPerNs The current zoom level in pixels per nanosecond.
  * @returns The selected RulerStepDefinition.
  */
 export function getRulerStep(
-  pixelsPerMs: number,
+  pixelsPerNs: number,
   minGridWidthPx: number,
 ): RulerStepDefinition {
-  const minTimeSpanMS = minGridWidthPx / pixelsPerMs;
+  const minTimeSpanNs = minGridWidthPx / pixelsPerNs;
   return (
-    RULER_STEPS_MS.find((step) => step.low >= minTimeSpanMS) ??
-    RULER_STEPS_MS[RULER_STEPS_MS.length - 1]
+    RULER_STEPS_NS.find((step) => Number(step.low) >= minTimeSpanNs) ??
+    RULER_STEPS_NS[RULER_STEPS_NS.length - 1]
   );
 }

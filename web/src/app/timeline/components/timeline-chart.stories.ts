@@ -57,8 +57,8 @@ interface TimelineChartStoryViewModelReady {
   readonly chartViewModel: TimelineChartViewModel;
   readonly rulerViewModel: TimelineRulerViewModel;
   readonly filteredLogIds: IdBitset;
-  readonly leftEdgeTime: number;
-  readonly pixelsPerMs: number;
+  readonly leftEdgeTime: bigint;
+  readonly pixelsPerNs: number;
   readonly rulerStyle: TimelineRulerStyle;
   readonly chartStyle: TimelineChartStyle;
 }
@@ -91,7 +91,7 @@ class RenderingLoopStarter implements OnInit {
           [rulerViewModel]="vm.rulerViewModel"
           [filteredLogIds]="vm.filteredLogIds"
           [leftEdgeTime]="vm.leftEdgeTime"
-          [pixelsPerMs]="vm.pixelsPerMs"
+          [pixelsPerNs]="vm.pixelsPerNs"
           [rulerStyle]="vm.rulerStyle"
           [chartStyle]="vm.chartStyle"
           [forceNotReadyToRender]="forceNotReadyToRender()"
@@ -117,9 +117,11 @@ class TimelineChartStoriesComponent {
         ready: false,
       };
     }
-    const startTimeMs = mockData.metadata!.header!.startTimeUnixSeconds * 1000;
-    const endTimeMs = mockData.metadata!.header!.endTimeUnixSeconds * 1000;
-    const durationMs = endTimeMs - startTimeMs;
+    const startTimeNs =
+      BigInt(mockData.metadata!.header!.startTimeUnixSeconds) * 1_000_000_000n;
+    const endTimeNs =
+      BigInt(mockData.metadata!.header!.endTimeUnixSeconds) * 1_000_000_000n;
+    const durationNs = endTimeNs - startTimeNs;
 
     const timelines = mockData.timelineStore.timelines.slice(0, 50);
     const logsList = Array.from(mockData.logStore.logs());
@@ -127,8 +129,8 @@ class TimelineChartStoriesComponent {
     const chartViewModel = {
       inspectionDataUniqueID: 'mock-unique-id',
       timelinesInDrawArea: timelines,
-      logBeginTime: startTimeMs,
-      logEndTime: endTimeMs,
+      logBeginTime: startTimeNs,
+      logEndTime: endTimeNs,
       styleStore: mockData.styleStore,
     };
 
@@ -137,23 +139,23 @@ class TimelineChartStoriesComponent {
       mockData.styleStore.severities,
       logsList,
       allLogIds,
-      getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
-      startTimeMs,
-      endTimeMs,
+      getMinTimeSpanForHistogram(10000, startTimeNs, endTimeNs),
+      startTimeNs,
+      endTimeNs,
     );
     const filteredLogsCache = new HistogramCache(
       mockData.styleStore.severities,
       logsList,
       allLogIds,
-      getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
-      startTimeMs,
-      endTimeMs,
+      getMinTimeSpanForHistogram(10000, startTimeNs, endTimeNs),
+      startTimeNs,
+      endTimeNs,
     );
 
     const rulerViewModelBuilder = new RulerViewModelBuilder();
     const rulerViewModel = rulerViewModelBuilder.generateRulerViewModel(
-      startTimeMs,
-      window.innerWidth / (durationMs || 1),
+      startTimeNs,
+      window.innerWidth / (Number(durationNs) || 1),
       window.innerWidth,
       0,
       allLogsCache,
@@ -167,8 +169,8 @@ class TimelineChartStoriesComponent {
       chartViewModel,
       rulerViewModel,
       filteredLogIds,
-      leftEdgeTime: startTimeMs - 5000,
-      pixelsPerMs: window.innerWidth / (durationMs + 10000),
+      leftEdgeTime: startTimeNs - 5_000_000_000n,
+      pixelsPerNs: window.innerWidth / (Number(durationNs) + 10_000_000_000),
       rulerStyle: generateDefaultRulerStyle(mockData.styleStore),
       chartStyle: generateDefaultChartStyle(),
     };
