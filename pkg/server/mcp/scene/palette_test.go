@@ -189,7 +189,7 @@ func TestBuildPaletteRegistry_ValidationErrors(t *testing.T) {
 		{
 			name: "id exceeds max length",
 			entries: []PaletteEntry{{
-				ID:    strings.Repeat("a", maxRoleLabelRunes+1),
+				ID:    strings.Repeat("a", maxPaletteIDRunes+1),
 				Color: "red",
 			}},
 			wantErrSubstrs: []string{"Error: INVALID_ARGUMENT", "exceeds maximum length"},

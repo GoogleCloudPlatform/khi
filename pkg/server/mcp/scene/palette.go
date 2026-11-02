@@ -27,7 +27,7 @@ import (
 
 const (
 	maxScenePaletteEntries = 16
-	maxRoleLabelRunes      = 40
+	maxPaletteIDRunes      = 40
 )
 
 type rgbColor struct {
@@ -76,8 +76,8 @@ func buildPaletteRegistry(entries []PaletteEntry) (*paletteRegistry, *mcpsdk.Cal
 			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.id` is required.", fieldPath))
 			return nil, res
 		}
-		if utf8.RuneCountInString(id) > maxRoleLabelRunes {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.id` exceeds maximum length of %d characters.", fieldPath, maxRoleLabelRunes))
+		if utf8.RuneCountInString(id) > maxPaletteIDRunes {
+			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.id` exceeds maximum length of %d characters.", fieldPath, maxPaletteIDRunes))
 			return nil, res
 		}
 		if _, dup := reg.byID[id]; dup {
