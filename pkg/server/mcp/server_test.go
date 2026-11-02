@@ -18,9 +18,15 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -103,5 +109,88 @@ func TestServerTransportsAndDomainHandler(t *testing.T) {
 				t.Errorf("ListTools() names mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestKHIInvestigationSkillToolsAndResources(t *testing.T) {
+	skillDir := filepath.Join("..", "..", "..", "plugins", "khi", "skills", "khi-investigation")
+	skillPath := filepath.Join(skillDir, "SKILL.md")
+	skillBytes, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) failed: %v", skillPath, err)
+	}
+
+	server := NewServer(
+		NewInspectionHandler(nil, nil),
+		NewWorkbenchHandler(nil, &fakeTimelineImageRenderer{}, nil),
+	)
+	ts := httptest.NewServer(server.HTTPHandler())
+	t.Cleanup(ts.Close)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+
+	session := connectClient(t, ctx, &mcpsdk.StreamableClientTransport{Endpoint: ts.URL})
+
+	toolsRes, err := session.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("session.ListTools() failed: %v", err)
+	}
+	var wantTools []string
+	for _, tl := range toolsRes.Tools {
+		wantTools = append(wantTools, tl.Name)
+	}
+	slices.Sort(wantTools)
+
+	resourcesRes, err := session.ListResources(ctx, nil)
+	if err != nil {
+		t.Fatalf("session.ListResources() failed: %v", err)
+	}
+	templatesRes, err := session.ListResourceTemplates(ctx, nil)
+	if err != nil {
+		t.Fatalf("session.ListResourceTemplates() failed: %v", err)
+	}
+	var wantResources []string
+	for _, r := range resourcesRes.Resources {
+		wantResources = append(wantResources, r.URI)
+	}
+	for _, rt := range templatesRes.ResourceTemplates {
+		wantResources = append(wantResources, rt.URITemplate)
+	}
+	slices.Sort(wantResources)
+
+	toolNamePattern := regexp.MustCompile(`^[a-z]+(_[a-z]+)+$`)
+	var gotTools, gotResources, gotRefs []string
+	for _, span := range md.ExtractInlineCodeSpans(string(skillBytes)) {
+		switch {
+		case toolNamePattern.MatchString(span.Text):
+			gotTools = append(gotTools, span.Text)
+		case strings.HasPrefix(span.Text, "khi://"):
+			gotResources = append(gotResources, span.Text)
+		case strings.HasPrefix(span.Text, "references/"):
+			gotRefs = append(gotRefs, span.Text)
+		}
+	}
+	slices.Sort(gotTools)
+	gotTools = slices.Compact(gotTools)
+	slices.Sort(gotResources)
+	gotResources = slices.Compact(gotResources)
+	slices.Sort(gotRefs)
+	gotRefs = slices.Compact(gotRefs)
+
+	if diff := cmp.Diff(wantTools, gotTools); diff != "" {
+		t.Errorf("SKILL.md tool names mismatch against registered MCP tools (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff(wantResources, gotResources); diff != "" {
+		t.Errorf("SKILL.md resource URIs mismatch against registered MCP resources (-want +got):\n%s", diff)
+	}
+	if len(gotRefs) == 0 {
+		t.Errorf("SKILL.md references no files under references/")
+	}
+	for _, ref := range gotRefs {
+		refPath := filepath.Join(skillDir, filepath.FromSlash(ref))
+		if _, err := os.Stat(refPath); err != nil {
+			t.Errorf("referenced file %q does not exist at %q: %v", ref, refPath, err)
+		}
 	}
 }

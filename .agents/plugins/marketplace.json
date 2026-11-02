@@ -1,0 +1,20 @@
+{
+  "name": "khi",
+  "interface": {
+    "displayName": "Kubernetes History Inspector (KHI)"
+  },
+  "plugins": [
+    {
+      "name": "khi",
+      "source": {
+        "source": "local",
+        "path": "./plugins/khi"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "khi",
+  "description": "Investigate Kubernetes cluster incidents with Kubernetes History Inspector (KHI).",
+  "author": {
+    "name": "KHI Maintainers"
+  },
+  "repository": "https://github.com/GoogleCloudPlatform/khi",
+  "license": "Apache-2.0"
+}
