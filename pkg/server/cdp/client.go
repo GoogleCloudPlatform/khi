@@ -135,12 +135,12 @@ func (c *Client) Evaluate(ctx context.Context, expression string, awaitPromise b
 	return nil
 }
 
-// SetViewportSize overrides the browser device metrics with the specified viewport width and height.
-func (c *Client) SetViewportSize(ctx context.Context, width, height int) error {
+// SetViewportSize overrides the browser device metrics with the specified viewport dimensions and scale factor.
+func (c *Client) SetViewportSize(ctx context.Context, width, height int, deviceScaleFactor float64) error {
 	return c.call(ctx, "Emulation.setDeviceMetricsOverride", map[string]any{
 		"width":             width,
 		"height":            height,
-		"deviceScaleFactor": 1,
+		"deviceScaleFactor": deviceScaleFactor,
 		"mobile":            false,
 	}, nil)
 }

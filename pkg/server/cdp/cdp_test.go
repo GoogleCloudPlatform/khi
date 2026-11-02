@@ -193,7 +193,7 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 		t.Fatalf("client.Navigate() unexpected error = %v", err)
 	}
 
-	if err := client.SetViewportSize(context.Background(), 1600, 480); err != nil {
+	if err := client.SetViewportSize(context.Background(), 1600, 480, 2); err != nil {
 		t.Fatalf("client.SetViewportSize() unexpected error = %v", err)
 	}
 
@@ -225,7 +225,7 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 			Params: map[string]any{
 				"width":             float64(1600),
 				"height":            float64(480),
-				"deviceScaleFactor": float64(1),
+				"deviceScaleFactor": float64(2),
 				"mobile":            false,
 			},
 		},

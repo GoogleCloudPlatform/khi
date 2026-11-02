@@ -143,6 +143,7 @@ export class TimelineFrameComponent implements AfterViewInit {
   private readonly container = viewChild<ElementRef<HTMLElement>>('container');
   private readonly indexSplitArea =
     viewChild<ElementRef<HTMLElement>>('indexSplitArea');
+  private readonly timelineRuler = viewChild(TimelineRulerComponent);
   private readonly timelineCharts = viewChildren(TimelineChartComponent);
 
   /**
@@ -199,6 +200,7 @@ export class TimelineFrameComponent implements AfterViewInit {
         this.currentAction = 'none';
       });
     }
+    this.timelineRuler()?.syncCanvasSize();
     for (const chart of this.timelineCharts()) {
       chart.syncCanvasSize();
       chart.invalidate = true;

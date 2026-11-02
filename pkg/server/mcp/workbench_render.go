@@ -40,22 +40,23 @@ type RenderTimelinesInput struct {
 	TimelineIDs        []string         `json:"timelineIds,omitempty" jsonschema:"Optional list of timeline IDs (from search_timelines or search_logs) to render along with their ancestor hierarchy nodes."`
 	MaxDepth           int              `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
 	MaxNodes           int              `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
-	Width              int              `json:"width,omitempty" jsonschema:"Rendered image width in pixels (default 1600, min 800, max 3840)."`
+	Width              int              `json:"width,omitempty" jsonschema:"Layout viewport width in CSS pixels (default 1600, min 800, max 3840; rendered at 2x Retina resolution when within WebGL size limits)."`
 	TimezoneShiftHours float64          `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
 }
 
 type renderTimelinesTemplateData struct {
-	RenderedCount   int
-	TotalMatched    int
-	HasMore         bool
-	MaxAllowedNodes int
-	Width           int
-	Height          int
-	ViewStartTime   time.Time
-	ViewEndTime     time.Time
-	ImageURL        string
-	ExpiresAt       time.Time
-	Applied         workbench.AppliedFilter
+	RenderedCount     int
+	TotalMatched      int
+	HasMore           bool
+	MaxAllowedNodes   int
+	Width             int
+	Height            int
+	DeviceScaleFactor int
+	ViewStartTime     time.Time
+	ViewEndTime       time.Time
+	ImageURL          string
+	ExpiresAt         time.Time
+	Applied           workbench.AppliedFilter
 }
 
 func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.CallToolRequest, input RenderTimelinesInput) (*mcpsdk.CallToolResult, any, error) {
@@ -94,17 +95,18 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 	grant := h.assetStore.Issue(renderRes.PNGBytes, "image/png", ".png")
 
 	summaryText, err := h.templates.Render("render_timelines.md.tmpl", renderTimelinesTemplateData{
-		RenderedCount:   renderRes.RenderedCount,
-		TotalMatched:    renderRes.TotalMatched,
-		HasMore:         renderRes.HasMore,
-		MaxAllowedNodes: maxRenderMaxNodes,
-		Width:           renderRes.Width,
-		Height:          renderRes.Height,
-		ViewStartTime:   time.UnixMilli(renderRes.ViewStartTimeMs).UTC(),
-		ViewEndTime:     time.UnixMilli(renderRes.ViewEndTimeMs).UTC(),
-		ImageURL:        grant.URL,
-		ExpiresAt:       grant.ExpiresAt,
-		Applied:         applied,
+		RenderedCount:     renderRes.RenderedCount,
+		TotalMatched:      renderRes.TotalMatched,
+		HasMore:           renderRes.HasMore,
+		MaxAllowedNodes:   maxRenderMaxNodes,
+		Width:             renderRes.Width,
+		Height:            renderRes.Height,
+		DeviceScaleFactor: renderRes.DeviceScaleFactor,
+		ViewStartTime:     time.UnixMilli(renderRes.ViewStartTimeMs).UTC(),
+		ViewEndTime:       time.UnixMilli(renderRes.ViewEndTimeMs).UTC(),
+		ImageURL:          grant.URL,
+		ExpiresAt:         grant.ExpiresAt,
+		Applied:           applied,
 	})
 	if err != nil {
 		return nil, nil, err

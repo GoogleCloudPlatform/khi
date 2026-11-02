@@ -15,9 +15,11 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"image/png"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -87,13 +89,62 @@ func newMockCDPRenderer(t *testing.T, respond func(req mockCDPRequest) (resp map
 	return renderer
 }
 
+func TestTimelineDeviceScaleFactor(t *testing.T) {
+	testCases := []struct {
+		name   string
+		width  int
+		height int
+		want   int
+	}{
+		{
+			name:   "default 1600x460 uses 2x Retina scale",
+			width:  1600,
+			height: 460,
+			want:   2,
+		},
+		{
+			name:   "exact 4096 boundary uses 2x Retina scale",
+			width:  1600,
+			height: 4096,
+			want:   2,
+		},
+		{
+			name:   "height 4097 exceeding 8192 physical pixels falls back to 1x",
+			width:  1600,
+			height: 4097,
+			want:   1,
+		},
+		{
+			name:   "width 4097 exceeding 8192 physical pixels falls back to 1x",
+			width:  4097,
+			height: 900,
+			want:   1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := timelineDeviceScaleFactor(tc.width, tc.height)
+			if got != tc.want {
+				t.Errorf("timelineDeviceScaleFactor(%d, %d) = %d, want %d", tc.width, tc.height, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03, 0x04}
 	encodedPNG := base64.StdEncoding.EncodeToString(wantPNG)
 
+	type recordedViewport struct {
+		Width             float64
+		Height            float64
+		DeviceScaleFactor float64
+	}
+
 	var navigatedURLs []string
-	var viewportWidths []float64
-	var viewportHeights []float64
+	var viewports []recordedViewport
+	var applyCallCount int
 
 	renderer := newMockCDPRenderer(t, func(req mockCDPRequest) (map[string]any, bool) {
 		var result any
@@ -113,12 +164,17 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 					"result": map[string]any{"type": "boolean", "value": true},
 				}
 			case strings.Contains(expr, "applyAndMeasure"):
+				applyCallCount++
+				height := 360
+				if applyCallCount == 3 {
+					height = 4500
+				}
 				result = map[string]any{
 					"result": map[string]any{
 						"type": "object",
 						"value": timelineMeasurePayload{
 							Width:           1600,
-							Height:          360,
+							Height:          height,
 							RenderedCount:   6,
 							TotalMatched:    10,
 							HasMore:         true,
@@ -133,12 +189,14 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 				}
 			}
 		case "Emulation.setDeviceMetricsOverride":
-			if w, ok := req.Params["width"].(float64); ok {
-				viewportWidths = append(viewportWidths, w)
-			}
-			if h, ok := req.Params["height"].(float64); ok {
-				viewportHeights = append(viewportHeights, h)
-			}
+			w, _ := req.Params["width"].(float64)
+			h, _ := req.Params["height"].(float64)
+			dsf, _ := req.Params["deviceScaleFactor"].(float64)
+			viewports = append(viewports, recordedViewport{
+				Width:             w,
+				Height:            h,
+				DeviceScaleFactor: dsf,
+			})
 			result = map[string]any{}
 		case "Page.captureScreenshot":
 			result = map[string]any{"data": encodedPNG}
@@ -159,14 +217,15 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 	}
 
 	wantRes := &TimelineRenderResult{
-		PNGBytes:        wantPNG,
-		Width:           1600,
-		Height:          360,
-		RenderedCount:   6,
-		TotalMatched:    10,
-		HasMore:         true,
-		ViewStartTimeMs: 1700000000000,
-		ViewEndTimeMs:   1700003600000,
+		PNGBytes:          wantPNG,
+		Width:             1600,
+		Height:            360,
+		DeviceScaleFactor: 2,
+		RenderedCount:     6,
+		TotalMatched:      10,
+		HasMore:           true,
+		ViewStartTimeMs:   1700000000000,
+		ViewEndTimeMs:     1700003600000,
 	}
 	if diff := cmp.Diff(wantRes, gotFirst); diff != "" {
 		t.Errorf("first RenderTimeline() result mismatch (-want +got):\n%s", diff)
@@ -184,14 +243,41 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 	if diff := cmp.Diff(wantRes, gotSecond); diff != "" {
 		t.Errorf("second RenderTimeline() result mismatch (-want +got):\n%s", diff)
 	}
+
+	// Third call exceeds 4096px height and falls back to 1x scale factor.
+	gotOversized, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
+		InspectionID: "insp-1",
+		MaxNodes:     150,
+		Width:        1600,
+	})
+	if err != nil {
+		t.Fatalf("third RenderTimeline() unexpected error = %v", err)
+	}
+	wantOversized := &TimelineRenderResult{
+		PNGBytes:          wantPNG,
+		Width:             1600,
+		Height:            4500,
+		DeviceScaleFactor: 1,
+		RenderedCount:     6,
+		TotalMatched:      10,
+		HasMore:           true,
+		ViewStartTimeMs:   1700000000000,
+		ViewEndTimeMs:     1700003600000,
+	}
+	if diff := cmp.Diff(wantOversized, gotOversized); diff != "" {
+		t.Errorf("third RenderTimeline() result mismatch (-want +got):\n%s", diff)
+	}
+
 	if diff := cmp.Diff([]string{"http://127.0.0.1:8080/render/timeline"}, navigatedURLs); diff != "" {
 		t.Errorf("navigatedURLs mismatch (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]float64{1600, 1600}, viewportWidths); diff != "" {
-		t.Errorf("viewportWidths mismatch (-want +got):\n%s", diff)
+	wantViewports := []recordedViewport{
+		{Width: 1600, Height: 360, DeviceScaleFactor: 2},
+		{Width: 1600, Height: 360, DeviceScaleFactor: 2},
+		{Width: 1600, Height: 4500, DeviceScaleFactor: 1},
 	}
-	if diff := cmp.Diff([]float64{360, 360}, viewportHeights); diff != "" {
-		t.Errorf("viewportHeights mismatch (-want +got):\n%s", diff)
+	if diff := cmp.Diff(wantViewports, viewports); diff != "" {
+		t.Errorf("viewports mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -276,14 +362,15 @@ func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
 		t.Fatalf("second RenderTimeline() unexpected error = %v", err)
 	}
 	wantRes := &TimelineRenderResult{
-		PNGBytes:        wantPNG,
-		Width:           1200,
-		Height:          240,
-		RenderedCount:   3,
-		TotalMatched:    3,
-		HasMore:         false,
-		ViewStartTimeMs: 1000,
-		ViewEndTimeMs:   2000,
+		PNGBytes:          wantPNG,
+		Width:             1200,
+		Height:            240,
+		DeviceScaleFactor: 2,
+		RenderedCount:     3,
+		TotalMatched:      3,
+		HasMore:           false,
+		ViewStartTimeMs:   1000,
+		ViewEndTimeMs:     2000,
 	}
 	if diff := cmp.Diff(wantRes, got); diff != "" {
 		t.Errorf("second RenderTimeline() result mismatch (-want +got):\n%s", diff)
@@ -643,20 +730,28 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderTimeline() unexpected error = %v", err)
 	}
-	if len(res.PNGBytes) < 8 || string(res.PNGBytes[:8]) != "\x89PNG\r\n\x1a\n" {
-		t.Fatalf("RenderTimeline() did not return valid PNG header, len=%d", len(res.PNGBytes))
+	pngCfg, err := png.DecodeConfig(bytes.NewReader(res.PNGBytes))
+	if err != nil {
+		t.Fatalf("png.DecodeConfig() failed: %v", err)
 	}
 	if res.Height <= 60 {
 		t.Errorf("RenderTimeline() Height = %d, want > 60", res.Height)
 	}
+	if pngCfg.Width != 3200 {
+		t.Errorf("captured PNG width = %d, want 3200 (2x of 1600)", pngCfg.Width)
+	}
+	if pngCfg.Height != res.Height*2 {
+		t.Errorf("captured PNG height = %d, want %d (2x of %d)", pngCfg.Height, res.Height*2, res.Height)
+	}
 	baseTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
 	want := &TimelineRenderResult{
-		Width:           1600,
-		RenderedCount:   22,
-		TotalMatched:    22,
-		HasMore:         false,
-		ViewStartTimeMs: baseTime.UnixMilli(),
-		ViewEndTimeMs:   baseTime.Add(1 * time.Hour).UnixMilli(),
+		Width:             1600,
+		DeviceScaleFactor: 2,
+		RenderedCount:     22,
+		TotalMatched:      22,
+		HasMore:           false,
+		ViewStartTimeMs:   baseTime.UnixMilli(),
+		ViewEndTimeMs:     baseTime.Add(1 * time.Hour).UnixMilli(),
 	}
 	if diff := cmp.Diff(want, res, cmpopts.IgnoreFields(TimelineRenderResult{}, "PNGBytes", "Height")); diff != "" {
 		t.Errorf("RenderTimeline() result mismatch (-want +got):\n%s", diff)

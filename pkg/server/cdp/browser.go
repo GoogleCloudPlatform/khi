@@ -118,6 +118,7 @@ func (b *Browser) start(ctx context.Context) error {
 		"--enable-webgl",
 		"--enable-unsafe-swiftshader",
 		"--hide-scrollbars",
+		"--force-device-scale-factor=2",
 		"--window-size=1600,900",
 		"--remote-debugging-port=0",
 		"--remote-allow-origins=http://127.0.0.1",

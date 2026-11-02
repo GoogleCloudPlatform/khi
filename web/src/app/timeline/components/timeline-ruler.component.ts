@@ -255,13 +255,24 @@ export class TimelineRulerComponent implements AfterViewInit {
   }
 
   /**
+   * Synchronizes the ruler canvas dimensions and device pixel ratio with its container.
+   */
+  public syncCanvasSize(): void {
+    this.handleResize();
+  }
+
+  /**
    * Handles resize events by updating the canvas dimensions to match the container.
+   *
    * The actual resize operation is deferred to the next render frame to avoid
    * flickering and to ensure it runs in the appropriate context.
    */
   private handleResize() {
-    const container = this.container()!.nativeElement;
-    const canvas = this.backgroundCanvas()!.nativeElement;
+    const container = this.container()?.nativeElement;
+    const canvas = this.backgroundCanvas()?.nativeElement;
+    if (!container || !canvas || !this.rulerCanvasRenderer) {
+      return;
+    }
     const style = this.rulerStyle();
     const dpr = window.devicePixelRatio || 1;
     canvas.style.width = `${container.clientWidth}px`;
