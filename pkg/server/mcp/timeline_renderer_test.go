@@ -19,9 +19,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"image/png"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -56,8 +59,68 @@ type mockCDPRequest struct {
 	Params map[string]any `json:"params,omitempty"`
 }
 
-func newMockCDPRenderer(t *testing.T, respond func(req mockCDPRequest) (resp map[string]any, keepOpen bool)) *ChromeTimelineImageRenderer {
+type recordedViewport struct {
+	Width             float64
+	Height            float64
+	DeviceScaleFactor float64
+}
+
+// fakeBridgePollStep defines one scripted outcome for a bridge readiness poll.
+//
+// Evaluates disconnect first, then protocolErrCode/protocolErrMessage, and finally ready.
+type fakeBridgePollStep struct {
+	ready              bool
+	protocolErrCode    int
+	protocolErrMessage string
+	disconnect         bool
+}
+
+// fakeApplyStep defines one scripted outcome for an applyAndMeasure evaluation.
+//
+// Returns a JS exception when exceptionText is non-empty, or measure otherwise.
+type fakeApplyStep struct {
+	measure       timelineMeasurePayload
+	exceptionText string
+}
+
+// fakeTimelineCDPConfig configures scripted step queues for fakeTimelineCDPServer.
+//
+// Once bridgePolls is exhausted, readiness checks default to ready=true; once applySteps is exhausted, extra applyAndMeasure calls fail the test.
+type fakeTimelineCDPConfig struct {
+	bridgePolls   []fakeBridgePollStep
+	applySteps    []fakeApplyStep
+	screenshotPNG []byte
+}
+
+type fakeCDPSessionSnapshot struct {
+	NavigatedURLs        []string
+	BridgePollCount      int
+	Viewports            []recordedViewport
+	RemainingBridgePolls int
+	RemainingApplySteps  int
+}
+
+// fakeTimelineCDPServer simulates the /render/timeline CDP protocol from declarative step queues.
+type fakeTimelineCDPServer struct {
+	t               *testing.T
+	mu              sync.Mutex
+	bridgePolls     []fakeBridgePollStep
+	applySteps      []fakeApplyStep
+	screenshotPNG   []byte
+	navigatedURLs   []string
+	bridgePollCount int
+	viewports       []recordedViewport
+	renderer        *ChromeTimelineImageRenderer
+}
+
+func newFakeTimelineCDPServer(t *testing.T, cfg fakeTimelineCDPConfig) *fakeTimelineCDPServer {
 	t.Helper()
+	srv := &fakeTimelineCDPServer{
+		t:             t,
+		bridgePolls:   slices.Clone(cfg.bridgePolls),
+		applySteps:    slices.Clone(cfg.applySteps),
+		screenshotPNG: slices.Clone(cfg.screenshotPNG),
+	}
 	wsServer := httptest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		for {
 			var raw string
@@ -66,27 +129,131 @@ func newMockCDPRenderer(t *testing.T, respond func(req mockCDPRequest) (resp map
 			}
 			var req mockCDPRequest
 			if err := json.Unmarshal([]byte(raw), &req); err != nil {
+				srv.t.Errorf("failed to unmarshal CDP request %q: %v", raw, err)
 				return
 			}
-			resp, keepOpen := respond(req)
+			resp, keepOpen := srv.handleRequest(req)
 			if !keepOpen {
 				_ = ws.Close()
 				return
 			}
-			resp["id"] = req.ID
 			respBytes, _ := json.Marshal(resp)
 			_ = websocket.Message.Send(ws, string(respBytes))
 		}
 	}))
 	wsURL := "ws" + strings.TrimPrefix(wsServer.URL, "http")
 	browser := cdp.NewBrowserFromPageWSURL(wsURL)
-	renderer := NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
+	srv.renderer = NewChromeTimelineImageRenderer(browser, "http://127.0.0.1:8080")
 	t.Cleanup(func() {
-		_ = renderer.Close()
+		_ = srv.renderer.Close()
 		_ = browser.Close()
 		wsServer.Close()
 	})
-	return renderer
+	return srv
+}
+
+func (s *fakeTimelineCDPServer) snapshot() fakeCDPSessionSnapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return fakeCDPSessionSnapshot{
+		NavigatedURLs:        slices.Clone(s.navigatedURLs),
+		BridgePollCount:      s.bridgePollCount,
+		Viewports:            slices.Clone(s.viewports),
+		RemainingBridgePolls: len(s.bridgePolls),
+		RemainingApplySteps:  len(s.applySteps),
+	}
+}
+
+func (s *fakeTimelineCDPServer) handleRequest(req mockCDPRequest) (map[string]any, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	switch req.Method {
+	case "Page.enable", "Runtime.enable":
+		return cdpResultResponse(req.ID, map[string]any{}), true
+	case "Page.navigate":
+		if u, ok := req.Params["url"].(string); ok {
+			s.navigatedURLs = append(s.navigatedURLs, u)
+		}
+		return cdpResultResponse(req.ID, map[string]any{"frameId": "frame-1"}), true
+	case "Emulation.setDeviceMetricsOverride":
+		w, _ := req.Params["width"].(float64)
+		h, _ := req.Params["height"].(float64)
+		dsf, _ := req.Params["deviceScaleFactor"].(float64)
+		s.viewports = append(s.viewports, recordedViewport{
+			Width:             w,
+			Height:            h,
+			DeviceScaleFactor: dsf,
+		})
+		return cdpResultResponse(req.ID, map[string]any{}), true
+	case "Page.captureScreenshot":
+		return cdpResultResponse(req.ID, map[string]any{
+			"data": base64.StdEncoding.EncodeToString(s.screenshotPNG),
+		}), true
+	case "Runtime.evaluate":
+		return s.handleEvaluateLocked(req)
+	default:
+		s.t.Errorf("unexpected CDP method %q", req.Method)
+		return cdpErrorResponse(req.ID, -32601, "unexpected CDP method: "+req.Method), true
+	}
+}
+
+func (s *fakeTimelineCDPServer) handleEvaluateLocked(req mockCDPRequest) (map[string]any, bool) {
+	expr, _ := req.Params["expression"].(string)
+	switch {
+	case expr == "typeof window.__khiCDPBridge?.timelineRenderer !== 'undefined'":
+		s.bridgePollCount++
+		if len(s.bridgePolls) == 0 {
+			return cdpEvalValueResponse(req.ID, "boolean", true), true
+		}
+		step := s.bridgePolls[0]
+		s.bridgePolls = s.bridgePolls[1:]
+		if step.disconnect {
+			return nil, false
+		}
+		if step.protocolErrCode != 0 || step.protocolErrMessage != "" {
+			return cdpErrorResponse(req.ID, step.protocolErrCode, step.protocolErrMessage), true
+		}
+		return cdpEvalValueResponse(req.ID, "boolean", step.ready), true
+	case strings.HasPrefix(expr, "window.__khiCDPBridge.timelineRenderer.applyAndMeasure("):
+		if len(s.applySteps) == 0 {
+			s.t.Errorf("unexpected applyAndMeasure call with no remaining fakeApplyStep")
+			return cdpErrorResponse(req.ID, -32000, "unexpected applyAndMeasure call with no remaining fakeApplyStep"), true
+		}
+		step := s.applySteps[0]
+		s.applySteps = s.applySteps[1:]
+		if step.exceptionText != "" {
+			return cdpResultResponse(req.ID, map[string]any{
+				"result":           map[string]any{"type": "object"},
+				"exceptionDetails": map[string]any{"text": step.exceptionText},
+			}), true
+		}
+		return cdpEvalValueResponse(req.ID, "object", step.measure), true
+	case expr == "window.__khiCDPBridge.timelineRenderer.waitForStableFrame()":
+		return cdpResultResponse(req.ID, map[string]any{
+			"result": map[string]any{"type": "undefined"},
+		}), true
+	default:
+		s.t.Errorf("unexpected Runtime.evaluate expression %q", expr)
+		return cdpErrorResponse(req.ID, -32601, "unexpected Runtime.evaluate expression: "+expr), true
+	}
+}
+
+func cdpResultResponse(id int, result any) map[string]any {
+	return map[string]any{"id": id, "result": result}
+}
+
+func cdpEvalValueResponse(id int, jsType string, value any) map[string]any {
+	return cdpResultResponse(id, map[string]any{
+		"result": map[string]any{"type": jsType, "value": value},
+	})
+}
+
+func cdpErrorResponse(id int, code int, message string) map[string]any {
+	return map[string]any{
+		"id":    id,
+		"error": map[string]any{"code": code, "message": message},
+	}
 }
 
 func TestTimelineDeviceScaleFactor(t *testing.T) {
@@ -134,89 +301,26 @@ func TestTimelineDeviceScaleFactor(t *testing.T) {
 
 func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03, 0x04}
-	encodedPNG := base64.StdEncoding.EncodeToString(wantPNG)
 
-	type recordedViewport struct {
-		Width             float64
-		Height            float64
-		DeviceScaleFactor float64
+	type renderCallOutcome struct {
+		Result         *TimelineRenderResult
+		HasErr         bool
+		IsTransportErr bool
 	}
 
-	var navigatedURLs []string
-	var viewports []recordedViewport
-	var applyCallCount int
-
-	renderer := newMockCDPRenderer(t, func(req mockCDPRequest) (map[string]any, bool) {
-		var result any
-		switch req.Method {
-		case "Page.enable", "Runtime.enable":
-			result = map[string]any{}
-		case "Page.navigate":
-			if u, ok := req.Params["url"].(string); ok {
-				navigatedURLs = append(navigatedURLs, u)
-			}
-			result = map[string]any{"frameId": "frame-1"}
-		case "Runtime.evaluate":
-			expr, _ := req.Params["expression"].(string)
-			switch {
-			case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
-				result = map[string]any{
-					"result": map[string]any{"type": "boolean", "value": true},
-				}
-			case strings.Contains(expr, "applyAndMeasure"):
-				applyCallCount++
-				height := 360
-				if applyCallCount == 3 {
-					height = 4500
-				}
-				result = map[string]any{
-					"result": map[string]any{
-						"type": "object",
-						"value": timelineMeasurePayload{
-							Width:           1600,
-							Height:          height,
-							RenderedCount:   6,
-							TotalMatched:    10,
-							HasMore:         true,
-							ViewStartTimeMs: 1700000000000,
-							ViewEndTimeMs:   1700003600000,
-						},
-					},
-				}
-			case strings.Contains(expr, "waitForStableFrame"):
-				result = map[string]any{
-					"result": map[string]any{"type": "undefined"},
-				}
-			}
-		case "Emulation.setDeviceMetricsOverride":
-			w, _ := req.Params["width"].(float64)
-			h, _ := req.Params["height"].(float64)
-			dsf, _ := req.Params["deviceScaleFactor"].(float64)
-			viewports = append(viewports, recordedViewport{
-				Width:             w,
-				Height:            h,
-				DeviceScaleFactor: dsf,
-			})
-			result = map[string]any{}
-		case "Page.captureScreenshot":
-			result = map[string]any{"data": encodedPNG}
-		}
-		return map[string]any{"result": result}, true
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	gotFirst, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
-		InspectionID: "insp-1",
-		MaxNodes:     50,
-		Width:        1600,
-	})
-	if err != nil {
-		t.Fatalf("first RenderTimeline() unexpected error = %v", err)
+	standardMeasure := timelineMeasurePayload{
+		Width:           1600,
+		Height:          360,
+		RenderedCount:   6,
+		TotalMatched:    10,
+		HasMore:         true,
+		ViewStartTimeMs: 1700000000000,
+		ViewEndTimeMs:   1700003600000,
 	}
+	oversizedMeasure := standardMeasure
+	oversizedMeasure.Height = 4500
 
-	wantRes := &TimelineRenderResult{
+	standardResult := &TimelineRenderResult{
 		PNGBytes:          wantPNG,
 		Width:             1600,
 		Height:            360,
@@ -227,33 +331,7 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 		ViewStartTimeMs:   1700000000000,
 		ViewEndTimeMs:     1700003600000,
 	}
-	if diff := cmp.Diff(wantRes, gotFirst); diff != "" {
-		t.Errorf("first RenderTimeline() result mismatch (-want +got):\n%s", diff)
-	}
-
-	// Second call reuses the warm page session without re-navigating.
-	gotSecond, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
-		InspectionID: "insp-1",
-		MaxNodes:     25,
-		Width:        1600,
-	})
-	if err != nil {
-		t.Fatalf("second RenderTimeline() unexpected error = %v", err)
-	}
-	if diff := cmp.Diff(wantRes, gotSecond); diff != "" {
-		t.Errorf("second RenderTimeline() result mismatch (-want +got):\n%s", diff)
-	}
-
-	// Third call exceeds 4096px height and falls back to 1x scale factor.
-	gotOversized, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
-		InspectionID: "insp-1",
-		MaxNodes:     150,
-		Width:        1600,
-	})
-	if err != nil {
-		t.Fatalf("third RenderTimeline() unexpected error = %v", err)
-	}
-	wantOversized := &TimelineRenderResult{
+	oversizedResult := &TimelineRenderResult{
 		PNGBytes:          wantPNG,
 		Width:             1600,
 		Height:            4500,
@@ -264,167 +342,152 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 		ViewStartTimeMs:   1700000000000,
 		ViewEndTimeMs:     1700003600000,
 	}
-	if diff := cmp.Diff(wantOversized, gotOversized); diff != "" {
-		t.Errorf("third RenderTimeline() result mismatch (-want +got):\n%s", diff)
-	}
 
-	if diff := cmp.Diff([]string{"http://127.0.0.1:8080/render/timeline"}, navigatedURLs); diff != "" {
-		t.Errorf("navigatedURLs mismatch (-want +got):\n%s", diff)
-	}
-	wantViewports := []recordedViewport{
-		{Width: 1600, Height: 360, DeviceScaleFactor: 2},
-		{Width: 1600, Height: 360, DeviceScaleFactor: 2},
-		{Width: 1600, Height: 4500, DeviceScaleFactor: 1},
-	}
-	if diff := cmp.Diff(wantViewports, viewports); diff != "" {
-		t.Errorf("viewports mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestChromeTimelineImageRenderer_ErrorAndRecoveryWithMockCDP(t *testing.T) {
-	wantPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03, 0x04}
-	encodedPNG := base64.StdEncoding.EncodeToString(wantPNG)
-
-	var applyAttempts int
-	var navigateCount int
-
-	renderer := newMockCDPRenderer(t, func(req mockCDPRequest) (map[string]any, bool) {
-		var result any
-		switch req.Method {
-		case "Page.enable", "Runtime.enable", "Emulation.setDeviceMetricsOverride":
-			result = map[string]any{}
-		case "Page.navigate":
-			navigateCount++
-			result = map[string]any{"frameId": "frame-1"}
-		case "Runtime.evaluate":
-			expr, _ := req.Params["expression"].(string)
-			switch {
-			case strings.Contains(expr, "typeof window.__khiCDPBridge?.timelineRenderer"):
-				result = map[string]any{
-					"result": map[string]any{"type": "boolean", "value": true},
-				}
-			case strings.Contains(expr, "applyAndMeasure"):
-				applyAttempts++
-				if applyAttempts == 1 {
-					result = map[string]any{
-						"result": map[string]any{"type": "object"},
-						"exceptionDetails": map[string]any{
-							"text": "Uncaught Error: Failed to load inspection data",
+	testCases := []struct {
+		name         string
+		cdpConfig    fakeTimelineCDPConfig
+		calls        []TimelineRenderRequest
+		maxElapsed   time.Duration
+		wantOutcomes []renderCallOutcome
+		wantSession  fakeCDPSessionSnapshot
+	}{
+		{
+			name: "reuses warm page session and falls back to 1x scale on oversized height",
+			cdpConfig: fakeTimelineCDPConfig{
+				screenshotPNG: wantPNG,
+				applySteps: []fakeApplyStep{
+					{measure: standardMeasure},
+					{measure: standardMeasure},
+					{measure: oversizedMeasure},
+				},
+			},
+			calls: []TimelineRenderRequest{
+				{InspectionID: "insp-1", MaxNodes: 50, Width: 1600},
+				{InspectionID: "insp-1", MaxNodes: 25, Width: 1600},
+				{InspectionID: "insp-1", MaxNodes: 150, Width: 1600},
+			},
+			wantOutcomes: []renderCallOutcome{
+				{Result: standardResult},
+				{Result: standardResult},
+				{Result: oversizedResult},
+			},
+			wantSession: fakeCDPSessionSnapshot{
+				NavigatedURLs:   []string{"http://127.0.0.1:8080/render/timeline"},
+				BridgePollCount: 1,
+				Viewports: []recordedViewport{
+					{Width: 1600, Height: 360, DeviceScaleFactor: 2},
+					{Width: 1600, Height: 360, DeviceScaleFactor: 2},
+					{Width: 1600, Height: 4500, DeviceScaleFactor: 1},
+				},
+			},
+		},
+		{
+			name: "resets CDP session on JS exception and recovers on subsequent call",
+			cdpConfig: fakeTimelineCDPConfig{
+				screenshotPNG: wantPNG,
+				applySteps: []fakeApplyStep{
+					{exceptionText: "Uncaught Error: Failed to load inspection data"},
+					{
+						measure: timelineMeasurePayload{
+							Width:           1200,
+							Height:          240,
+							RenderedCount:   3,
+							TotalMatched:    3,
+							HasMore:         false,
+							ViewStartTimeMs: 1000,
+							ViewEndTimeMs:   2000,
 						},
-					}
-				} else {
-					result = map[string]any{
-						"result": map[string]any{
-							"type": "object",
-							"value": timelineMeasurePayload{
-								Width:           1200,
-								Height:          240,
-								RenderedCount:   3,
-								TotalMatched:    3,
-								HasMore:         false,
-								ViewStartTimeMs: 1000,
-								ViewEndTimeMs:   2000,
-							},
-						},
-					}
-				}
-			case strings.Contains(expr, "waitForStableFrame"):
-				result = map[string]any{
-					"result": map[string]any{"type": "undefined"},
-				}
-			}
-		case "Page.captureScreenshot":
-			result = map[string]any{"data": encodedPNG}
-		}
-		return map[string]any{"result": result}, true
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// First call fails due to JS exception in applyAndMeasure and resets the CDP session.
-	_, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
-		InspectionID: "insp-fail",
-		MaxNodes:     50,
-		Width:        1200,
-	})
-	if err == nil {
-		t.Fatal("first RenderTimeline() expected error, got nil")
-	}
-
-	// Second call reconnects, re-navigates, and succeeds.
-	got, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
-		InspectionID: "insp-ok",
-		MaxNodes:     50,
-		Width:        1200,
-	})
-	if err != nil {
-		t.Fatalf("second RenderTimeline() unexpected error = %v", err)
-	}
-	wantRes := &TimelineRenderResult{
-		PNGBytes:          wantPNG,
-		Width:             1200,
-		Height:            240,
-		DeviceScaleFactor: 2,
-		RenderedCount:     3,
-		TotalMatched:      3,
-		HasMore:           false,
-		ViewStartTimeMs:   1000,
-		ViewEndTimeMs:     2000,
-	}
-	if diff := cmp.Diff(wantRes, got); diff != "" {
-		t.Errorf("second RenderTimeline() result mismatch (-want +got):\n%s", diff)
-	}
-	if navigateCount != 2 {
-		t.Errorf("navigateCount = %d, want 2", navigateCount)
-	}
-}
-
-func TestChromeTimelineImageRenderer_NavigateTransportErrorFailsFast(t *testing.T) {
-	var evaluatePollCount int
-
-	renderer := newMockCDPRenderer(t, func(req mockCDPRequest) (map[string]any, bool) {
-		switch req.Method {
-		case "Page.enable", "Runtime.enable":
-			return map[string]any{"result": map[string]any{}}, true
-		case "Page.navigate":
-			return map[string]any{"result": map[string]any{"frameId": "frame-1"}}, true
-		case "Runtime.evaluate":
-			evaluatePollCount++
-			if evaluatePollCount == 1 {
-				// Simulate transient CDP protocol error during navigation.
-				return map[string]any{
-					"error": map[string]any{
-						"code":    -32000,
-						"message": "Cannot find context with specified id",
 					},
-				}, true
+				},
+			},
+			calls: []TimelineRenderRequest{
+				{InspectionID: "insp-fail", MaxNodes: 50, Width: 1200},
+				{InspectionID: "insp-ok", MaxNodes: 50, Width: 1200},
+			},
+			wantOutcomes: []renderCallOutcome{
+				{HasErr: true},
+				{
+					Result: &TimelineRenderResult{
+						PNGBytes:          wantPNG,
+						Width:             1200,
+						Height:            240,
+						DeviceScaleFactor: 2,
+						RenderedCount:     3,
+						TotalMatched:      3,
+						HasMore:           false,
+						ViewStartTimeMs:   1000,
+						ViewEndTimeMs:     2000,
+					},
+				},
+			},
+			wantSession: fakeCDPSessionSnapshot{
+				NavigatedURLs: []string{
+					"http://127.0.0.1:8080/render/timeline",
+					"http://127.0.0.1:8080/render/timeline",
+				},
+				BridgePollCount: 2,
+				Viewports: []recordedViewport{
+					{Width: 1200, Height: 240, DeviceScaleFactor: 2},
+				},
+			},
+		},
+		{
+			name: "fails fast on WebSocket disconnect after transient bridge poll error",
+			cdpConfig: fakeTimelineCDPConfig{
+				bridgePolls: []fakeBridgePollStep{
+					{
+						protocolErrCode:    -32000,
+						protocolErrMessage: "Cannot find context with specified id",
+					},
+					{disconnect: true},
+				},
+			},
+			calls: []TimelineRenderRequest{
+				{InspectionID: "insp-crash", MaxNodes: 50, Width: 1200},
+			},
+			maxElapsed: 2 * time.Second,
+			wantOutcomes: []renderCallOutcome{
+				{HasErr: true, IsTransportErr: true},
+			},
+			wantSession: fakeCDPSessionSnapshot{
+				NavigatedURLs:   []string{"http://127.0.0.1:8080/render/timeline"},
+				BridgePollCount: 2,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := newFakeTimelineCDPServer(t, tc.cdpConfig)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			start := time.Now()
+			gotOutcomes := make([]renderCallOutcome, 0, len(tc.calls))
+			for i, call := range tc.calls {
+				res, err := fake.renderer.RenderTimeline(ctx, call)
+				if err != nil {
+					t.Logf("call[%d] returned error: %v", i, err)
+				}
+				var transportErr *cdp.TransportError
+				gotOutcomes = append(gotOutcomes, renderCallOutcome{
+					Result:         res,
+					HasErr:         err != nil,
+					IsTransportErr: errors.As(err, &transportErr),
+				})
 			}
-			// On second poll, close the WebSocket connection to simulate browser crash / disconnect.
-			return nil, false
-		default:
-			return map[string]any{"result": map[string]any{}}, true
-		}
-	})
+			elapsed := time.Since(start)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	start := time.Now()
-	_, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
-		InspectionID: "insp-crash",
-		MaxNodes:     50,
-		Width:        1200,
-	})
-	elapsed := time.Since(start)
-	if err == nil {
-		t.Fatal("RenderTimeline() expected transport error, got nil")
-	}
-	if elapsed >= 2*time.Second {
-		t.Errorf("RenderTimeline() took %v on transport disconnect, want fast failure (<2s)", elapsed)
-	}
-	if evaluatePollCount != 2 {
-		t.Errorf("evaluatePollCount = %d, want 2 (1 transient protocol error + 1 transport disconnect)", evaluatePollCount)
+			if tc.maxElapsed > 0 && elapsed >= tc.maxElapsed {
+				t.Errorf("RenderTimeline() took %v, want fast failure (<%v)", elapsed, tc.maxElapsed)
+			}
+			if diff := cmp.Diff(tc.wantOutcomes, gotOutcomes); diff != "" {
+				t.Errorf("RenderTimeline() outcomes mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantSession, fake.snapshot()); diff != "" {
+				t.Errorf("CDP session snapshot mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
