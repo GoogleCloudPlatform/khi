@@ -39,8 +39,10 @@ func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 		l := &wb.searchIndex.Logs[i]
 		l.SummaryStringID = pool.InternString(fmt.Sprintf("summary-%d", l.ID)).ID()
 	}
-	// Log ID 2 is stored at index 1.
+	// Log ID 1 is stored at index 0; Log ID 2 is stored at index 1.
+	wb.searchIndex.Logs[0].BodyStructID = internTestYAML(t, pool, "insertId: ins-log-1\nseverity: INFO\nmessage: Pod scheduled\n")
 	wb.searchIndex.Logs[1].BodyStructID = internTestYAML(t, pool, testLogBodyYAML)
+	wb.searchIndex.Logs[2].BodyStructID = internTestYAML(t, pool, "insertId: 12345\nmessage: non-string insertId\n")
 
 	wb.internPool = khifilev6model.NewReadonlyInternPool()
 	wb.searchIndex.InternPool = wb.internPool
@@ -377,6 +379,71 @@ func TestGetLogDetail(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("GetLogDetail() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetLogQueryMetadata(t *testing.T) {
+	testCases := []struct {
+		name         string
+		logID        uint32
+		wantInsertID string
+		wantTime     time.Time
+		wantOK       bool
+	}{
+		{
+			name:         "returns top-level insertId and UTC timestamp",
+			logID:        1,
+			wantInsertID: "ins-log-1",
+			wantTime:     time.Unix(0, 1000).UTC(),
+			wantOK:       true,
+		},
+		{
+			name:         "returns empty insertId when log body has no insertId field",
+			logID:        2,
+			wantInsertID: "",
+			wantTime:     time.Unix(0, 2000).UTC(),
+			wantOK:       true,
+		},
+		{
+			name:         "returns empty insertId when insertId field is non-string",
+			logID:        3,
+			wantInsertID: "",
+			wantTime:     time.Unix(0, 3000).UTC(),
+			wantOK:       true,
+		},
+		{
+			name:         "returns empty insertId when log has zero BodyStructID",
+			logID:        4,
+			wantInsertID: "",
+			wantTime:     time.Unix(0, 4000).UTC(),
+			wantOK:       true,
+		},
+		{
+			name:   "returns false for zero logID",
+			logID:  0,
+			wantOK: false,
+		},
+		{
+			name:   "returns false for non-existent logID",
+			logID:  999,
+			wantOK: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb := setupTimelineLogsTestWorkbench(t)
+			gotInsertID, gotTime, gotOK := wb.GetLogQueryMetadata(tc.logID)
+			if gotOK != tc.wantOK {
+				t.Fatalf("GetLogQueryMetadata(%d) ok = %v, want %v", tc.logID, gotOK, tc.wantOK)
+			}
+			if gotInsertID != tc.wantInsertID {
+				t.Errorf("GetLogQueryMetadata(%d) insertID = %q, want %q", tc.logID, gotInsertID, tc.wantInsertID)
+			}
+			if !gotTime.Equal(tc.wantTime) {
+				t.Errorf("GetLogQueryMetadata(%d) ts = %v, want %v", tc.logID, gotTime, tc.wantTime)
 			}
 		})
 	}

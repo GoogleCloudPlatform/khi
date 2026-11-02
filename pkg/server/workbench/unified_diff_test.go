@@ -215,24 +215,24 @@ func TestDiffLines(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ops := diffLines(tc.a, tc.b)
+			ops := DiffLines(tc.a, tc.b)
 			var gotOld, gotNew []string
 			for _, op := range ops {
-				if op.kind != diffOpInsert {
-					gotOld = append(gotOld, op.line)
+				if op.Kind != DiffOpInsert {
+					gotOld = append(gotOld, op.Line)
 				}
-				if op.kind != diffOpDelete {
-					gotNew = append(gotNew, op.line)
+				if op.Kind != DiffOpDelete {
+					gotNew = append(gotNew, op.Line)
 				}
 			}
 			if diff := cmp.Diff(tc.a, gotOld); diff != "" {
-				t.Errorf("diffLines() old side mismatch (-want +got):\n%s", diff)
+				t.Errorf("DiffLines() old side mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.b, gotNew); diff != "" {
-				t.Errorf("diffLines() new side mismatch (-want +got):\n%s", diff)
+				t.Errorf("DiffLines() new side mismatch (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.wantChanges, countOps(ops)); diff != "" {
-				t.Errorf("diffLines() changes mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.wantChanges, CountDiffOps(ops)); diff != "" {
+				t.Errorf("DiffLines() changes mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
