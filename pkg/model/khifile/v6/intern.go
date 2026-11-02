@@ -158,7 +158,10 @@ type InternPool struct {
 	unflushedStructIDs []uint32
 }
 
-var _ ReadonlyPool = (*InternPool)(nil)
+var (
+	_ ReadonlyPool = (*InternPool)(nil)
+	_ flatSpanPool = (*InternPool)(nil)
+)
 
 // NewInternPool creates a new client InternPool with the given IDGenerator and Writer.
 func NewInternPool(idGen *id.Generator, writer *Writer) *InternPool {
@@ -556,6 +559,25 @@ func (p *InternPool) flushLocked() error {
 // It returns nil if the ID is not found.
 func (p *InternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
 	return p.resolveStructFromID(id)
+}
+
+// ResolveStructStringField resolves the string value at fieldPath in structID without materializing the struct AST.
+//
+// Falls back to parentPool when structID is not stored in this pool, and returns ("", false) when missing or non-string.
+func (p *InternPool) ResolveStructStringField(structID uint32, fieldPath ...string) (string, bool) {
+	return resolveStructStringField(p, structID, fieldPath)
+}
+
+func (p *InternPool) resolveFlatStructSpan(structID uint32) (flatSpanPool, *FlatStructStore, uint32, uint32, uint32, bool) {
+	for cur := p; cur != nil; cur = cur.parentPool {
+		if cur.flatStructs == nil {
+			continue
+		}
+		if fieldSetID, offset, count, ok := cur.flatStructs.GetValueSpan(structID); ok {
+			return cur, cur.flatStructs, fieldSetID, offset, count, true
+		}
+	}
+	return nil, nil, 0, 0, 0, false
 }
 
 // resolveStructFromID returns the InternedStruct corresponding to the given ID.

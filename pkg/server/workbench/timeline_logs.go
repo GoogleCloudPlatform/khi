@@ -24,7 +24,6 @@ import (
 	"time"
 
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/RoaringBitmap/roaring/v2"
 )
@@ -320,29 +319,6 @@ func (w *Workbench) GetLogQueryMetadata(logID uint32) (insertID string, ts time.
 	if l == nil || l.ID == 0 {
 		return "", time.Time{}, false
 	}
-	return resolveTopLevelStringField(index.InternPool, l.BodyStructID, "insertId"), logTime(l), true
-}
-
-func resolveTopLevelStringField(pool *khifilev6model.ReadonlyInternPool, structID uint32, fieldName string) string {
-	if structID == 0 {
-		return ""
-	}
-	store := pool.FlatStructStore()
-	fieldSetID, offset, count, ok := store.GetValueSpan(structID)
-	if !ok {
-		return ""
-	}
-	fieldStringIDs := pool.ResolveFieldSetFromID(fieldSetID)
-	limit := min(uint32(len(fieldStringIDs)), count)
-	for i := range limit {
-		if pool.ResolveStringFromID(fieldStringIDs[i]) != fieldName {
-			continue
-		}
-		kind, data, _ := store.GetRawValueAt(offset + i)
-		if kind == khifilev6model.FlatValueKindStringID {
-			return pool.ResolveStringFromID(uint32(data))
-		}
-		return ""
-	}
-	return ""
+	insertID, _ = index.InternPool.ResolveStructStringField(l.BodyStructID, "insertId")
+	return insertID, logTime(l), true
 }

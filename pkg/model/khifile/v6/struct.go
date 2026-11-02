@@ -363,3 +363,89 @@ func FromInternedValue(v *pb.InternedValue, pool ReadonlyPool) (structured.Node,
 		return nil, fmt.Errorf("unknown InternedValue kind: %T", kind)
 	}
 }
+
+// flatSpanPool extends ReadonlyPool with direct FlatStructStore span lookup so path slices never escape through interface calls.
+type flatSpanPool interface {
+	ReadonlyPool
+	resolveFlatStructSpan(structID uint32) (owner flatSpanPool, store *FlatStructStore, fieldSetID uint32, offset uint32, count uint32, ok bool)
+}
+
+// resolveStructStringField walks FlatStructStore spans iteratively to resolve the string value at segments without heap allocations.
+//
+// Supports both '\x00'-flattened keys produced by ToInternedStruct and nested StructID or inline StructValue entries.
+func resolveStructStringField(pool flatSpanPool, structID uint32, segments []string) (string, bool) {
+	if structID == 0 || len(segments) == 0 {
+		return "", false
+	}
+	curPool, store, fieldSetID, offset, count, ok := pool.resolveFlatStructSpan(structID)
+	if !ok {
+		return "", false
+	}
+	for {
+		fieldStringIDs := curPool.ResolveFieldSetFromID(fieldSetID)
+		limit := min(uint32(len(fieldStringIDs)), count)
+		advanced := false
+		for i := range limit {
+			matched, matchedOK := matchFieldKeySegments(curPool.ResolveStringFromID(fieldStringIDs[i]), segments)
+			if !matchedOK {
+				continue
+			}
+			kind, data, aux := store.GetRawValueAt(offset + i)
+			if matched == len(segments) {
+				if kind == FlatValueKindStringID {
+					return curPool.ResolveStringFromID(uint32(data)), true
+				}
+				return "", false
+			}
+			segments = segments[matched:]
+			switch kind {
+			case FlatValueKindStructID:
+				nestedID := uint32(data)
+				if nestedID == 0 {
+					return "", false
+				}
+				curPool, store, fieldSetID, offset, count, ok = pool.resolveFlatStructSpan(nestedID)
+				if !ok {
+					return "", false
+				}
+				advanced = true
+			case FlatValueKindStructValue:
+				fieldSetID = aux
+				count = uint32(data >> 32)
+				offset = uint32(data & 0xFFFFFFFF)
+				advanced = true
+			default:
+				return "", false
+			}
+			break
+		}
+		if !advanced {
+			return "", false
+		}
+	}
+}
+
+// matchFieldKeySegments matches a '\x00'-delimited field key against leading elements of segments without allocating.
+//
+// Returns the number of matched segments (1 <= matched <= len(segments)) when every part of key matches.
+func matchFieldKeySegments(key string, segments []string) (int, bool) {
+	matched := 0
+	for {
+		if matched >= len(segments) {
+			return 0, false
+		}
+		seg := segments[matched]
+		sepIdx := strings.IndexByte(key, fieldPathSeparator[0])
+		if sepIdx < 0 {
+			if key != seg {
+				return 0, false
+			}
+			return matched + 1, true
+		}
+		if key[:sepIdx] != seg {
+			return 0, false
+		}
+		key = key[sepIdx+1:]
+		matched++
+	}
+}
