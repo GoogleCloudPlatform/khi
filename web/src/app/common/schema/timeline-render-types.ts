@@ -109,7 +109,7 @@ export interface TimelineExcerptLine {
 }
 
 /**
- * Resolved vertical event pin (V1) or global reference line (V2).
+ * Resolved vertical event pin or global reference line.
  */
 export interface TimelineResolvedMarker {
   readonly id: string;
@@ -125,7 +125,7 @@ export interface TimelineResolvedMarker {
 }
 
 /**
- * Resolved full-height or row-scoped time-range band (V4).
+ * Resolved full-height or row-scoped time-range band.
  */
 export interface TimelineResolvedSpan {
   readonly id: string;
@@ -139,7 +139,7 @@ export interface TimelineResolvedSpan {
 }
 
 /**
- * Resolved focal resource subtree highlight and left-gutter role badge (V6).
+ * Resolved focal resource subtree highlight and left-gutter role badge.
  */
 export interface TimelineResolvedRowHighlight {
   readonly id: string;
@@ -149,7 +149,7 @@ export interface TimelineResolvedRowHighlight {
 }
 
 /**
- * Resolved resource diff card (V7) or structured log card (V8) in the bottom evidence deck.
+ * Resolved resource diff card or structured log card in the bottom evidence deck.
  */
 export interface TimelineResolvedExcerptCard {
   readonly id: string;
@@ -171,7 +171,7 @@ export interface TimelineResolvedExcerptCard {
 }
 
 /**
- * Resolved causal arrow or horizontal duration caliper between two timeline anchors (V5).
+ * Resolved causal arrow or horizontal duration caliper between two timeline anchors.
  */
 export interface TimelineResolvedConnector {
   readonly id: string;
@@ -186,7 +186,7 @@ export interface TimelineResolvedConnector {
 }
 
 /**
- * Resolved compact single-line inline callout card on the timeline chart (V3).
+ * Resolved compact single-line inline callout card on the timeline chart.
  */
 export interface TimelineResolvedCallout {
   readonly id: string;
