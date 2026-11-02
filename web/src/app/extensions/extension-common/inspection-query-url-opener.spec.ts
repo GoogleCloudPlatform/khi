@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { signal } from '@angular/core';
+import { WritableSignal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { InspectionQueryUrlOpener } from 'src/app/extensions/extension-common/inspection-query-url-opener';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
@@ -29,9 +29,13 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 describe('InspectionQueryUrlOpener', () => {
   const fakeRevision0 = {
     id: 100,
+    timelineId: 3,
+    index: 0,
   } as unknown as ReadonlyDomainElement<Revision>;
   const fakeRevision1 = {
     id: 101,
+    timelineId: 3,
+    index: 1,
   } as unknown as ReadonlyDomainElement<Revision>;
   const fakeTimeline = {
     id: 3,
@@ -39,14 +43,35 @@ describe('InspectionQueryUrlOpener', () => {
   } as unknown as ReadonlyDomainElement<Timeline>;
   const fakeLog = { id: 42 } as unknown as ReadonlyDomainElement<Log>;
 
+  let inspectionIdSignal: WritableSignal<string | null>;
+  let inspectionDataSignal: WritableSignal<InspectionData | null>;
+  let timelineViewSignal: WritableSignal<TimelineView | null>;
+  let timelineQuerySignal: WritableSignal<string>;
+  let logQuerySignal: WritableSignal<string>;
+  let selectedTimelineSignal: WritableSignal<ReadonlyDomainElement<Timeline> | null>;
+  let selectedRevisionSignal: WritableSignal<ReadonlyDomainElement<Revision> | null>;
+  let selectedLogSignal: WritableSignal<ReadonlyDomainElement<Log> | null>;
+  let fakeData: InspectionData;
+  let fakeTimelineView: TimelineView;
+
   let mockLoader: jasmine.SpyObj<InspectionDataLoaderService>;
   let mockSelectionManager: jasmine.SpyObj<SelectionManager>;
 
   beforeEach(() => {
-    const inspectionDataSignal = signal<InspectionData | null>(null);
-    const timelineViewSignal = signal<TimelineView | null>(null);
+    inspectionIdSignal = signal<string | null>(null);
+    inspectionDataSignal = signal<InspectionData | null>(null);
+    timelineViewSignal = signal<TimelineView | null>(null);
+    timelineQuerySignal = signal<string>('');
+    logQuerySignal = signal<string>('');
+    selectedTimelineSignal = signal<ReadonlyDomainElement<Timeline> | null>(
+      null,
+    );
+    selectedRevisionSignal = signal<ReadonlyDomainElement<Revision> | null>(
+      null,
+    );
+    selectedLogSignal = signal<ReadonlyDomainElement<Log> | null>(null);
 
-    const fakeData = {
+    fakeData = {
       timelineStore: {
         getTimeline: (id: number) => {
           if (id === 3) {
@@ -65,27 +90,68 @@ describe('InspectionQueryUrlOpener', () => {
       },
     } as unknown as InspectionData;
 
-    const fakeTimelineView = {
+    fakeTimelineView = {
       expandAllTimelines: jasmine.createSpy('expandAllTimelines'),
+      timelineQuery: timelineQuerySignal,
+      logQuery: logQuerySignal,
       backendFilter: {
-        updateFilterParams: jasmine.createSpy('updateFilterParams'),
+        updateFilterParams: jasmine
+          .createSpy('updateFilterParams')
+          .and.callFake(
+            (params: { timelineQuery?: string; logQuery?: string }) => {
+              if (params.timelineQuery !== undefined) {
+                timelineQuerySignal.set(params.timelineQuery);
+              }
+              if (params.logQuery !== undefined) {
+                logQuerySignal.set(params.logQuery);
+              }
+            },
+          ),
       },
     } as unknown as TimelineView;
 
     mockLoader = jasmine.createSpyObj('InspectionDataLoaderService', [
       'loadInspectionDataFromBackend',
     ]);
-    mockLoader.loadInspectionDataFromBackend.and.callFake(async () => {
-      inspectionDataSignal.set(fakeData);
-      timelineViewSignal.set(fakeTimelineView);
-    });
+    mockLoader.loadInspectionDataFromBackend.and.callFake(
+      async (id: string) => {
+        inspectionIdSignal.set(id);
+        inspectionDataSignal.set(fakeData);
+        timelineViewSignal.set(fakeTimelineView);
+      },
+    );
 
-    mockSelectionManager = jasmine.createSpyObj('SelectionManager', [
-      'onSelectRevision',
-      'onSelectTimeline',
-      'onSelectLog',
-    ]);
-    mockSelectionManager.onSelectLog.and.resolveTo();
+    mockSelectionManager = jasmine.createSpyObj(
+      'SelectionManager',
+      ['onSelectRevision', 'onSelectTimeline', 'onSelectLog'],
+      {
+        selectedTimeline: selectedTimelineSignal,
+        selectedRevision: selectedRevisionSignal,
+        selectedLog: selectedLogSignal,
+      },
+    );
+    mockSelectionManager.onSelectRevision.and.callFake(
+      (rev: ReadonlyDomainElement<Revision> | null) => {
+        selectedRevisionSignal.set(rev);
+        if (rev) {
+          selectedTimelineSignal.set(fakeTimeline);
+        }
+      },
+    );
+    mockSelectionManager.onSelectTimeline.and.callFake(
+      (timeline?: ReadonlyDomainElement<Timeline> | null) => {
+        selectedTimelineSignal.set(timeline ?? null);
+        if (!timeline) {
+          selectedRevisionSignal.set(null);
+          selectedLogSignal.set(null);
+        }
+      },
+    );
+    mockSelectionManager.onSelectLog.and.callFake(
+      async (log: ReadonlyDomainElement<Log> | null) => {
+        selectedLogSignal.set(log);
+      },
+    );
 
     TestBed.configureTestingModule({
       providers: [
@@ -93,6 +159,7 @@ describe('InspectionQueryUrlOpener', () => {
         {
           provide: InspectionDataStore,
           useValue: {
+            inspectionId: inspectionIdSignal,
             inspectionData: inspectionDataSignal,
             timelineView: timelineViewSignal,
           },
@@ -110,13 +177,18 @@ describe('InspectionQueryUrlOpener', () => {
   });
 
   it('loads inspection and selects target revision when timelineId and revisionIndex are provided', async () => {
+    let currentSearch = '?inspectionId=insp-1&timelineId=3&revisionIndex=1';
     const opener = new InspectionQueryUrlOpener(
-      () => '?inspectionId=insp-1&timelineId=3&revisionIndex=1',
+      () => currentSearch,
+      (next) => {
+        currentSearch = next;
+      },
     );
     const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
     expect(opened).toBeTrue();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.flushEffects();
 
     expect(mockLoader.loadInspectionDataFromBackend).toHaveBeenCalledWith(
       'insp-1',
@@ -124,33 +196,99 @@ describe('InspectionQueryUrlOpener', () => {
     expect(mockSelectionManager.onSelectRevision).toHaveBeenCalledWith(
       fakeRevision1,
     );
+    expect(currentSearch).toBe(
+      '?inspectionId=insp-1&timelineId=3&revisionIndex=1',
+    );
   });
 
   it('loads inspection and selects target log when logId is provided', async () => {
+    let currentSearch = '?inspectionId=insp-1&timelineId=3&logId=42';
     const opener = new InspectionQueryUrlOpener(
-      () => '?inspectionId=insp-1&timelineId=3&logId=42',
+      () => currentSearch,
+      (next) => {
+        currentSearch = next;
+      },
     );
     const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
     expect(opened).toBeTrue();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.flushEffects();
 
     expect(mockSelectionManager.onSelectTimeline).toHaveBeenCalledWith(
       fakeTimeline,
     );
     expect(mockSelectionManager.onSelectLog).toHaveBeenCalledWith(fakeLog);
+    expect(currentSearch).toBe('?inspectionId=insp-1&timelineId=3&logId=42');
   });
 
   it('ignores non-decimal numeric strings in timelineId and logId query parameters', async () => {
+    let currentSearch = '?inspectionId=insp-1&timelineId=0x3&logId=1e1';
     const opener = new InspectionQueryUrlOpener(
-      () => '?inspectionId=insp-1&timelineId=0x3&logId=1e1',
+      () => currentSearch,
+      (next) => {
+        currentSearch = next;
+      },
     );
     const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
     expect(opened).toBeTrue();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.flushEffects();
 
     expect(mockSelectionManager.onSelectTimeline).not.toHaveBeenCalled();
     expect(mockSelectionManager.onSelectLog).not.toHaveBeenCalled();
+    expect(currentSearch).toBe('?inspectionId=insp-1');
+  });
+
+  it('synchronizes inspection, selection, and filter changes back to URL query parameters', () => {
+    let currentSearch = '';
+    const opener = new InspectionQueryUrlOpener(
+      () => currentSearch,
+      (next) => {
+        currentSearch = next;
+      },
+    );
+    const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
+    expect(opened).toBeFalse();
+
+    inspectionIdSignal.set('insp-sync');
+    inspectionDataSignal.set(fakeData);
+    timelineViewSignal.set(fakeTimelineView);
+    TestBed.flushEffects();
+    expect(currentSearch).toBe('?inspectionId=insp-sync');
+
+    selectedTimelineSignal.set(fakeTimeline);
+    TestBed.flushEffects();
+    expect(currentSearch).toBe('?inspectionId=insp-sync&timelineId=3');
+
+    selectedRevisionSignal.set(fakeRevision1);
+    TestBed.flushEffects();
+    expect(currentSearch).toBe(
+      '?inspectionId=insp-sync&timelineId=3&revisionIndex=1',
+    );
+
+    selectedRevisionSignal.set(null);
+    selectedLogSignal.set(fakeLog);
+    TestBed.flushEffects();
+    expect(currentSearch).toBe('?inspectionId=insp-sync&timelineId=3&logId=42');
+
+    timelineQuerySignal.set('match("Pod")');
+    logQuerySignal.set('severity >= ERROR');
+    TestBed.flushEffects();
+    const params = new URLSearchParams(currentSearch);
+    expect(params.get('inspectionId')).toBe('insp-sync');
+    expect(params.get('timelineQuery')).toBe('match("Pod")');
+    expect(params.get('logQuery')).toBe('severity >= ERROR');
+    expect(params.get('timelineId')).toBe('3');
+    expect(params.get('logId')).toBe('42');
+    expect(params.get('revisionIndex')).toBeNull();
+
+    selectedLogSignal.set(null);
+    selectedTimelineSignal.set(null);
+    timelineQuerySignal.set('');
+    logQuerySignal.set('');
+    TestBed.flushEffects();
+    expect(currentSearch).toBe('?inspectionId=insp-sync');
   });
 });
