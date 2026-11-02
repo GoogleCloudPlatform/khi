@@ -60,7 +60,10 @@ export const SessionHostGuard = (route: ActivatedRouteSnapshot) => {
   async function createAvailableSession() {
     let currentSessionId = sessionId;
     let changed = false;
-    if (!(await connector.createSession(currentSessionId))) {
+    while (
+      !(await connector.createSession(currentSessionId)) &&
+      currentSessionId < sessionId + 20
+    ) {
       currentSessionId++;
       changed = true;
     }
@@ -68,6 +71,7 @@ export const SessionHostGuard = (route: ActivatedRouteSnapshot) => {
       const hash = location.hash.substring(1);
       guardResult.next(
         router.createUrlTree(['session', currentSessionId], {
+          queryParams: route.queryParams,
           fragment: hash === '' ? undefined : hash,
         }),
       );
