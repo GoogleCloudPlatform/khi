@@ -28,6 +28,8 @@ import (
 const (
 	maxScenePaletteEntries = 16
 	maxPaletteIDRunes      = 40
+	lightOnMainHex         = "#fafafa"
+	darkOnMainHex          = "#212121"
 )
 
 type rgbColor struct {
@@ -36,18 +38,23 @@ type rgbColor struct {
 	b uint8
 }
 
-var presetPaletteColors = map[string]rgbColor{
-	"blue":   {0x19, 0x76, 0xd2},
-	"amber":  {0xb4, 0x53, 0x09},
-	"red":    {0xd3, 0x2f, 0x2f},
-	"green":  {0x2e, 0x7d, 0x32},
-	"purple": {0x5e, 0x35, 0xb1},
-	"teal":   {0x00, 0x79, 0x6b},
-	"indigo": {0x39, 0x49, 0xab},
-	"pink":   {0xc2, 0x18, 0x5b},
-	"brown":  {0x5d, 0x40, 0x37},
-	"slate":  {0x54, 0x6e, 0x7a},
+var presetPaletteColors = map[string]string{
+	"blue":   "#1976d2",
+	"amber":  "#b45309",
+	"red":    "#d32f2f",
+	"green":  "#2e7d32",
+	"purple": "#5e35b1",
+	"teal":   "#00796b",
+	"indigo": "#3949ab",
+	"pink":   "#c2185b",
+	"brown":  "#5d4037",
+	"slate":  "#546e7a",
 }
+
+var (
+	lightOnMainLuminance = relativeLuminance(mustParseHexColor(lightOnMainHex))
+	darkOnMainLuminance  = relativeLuminance(mustParseHexColor(darkOnMainHex))
+)
 
 type paletteRegistry struct {
 	ordered       []ResolvedPaletteColors
@@ -127,9 +134,13 @@ func validateExplicitPaletteID(reg *paletteRegistry, fieldPath, rawID string) (s
 
 func parsePaletteColor(raw string) (rgbColor, bool) {
 	s := strings.ToLower(strings.TrimSpace(raw))
-	if preset, ok := presetPaletteColors[s]; ok {
-		return preset, true
+	if presetHex, ok := presetPaletteColors[s]; ok {
+		return parseHexColor(presetHex)
 	}
+	return parseHexColor(s)
+}
+
+func parseHexColor(s string) (rgbColor, bool) {
 	if len(s) != 7 || s[0] != '#' {
 		return rgbColor{}, false
 	}
@@ -142,14 +153,20 @@ func parsePaletteColor(raw string) (rgbColor, bool) {
 	return rgbColor{r: uint8(r), g: uint8(g), b: uint8(b)}, true
 }
 
+func mustParseHexColor(s string) rgbColor {
+	c, ok := parseHexColor(s)
+	if !ok {
+		panic(fmt.Sprintf("invalid hex color constant %q", s))
+	}
+	return c
+}
+
 func derivePaletteColors(id string, c rgbColor) ResolvedPaletteColors {
 	main := fmt.Sprintf("#%02x%02x%02x", c.r, c.g, c.b)
 	lum := relativeLuminance(c)
-	contrastLight := contrastRatio(lum, relativeLuminance(rgbColor{0xfa, 0xfa, 0xfa}))
-	contrastDark := contrastRatio(lum, relativeLuminance(rgbColor{0x21, 0x21, 0x21}))
-	onMain := "#fafafa"
-	if contrastDark > contrastLight {
-		onMain = "#212121"
+	onMain := lightOnMainHex
+	if contrastRatio(lum, darkOnMainLuminance) > contrastRatio(lum, lightOnMainLuminance) {
+		onMain = darkOnMainHex
 	}
 
 	blendSurface := func(ch uint8) uint8 {

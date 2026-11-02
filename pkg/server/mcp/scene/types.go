@@ -33,14 +33,14 @@ type Annotations struct {
 	ClearLayers     []string              `json:"clearLayers,omitempty" jsonschema:"Optional layer names to clear from parentSceneId before adding items: 'palette', 'markers', 'spans', 'rowHighlights', 'diffExcerpts', 'logExcerpts', 'connectors', 'callouts', or 'all'."`
 	RemoveIDs       []string              `json:"removeIds,omitempty" jsonschema:"Optional badges, labels, or palette entry IDs (e.g. 'E2', 'ALERT', 'trigger') to remove from parentSceneId."`
 	Palette         []PaletteEntry        `json:"palette,omitempty" jsonschema:"Named color definitions shared across markers, spans, rowHighlights, connectors, callouts, and evidence deck cards via paletteId (max 16)."`
-	Markers         []MarkerAnnotation    `json:"markers,omitempty" jsonschema:"V1/V2: Vertical indicator lines with auto-staggered callout pills in the top annotation band (max 12)."`
-	Spans           []SpanAnnotation      `json:"spans,omitempty" jsonschema:"V4: Time-range bands across the full chart or scoped via timelineQuery/timelineIds, including hatched missing-log gaps (max 6)."`
-	RowHighlights   []RowHighlight        `json:"rowHighlights,omitempty" jsonschema:"V6: Highlights focal resource subtrees via timelineQuery or timelineIds with left-gutter role badges."`
+	Markers         []MarkerAnnotation    `json:"markers,omitempty" jsonschema:"Vertical indicator lines with auto-staggered callout pills in the top annotation band (max 12)."`
+	Spans           []SpanAnnotation      `json:"spans,omitempty" jsonschema:"Time-range bands across the full chart or scoped via timelineQuery/timelineIds, including hatched missing-log gaps (max 6)."`
+	RowHighlights   []RowHighlight        `json:"rowHighlights,omitempty" jsonschema:"Highlights focal resource subtrees via timelineQuery or timelineIds with left-gutter role badges."`
 	DimUnlistedRows *bool                 `json:"dimUnlistedRows,omitempty" jsonschema:"Softly dims background rows outside rowHighlights when true."`
-	DiffExcerpts    []DiffExcerpt         `json:"diffExcerpts,omitempty" jsonschema:"V7: Resource YAML diff cards anchored to a revision and rendered in the bottom evidence deck (max 6 total excerpts)."`
-	LogExcerpts     []LogExcerpt          `json:"logExcerpts,omitempty" jsonschema:"V8: Structured log excerpt cards anchored to a logId and rendered in the bottom evidence deck (max 6 total excerpts)."`
-	Connectors      []ConnectorAnnotation `json:"connectors,omitempty" jsonschema:"V5: Directed causal arrows across rows or horizontal delta-time calipers between two anchors (max 8)."`
-	Callouts        []CalloutAnnotation   `json:"callouts,omitempty" jsonschema:"V3: Compact 1-line inline callout cards pinned to a row event or revision (max 8)."`
+	DiffExcerpts    []DiffExcerpt         `json:"diffExcerpts,omitempty" jsonschema:"Resource YAML diff cards anchored to a revision and rendered in the bottom evidence deck (max 6 total excerpts)."`
+	LogExcerpts     []LogExcerpt          `json:"logExcerpts,omitempty" jsonschema:"Structured log excerpt cards anchored to a logId and rendered in the bottom evidence deck (max 6 total excerpts)."`
+	Connectors      []ConnectorAnnotation `json:"connectors,omitempty" jsonschema:"Directed causal arrows across rows or horizontal delta-time calipers between two anchors (max 8)."`
+	Callouts        []CalloutAnnotation   `json:"callouts,omitempty" jsonschema:"Compact 1-line inline callout cards pinned to a row event or revision (max 8)."`
 }
 
 // SliceWindow specifies a literal or regex search spot and surrounding context lines to retain.
@@ -76,7 +76,7 @@ type LogExcerpt struct {
 	PaletteID      string        `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits automatically from a co-anchored item or enclosing rowHighlight when omitted."`
 }
 
-// MarkerAnnotation defines a vertical event pin (V1) or global reference line (V2).
+// MarkerAnnotation defines a vertical event pin or global reference line.
 type MarkerAnnotation struct {
 	Anchor    Anchor `json:"anchor" jsonschema:"Timestamp and optional row anchor resolved from logId, revision, or RFC3339 time."`
 	Label     string `json:"label" jsonschema:"Concise callout text shown in the top annotation band (max 80 chars)."`
@@ -85,7 +85,7 @@ type MarkerAnnotation struct {
 	PaletteID string `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits automatically from a co-anchored item or enclosing rowHighlight when omitted."`
 }
 
-// SpanAnnotation defines a full-height or row-scoped time-range band (V4).
+// SpanAnnotation defines a full-height or row-scoped time-range band.
 type SpanAnnotation struct {
 	Start          Anchor   `json:"start" jsonschema:"Inclusive start anchor of the interval."`
 	End            Anchor   `json:"end" jsonschema:"Inclusive end anchor of the interval."`
@@ -97,7 +97,7 @@ type SpanAnnotation struct {
 	PaletteID      string   `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits from an enclosing rowHighlight when scoped to rows, or uses built-in 'default' when omitted."`
 }
 
-// RowHighlight highlights resource subtrees selected by Timeline CEL or explicit timeline IDs (V6).
+// RowHighlight highlights resource subtrees selected by Timeline CEL or explicit timeline IDs.
 type RowHighlight struct {
 	TimelineQuery  string   `json:"timelineQuery,omitempty" jsonschema:"Optional Timeline CEL query selecting the resource subtree(s) to highlight."`
 	TimelineIDs    []string `json:"timelineIds,omitempty" jsonschema:"Optional root timeline IDs of the resource subtree(s) to highlight."`
@@ -106,7 +106,7 @@ type RowHighlight struct {
 	PaletteID      string   `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Uses built-in 'default' when omitted."`
 }
 
-// ConnectorAnnotation defines a directed causal arrow or horizontal duration caliper between two anchors (V5).
+// ConnectorAnnotation defines a directed causal arrow or horizontal duration caliper between two anchors.
 type ConnectorAnnotation struct {
 	From      Anchor `json:"from" jsonschema:"Origin anchor (cause event/revision or interval start)."`
 	To        Anchor `json:"to" jsonschema:"Destination anchor (effect event/revision or interval end)."`
@@ -116,7 +116,7 @@ type ConnectorAnnotation struct {
 	PaletteID string `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits from an enclosing rowHighlight when omitted."`
 }
 
-// CalloutAnnotation places a compact single-line card near the target point on the chart body (V3).
+// CalloutAnnotation places a compact single-line card near the target point on the chart body.
 type CalloutAnnotation struct {
 	Anchor    Anchor `json:"anchor" jsonschema:"Target logId, revision, or (time + timelineId) to point the leader line at."`
 	Label     string `json:"label" jsonschema:"Concise annotation text shown inside the card (max 80 chars)."`
@@ -217,7 +217,7 @@ type Overlay struct {
 	Callouts               []ResolvedCallout       `json:"callouts,omitempty"`
 }
 
-// ResolvedMarker represents a resolved V1 vertical pin or V2 reference line.
+// ResolvedMarker represents a resolved vertical event pin or global reference line.
 type ResolvedMarker struct {
 	ID            string `json:"id"`
 	Badge         string `json:"badge"`
@@ -231,7 +231,7 @@ type ResolvedMarker struct {
 	RevisionIndex *int   `json:"revisionIndex,omitempty"`
 }
 
-// ResolvedSpan represents a resolved V4 full-height or row-scoped interval band.
+// ResolvedSpan represents a resolved full-height or row-scoped interval band.
 type ResolvedSpan struct {
 	ID            string   `json:"id"`
 	Label         string   `json:"label"`
@@ -243,7 +243,7 @@ type ResolvedSpan struct {
 	PaletteID     string   `json:"paletteId"`
 }
 
-// ResolvedRowHighlight represents a resolved V6 focal subtree highlight and left-gutter role badge.
+// ResolvedRowHighlight represents a resolved focal subtree highlight and left-gutter role badge.
 type ResolvedRowHighlight struct {
 	ID          string   `json:"id"`
 	RoleLabel   string   `json:"roleLabel,omitempty"`
@@ -251,7 +251,7 @@ type ResolvedRowHighlight struct {
 	PaletteID   string   `json:"paletteId"`
 }
 
-// ResolvedExcerptCard represents a resolved V7 diff card or V8 log card in the bottom evidence deck.
+// ResolvedExcerptCard represents a resolved diff card or log card in the bottom evidence deck.
 type ResolvedExcerptCard struct {
 	ID            string        `json:"id"`
 	Kind          string        `json:"kind"`
@@ -271,7 +271,7 @@ type ResolvedExcerptCard struct {
 	RevisionIndex *int          `json:"revisionIndex,omitempty"`
 }
 
-// ResolvedConnector represents a resolved V5 causal arrow or horizontal duration caliper.
+// ResolvedConnector represents a resolved causal arrow or horizontal duration caliper.
 type ResolvedConnector struct {
 	ID             string `json:"id"`
 	Badge          string `json:"badge,omitempty"`
@@ -284,7 +284,7 @@ type ResolvedConnector struct {
 	ToTimelineID   uint32 `json:"toTimelineId,omitempty"`
 }
 
-// ResolvedCallout represents a resolved V3 compact single-line callout card.
+// ResolvedCallout represents a resolved compact single-line callout card.
 type ResolvedCallout struct {
 	ID            string `json:"id"`
 	Label         string `json:"label"`
