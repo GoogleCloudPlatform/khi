@@ -126,12 +126,13 @@ export class InspectionQueryUrlOpener implements URLDataOpenerExtension {
 }
 
 function parseNonNegativeInt(raw: string | null): number | null {
-  if (raw === null || raw.trim() === '') {
+  if (raw === null) {
     return null;
   }
-  const parsed = Number(raw.trim());
-  if (!Number.isInteger(parsed) || parsed < 0) {
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) {
     return null;
   }
-  return parsed;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }

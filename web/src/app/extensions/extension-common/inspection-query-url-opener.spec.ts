@@ -140,4 +140,17 @@ describe('InspectionQueryUrlOpener', () => {
     );
     expect(mockSelectionManager.onSelectLog).toHaveBeenCalledWith(fakeLog);
   });
+
+  it('ignores non-decimal numeric strings in timelineId and logId query parameters', async () => {
+    const opener = new InspectionQueryUrlOpener(
+      () => '?inspectionId=insp-1&timelineId=0x3&logId=1e1',
+    );
+    const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
+    expect(opened).toBeTrue();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mockSelectionManager.onSelectTimeline).not.toHaveBeenCalled();
+    expect(mockSelectionManager.onSelectLog).not.toHaveBeenCalled();
+  });
 });
