@@ -24,10 +24,25 @@
  * Derived CSS color tokens for a named palette entry shared across timeline overlays and deck cards.
  */
 export interface TimelineResolvedPaletteColors {
+  /**
+   * Unique identifier of the palette entry referenced by scene annotations.
+   */
   readonly id: string;
+  /**
+   * Primary accent color in hex format used for strokes, borders, and badge backgrounds.
+   */
   readonly main: string;
+  /**
+   * Contrasting foreground text color (#fafafa or #212121) rendered on top of main backgrounds, following Material Design color token naming.
+   */
   readonly onMain: string;
+  /**
+   * Translucent fill color used for span and row-highlight regions.
+   */
   readonly soft: string;
+  /**
+   * Light surface tint color used for callout chips and card header backgrounds.
+   */
   readonly surface: string;
 }
 
@@ -83,7 +98,6 @@ export enum TimelineExcerptLineKind {
   CONTEXT = 'context',
   ADDED = 'added',
   DELETED = 'deleted',
-  LOG = 'log',
   SUMMARY = 'summary',
   OMITTED = 'omitted',
 }
