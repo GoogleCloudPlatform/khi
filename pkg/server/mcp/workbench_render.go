@@ -28,9 +28,6 @@ import (
 const (
 	defaultRenderMaxNodes = 50
 	maxRenderMaxNodes     = 150
-	defaultRenderWidth    = 1600
-	minRenderWidth        = 800
-	maxRenderWidth        = 3840
 )
 
 // RenderTimelinesInput defines the input parameters for the render_timelines MCP tool.
@@ -40,7 +37,6 @@ type RenderTimelinesInput struct {
 	TimelineIDs        []string         `json:"timelineIds,omitempty" jsonschema:"Optional list of timeline IDs (from search_timelines or search_logs) to render along with their ancestor hierarchy nodes."`
 	MaxDepth           int              `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
 	MaxNodes           int              `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
-	Width              int              `json:"width,omitempty" jsonschema:"Layout viewport width in CSS pixels (default 1600, min 800, max 3840; rendered at 2x Retina resolution when within WebGL size limits)."`
 	TimezoneShiftHours float64          `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
 }
 
@@ -162,12 +158,6 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 	}
 	maxNodes = min(maxNodes, maxRenderMaxNodes)
 
-	width := input.Width
-	if width <= 0 {
-		width = defaultRenderWidth
-	}
-	width = max(minRenderWidth, min(width, maxRenderWidth))
-
 	req := TimelineRenderRequest{
 		InspectionID:           input.InspectionID,
 		TimelineQuery:          applied.TimelineQuery,
@@ -177,7 +167,6 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 		TimelineIDs:            timelineIDs,
 		MaxDepth:               max(0, input.MaxDepth),
 		MaxNodes:               maxNodes,
-		Width:                  width,
 		TimezoneShiftHours:     input.TimezoneShiftHours,
 	}
 

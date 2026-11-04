@@ -36,7 +36,6 @@ export interface TimelineRenderParams {
   readonly timelineIds?: readonly number[];
   readonly maxDepth?: number;
   readonly maxNodes?: number;
-  readonly width?: number;
   readonly timezoneShiftHours?: number;
 }
 

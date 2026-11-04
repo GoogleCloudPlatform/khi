@@ -362,9 +362,9 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 				},
 			},
 			calls: []TimelineRenderRequest{
-				{InspectionID: "insp-1", MaxNodes: 50, Width: 1600},
-				{InspectionID: "insp-1", MaxNodes: 25, Width: 1600},
-				{InspectionID: "insp-1", MaxNodes: 150, Width: 1600},
+				{InspectionID: "insp-1", MaxNodes: 50},
+				{InspectionID: "insp-1", MaxNodes: 25},
+				{InspectionID: "insp-1", MaxNodes: 150},
 			},
 			wantOutcomes: []renderCallOutcome{
 				{Result: standardResult},
@@ -401,8 +401,8 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 				},
 			},
 			calls: []TimelineRenderRequest{
-				{InspectionID: "insp-fail", MaxNodes: 50, Width: 1200},
-				{InspectionID: "insp-ok", MaxNodes: 50, Width: 1200},
+				{InspectionID: "insp-fail", MaxNodes: 50},
+				{InspectionID: "insp-ok", MaxNodes: 50},
 			},
 			wantOutcomes: []renderCallOutcome{
 				{HasErr: true},
@@ -443,7 +443,7 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 				},
 			},
 			calls: []TimelineRenderRequest{
-				{InspectionID: "insp-crash", MaxNodes: 50, Width: 1200},
+				{InspectionID: "insp-crash", MaxNodes: 50},
 			},
 			maxElapsed: 2 * time.Second,
 			wantOutcomes: []renderCallOutcome{
@@ -785,38 +785,79 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 		httpServer.CloseClientConnections()
 	}()
 
-	res, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
-		InspectionID: inspectionID,
-		MaxNodes:     50,
-		Width:        1600,
-	})
-	if err != nil {
-		t.Fatalf("RenderTimeline() unexpected error = %v", err)
-	}
-	pngCfg, err := png.DecodeConfig(bytes.NewReader(res.PNGBytes))
-	if err != nil {
-		t.Fatalf("png.DecodeConfig() failed: %v", err)
-	}
-	if res.Height <= 60 {
-		t.Errorf("RenderTimeline() Height = %d, want > 60", res.Height)
-	}
-	if pngCfg.Width != 3200 {
-		t.Errorf("captured PNG width = %d, want 3200 (2x of 1600)", pngCfg.Width)
-	}
-	if pngCfg.Height != res.Height*2 {
-		t.Errorf("captured PNG height = %d, want %d (2x of %d)", pngCfg.Height, res.Height*2, res.Height)
-	}
 	baseTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
-	want := &TimelineRenderResult{
-		Width:             1600,
-		DeviceScaleFactor: 2,
-		RenderedCount:     22,
-		TotalMatched:      22,
-		HasMore:           false,
-		ViewStartTimeMs:   baseTime.UnixMilli(),
-		ViewEndTimeMs:     baseTime.Add(1 * time.Hour).UnixMilli(),
+	const minStageWidth = 1588
+
+	testCases := []struct {
+		name         string
+		req          TimelineRenderRequest
+		wantMinWidth int
+		want         *TimelineRenderResult
+	}{
+		{
+			name: "short hierarchy labels keep minimum stage width",
+			req: TimelineRenderRequest{
+				InspectionID: inspectionID,
+				MaxDepth:     1,
+				MaxNodes:     50,
+			},
+			want: &TimelineRenderResult{
+				Width:             minStageWidth,
+				DeviceScaleFactor: 2,
+				RenderedCount:     5,
+				TotalMatched:      5,
+				HasMore:           false,
+				ViewStartTimeMs:   baseTime.UnixMilli(),
+				ViewEndTimeMs:     baseTime.Add(1 * time.Hour).UnixMilli(),
+			},
+		},
+		{
+			name: "long resource names expand stage width horizontally",
+			req: TimelineRenderRequest{
+				InspectionID: inspectionID,
+				MaxNodes:     50,
+			},
+			wantMinWidth: minStageWidth + 1,
+			want: &TimelineRenderResult{
+				DeviceScaleFactor: 2,
+				RenderedCount:     22,
+				TotalMatched:      22,
+				HasMore:           false,
+				ViewStartTimeMs:   baseTime.UnixMilli(),
+				ViewEndTimeMs:     baseTime.Add(1 * time.Hour).UnixMilli(),
+			},
+		},
 	}
-	if diff := cmp.Diff(want, res, cmpopts.IgnoreFields(TimelineRenderResult{}, "PNGBytes", "Height")); diff != "" {
-		t.Errorf("RenderTimeline() result mismatch (-want +got):\n%s", diff)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := renderer.RenderTimeline(ctx, tc.req)
+			if err != nil {
+				t.Fatalf("RenderTimeline() unexpected error = %v", err)
+			}
+			pngCfg, err := png.DecodeConfig(bytes.NewReader(res.PNGBytes))
+			if err != nil {
+				t.Fatalf("png.DecodeConfig() failed: %v", err)
+			}
+			if res.Height <= 60 {
+				t.Errorf("RenderTimeline() Height = %d, want > 60", res.Height)
+			}
+			if tc.wantMinWidth > 0 && res.Width < tc.wantMinWidth {
+				t.Errorf("RenderTimeline() Width = %d, want >= %d", res.Width, tc.wantMinWidth)
+			}
+			if pngCfg.Width != res.Width*tc.want.DeviceScaleFactor {
+				t.Errorf("captured PNG width = %d, want %d (%dx of %d)", pngCfg.Width, res.Width*tc.want.DeviceScaleFactor, tc.want.DeviceScaleFactor, res.Width)
+			}
+			if pngCfg.Height != res.Height*tc.want.DeviceScaleFactor {
+				t.Errorf("captured PNG height = %d, want %d (%dx of %d)", pngCfg.Height, res.Height*tc.want.DeviceScaleFactor, tc.want.DeviceScaleFactor, res.Height)
+			}
+			opts := []cmp.Option{cmpopts.IgnoreFields(TimelineRenderResult{}, "PNGBytes", "Height")}
+			if tc.want.Width == 0 {
+				opts = append(opts, cmpopts.IgnoreFields(TimelineRenderResult{}, "Width"))
+			}
+			if diff := cmp.Diff(tc.want, res, opts...); diff != "" {
+				t.Errorf("RenderTimeline() result mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

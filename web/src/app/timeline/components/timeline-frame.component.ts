@@ -154,6 +154,10 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Whether to display the split pane resizer handle icon.
    */
   readonly showResizerHandle = input<boolean>(true);
+  /**
+   * Width of the left resource index pane in CSS pixels.
+   */
+  readonly indexPaneSize = input<number>(300);
 
   /**
    * Indicates whether all child timeline charts have initialized their WebGL contexts and are ready to render.

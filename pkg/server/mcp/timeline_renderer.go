@@ -40,7 +40,6 @@ type TimelineRenderRequest struct {
 	TimelineIDs            []uint32 `json:"timelineIds,omitempty"`
 	MaxDepth               int      `json:"maxDepth,omitempty"`
 	MaxNodes               int      `json:"maxNodes,omitempty"`
-	Width                  int      `json:"width,omitempty"`
 	TimezoneShiftHours     float64  `json:"timezoneShiftHours,omitempty"`
 }
 
