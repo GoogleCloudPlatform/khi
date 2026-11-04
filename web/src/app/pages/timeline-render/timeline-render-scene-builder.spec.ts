@@ -566,7 +566,7 @@ describe('buildTimelineSceneViewModel', () => {
           resourcePath: 'pod · p',
           title: 'log',
           subtitle: '1 line',
-          lines: [{ kind: TimelineExcerptLineKind.LOG, text: 'err' }],
+          lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: 'err' }],
         })),
       },
     });
