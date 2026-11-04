@@ -259,26 +259,26 @@ func (s *Store) lookup(sceneID string) (sceneEntry, error) {
 	return entry, nil
 }
 
-func applyClearLayers(out *Annotations, layers []string) *mcpsdk.CallToolResult {
+func applyClearLayers(out *Annotations, layers []AnnotationLayer) *mcpsdk.CallToolResult {
 	for _, layer := range layers {
 		switch layer {
-		case "all":
+		case AnnotationLayerAll:
 			*out = Annotations{}
-		case "palette":
+		case AnnotationLayerPalette:
 			out.Palette = nil
-		case "markers":
+		case AnnotationLayerMarkers:
 			out.Markers = nil
-		case "spans":
+		case AnnotationLayerSpans:
 			out.Spans = nil
-		case "rowHighlights":
+		case AnnotationLayerRowHighlights:
 			out.RowHighlights = nil
-		case "diffExcerpts":
+		case AnnotationLayerDiffExcerpts:
 			out.DiffExcerpts = nil
-		case "logExcerpts":
+		case AnnotationLayerLogExcerpts:
 			out.LogExcerpts = nil
-		case "connectors":
+		case AnnotationLayerConnectors:
 			out.Connectors = nil
-		case "callouts":
+		case AnnotationLayerCallouts:
 			out.Callouts = nil
 		default:
 			res, _, _ := mdtemplate.ErrorResult(

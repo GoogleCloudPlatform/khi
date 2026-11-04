@@ -67,9 +67,9 @@ func TestStore_IssueAndGet(t *testing.T) {
 	viewStartMs := int64(1759309200000)
 	spec := Spec{
 		InspectionID: "insp-1",
-		TimelineIDs:  []string{"5", "10"},
+		TimelineIDs:  []uint32{5, 10},
 		Annotations: &Annotations{
-			Markers: []MarkerAnnotation{{Label: "OOMKilled", Badge: "1"}},
+			Markers: []MarkerAnnotation{{Label: "OOMKilled", Badge: "1", Style: MarkerStylePin}},
 		},
 	}
 	doc := Document{
@@ -79,7 +79,7 @@ func TestStore_IssueAndGet(t *testing.T) {
 		TimelineIDs:     []uint32{5, 10},
 		Overlay: &Overlay{
 			Markers: []ResolvedMarker{
-				{ID: "marker-1", Badge: "1", Label: "OOMKilled", Style: "pin", PaletteID: "default", TimeMs: viewStartMs, TimeLabel: "09:00:00Z", TimelineID: 10, RevisionIndex: &revIdx},
+				{ID: "marker-1", Badge: "1", Label: "OOMKilled", Style: MarkerStylePin, PaletteID: "default", TimeMs: viewStartMs, TimeLabel: "09:00:00Z", TimelineID: 10, RevisionIndex: &revIdx},
 			},
 			Spans:         []ResolvedSpan{{ID: "span-1", Label: "Window", TimelineIDs: []uint32{5}}},
 			RowHighlights: []ResolvedRowHighlight{{ID: "row-1", TimelineIDs: []uint32{10}}},
@@ -99,7 +99,7 @@ func TestStore_IssueAndGet(t *testing.T) {
 	}
 
 	// Mutating caller inputs and returned Stored values must not mutate stored scene state.
-	spec.TimelineIDs[0] = "999"
+	spec.TimelineIDs[0] = 999
 	spec.Annotations.Markers[0].Label = "mutated"
 	viewStartMs = -1
 	revIdx = 99
@@ -107,7 +107,7 @@ func TestStore_IssueAndGet(t *testing.T) {
 	doc.Overlay.Markers[0].Label = "mutated"
 	doc.Overlay.Spans[0].TimelineIDs[0] = 999
 	doc.Overlay.Excerpts[0].Lines[0].Parts[0].Text = "mutated"
-	issued.Spec.TimelineIDs[0] = "888"
+	issued.Spec.TimelineIDs[0] = 888
 	issued.Document.TimelineIDs[0] = 888
 
 	wantRevIdx := 1
@@ -118,9 +118,9 @@ func TestStore_IssueAndGet(t *testing.T) {
 		ExpiresAt: wantExpiresAt,
 		Spec: Spec{
 			InspectionID: "insp-1",
-			TimelineIDs:  []string{"5", "10"},
+			TimelineIDs:  []uint32{5, 10},
 			Annotations: &Annotations{
-				Markers: []MarkerAnnotation{{Label: "OOMKilled", Badge: "1"}},
+				Markers: []MarkerAnnotation{{Label: "OOMKilled", Badge: "1", Style: MarkerStylePin}},
 			},
 		},
 		Document: Document{
@@ -222,11 +222,11 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 				{ID: "victim", Color: "red"},
 			},
 			Markers: []MarkerAnnotation{
-				{Badge: "ALERT", Label: "External alert fired", Anchor: Anchor{LogID: "1"}},
-				{Badge: "2", Label: "Pod OOMKilled", Anchor: Anchor{LogID: "2"}, PaletteID: "victim"},
+				{Badge: "ALERT", Label: "External alert fired", Anchor: Anchor{TimelineID: 1, LogID: 1}},
+				{Badge: "2", Label: "Pod OOMKilled", Anchor: Anchor{TimelineID: 1, LogID: 2}, PaletteID: "victim"},
 			},
 			DiffExcerpts: []DiffExcerpt{
-				{Badge: "E1", Revision: RevisionAnchor{TimelineID: "5", RevisionIndex: 1}, Note: "Node condition transition", PaletteID: "trigger"},
+				{Badge: "E1", Revision: RevisionRef{TimelineID: 5, RevisionIndex: 1}, Note: "Node condition transition", PaletteID: "trigger"},
 			},
 		},
 	}
@@ -269,7 +269,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 				Annotations: &Annotations{
 					RemoveIDs: []string{"2", "E1", " trigger "},
 					Spans: []SpanAnnotation{
-						{Label: "Customer impact window", Start: Anchor{LogID: "1"}, End: Anchor{LogID: "2"}, PaletteID: "victim"},
+						{Label: "Customer impact window", Start: Anchor{TimelineID: 1, LogID: 1}, End: Anchor{TimelineID: 1, LogID: 2}, PaletteID: "victim"},
 					},
 				},
 			},
@@ -285,8 +285,8 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 				Annotations: &Annotations{
 					DimUnlistedRows: boolRef(true),
 					Palette:         []PaletteEntry{{ID: "victim", Color: "red"}},
-					Markers:         []MarkerAnnotation{{Badge: "ALERT", Label: "External alert fired", Anchor: Anchor{LogID: "1"}}},
-					Spans:           []SpanAnnotation{{Label: "Customer impact window", Start: Anchor{LogID: "1"}, End: Anchor{LogID: "2"}, PaletteID: "victim"}},
+					Markers:         []MarkerAnnotation{{Badge: "ALERT", Label: "External alert fired", Anchor: Anchor{TimelineID: 1, LogID: 1}}},
+					Spans:           []SpanAnnotation{{Label: "Customer impact window", Start: Anchor{TimelineID: 1, LogID: 1}, End: Anchor{TimelineID: 1, LogID: 2}, PaletteID: "victim"}},
 				},
 			},
 		},
@@ -301,7 +301,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 						{ID: " trigger ", Color: "teal"},
 						{ID: "recovery", Color: "green"},
 					},
-					LogExcerpts: []LogExcerpt{{Badge: "E2", LogID: "20", Note: "Container exitCode=137", PaletteID: "victim"}},
+					LogExcerpts: []LogExcerpt{{Badge: "E2", LogID: 20, Note: "Container exitCode=137", PaletteID: "victim"}},
 				},
 			},
 			wantSpec: Spec{
@@ -321,14 +321,14 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 						{ID: "recovery", Color: "green"},
 					},
 					Markers: []MarkerAnnotation{
-						{Badge: "ALERT", Label: "External alert fired", Anchor: Anchor{LogID: "1"}},
-						{Badge: "2", Label: "Pod OOMKilled", Anchor: Anchor{LogID: "2"}, PaletteID: "victim"},
+						{Badge: "ALERT", Label: "External alert fired", Anchor: Anchor{TimelineID: 1, LogID: 1}},
+						{Badge: "2", Label: "Pod OOMKilled", Anchor: Anchor{TimelineID: 1, LogID: 2}, PaletteID: "victim"},
 					},
 					DiffExcerpts: []DiffExcerpt{
-						{Badge: "E1", Revision: RevisionAnchor{TimelineID: "5", RevisionIndex: 1}, Note: "Node condition transition", PaletteID: "trigger"},
+						{Badge: "E1", Revision: RevisionRef{TimelineID: 5, RevisionIndex: 1}, Note: "Node condition transition", PaletteID: "trigger"},
 					},
 					LogExcerpts: []LogExcerpt{
-						{Badge: "E2", LogID: "20", Note: "Container exitCode=137", PaletteID: "victim"},
+						{Badge: "E2", LogID: 20, Note: "Container exitCode=137", PaletteID: "victim"},
 					},
 				},
 			},
@@ -337,7 +337,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			name:          "clearLayers all normalizes empty annotations to nil",
 			targetStore:   store,
 			parentSceneID: parentScene.SceneID,
-			patch:         Spec{Annotations: &Annotations{ClearLayers: []string{"all"}}},
+			patch:         Spec{Annotations: &Annotations{ClearLayers: []AnnotationLayer{AnnotationLayerAll}}},
 			wantSpec: Spec{
 				InspectionID: "insp-oom",
 				Filter: workbench.Filter{
@@ -384,7 +384,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			name:          "unknown clearLayers value returns INVALID_ARGUMENT",
 			targetStore:   store,
 			parentSceneID: parentScene.SceneID,
-			patch:         Spec{Annotations: &Annotations{ClearLayers: []string{"unknownLayer"}}},
+			patch:         Spec{Annotations: &Annotations{ClearLayers: []AnnotationLayer{"unknownLayer"}}},
 			wantErrResult: wantErrorResult(
 				"INVALID_ARGUMENT",
 				"Unknown annotation layer `unknownLayer` in `annotations.clearLayers`.",
