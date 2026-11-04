@@ -25,9 +25,15 @@ import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench
  */
 @Injectable({ providedIn: 'root' })
 export class InspectionDataStore {
+  private readonly _inspectionId = signal<string | null>(null);
   private readonly _inspectionData = signal<InspectionData | null>(null);
   private readonly _timelineView = signal<TimelineView | null>(null);
   private readonly workbenchClient = inject(WorkbenchClientService);
+
+  /**
+   * Holds the active backend inspection ID. Emits null if no data has been loaded or no ID was provided.
+   */
+  public readonly inspectionId = this._inspectionId.asReadonly();
 
   /**
    * Holds the active inspection data. Emits null if no data has been loaded.
@@ -44,12 +50,20 @@ export class InspectionDataStore {
    * Updates the store with the newly provided inspection data.
    *
    * @param data The new inspection data instance to set.
+   * @param inspectionId Optional backend inspection ID associated with the data.
    */
-  public setNewInspectionData(data: InspectionData): void {
-    this.updateStoreData(data);
+  public setNewInspectionData(
+    data: InspectionData,
+    inspectionId: string | null = null,
+  ): void {
+    this.updateStoreData(data, inspectionId);
   }
 
-  private updateStoreData(data: InspectionData | null): void {
+  private updateStoreData(
+    data: InspectionData | null,
+    inspectionId: string | null,
+  ): void {
+    this._inspectionId.set(data ? inspectionId : null);
     this._inspectionData.set(data);
     if (!data) {
       this._timelineView.set(null);
