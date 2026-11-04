@@ -182,15 +182,16 @@ KHI uses GitHub Stacked PRs (`gh stack`) and Merge Queue for development.
 ### Linear Stack Graph in Jujutsu
 
 Keep all PR commits strictly linear without branching or merge commits:
-`main@origin -> rev1 (PR 1) -> rev2 (PR 2) -> rev3 (PR 3) ...`
+`<base-branch>@origin -> rev1 (PR 1) -> rev2 (PR 2) -> rev3 (PR 3) ...`
+(where `<base-branch>` is `main` or an `epic/*` branch).
 
 Each PR commit has its own auto-generated bookmark (`push-xxxx`) pushed to `origin`.
 
 ### Post-Squash Merge Rebasing
 
-GitHub's Merge Queue merges PRs using the `SQUASH` method, resulting in a single squashed commit on `main@origin`. The original individual commit history of the merged PR is replaced on `main`.
+GitHub's Merge Queue merges PRs using the `SQUASH` method, resulting in a single squashed commit on `<base-branch>@origin` (e.g., `main@origin` or `epic/<name>@origin`). The original individual commit history of the merged PR is replaced on the base branch.
 
-When a bottom PR (e.g., PR 1) is squash-merged into `main`:
+When a bottom PR (e.g., PR 1) is squash-merged into `<base-branch>`:
 
 1. **Fetch the Updated Remote**:
 
@@ -198,18 +199,18 @@ When a bottom PR (e.g., PR 1) is squash-merged into `main`:
    jj git fetch --remote origin
    ```
 
-2. **Rebase Remaining Stack Commits onto `main@origin`**:
-   Rebase the root commit of the remaining unmerged PRs (e.g., PR 2) directly onto `main@origin`:
+2. **Rebase Remaining Stack Commits onto `<base-branch>@origin`**:
+   Rebase the root commit of the remaining unmerged PRs (e.g., PR 2) directly onto `<base-branch>@origin`:
 
    ```bash
-   jj rebase -s <first-commit-of-remaining-bottom-pr> -d main@origin
+   jj rebase -s <first-commit-of-remaining-bottom-pr> -d <base-branch>@origin
    ```
 
 3. **Abandon Old Pre-Squash Revisions**:
    Abandon the old local commits of the merged PR using Jujutsu revset syntax to keep the revision graph clean:
 
    ```bash
-   jj abandon "main@origin..<old-pr-bookmark-name>"
+   jj abandon "<base-branch>@origin..<old-pr-bookmark-name>"
    ```
 
 4. **Push the Rebased Stack**:

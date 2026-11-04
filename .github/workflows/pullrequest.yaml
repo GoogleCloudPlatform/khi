@@ -17,9 +17,6 @@ name: PR Tests
 on:
   pull_request:
   merge_group:
-    branches:
-      - "main"
-      - epic/**
 
 jobs:
   markdownlint:
