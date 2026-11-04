@@ -234,7 +234,6 @@ type Spec struct {
 	TimelineIDs        []uint32
 	MaxDepth           int
 	MaxNodes           int
-	Width              int
 	TimezoneShiftHours float64
 	Annotations        *Annotations
 }
@@ -401,7 +400,6 @@ type Document struct {
 	TimelineIDs            []uint32  `json:"timelineIds,omitempty"`
 	MaxDepth               int       `json:"maxDepth,omitempty"`
 	MaxNodes               int       `json:"maxNodes,omitempty"`
-	Width                  int       `json:"width,omitempty"`
 	TimezoneShiftHours     float64   `json:"timezoneShiftHours,omitempty"`
 	Overlay                *Overlay  `json:"overlay,omitempty"`
 }
