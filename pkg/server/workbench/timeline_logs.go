@@ -306,19 +306,25 @@ func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, erro
 	}, nil
 }
 
+// LogQueryMetadata holds the Cloud Logging insertId and UTC timestamp of a log entry.
+type LogQueryMetadata struct {
+	InsertID string
+	Time     time.Time
+}
+
 // GetLogQueryMetadata returns the Cloud Logging insertId and UTC timestamp for logID without serializing its YAML body.
-func (w *Workbench) GetLogQueryMetadata(logID uint32) (insertID string, ts time.Time, ok bool) {
+func (w *Workbench) GetLogQueryMetadata(logID uint32) (LogQueryMetadata, bool) {
 	if logID == 0 {
-		return "", time.Time{}, false
+		return LogQueryMetadata{}, false
 	}
 	index, _, err := w.readyIndex()
 	if err != nil {
-		return "", time.Time{}, false
+		return LogQueryMetadata{}, false
 	}
 	l := index.GetLog(logID)
 	if l == nil || l.ID == 0 {
-		return "", time.Time{}, false
+		return LogQueryMetadata{}, false
 	}
-	insertID, _ = index.InternPool.ResolveStructStringField(l.BodyStructID, "insertId")
-	return insertID, logTime(l), true
+	insertID, _ := index.InternPool.ResolveStructStringField(l.BodyStructID, "insertId")
+	return LogQueryMetadata{InsertID: insertID, Time: logTime(l)}, true
 }

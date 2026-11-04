@@ -385,70 +385,53 @@ func TestGetLogDetail(t *testing.T) {
 }
 
 func TestGetLogQueryMetadata(t *testing.T) {
-	type logQueryMetadata struct {
-		InsertID string
-		Time     time.Time
-		OK       bool
-	}
-
 	testCases := []struct {
-		name  string
-		logID uint32
-		want  logQueryMetadata
+		name   string
+		logID  uint32
+		want   LogQueryMetadata
+		wantOK bool
 	}{
 		{
-			name:  "returns top-level insertId and UTC timestamp",
-			logID: 1,
-			want: logQueryMetadata{
-				InsertID: "ins-log-1",
-				Time:     time.Unix(0, 1000).UTC(),
-				OK:       true,
-			},
+			name:   "returns top-level insertId and UTC timestamp",
+			logID:  1,
+			want:   LogQueryMetadata{InsertID: "ins-log-1", Time: time.Unix(0, 1000).UTC()},
+			wantOK: true,
 		},
 		{
-			name:  "returns empty insertId when log body has no insertId field",
-			logID: 2,
-			want: logQueryMetadata{
-				InsertID: "",
-				Time:     time.Unix(0, 2000).UTC(),
-				OK:       true,
-			},
+			name:   "returns empty insertId when log body has no insertId field",
+			logID:  2,
+			want:   LogQueryMetadata{Time: time.Unix(0, 2000).UTC()},
+			wantOK: true,
 		},
 		{
-			name:  "returns empty insertId when insertId field is non-string",
-			logID: 3,
-			want: logQueryMetadata{
-				InsertID: "",
-				Time:     time.Unix(0, 3000).UTC(),
-				OK:       true,
-			},
+			name:   "returns empty insertId when insertId field is non-string",
+			logID:  3,
+			want:   LogQueryMetadata{Time: time.Unix(0, 3000).UTC()},
+			wantOK: true,
 		},
 		{
-			name:  "returns empty insertId when log has zero BodyStructID",
-			logID: 4,
-			want: logQueryMetadata{
-				InsertID: "",
-				Time:     time.Unix(0, 4000).UTC(),
-				OK:       true,
-			},
+			name:   "returns empty insertId when log has zero BodyStructID",
+			logID:  4,
+			want:   LogQueryMetadata{Time: time.Unix(0, 4000).UTC()},
+			wantOK: true,
 		},
 		{
 			name:  "returns false for zero logID",
 			logID: 0,
-			want:  logQueryMetadata{OK: false},
 		},
 		{
 			name:  "returns false for non-existent logID",
 			logID: 999,
-			want:  logQueryMetadata{OK: false},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupTimelineLogsTestWorkbench(t)
-			insertID, ts, ok := wb.GetLogQueryMetadata(tc.logID)
-			got := logQueryMetadata{InsertID: insertID, Time: ts, OK: ok}
+			got, ok := wb.GetLogQueryMetadata(tc.logID)
+			if ok != tc.wantOK {
+				t.Fatalf("GetLogQueryMetadata(%d) ok = %v, want %v", tc.logID, ok, tc.wantOK)
+			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("GetLogQueryMetadata(%d) mismatch (-want +got):\n%s", tc.logID, diff)
 			}

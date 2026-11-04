@@ -118,6 +118,14 @@ type RevisionPair struct {
 	Body             string
 }
 
+// RevisionBounds holds the metadata of a revision, its timeline path segments, and the next revision's timestamp when one exists.
+type RevisionBounds struct {
+	TimelineID       uint32
+	Segments         []TimelineSegment
+	Revision         ResourceRevision
+	NextRevisionTime *time.Time
+}
+
 // GetResourceRevisions returns the revisions of a timeline within the query time range, oldest first,
 // together with the line change counts from each previous revision.
 // Bodies are read only for the returned window so that long revision histories stay cheap to page through.
@@ -265,17 +273,17 @@ func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset
 }
 
 // ResolveRevisionBounds returns metadata for the revision at revisionIndex together with the next revision's timestamp when one exists.
-func (w *Workbench) ResolveRevisionBounds(timelineID uint32, revisionIndex int) (ResourceRevision, *time.Time, []TimelineSegment, error) {
+func (w *Workbench) ResolveRevisionBounds(timelineID uint32, revisionIndex int) (*RevisionBounds, error) {
 	index, _, err := w.readyIndex()
 	if err != nil {
-		return ResourceRevision{}, nil, nil, err
+		return nil, err
 	}
 	tl, segments, err := lookupTimeline(index, timelineID)
 	if err != nil {
-		return ResourceRevision{}, nil, nil, err
+		return nil, err
 	}
 	if revisionIndex < 0 || revisionIndex >= len(tl.Revisions) {
-		return ResourceRevision{}, nil, nil, fmt.Errorf("%w: index %d of timeline %d", ErrRevisionNotFound, revisionIndex, timelineID)
+		return nil, fmt.Errorf("%w: index %d of timeline %d", ErrRevisionNotFound, revisionIndex, timelineID)
 	}
 	rev := toResourceRevision(index, tl.Revisions, revisionIndex, tl.Revisions[revisionIndex].ResourceBodyStructID != 0)
 	var nextTime *time.Time
@@ -283,7 +291,12 @@ func (w *Workbench) ResolveRevisionBounds(timelineID uint32, revisionIndex int) 
 		t := time.Unix(0, tl.Revisions[revisionIndex+1].ChangedTime).UTC()
 		nextTime = &t
 	}
-	return rev, nextTime, segments, nil
+	return &RevisionBounds{
+		TimelineID:       timelineID,
+		Segments:         segments,
+		Revision:         rev,
+		NextRevisionTime: nextTime,
+	}, nil
 }
 
 // readRevisionBodies returns the manifest YAMLs of revs keyed by their resource body struct IDs.

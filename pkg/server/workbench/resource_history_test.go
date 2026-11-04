@@ -644,37 +644,32 @@ func TestGetResourceDiff_IncludeManagedFields(t *testing.T) {
 }
 
 func TestResolveRevisionBounds(t *testing.T) {
-	type outcome struct {
-		Revision ResourceRevision
-		NextTime *time.Time
-		Segments []TimelineSegment
-	}
-
 	testCases := []struct {
 		name          string
 		timelineID    uint32
 		revisionIndex int
-		want          outcome
+		want          *RevisionBounds
 		wantErrTarget error
 	}{
 		{
 			name:          "middle revision returns next revision timestamp",
 			timelineID:    testPodTimelineID,
 			revisionIndex: 1,
-			want: outcome{
-				Revision: testRevision1,
-				NextTime: &testRevision2Time,
-				Segments: testPodSegments,
+			want: &RevisionBounds{
+				TimelineID:       testPodTimelineID,
+				Segments:         testPodSegments,
+				Revision:         testRevision1,
+				NextRevisionTime: &testRevision2Time,
 			},
 		},
 		{
 			name:          "last revision returns nil next timestamp",
 			timelineID:    testPodTimelineID,
 			revisionIndex: 2,
-			want: outcome{
-				Revision: testRevision2,
-				NextTime: nil,
-				Segments: testPodSegments,
+			want: &RevisionBounds{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision2,
 			},
 		},
 		{
@@ -688,7 +683,7 @@ func TestResolveRevisionBounds(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			rev, nextTime, segments, err := wb.ResolveRevisionBounds(tc.timelineID, tc.revisionIndex)
+			got, err := wb.ResolveRevisionBounds(tc.timelineID, tc.revisionIndex)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("ResolveRevisionBounds() err = %v, want %v", err, tc.wantErrTarget)
@@ -697,11 +692,6 @@ func TestResolveRevisionBounds(t *testing.T) {
 			}
 			if err != nil {
 				t.Fatalf("ResolveRevisionBounds() unexpected error = %v", err)
-			}
-			got := outcome{
-				Revision: rev,
-				NextTime: nextTime,
-				Segments: segments,
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ResolveRevisionBounds() mismatch (-want +got):\n%s", diff)
