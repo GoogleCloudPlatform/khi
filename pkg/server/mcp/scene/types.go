@@ -15,7 +15,6 @@
 package scene
 
 import (
-	"encoding/json"
 	"slices"
 	"time"
 
@@ -336,17 +335,73 @@ func cloneFilter(f workbench.Filter) workbench.Filter {
 	return out
 }
 
+func clonePtr[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
+}
+
+func cloneAnchor(a Anchor) Anchor {
+	a.Revision = clonePtr(a.Revision)
+	a.Time = clonePtr(a.Time)
+	return a
+}
+
+func cloneWindows(ws []SliceWindow) []SliceWindow {
+	out := slices.Clone(ws)
+	for i := range out {
+		out[i].ContextLines = clonePtr(out[i].ContextLines)
+		out[i].BeforeLines = clonePtr(out[i].BeforeLines)
+		out[i].AfterLines = clonePtr(out[i].AfterLines)
+	}
+	return out
+}
+
 func cloneAnnotations(a *Annotations) *Annotations {
 	if a == nil {
 		return nil
 	}
-	data, err := json.Marshal(a)
-	if err != nil {
-		panic(err)
+	out := *a
+	out.ClearLayers = slices.Clone(a.ClearLayers)
+	out.RemoveIDs = slices.Clone(a.RemoveIDs)
+	out.Palette = slices.Clone(a.Palette)
+	out.DimUnlistedRows = clonePtr(a.DimUnlistedRows)
+	out.Markers = slices.Clone(a.Markers)
+	for i := range out.Markers {
+		out.Markers[i].Anchor = cloneAnchor(out.Markers[i].Anchor)
 	}
-	var out Annotations
-	if err := json.Unmarshal(data, &out); err != nil {
-		panic(err)
+	out.Spans = slices.Clone(a.Spans)
+	for i := range out.Spans {
+		out.Spans[i].Start = cloneAnchor(out.Spans[i].Start)
+		out.Spans[i].End = cloneAnchor(out.Spans[i].End)
+		out.Spans[i].TimelineIDs = slices.Clone(out.Spans[i].TimelineIDs)
+		out.Spans[i].IncludeSubtree = clonePtr(out.Spans[i].IncludeSubtree)
+	}
+	out.RowHighlights = slices.Clone(a.RowHighlights)
+	for i := range out.RowHighlights {
+		out.RowHighlights[i].TimelineIDs = slices.Clone(out.RowHighlights[i].TimelineIDs)
+		out.RowHighlights[i].IncludeSubtree = clonePtr(out.RowHighlights[i].IncludeSubtree)
+	}
+	out.DiffExcerpts = slices.Clone(a.DiffExcerpts)
+	for i := range out.DiffExcerpts {
+		out.DiffExcerpts[i].Windows = cloneWindows(out.DiffExcerpts[i].Windows)
+		out.DiffExcerpts[i].PreserveChangePair = clonePtr(out.DiffExcerpts[i].PreserveChangePair)
+	}
+	out.LogExcerpts = slices.Clone(a.LogExcerpts)
+	for i := range out.LogExcerpts {
+		out.LogExcerpts[i].Windows = cloneWindows(out.LogExcerpts[i].Windows)
+		out.LogExcerpts[i].IncludeSummary = clonePtr(out.LogExcerpts[i].IncludeSummary)
+	}
+	out.Connectors = slices.Clone(a.Connectors)
+	for i := range out.Connectors {
+		out.Connectors[i].From = cloneAnchor(out.Connectors[i].From)
+		out.Connectors[i].To = cloneAnchor(out.Connectors[i].To)
+	}
+	out.Callouts = slices.Clone(a.Callouts)
+	for i := range out.Callouts {
+		out.Callouts[i].Anchor = cloneAnchor(out.Callouts[i].Anchor)
 	}
 	return &out
 }
