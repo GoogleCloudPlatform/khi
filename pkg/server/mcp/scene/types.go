@@ -319,6 +319,23 @@ type Document struct {
 	Overlay                *Overlay  `json:"overlay,omitempty"`
 }
 
+func isAnnotationsEmpty(a *Annotations) bool {
+	if a == nil {
+		return true
+	}
+	return len(a.ClearLayers) == 0 &&
+		len(a.RemoveIDs) == 0 &&
+		len(a.Palette) == 0 &&
+		len(a.Markers) == 0 &&
+		len(a.Spans) == 0 &&
+		len(a.RowHighlights) == 0 &&
+		a.DimUnlistedRows == nil &&
+		len(a.DiffExcerpts) == 0 &&
+		len(a.LogExcerpts) == 0 &&
+		len(a.Connectors) == 0 &&
+		len(a.Callouts) == 0
+}
+
 func cloneFilter(f workbench.Filter) workbench.Filter {
 	out := f
 	if f.StartTime != nil {
@@ -349,4 +366,51 @@ func cloneAnnotations(a *Annotations) *Annotations {
 		panic(err)
 	}
 	return &out
+}
+
+func clonePtr[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
+}
+
+func cloneDocument(doc Document) Document {
+	out := doc
+	out.ViewStartTimeMs = clonePtr(doc.ViewStartTimeMs)
+	out.ViewEndTimeMs = clonePtr(doc.ViewEndTimeMs)
+	out.TimelineIDs = slices.Clone(doc.TimelineIDs)
+	if doc.Overlay != nil {
+		ov := *doc.Overlay
+		ov.AutoIncludeTimelineIDs = slices.Clone(doc.Overlay.AutoIncludeTimelineIDs)
+		ov.Palette = slices.Clone(doc.Overlay.Palette)
+		ov.Markers = slices.Clone(doc.Overlay.Markers)
+		for i := range ov.Markers {
+			ov.Markers[i].RevisionIndex = clonePtr(ov.Markers[i].RevisionIndex)
+		}
+		ov.Spans = slices.Clone(doc.Overlay.Spans)
+		for i := range ov.Spans {
+			ov.Spans[i].TimelineIDs = slices.Clone(ov.Spans[i].TimelineIDs)
+		}
+		ov.RowHighlights = slices.Clone(doc.Overlay.RowHighlights)
+		for i := range ov.RowHighlights {
+			ov.RowHighlights[i].TimelineIDs = slices.Clone(ov.RowHighlights[i].TimelineIDs)
+		}
+		ov.Excerpts = slices.Clone(doc.Overlay.Excerpts)
+		for i := range ov.Excerpts {
+			ov.Excerpts[i].RevisionIndex = clonePtr(ov.Excerpts[i].RevisionIndex)
+			ov.Excerpts[i].Lines = slices.Clone(ov.Excerpts[i].Lines)
+			for j := range ov.Excerpts[i].Lines {
+				ov.Excerpts[i].Lines[j].Parts = slices.Clone(ov.Excerpts[i].Lines[j].Parts)
+			}
+		}
+		ov.Connectors = slices.Clone(doc.Overlay.Connectors)
+		ov.Callouts = slices.Clone(doc.Overlay.Callouts)
+		for i := range ov.Callouts {
+			ov.Callouts[i].RevisionIndex = clonePtr(ov.Callouts[i].RevisionIndex)
+		}
+		out.Overlay = &ov
+	}
+	return out
 }
