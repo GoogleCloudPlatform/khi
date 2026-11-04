@@ -346,6 +346,28 @@ describe('TimelineRenderSmartComponent', () => {
     });
   });
 
+  it('should apply the minimum padding when the fallback log range has zero length', async () => {
+    await component.applyAndMeasure({ inspectionId: 'insp-1' });
+    const loaded = inspectionDataSignal()!;
+    inspectionDataSignal.set({
+      ...loaded,
+      metadata: {
+        ...loaded.metadata,
+        header: { startTimeUnixSeconds: 1000, endTimeUnixSeconds: 1000 },
+      },
+    } as unknown as InspectionData);
+
+    const res = await component.applyAndMeasure({ inspectionId: 'insp-1' });
+
+    expect({
+      viewStartTimeMs: res.viewStartTimeMs,
+      viewEndTimeMs: res.viewEndTimeMs,
+    }).toEqual({
+      viewStartTimeMs: 999_000,
+      viewEndTimeMs: 1_001_000,
+    });
+  });
+
   it('should wait for frame readiness and restore viewport signals in waitForStableFrame', async () => {
     await component.applyAndMeasure({
       inspectionId: 'insp-1',

@@ -85,6 +85,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	// The filter range spans 1h, so the viewport is padded by 5% (3min) on both sides.
 	paddedStartMs := startTime.Add(-3 * time.Minute).UnixMilli()
 	paddedEndMs := endTime.Add(3 * time.Minute).UnixMilli()
+	// lateViewStartTime is after the padded filter end, so a viewport using it as the only explicit boundary is inverted.
+	lateViewStartTime := endTime.Add(time.Hour)
 
 	_, invalidCELErr := workbench.ValidateFilter(workbench.Filter{
 		TimelineQuery: "invalid &&& syntax",
@@ -283,6 +285,21 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			},
 		},
 		{
+			name:     "viewStartTime after the padded filter end returns INVALID_ARGUMENT",
+			renderer: &fakeTimelineImageRenderer{},
+			input: RenderTimelinesInput{
+				InspectionID: inspectionID,
+				Filter: workbench.Filter{
+					StartTime: &startTime,
+					EndTime:   &endTime,
+				},
+				ViewStartTime: &lateViewStartTime,
+			},
+			want: renderTestOutcome{
+				Result: wantErrorResult("INVALID_ARGUMENT", "The resolved viewport is empty: viewEndTime (or filter.endTime when omitted) must be after viewStartTime (or filter.startTime when omitted)."),
+			},
+		},
+		{
 			name:     "non-numeric timelineIds entry returns INVALID_ARGUMENT",
 			renderer: &fakeTimelineImageRenderer{},
 			input: RenderTimelinesInput{
@@ -423,8 +440,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790848800000000000",
-				ViewStartTimeMs:   new(startTime.Add(-3 * time.Minute).UnixMilli()),
-				ViewEndTimeMs:     new(endTime.Add(3 * time.Minute).UnixMilli()),
+				ViewStartTimeMs:   ptr(startTime.Add(-3 * time.Minute).UnixMilli()),
+				ViewEndTimeMs:     ptr(endTime.Add(3 * time.Minute).UnixMilli()),
 			},
 		},
 		{
@@ -433,8 +450,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790845200000000000",
-				ViewStartTimeMs:   new(startTime.Add(-time.Second).UnixMilli()),
-				ViewEndTimeMs:     new(startTime.Add(time.Second).UnixMilli()),
+				ViewStartTimeMs:   ptr(startTime.Add(-time.Second).UnixMilli()),
+				ViewEndTimeMs:     ptr(startTime.Add(time.Second).UnixMilli()),
 			},
 		},
 		{
@@ -442,7 +459,7 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			applied: workbench.AppliedFilter{StartTime: startTime},
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
-				ViewStartTimeMs:   new(startTime.UnixMilli()),
+				ViewStartTimeMs:   ptr(startTime.UnixMilli()),
 			},
 		},
 		{
@@ -455,8 +472,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790848800000000000",
-				ViewStartTimeMs:   new(viewStartTime.UnixMilli()),
-				ViewEndTimeMs:     new(viewEndTime.UnixMilli()),
+				ViewStartTimeMs:   ptr(viewStartTime.UnixMilli()),
+				ViewEndTimeMs:     ptr(viewEndTime.UnixMilli()),
 			},
 		},
 		{
@@ -466,8 +483,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790848800000000000",
-				ViewStartTimeMs:   new(viewStartTime.UnixMilli()),
-				ViewEndTimeMs:     new(endTime.Add(3 * time.Minute).UnixMilli()),
+				ViewStartTimeMs:   ptr(viewStartTime.UnixMilli()),
+				ViewEndTimeMs:     ptr(endTime.Add(3 * time.Minute).UnixMilli()),
 			},
 		},
 	}
@@ -486,4 +503,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }

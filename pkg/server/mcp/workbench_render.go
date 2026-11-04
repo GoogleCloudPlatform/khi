@@ -94,6 +94,9 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 
 	applied := wb.ResolveFilter(input.Filter)
 	renderReq := buildTimelineRenderRequest(input, applied, parsedTimelineIDs)
+	if renderReq.ViewStartTimeMs != nil && renderReq.ViewEndTimeMs != nil && *renderReq.ViewEndTimeMs <= *renderReq.ViewStartTimeMs {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "The resolved viewport is empty: viewEndTime (or filter.endTime when omitted) must be after viewStartTime (or filter.startTime when omitted).")
+	}
 
 	renderRes, err := h.renderer.RenderTimeline(ctx, renderReq)
 	if err != nil {
@@ -199,14 +202,18 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 	// Explicit viewStartTime / viewEndTime are used as-is.
 	padding := filterViewPadding(applied)
 	if input.ViewStartTime != nil {
-		req.ViewStartTimeMs = new(input.ViewStartTime.UnixMilli())
+		startMs := input.ViewStartTime.UnixMilli()
+		req.ViewStartTimeMs = &startMs
 	} else if !applied.StartTime.IsZero() {
-		req.ViewStartTimeMs = new(applied.StartTime.Add(-padding).UnixMilli())
+		startMs := applied.StartTime.Add(-padding).UnixMilli()
+		req.ViewStartTimeMs = &startMs
 	}
 	if input.ViewEndTime != nil {
-		req.ViewEndTimeMs = new(input.ViewEndTime.UnixMilli())
+		endMs := input.ViewEndTime.UnixMilli()
+		req.ViewEndTimeMs = &endMs
 	} else if !applied.EndTime.IsZero() {
-		req.ViewEndTimeMs = new(applied.EndTime.Add(padding).UnixMilli())
+		endMs := applied.EndTime.Add(padding).UnixMilli()
+		req.ViewEndTimeMs = &endMs
 	}
 	return req
 }
