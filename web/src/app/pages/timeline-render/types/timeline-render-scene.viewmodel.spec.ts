@@ -15,12 +15,17 @@
  */
 
 import {
+  TimelineCalloutPlacement,
+  TimelineConnectorStyle,
+  TimelineExcerptKind,
+  TimelineExcerptLineKind,
   TimelineMarkerStyle,
   TimelineResolvedPaletteColors,
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import {
   DEFAULT_REFERENCE_PALETTE_COLORS,
+  ExcerptDeckGridPreset,
   TIMELINE_CHART_LEFT_PX,
   TIMELINE_HEADER_HEIGHT_PX,
   buildTimelineSceneViewModel,
@@ -89,7 +94,7 @@ describe('buildTimelineSceneViewModel', () => {
     surface: '#fbeaea',
   };
 
-  it('computes zero topBandHeightPx when overlay is null', () => {
+  it('computes zero topBandHeightPx and empty deck when overlay is null', () => {
     const vm = buildTimelineSceneViewModel({
       stageWidthPx: 1308,
       viewportLeftTimeMs: 1_000_000,
@@ -104,12 +109,14 @@ describe('buildTimelineSceneViewModel', () => {
       stageHeightPx: vm.stageHeightPx,
       estimatedTotalHeightPx: vm.estimatedTotalHeightPx,
       hasOverlayItems: vm.hasOverlayItems,
+      deckPreset: vm.deck.gridPreset,
     }).toEqual({
       topBandHeightPx: 0,
       timelineFrameHeightPx: 260,
       stageHeightPx: 260,
       estimatedTotalHeightPx: 260,
       hasOverlayItems: false,
+      deckPreset: ExcerptDeckGridPreset.EMPTY,
     });
   });
 
@@ -229,6 +236,237 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.spans[1].id).toBe('sp-right-edge');
     expect(vm.spans[1].leftPx).toBe(1304);
     expect(vm.spans[1].widthPx).toBe(4);
+  });
+
+  it('merges contiguous row highlights, deduplicates repeated IDs, and emits dimmed background row masks', () => {
+    const vm = buildTimelineSceneViewModel({
+      stageWidthPx: 1308,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        palette: [victimPalette],
+        rowHighlights: [
+          {
+            id: 'rh-1',
+            roleLabel: 'VICTIM · Pod',
+            timelineIds: [20, 20, 30],
+            paletteId: 'victim',
+          },
+        ],
+        dimUnlistedRows: true,
+      },
+    });
+
+    expect(vm.rowHighlights).toEqual([
+      {
+        id: 'rh-1-run-0',
+        roleLabel: 'VICTIM · Pod',
+        paletteId: 'victim',
+        colors: victimPalette,
+        topPx: TIMELINE_HEADER_HEIGHT_PX + 50,
+        heightPx: 100,
+        badgeRightX: 294,
+      },
+    ]);
+    expect(vm.dimmedRowMasks).toEqual([
+      { id: 'dim-mask-0', topPx: 60, heightPx: 50 },
+      { id: 'dim-mask-1', topPx: 210, heightPx: 50 },
+    ]);
+  });
+
+  it('flips auto callouts, skips unrendered targets, orients vertical step arrows, and synchronizes deck cards', () => {
+    const vm = buildTimelineSceneViewModel({
+      stageWidthPx: 1600,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        palette: [triggerPalette, victimPalette],
+        callouts: [
+          {
+            id: 'cal-right-edge',
+            label: 'Container killed near right border',
+            placement: TimelineCalloutPlacement.AUTO,
+            dashed: true,
+            paletteId: 'trigger',
+            timeMs: 1_125_000,
+            timelineId: 30,
+          },
+          {
+            id: 'cal-unrendered',
+            label: 'Hidden target',
+            placement: TimelineCalloutPlacement.RIGHT,
+            paletteId: 'trigger',
+            timeMs: 1_020_000,
+            timelineId: 999,
+          },
+        ],
+        connectors: [
+          {
+            id: 'conn-curve',
+            badge: '1',
+            label: '+10s',
+            style: TimelineConnectorStyle.CURVE,
+            paletteId: 'victim',
+            fromTimeMs: 1_010_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_020_000,
+            toTimelineId: 30,
+          },
+          {
+            id: 'conn-caliper',
+            label: '15s',
+            style: TimelineConnectorStyle.CALIPER,
+            paletteId: 'trigger',
+            fromTimeMs: 1_020_000,
+            fromTimelineId: 20,
+            toTimeMs: 1_035_000,
+            toTimelineId: 20,
+          },
+          {
+            id: 'conn-step-vertical',
+            style: TimelineConnectorStyle.STEP,
+            paletteId: 'victim',
+            fromTimeMs: 1_025_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_025_000,
+            toTimelineId: 30,
+          },
+          {
+            id: 'conn-zero',
+            style: TimelineConnectorStyle.CURVE,
+            paletteId: 'victim',
+            fromTimeMs: 1_025_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_025_000,
+            toTimelineId: 10,
+          },
+          {
+            id: 'conn-unrendered',
+            style: TimelineConnectorStyle.CURVE,
+            paletteId: 'victim',
+            fromTimeMs: 1_010_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_020_000,
+            toTimelineId: 999,
+          },
+        ],
+        excerpts: [
+          {
+            id: 'ex-1',
+            kind: TimelineExcerptKind.DIFF,
+            badge: 'E1',
+            paletteId: 'victim',
+            timeMs: 1_010_000,
+            timeLabel: '00:16:50',
+            timelineId: 10,
+            resourcePath: 'node · test-node-1',
+            title: 'Patch · Resource exists',
+            subtitle: '+1 / -1 · 2 diff lines',
+            logTimestamp: '2026-10-01T00:16:50.123456789Z',
+            insertId: 'audit-node-1-rev2',
+            revisionIndex: 2,
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.DELETED,
+                oldLineNum: 12,
+                text: 'status: True',
+              },
+              {
+                kind: TimelineExcerptLineKind.ADDED,
+                newLineNum: 12,
+                text: 'status: False',
+                parts: [{ text: 'status: ' }, { text: 'False', matched: true }],
+              },
+            ],
+            note: 'Node readiness flipped to False',
+          },
+          {
+            id: 'ex-2',
+            kind: TimelineExcerptKind.LOG,
+            badge: 'E2',
+            paletteId: 'trigger',
+            timeMs: 1_030_000,
+            timeLabel: '00:17:10',
+            timelineId: 30,
+            resourcePath: 'pod · default/test-pod-0',
+            title: 'k8s-event · Warning',
+            subtitle: '5 lines',
+            logTimestamp: '2026-10-01T00:17:10Z',
+            logId: 42,
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.OMITTED,
+                text: '5 lines omitted',
+                omitted: 5,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(vm.callouts.length).toBe(1);
+    expect(vm.callouts[0].cardLeftPx + vm.callouts[0].cardWidthPx).toBeLessThan(
+      vm.callouts[0].anchorX,
+    );
+    expect(vm.connectors.map((c) => c.hasArrowHead)).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ]);
+    // Vertical downward STEP arrow tip is at y=185 (row 30 center), with base points above at y=177.
+    expect(vm.connectors[2].arrowHeadPoints).toBe(
+      '558,185 553.5,177 562.5,177',
+    );
+    expect(vm.deck.gridPreset).toBe(ExcerptDeckGridPreset.COLS_2);
+    expect(vm.deck.tethers[0].cardAnchorX).toBeLessThan(
+      vm.deck.tethers[1].cardAnchorX,
+    );
+    expect(vm.excerptPins[0].colors).toEqual(victimPalette);
+    expect(vm.deck.cards[0].colors).toEqual(victimPalette);
+    expect(vm.deck.cards[0].hasQueryMetadata).toBe(true);
+    expect(vm.deck.cards[0].logTimestamp).toBe(
+      '2026-10-01T00:16:50.123456789Z',
+    );
+    expect(vm.deck.cards[0].insertId).toBe('audit-node-1-rev2');
+    expect(vm.deck.cards[1].colors).toEqual(triggerPalette);
+    expect(vm.deck.cards[1].insertId).toBe('');
+    expect(vm.deck.cards.map((c) => c.actionLabel)).toEqual([
+      'Open Diff',
+      'Open Log',
+    ]);
+    expect(vm.estimatedTotalHeightPx).toBeGreaterThan(vm.stageHeightPx);
+  });
+
+  it('caps deck cards at 6 under the 3x2 grid preset', () => {
+    const vm = buildTimelineSceneViewModel({
+      stageWidthPx: 1308,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        excerpts: Array.from({ length: 7 }, (_, i) => ({
+          id: `ex-${i}`,
+          kind: TimelineExcerptKind.LOG,
+          badge: `E${i + 1}`,
+          paletteId: 'default',
+          timeMs: 1_005_000 + i * 5_000,
+          timeLabel: '00:16:45',
+          timelineId: 10,
+          resourcePath: 'pod · p',
+          title: 'log',
+          subtitle: '1 line',
+          lines: [{ kind: TimelineExcerptLineKind.LOG, text: 'err' }],
+        })),
+      },
+    });
+
+    expect(vm.deck.gridPreset).toBe(ExcerptDeckGridPreset.GRID_3X2);
+    expect(vm.deck.cards.length).toBe(6);
+    expect(vm.excerptPins.length).toBe(6);
   });
 
   it('disambiguates coinciding span boundaries, slides labels into stem-free sub-intervals, and suppresses brackets on narrow spans', () => {

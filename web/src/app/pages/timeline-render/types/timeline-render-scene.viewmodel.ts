@@ -14,10 +14,21 @@
  * limitations under the License.
  */
 
+import { unreachable } from 'src/app/common/misc-util';
 import {
+  TimelineCalloutPlacement,
+  TimelineConnectorStyle,
+  TimelineExcerptKind,
+  TimelineExcerptLine,
+  TimelineExcerptLineKind,
+  TimelineExcerptLinePart,
   TimelineMarkerStyle,
+  TimelineResolvedCallout,
+  TimelineResolvedConnector,
+  TimelineResolvedExcerptCard,
   TimelineResolvedMarker,
   TimelineResolvedPaletteColors,
+  TimelineResolvedRowHighlight,
   TimelineResolvedSpan,
   TimelineSceneOverlay,
   TimelineSpanPattern,
@@ -51,6 +62,23 @@ export const TIMELINE_CHART_LEFT_PX =
 const MARKER_LANE_STEP_PX = 30;
 const MARKER_PILL_HEIGHT_PX = 24;
 const MARKER_BAND_VERTICAL_PADDING_PX = 12;
+const DECK_TETHER_STRIP_HEIGHT_PX = 32;
+const DECK_GRID_PADDING_PX = 12;
+const DECK_GRID_GAP_PX = 12;
+const MAX_EXCERPT_DECK_CARDS = 6;
+
+/**
+ * Layout preset identifier for the bottom evidence deck CSS grid.
+ */
+export enum ExcerptDeckGridPreset {
+  EMPTY = 'empty',
+  COLS_1 = 'cols-1',
+  COLS_2 = 'cols-2',
+  COLS_3 = 'cols-3',
+  COLS_4 = 'cols-4',
+  GRID_2X2 = 'grid-2x2',
+  GRID_3X2 = 'grid-3x2',
+}
 
 /**
  * Target resource timeline, revision, or log entry to focus when opening a full KHI session.
@@ -149,7 +177,142 @@ export interface SpanItemViewModel {
 }
 
 /**
- * Layout ViewModel for the timeline stage overlay.
+ * Positioned focal subtree highlight band and left-gutter role badge for row highlights.
+ */
+export interface RowHighlightBandViewModel {
+  readonly id: string;
+  readonly roleLabel: string;
+  readonly paletteId: string;
+  readonly colors: TimelineResolvedPaletteColors;
+  readonly topPx: number;
+  readonly heightPx: number;
+  readonly badgeRightX: number;
+}
+
+/**
+ * Positioned translucent mask over contiguous background rows when dimUnlistedRows is active.
+ */
+export interface DimmedRowMaskViewModel {
+  readonly id: string;
+  readonly topPx: number;
+  readonly heightPx: number;
+}
+
+/**
+ * Positioned SVG path, polygon arrowhead, and midpoint label chip for timeline connectors.
+ */
+export interface ConnectorItemViewModel {
+  readonly id: string;
+  readonly badge: string;
+  readonly label: string;
+  readonly style: TimelineConnectorStyle;
+  readonly paletteId: string;
+  readonly colors: TimelineResolvedPaletteColors;
+  readonly svgPath: string;
+  readonly hasArrowHead: boolean;
+  readonly arrowHeadPoints: string;
+  readonly labelCenterX: number;
+  readonly labelCenterY: number;
+}
+
+/**
+ * Positioned compact single-line inline callout card and leader line for timeline callouts.
+ */
+export interface CalloutItemViewModel {
+  readonly id: string;
+  readonly label: string;
+  readonly dashed: boolean;
+  readonly paletteId: string;
+  readonly colors: TimelineResolvedPaletteColors;
+  readonly anchorX: number;
+  readonly anchorY: number;
+  readonly leaderPath: string;
+  readonly cardLeftPx: number;
+  readonly cardTopPx: number;
+  readonly cardWidthPx: number;
+  readonly cardHeightPx: number;
+  readonly jumpTarget: TimelineSessionJumpTarget | null;
+}
+
+/**
+ * Positioned badge pin and vertical drop stem on the timeline canvas for evidence excerpts.
+ */
+export interface ExcerptPinViewModel {
+  readonly id: string;
+  readonly badge: string;
+  readonly kind: TimelineExcerptKind;
+  readonly paletteId: string;
+  readonly colors: TimelineResolvedPaletteColors;
+  readonly pinX: number;
+  readonly pinY: number;
+  readonly stemTopPx: number;
+  readonly stemHeightPx: number;
+  readonly jumpTarget: TimelineSessionJumpTarget;
+}
+
+/**
+ * Formatted display row inside an evidence deck card with normalized highlight parts.
+ */
+export interface ExcerptLineViewModel {
+  readonly index: number;
+  readonly kind: TimelineExcerptLineKind;
+  readonly gutterOld: string;
+  readonly gutterNew: string;
+  readonly prefixSymbol: string;
+  readonly text: string;
+  readonly parts: readonly TimelineExcerptLinePart[];
+}
+
+/**
+ * ViewModel for a single bottom evidence deck diff or log card.
+ */
+export interface ExcerptCardViewModel {
+  readonly id: string;
+  readonly gridArea: string;
+  readonly badge: string;
+  readonly kind: TimelineExcerptKind;
+  readonly paletteId: string;
+  readonly colors: TimelineResolvedPaletteColors;
+  readonly timeLabel: string;
+  readonly resourcePath: string;
+  readonly title: string;
+  readonly subtitle: string;
+  readonly logTimestamp: string;
+  readonly insertId: string;
+  readonly hasQueryMetadata: boolean;
+  readonly lines: readonly ExcerptLineViewModel[];
+  readonly note: string;
+  readonly actionLabel: string;
+  readonly jumpTarget: TimelineSessionJumpTarget;
+}
+
+/**
+ * S-curve cubic Bezier SVG tether connecting a timeline pin drop stem to its deck card column.
+ */
+export interface ExcerptTetherViewModel {
+  readonly id: string;
+  readonly badge: string;
+  readonly paletteId: string;
+  readonly colors: TimelineResolvedPaletteColors;
+  readonly svgPath: string;
+  readonly pinX: number;
+  readonly cardAnchorX: number;
+}
+
+/**
+ * ViewModel for the bottom synchronized evidence deck and its 32px S-curve tether channel.
+ */
+export interface ExcerptDeckViewModel {
+  readonly gridPreset: ExcerptDeckGridPreset;
+  readonly columns: number;
+  readonly tetherStripHeightPx: number;
+  readonly estimatedHeightPx: number;
+  readonly tethers: readonly ExcerptTetherViewModel[];
+  readonly cards: readonly ExcerptCardViewModel[];
+}
+
+/**
+ * Complete layout ViewModel for the timeline stage overlay and bottom evidence deck.
  */
 export interface TimelineSceneViewModel {
   readonly stageWidthPx: number;
@@ -160,6 +323,12 @@ export interface TimelineSceneViewModel {
   readonly hasOverlayItems: boolean;
   readonly markers: readonly MarkerItemViewModel[];
   readonly spans: readonly SpanItemViewModel[];
+  readonly rowHighlights: readonly RowHighlightBandViewModel[];
+  readonly dimmedRowMasks: readonly DimmedRowMaskViewModel[];
+  readonly connectors: readonly ConnectorItemViewModel[];
+  readonly callouts: readonly CalloutItemViewModel[];
+  readonly excerptPins: readonly ExcerptPinViewModel[];
+  readonly deck: ExcerptDeckViewModel;
 }
 
 interface RowStageBounds {
@@ -182,6 +351,21 @@ interface PreliminaryMarkerPlacement {
 interface PackedMarkerLanes {
   readonly laneCount: number;
   readonly items: readonly PreliminaryMarkerPlacement[];
+}
+
+interface RowHighlightBuildResult {
+  readonly highlights: readonly RowHighlightBandViewModel[];
+  readonly dimmedMasks: readonly DimmedRowMaskViewModel[];
+}
+
+interface ExcerptPinsAndDeckResult {
+  readonly pins: readonly ExcerptPinViewModel[];
+  readonly deck: ExcerptDeckViewModel;
+}
+
+interface DeckGridPresetSelection {
+  readonly preset: ExcerptDeckGridPreset;
+  readonly columns: number;
 }
 
 interface VerticalStemSegment {
@@ -217,7 +401,7 @@ export function extractTimelineRowMetrics(
 }
 
 /**
- * Computes the geometry and layout ViewModel for timeline markers and spans.
+ * Computes the complete geometry and layout ViewModel for all timeline annotations and deck cards.
  */
 export function buildTimelineSceneViewModel(
   input: TimelineSceneLayoutInput,
@@ -264,18 +448,21 @@ export function buildTimelineSceneViewModel(
   );
   const stageHeightPx = topBandHeightPx + timelineFrameHeightPx;
 
+  const rowBoundsList: RowStageBounds[] = [];
   const rowBoundsById = new Map<number, RowStageBounds>();
   let cursorY = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX;
   for (let i = 0; i < input.rows.length; i++) {
     const row = input.rows[i];
-    rowBoundsById.set(row.id, {
+    const bounds: RowStageBounds = {
       index: i,
       id: row.id,
       topPx: cursorY,
       bottomPx: cursorY + row.heightPx,
       centerPx: cursorY + row.heightPx / 2,
       heightPx: row.heightPx,
-    });
+    };
+    rowBoundsList.push(bounds);
+    rowBoundsById.set(row.id, bounds);
     cursorY += row.heightPx;
   }
 
@@ -331,6 +518,16 @@ export function buildTimelineSceneViewModel(
     };
   });
 
+  const excerptResult = buildExcerptPinsAndDeck(
+    overlay?.excerpts ?? [],
+    stageWidthPx,
+    topBandHeightPx,
+    stageHeightPx,
+    rowBoundsById,
+    toStageX,
+    resolveColors,
+  );
+
   const verticalStems: VerticalStemSegment[] = [];
   for (const marker of markers) {
     if (marker.stemHeightPx > 0) {
@@ -338,6 +535,15 @@ export function buildTimelineSceneViewModel(
         x: marker.stemX,
         topPx: marker.stemTopPx,
         bottomPx: marker.stemTopPx + marker.stemHeightPx,
+      });
+    }
+  }
+  for (const pin of excerptResult.pins) {
+    if (pin.stemHeightPx > 0) {
+      verticalStems.push({
+        x: pin.pinX,
+        topPx: pin.stemTopPx,
+        bottomPx: pin.stemTopPx + pin.stemHeightPx,
       });
     }
   }
@@ -353,17 +559,57 @@ export function buildTimelineSceneViewModel(
     verticalStems,
   );
 
-  const hasOverlayItems = markers.length > 0 || spans.length > 0;
+  const rowHighlightResult = buildRowHighlightViewModels(
+    overlay?.rowHighlights ?? [],
+    Boolean(overlay?.dimUnlistedRows),
+    rowBoundsList,
+    rowBoundsById,
+    resolveColors,
+  );
+
+  const connectors = buildConnectorViewModels(
+    overlay?.connectors ?? [],
+    topBandHeightPx,
+    rowBoundsById,
+    toStageX,
+    resolveColors,
+  );
+
+  const callouts = buildCalloutViewModels(
+    overlay?.callouts ?? [],
+    stageWidthPx,
+    topBandHeightPx,
+    stageHeightPx,
+    rowBoundsById,
+    toStageX,
+    resolveColors,
+  );
+
+  const hasOverlayItems =
+    markers.length > 0 ||
+    spans.length > 0 ||
+    rowHighlightResult.highlights.length > 0 ||
+    rowHighlightResult.dimmedMasks.length > 0 ||
+    connectors.length > 0 ||
+    callouts.length > 0 ||
+    excerptResult.pins.length > 0;
 
   return {
     stageWidthPx,
     topBandHeightPx,
     timelineFrameHeightPx,
     stageHeightPx,
-    estimatedTotalHeightPx: stageHeightPx,
+    estimatedTotalHeightPx:
+      stageHeightPx + excerptResult.deck.estimatedHeightPx,
     hasOverlayItems,
     markers,
     spans,
+    rowHighlights: rowHighlightResult.highlights,
+    dimmedRowMasks: rowHighlightResult.dimmedMasks,
+    connectors,
+    callouts,
+    excerptPins: excerptResult.pins,
+    deck: excerptResult.deck,
   };
 }
 
@@ -577,6 +823,504 @@ function buildSpanViewModels(
   }
 
   return result;
+}
+
+function buildRowHighlightViewModels(
+  rowHighlights: readonly TimelineResolvedRowHighlight[],
+  dimUnlistedRows: boolean,
+  rowBoundsList: readonly RowStageBounds[],
+  rowBoundsById: ReadonlyMap<number, RowStageBounds>,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): RowHighlightBuildResult {
+  const highlights: RowHighlightBandViewModel[] = [];
+  const highlightedRowIndices = new Set<number>();
+
+  for (const rh of rowHighlights) {
+    const matchedRows: RowStageBounds[] = [];
+    const seenIndices = new Set<number>();
+    for (const tid of rh.timelineIds) {
+      const bounds = rowBoundsById.get(tid);
+      if (bounds && !seenIndices.has(bounds.index)) {
+        seenIndices.add(bounds.index);
+        matchedRows.push(bounds);
+        highlightedRowIndices.add(bounds.index);
+      }
+    }
+    if (matchedRows.length === 0) {
+      continue;
+    }
+    matchedRows.sort((a, b) => a.index - b.index);
+
+    let runStart = matchedRows[0];
+    let runEnd = matchedRows[0];
+    let runCount = 0;
+    const colors = resolveColors(rh.paletteId);
+
+    const flushRun = (): void => {
+      highlights.push({
+        id: `${rh.id}-run-${runCount}`,
+        roleLabel: runCount === 0 ? (rh.roleLabel ?? '') : '',
+        paletteId: rh.paletteId,
+        colors,
+        topPx: runStart.topPx,
+        heightPx: runEnd.bottomPx - runStart.topPx,
+        badgeRightX: TIMELINE_INDEX_PANE_WIDTH_PX - 6,
+      });
+      runCount++;
+    };
+
+    for (let i = 1; i < matchedRows.length; i++) {
+      const curr = matchedRows[i];
+      if (curr.index === runEnd.index + 1) {
+        runEnd = curr;
+      } else if (curr.index > runEnd.index + 1) {
+        flushRun();
+        runStart = curr;
+        runEnd = curr;
+      }
+    }
+    flushRun();
+  }
+
+  const dimmedMasks: DimmedRowMaskViewModel[] = [];
+  if (dimUnlistedRows && highlightedRowIndices.size > 0) {
+    let maskStart: RowStageBounds | null = null;
+    let maskEnd: RowStageBounds | null = null;
+    let maskCount = 0;
+
+    for (const bounds of rowBoundsList) {
+      if (!highlightedRowIndices.has(bounds.index)) {
+        if (!maskStart) {
+          maskStart = bounds;
+        }
+        maskEnd = bounds;
+      } else if (maskStart && maskEnd) {
+        dimmedMasks.push({
+          id: `dim-mask-${maskCount++}`,
+          topPx: maskStart.topPx,
+          heightPx: maskEnd.bottomPx - maskStart.topPx,
+        });
+        maskStart = null;
+        maskEnd = null;
+      }
+    }
+    if (maskStart && maskEnd) {
+      dimmedMasks.push({
+        id: `dim-mask-${maskCount}`,
+        topPx: maskStart.topPx,
+        heightPx: maskEnd.bottomPx - maskStart.topPx,
+      });
+    }
+  }
+
+  return { highlights, dimmedMasks };
+}
+
+function buildConnectorViewModels(
+  connectors: readonly TimelineResolvedConnector[],
+  topBandHeightPx: number,
+  rowBoundsById: ReadonlyMap<number, RowStageBounds>,
+  toStageX: (timeMs: number) => number,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): ConnectorItemViewModel[] {
+  const defaultY = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 24;
+  const result: ConnectorItemViewModel[] = [];
+
+  for (const conn of connectors) {
+    if (
+      (conn.fromTimelineId !== undefined &&
+        !rowBoundsById.has(conn.fromTimelineId)) ||
+      (conn.toTimelineId !== undefined && !rowBoundsById.has(conn.toTimelineId))
+    ) {
+      continue;
+    }
+
+    const fromX = toStageX(conn.fromTimeMs);
+    const toX = toStageX(conn.toTimeMs);
+    const fromY =
+      conn.fromTimelineId !== undefined
+        ? (rowBoundsById.get(conn.fromTimelineId)?.centerPx ?? defaultY)
+        : defaultY;
+    const toY =
+      conn.toTimelineId !== undefined
+        ? (rowBoundsById.get(conn.toTimelineId)?.centerPx ?? fromY)
+        : fromY;
+    const midX = (fromX + toX) / 2;
+
+    let svgPath: string;
+    let hasArrowHead = false;
+    let arrowHeadPoints = '';
+    let labelCenterY = (fromY + toY) / 2;
+
+    if (conn.style === TimelineConnectorStyle.CALIPER) {
+      const caliperY = Math.max(
+        topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 10,
+        Math.min(fromY, toY) - 12,
+      );
+      svgPath = `M ${fromX} ${caliperY - 5} L ${fromX} ${caliperY + 5} M ${toX} ${caliperY - 5} L ${toX} ${caliperY + 5} M ${fromX} ${caliperY} L ${toX} ${caliperY}`;
+      labelCenterY = caliperY - 12;
+    } else {
+      svgPath =
+        conn.style === TimelineConnectorStyle.STEP
+          ? `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`
+          : `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
+
+      if (fromX !== toX || fromY !== toY) {
+        // Evaluates cubic Bezier chord direction near t = 0.85 so wide S-curves and vertical curves orient smoothly.
+        const angleRad =
+          conn.style === TimelineConnectorStyle.STEP
+            ? midX !== toX
+              ? Math.atan2(0, toX - midX)
+              : Math.atan2(toY - fromY, 0)
+            : Math.atan2((toY - fromY) * 0.312, toX - fromX);
+        const baseCenterX = toX - Math.cos(angleRad) * 8;
+        const baseCenterY = toY - Math.sin(angleRad) * 8;
+        const perpX = -Math.sin(angleRad) * 4.5;
+        const perpY = Math.cos(angleRad) * 4.5;
+        const p1X = Math.round((baseCenterX + perpX) * 10) / 10;
+        const p1Y = Math.round((baseCenterY + perpY) * 10) / 10;
+        const p2X = Math.round((baseCenterX - perpX) * 10) / 10;
+        const p2Y = Math.round((baseCenterY - perpY) * 10) / 10;
+        hasArrowHead = true;
+        arrowHeadPoints = `${toX},${toY} ${p1X},${p1Y} ${p2X},${p2Y}`;
+      }
+    }
+
+    result.push({
+      id: conn.id,
+      badge: conn.badge ?? '',
+      label: conn.label ?? '',
+      style: conn.style,
+      paletteId: conn.paletteId,
+      colors: resolveColors(conn.paletteId),
+      svgPath,
+      hasArrowHead,
+      arrowHeadPoints,
+      labelCenterX: midX,
+      labelCenterY,
+    });
+  }
+
+  return result;
+}
+
+function buildCalloutViewModels(
+  callouts: readonly TimelineResolvedCallout[],
+  stageWidthPx: number,
+  topBandHeightPx: number,
+  stageHeightPx: number,
+  rowBoundsById: ReadonlyMap<number, RowStageBounds>,
+  toStageX: (timeMs: number) => number,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): CalloutItemViewModel[] {
+  const chartTopPx = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX;
+  const cardHeightPx = 24;
+  const leaderGapPx = 18;
+  const minTop = chartTopPx + 4;
+  const maxTop = stageHeightPx - cardHeightPx - 4;
+  const result: CalloutItemViewModel[] = [];
+
+  for (const callout of callouts) {
+    if (
+      callout.timelineId !== undefined &&
+      !rowBoundsById.has(callout.timelineId)
+    ) {
+      continue;
+    }
+
+    const anchorX = toStageX(callout.timeMs);
+    const anchorY =
+      callout.timelineId !== undefined
+        ? (rowBoundsById.get(callout.timelineId)?.centerPx ?? chartTopPx + 24)
+        : chartTopPx + 24;
+    const cardWidthPx = clampNumber(
+      Math.round(22 + callout.label.length * 6.6),
+      88,
+      320,
+    );
+    const minLeft = TIMELINE_CHART_LEFT_PX + 6;
+    const maxLeft = stageWidthPx - cardWidthPx - 8;
+
+    const resolvedPlacement: Exclude<
+      TimelineCalloutPlacement,
+      TimelineCalloutPlacement.AUTO
+    > =
+      callout.placement !== TimelineCalloutPlacement.AUTO
+        ? callout.placement
+        : anchorX + leaderGapPx + cardWidthPx <= stageWidthPx - 10
+          ? TimelineCalloutPlacement.RIGHT
+          : anchorX - leaderGapPx - cardWidthPx >= TIMELINE_CHART_LEFT_PX + 10
+            ? TimelineCalloutPlacement.LEFT
+            : TimelineCalloutPlacement.ABOVE;
+
+    let cardLeftPx: number;
+    let cardTopPx: number;
+    let attachX: number;
+    let attachY: number;
+
+    switch (resolvedPlacement) {
+      case TimelineCalloutPlacement.LEFT:
+      case TimelineCalloutPlacement.RIGHT: {
+        const desiredLeft =
+          resolvedPlacement === TimelineCalloutPlacement.LEFT
+            ? anchorX - leaderGapPx - cardWidthPx
+            : anchorX + leaderGapPx;
+        cardLeftPx = Math.round(clampNumber(desiredLeft, minLeft, maxLeft));
+        cardTopPx = Math.round(
+          clampNumber(anchorY - cardHeightPx / 2, minTop, maxTop),
+        );
+        attachX = clampNumber(anchorX, cardLeftPx, cardLeftPx + cardWidthPx);
+        attachY = cardTopPx + cardHeightPx / 2;
+        break;
+      }
+      case TimelineCalloutPlacement.ABOVE:
+      case TimelineCalloutPlacement.BELOW: {
+        const desiredTop =
+          resolvedPlacement === TimelineCalloutPlacement.ABOVE
+            ? anchorY - leaderGapPx - cardHeightPx
+            : anchorY + leaderGapPx;
+        cardLeftPx = Math.round(
+          clampNumber(anchorX - cardWidthPx / 2, minLeft, maxLeft),
+        );
+        cardTopPx = Math.round(clampNumber(desiredTop, minTop, maxTop));
+        attachX = clampNumber(
+          anchorX,
+          cardLeftPx + 8,
+          cardLeftPx + cardWidthPx - 8,
+        );
+        attachY =
+          resolvedPlacement === TimelineCalloutPlacement.ABOVE
+            ? cardTopPx + cardHeightPx
+            : cardTopPx;
+        break;
+      }
+      default:
+        return unreachable(resolvedPlacement);
+    }
+
+    result.push({
+      id: callout.id,
+      label: callout.label,
+      dashed: Boolean(callout.dashed),
+      paletteId: callout.paletteId,
+      colors: resolveColors(callout.paletteId),
+      anchorX,
+      anchorY,
+      leaderPath: `M ${anchorX} ${anchorY} L ${attachX} ${attachY}`,
+      cardLeftPx,
+      cardTopPx,
+      cardWidthPx,
+      cardHeightPx,
+      jumpTarget: buildJumpTarget(
+        callout.timelineId,
+        callout.revisionIndex,
+        callout.logId,
+      ),
+    });
+  }
+
+  return result;
+}
+
+function buildExcerptPinsAndDeck(
+  excerpts: readonly TimelineResolvedExcerptCard[],
+  stageWidthPx: number,
+  topBandHeightPx: number,
+  stageHeightPx: number,
+  rowBoundsById: ReadonlyMap<number, RowStageBounds>,
+  toStageX: (timeMs: number) => number,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): ExcerptPinsAndDeckResult {
+  const visibleExcerpts = excerpts.slice(0, MAX_EXCERPT_DECK_CARDS);
+  if (visibleExcerpts.length === 0) {
+    return {
+      pins: [],
+      deck: {
+        gridPreset: ExcerptDeckGridPreset.EMPTY,
+        columns: 0,
+        tetherStripHeightPx: 0,
+        estimatedHeightPx: 0,
+        tethers: [],
+        cards: [],
+      },
+    };
+  }
+
+  const gridConfig = selectDeckGridPreset(visibleExcerpts.length, stageWidthPx);
+  const columns = gridConfig.columns;
+  const usableWidthPx =
+    stageWidthPx - DECK_GRID_PADDING_PX * 2 - (columns - 1) * DECK_GRID_GAP_PX;
+  const colWidthPx = usableWidthPx / columns;
+
+  const pins: ExcerptPinViewModel[] = [];
+  const tethers: ExcerptTetherViewModel[] = [];
+  const cards: ExcerptCardViewModel[] = [];
+  const cardRowHeights: number[] = [];
+
+  const fallbackPinY = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 20;
+
+  for (let i = 0; i < visibleExcerpts.length; i++) {
+    const excerpt = visibleExcerpts[i];
+    const colors = resolveColors(excerpt.paletteId);
+    const pinX = toStageX(excerpt.timeMs);
+    const pinY =
+      rowBoundsById.get(excerpt.timelineId)?.centerPx ?? fallbackPinY;
+    const jumpTarget: TimelineSessionJumpTarget = {
+      timelineId: excerpt.timelineId,
+      revisionIndex: excerpt.revisionIndex,
+      logId: excerpt.logId,
+    };
+
+    const stemTopPx = Math.min(stageHeightPx, pinY + 10);
+    pins.push({
+      id: excerpt.id,
+      badge: excerpt.badge,
+      kind: excerpt.kind,
+      paletteId: excerpt.paletteId,
+      colors,
+      pinX,
+      pinY,
+      stemTopPx,
+      stemHeightPx: Math.max(0, stageHeightPx - stemTopPx),
+      jumpTarget,
+    });
+
+    const colIndex = i % columns;
+    const cardAnchorX =
+      Math.round(
+        (DECK_GRID_PADDING_PX +
+          colIndex * (colWidthPx + DECK_GRID_GAP_PX) +
+          colWidthPx / 2) *
+          10,
+      ) / 10;
+    const ctrlY1 = Math.round(DECK_TETHER_STRIP_HEIGHT_PX * 0.56);
+    const ctrlY2 = Math.round(DECK_TETHER_STRIP_HEIGHT_PX * 0.44);
+    tethers.push({
+      id: `tether-${excerpt.id}`,
+      badge: excerpt.badge,
+      paletteId: excerpt.paletteId,
+      colors,
+      svgPath: `M ${pinX} 0 C ${pinX} ${ctrlY1}, ${cardAnchorX} ${ctrlY2}, ${cardAnchorX} ${DECK_TETHER_STRIP_HEIGHT_PX}`,
+      pinX,
+      cardAnchorX,
+    });
+
+    const formattedLines = excerpt.lines.map((line, lineIdx) =>
+      formatExcerptLine(line, lineIdx),
+    );
+    const logTimestamp = excerpt.logTimestamp ?? '';
+    const insertId = excerpt.insertId ?? '';
+    const hasQueryMetadata = logTimestamp !== '' || insertId !== '';
+    cards.push({
+      id: excerpt.id,
+      gridArea: `card-${i}`,
+      badge: excerpt.badge,
+      kind: excerpt.kind,
+      paletteId: excerpt.paletteId,
+      colors,
+      timeLabel: excerpt.timeLabel,
+      resourcePath: excerpt.resourcePath,
+      title: excerpt.title,
+      subtitle: excerpt.subtitle,
+      logTimestamp,
+      insertId,
+      hasQueryMetadata,
+      lines: formattedLines,
+      note: excerpt.note ?? '',
+      actionLabel:
+        excerpt.kind === TimelineExcerptKind.DIFF ? 'Open Diff' : 'Open Log',
+      jumpTarget,
+    });
+
+    const gridRowIndex = Math.floor(i / columns);
+    const cardEstimatedHeightPx =
+      52 +
+      (hasQueryMetadata ? 20 : 0) +
+      Math.max(1, formattedLines.length) * 20 +
+      (excerpt.note ? 30 : 0) +
+      16;
+    cardRowHeights[gridRowIndex] = Math.max(
+      cardRowHeights[gridRowIndex] ?? 0,
+      cardEstimatedHeightPx,
+    );
+  }
+
+  let cardsGridHeightPx = DECK_GRID_PADDING_PX;
+  for (let r = 0; r < cardRowHeights.length; r++) {
+    cardsGridHeightPx += cardRowHeights[r];
+    if (r > 0) {
+      cardsGridHeightPx += DECK_GRID_GAP_PX;
+    }
+  }
+
+  return {
+    pins,
+    deck: {
+      gridPreset: gridConfig.preset,
+      columns,
+      tetherStripHeightPx: DECK_TETHER_STRIP_HEIGHT_PX,
+      estimatedHeightPx: DECK_TETHER_STRIP_HEIGHT_PX + cardsGridHeightPx,
+      tethers,
+      cards,
+    },
+  };
+}
+
+function selectDeckGridPreset(
+  cardCount: number,
+  stageWidthPx: number,
+): DeckGridPresetSelection {
+  if (cardCount <= 1) {
+    return { preset: ExcerptDeckGridPreset.COLS_1, columns: 1 };
+  }
+  if (cardCount === 2) {
+    return { preset: ExcerptDeckGridPreset.COLS_2, columns: 2 };
+  }
+  if (cardCount === 3) {
+    return { preset: ExcerptDeckGridPreset.COLS_3, columns: 3 };
+  }
+  if (cardCount === 4) {
+    if (stageWidthPx >= 1440) {
+      return { preset: ExcerptDeckGridPreset.COLS_4, columns: 4 };
+    }
+    return { preset: ExcerptDeckGridPreset.GRID_2X2, columns: 2 };
+  }
+  return { preset: ExcerptDeckGridPreset.GRID_3X2, columns: 3 };
+}
+
+function formatExcerptLine(
+  line: TimelineExcerptLine,
+  index: number,
+): ExcerptLineViewModel {
+  const parts: readonly TimelineExcerptLinePart[] =
+    line.parts && line.parts.length > 0
+      ? line.parts
+      : [{ text: line.text, matched: false }];
+
+  let prefixSymbol = '';
+  if (line.kind === TimelineExcerptLineKind.ADDED) {
+    prefixSymbol = '+';
+  } else if (line.kind === TimelineExcerptLineKind.DELETED) {
+    prefixSymbol = '-';
+  } else if (line.kind === TimelineExcerptLineKind.CONTEXT) {
+    prefixSymbol = ' ';
+  }
+
+  return {
+    index,
+    kind: line.kind,
+    gutterOld:
+      line.oldLineNum !== undefined && line.oldLineNum > 0
+        ? String(line.oldLineNum)
+        : '',
+    gutterNew:
+      line.newLineNum !== undefined && line.newLineNum > 0
+        ? String(line.newLineNum)
+        : '',
+    prefixSymbol,
+    text: line.text,
+    parts,
+  };
 }
 
 function buildJumpTarget(
