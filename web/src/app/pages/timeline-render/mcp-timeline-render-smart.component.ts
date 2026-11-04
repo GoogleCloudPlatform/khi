@@ -34,6 +34,7 @@ import {
   MIN_INDEX_PANE_WIDTH_PX,
   TIMELINE_GUTTER_WIDTH_PX,
   TIMELINE_HEADER_HEIGHT_PX,
+  TIMELINE_RENDER_HORIZONTAL_OVERDRAW_PX,
   TIMELINE_TEXT_WIDTH_MEASURER,
   calculateTimelineStageDimensions,
 } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
@@ -114,6 +115,9 @@ export class McpTimelineRenderSmartComponent implements OnInit {
   >();
 
   protected readonly collapsedTimelineIds: ReadonlySet<number> = new Set();
+
+  protected readonly horizontalOverdrawPx =
+    TIMELINE_RENDER_HORIZONTAL_OVERDRAW_PX;
 
   protected readonly renderedTimelines = signal<
     readonly ReadonlyDomainElement<Timeline>[]
@@ -256,6 +260,7 @@ export class McpTimelineRenderSmartComponent implements OnInit {
       rendered,
       this.styleStore(),
       this.measureText,
+      params.overlay,
     );
     this.indexPaneWidthPx.set(dimensions.indexPaneWidthPx);
     this.stageWidthPx.set(dimensions.stageWidthPx);

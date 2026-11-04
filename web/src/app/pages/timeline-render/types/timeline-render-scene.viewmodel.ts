@@ -32,19 +32,11 @@ import {
   TimelineSceneOverlay,
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
-
-/**
- * Layout preset identifier for the bottom evidence deck CSS grid.
- */
-export enum ExcerptDeckGridPreset {
-  EMPTY = 'empty',
-  COLS_1 = 'cols-1',
-  COLS_2 = 'cols-2',
-  COLS_3 = 'cols-3',
-  COLS_4 = 'cols-4',
-  GRID_2X2 = 'grid-2x2',
-  GRID_3X2 = 'grid-3x2',
-}
+import {
+  ExcerptDeckGridPreset,
+  ExcerptDeckLayoutPlan,
+  TextWidthMeasurer,
+} from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 
 /**
  * Target resource timeline, revision, or log entry to focus when opening a full KHI session.
@@ -82,6 +74,10 @@ export interface TimelineSceneLayoutInput {
   readonly rows: readonly TimelineRowMetric[];
   /** Resolved visual overlay payload, or null when rendering an unannotated timeline. */
   readonly overlay: TimelineSceneOverlay | null;
+  /** Optional text width measurer used to size bottom evidence deck columns deterministically. */
+  readonly measureText?: TextWidthMeasurer;
+  /** Optional precomputed bottom deck layout plan to avoid re-measuring card text. */
+  readonly deckPlan?: ExcerptDeckLayoutPlan;
 }
 
 /**
@@ -522,16 +518,6 @@ export interface ExcerptPinsAndDeckResult {
   readonly pins: readonly ExcerptPinViewModel[];
   /** Synchronized bottom evidence deck ViewModel. */
   readonly deck: ExcerptDeckViewModel;
-}
-
-/**
- * Selected deck grid preset and column count.
- */
-export interface DeckGridPresetSelection {
-  /** Selected grid preset. */
-  readonly preset: ExcerptDeckGridPreset;
-  /** Number of grid columns. */
-  readonly columns: number;
 }
 
 /**

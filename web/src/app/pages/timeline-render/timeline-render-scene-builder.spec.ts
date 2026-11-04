@@ -24,7 +24,6 @@ import {
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import {
-  ExcerptDeckGridPreset,
   TimelineRowStageBounds,
   VerticalStemSegment,
 } from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
@@ -48,11 +47,14 @@ import {
   selectVisibleAnnotations,
 } from 'src/app/pages/timeline-render/timeline-render-scene-builder';
 import {
+  ExcerptDeckGridPreset,
+  MAX_DECK_CARD_WIDTH_PX,
   MAX_STAGE_WIDTH_PX,
   MIN_CHART_VIEWPORT_WIDTH_PX,
   MIN_INDEX_PANE_WIDTH_PX,
   TIMELINE_GUTTER_WIDTH_PX,
   TIMELINE_HEADER_HEIGHT_PX,
+  TextWidthMeasurer,
 } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { HDRColor4, TimelineType } from 'src/app/store/domain/style';
 import { StyleStore } from 'src/app/store/domain/style-store';
@@ -88,6 +90,18 @@ describe('extractTimelineRowMetrics', () => {
 
     expect(extractTimelineRowMetrics(timelines, styleStore)).toEqual([
       { id: 100, heightPx: 2 * BASE_ROW_HEIGHT },
+      { id: 200, heightPx: 1.5 * BASE_ROW_HEIGHT },
+    ]);
+
+    const undefinedReturningStore = {
+      severities: [],
+      timelineTypes: [],
+      getTimelineType: () => undefined,
+    } as unknown as StyleStore;
+    expect(
+      extractTimelineRowMetrics(timelines, undefinedReturningStore),
+    ).toEqual([
+      { id: 100, heightPx: 1 * BASE_ROW_HEIGHT },
       { id: 200, heightPx: 1.5 * BASE_ROW_HEIGHT },
     ]);
   });
@@ -380,6 +394,24 @@ describe('buildTimelineSceneViewModel', () => {
       { id: 'dim-mask-0', topPx: 60, heightPx: 50 },
       { id: 'dim-mask-1', topPx: 210, heightPx: 50 },
     ]);
+
+    const whitespaceVm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        rowHighlights: [
+          {
+            id: 'rh-blank',
+            roleLabel: '   ',
+            timelineIds: [10],
+            paletteId: 'default',
+          },
+        ],
+      },
+    });
+    expect(whitespaceVm.rowHighlights[0].roleLabel).toBe('');
   });
 
   it('flips auto callouts, skips unrendered targets, orients vertical step arrows, and synchronizes deck cards', () => {
@@ -576,6 +608,83 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.excerptPins.length).toBe(6);
   });
 
+  it('expands stage width horizontally for wide evidence deck cards and falls back to 2x2 when 4 columns exceed 4096px', () => {
+    const fixedMeasurer: TextWidthMeasurer = (text: string) => text.length * 7;
+    const makeLogCard = (id: string, index: number, lineText: string) => ({
+      id,
+      kind: TimelineExcerptKind.LOG,
+      badge: `E${index + 1}`,
+      paletteId: 'default',
+      timeMs: 1_010_000 + index * 5_000,
+      timeLabel: '00:16:50',
+      timelineId: 10,
+      resourcePath: 'pod · test-pod-0',
+      title: 'container-log',
+      subtitle: '1 line',
+      lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: lineText }],
+    });
+
+    // 4 moderate cards (100 chars -> 748px each): 24 + 4 * 748 + 36 = 3052 <= 4096 -> COLS_4.
+    const fourColVm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      measureText: fixedMeasurer,
+      overlay: {
+        excerpts: [
+          makeLogCard('e1', 0, 'a'.repeat(100)),
+          makeLogCard('e2', 1, 'ok'),
+          makeLogCard('e3', 2, 'ok'),
+          makeLogCard('e4', 3, 'ok'),
+        ],
+      },
+    });
+    expect({
+      gridPreset: fourColVm.deck.gridPreset,
+      columns: fourColVm.deck.columns,
+      indexPaneWidthPx: fourColVm.indexPaneWidthPx,
+      stageWidthPx: fourColVm.stageWidthPx,
+      chartViewportWidthPx: fourColVm.chartViewportWidthPx,
+    }).toEqual({
+      gridPreset: ExcerptDeckGridPreset.COLS_4,
+      columns: 4,
+      indexPaneWidthPx: 300,
+      stageWidthPx: 3052,
+      chartViewportWidthPx: 3052 - 308,
+    });
+
+    // 4 ultra-wide cards (200 chars -> 1448px unclamped): 4 cols = 5852 > 4096 -> GRID_2X2 clamped at 1000px.
+    const twoByTwoVm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      measureText: fixedMeasurer,
+      overlay: {
+        excerpts: [
+          makeLogCard('e1', 0, 'w'.repeat(200)),
+          makeLogCard('e2', 1, 'ok'),
+          makeLogCard('e3', 2, 'ok'),
+          makeLogCard('e4', 3, 'ok'),
+        ],
+      },
+    });
+    const wantTwoByTwoWidth = 24 + 2 * MAX_DECK_CARD_WIDTH_PX + 12;
+    expect({
+      gridPreset: twoByTwoVm.deck.gridPreset,
+      columns: twoByTwoVm.deck.columns,
+      stageWidthPx: twoByTwoVm.stageWidthPx,
+      chartViewportWidthPx: twoByTwoVm.chartViewportWidthPx,
+    }).toEqual({
+      gridPreset: ExcerptDeckGridPreset.GRID_2X2,
+      columns: 2,
+      stageWidthPx: wantTwoByTwoWidth,
+      chartViewportWidthPx: wantTwoByTwoWidth - 308,
+    });
+    expect(twoByTwoVm.stageWidthPx).toBeLessThanOrEqual(MAX_STAGE_WIDTH_PX);
+  });
+
   it('disambiguates coinciding span boundaries, slides labels into stem-free sub-intervals, and suppresses brackets on narrow spans', () => {
     const vm = buildTimelineSceneViewModel({
       indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
@@ -707,6 +816,85 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.spans).toEqual([]);
     expect(vm.topBandHeightPx).toBe(0);
     expect(vm.hasOverlayItems).toBe(false);
+  });
+
+  it('retains boundary markers at exact viewEndTimeMs under non-power-of-two pixelsPerMs rounding', () => {
+    const startTimeMs = 1_000_000;
+    const durationMs = 49_000;
+    const endTimeMs = startTimeMs + durationMs;
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: startTimeMs,
+      pixelsPerMs: MIN_CHART_VIEWPORT_WIDTH_PX / durationMs,
+      rows: sampleRows,
+      overlay: {
+        markers: [
+          {
+            id: 'm-right-boundary',
+            badge: '1',
+            label: 'Exact right boundary',
+            style: TimelineMarkerStyle.PIN,
+            paletteId: 'default',
+            timeMs: endTimeMs,
+            timeLabel: '00:17:29',
+            timelineId: 10,
+          },
+        ],
+      },
+    });
+
+    expect(vm.markers.map((m) => m.id)).toEqual(['m-right-boundary']);
+    expect(vm.markers[0].stemX).toBe(defaultStageWidthPx);
+  });
+
+  it('increases estimated deck height when clamped card columns wrap long log lines', () => {
+    const fixedMeasurer: TextWidthMeasurer = (text: string) => text.length * 7;
+    const buildWithLine = (lineText: string) =>
+      buildTimelineSceneViewModel({
+        indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+        viewportLeftTimeMs: 1_000_000,
+        pixelsPerMs: 0.01,
+        rows: sampleRows,
+        measureText: fixedMeasurer,
+        overlay: {
+          excerpts: [
+            {
+              id: 'e1',
+              kind: TimelineExcerptKind.LOG,
+              badge: 'E1',
+              paletteId: 'default',
+              timeMs: 1_010_000,
+              timeLabel: '00:16:50',
+              timelineId: 10,
+              resourcePath: 'pod · test-pod-0',
+              title: 'container-log',
+              subtitle: '1 line',
+              lines: [
+                { kind: TimelineExcerptLineKind.CONTEXT, text: lineText },
+              ],
+            },
+            {
+              id: 'e2',
+              kind: TimelineExcerptKind.LOG,
+              badge: 'E2',
+              paletteId: 'default',
+              timeMs: 1_020_000,
+              timeLabel: '00:17:00',
+              timelineId: 10,
+              resourcePath: 'pod · test-pod-0',
+              title: 'container-log',
+              subtitle: '1 line',
+              lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: 'ok' }],
+            },
+          ],
+        },
+      });
+
+    const singleLineVm = buildWithLine('short line');
+    const wrappedLineVm = buildWithLine('w'.repeat(200));
+    expect(wrappedLineVm.deck.estimatedHeightPx).toBeGreaterThan(
+      singleLineVm.deck.estimatedHeightPx,
+    );
   });
 });
 
