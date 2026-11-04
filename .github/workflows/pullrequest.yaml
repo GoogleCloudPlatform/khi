@@ -16,9 +16,6 @@ name: PR Tests
 
 on:
   pull_request:
-    branches:
-      - "main"
-      - epic/**
   merge_group:
     branches:
       - "main"

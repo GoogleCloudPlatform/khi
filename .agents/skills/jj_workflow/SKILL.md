@@ -85,6 +85,7 @@ This freezes your completed change into the commit graph history (`@-`) and move
 > [!IMPORTANT]
 > **Do not invent custom remote branch names manually.**
 > Always let `jj` generate and manage bookmark names automatically.
+> The remote `origin` points directly to `GoogleCloudPlatform/khi`.
 
 When you need to push a change to the remote repository for review or PR creation:
 
@@ -95,6 +96,12 @@ jj git push -c @
 
 - Jujutsu automatically assigns a unique bookmark name (e.g., `push-qpzqrvsmmnvr`) and pushes it to the remote Git repository (`origin`).
 - Use this auto-generated bookmark name as the head branch when opening a Pull Request on GitHub.
+- For stacked PRs involving multiple linear commits, push each commit to create its corresponding remote bookmark:
+
+```bash
+jj git push -c <rev1> -c <rev2>
+```
+
 - If the change already has a tracked remote bookmark, update it with:
 
 ```bash
@@ -150,7 +157,16 @@ When review comments require code changes:
    jj bookmark move <pr-bookmark-name> --to @
    ```
 
-6. **Push the Updated PR**:
+6. **Cascade Rebase for Stacked PRs (When Applicable)**:
+   If this PR has child PRs stacked on top of it, linearly rebase the child PR's root commit onto the updated bookmark:
+
+   ```bash
+   jj rebase -s <first-commit-of-next-pr> -d <pr-bookmark-name>
+   ```
+
+   Do NOT use merge commits in a stack.
+
+7. **Push the Updated PR**:
 
    ```bash
    jj git push
@@ -160,7 +176,52 @@ When review comments require code changes:
 
 ---
 
-## 6. Conflict Resolution Workflow (Oldest to Newest)
+## 6. Stacked PR Management & Post-Merge Rebasing
+
+KHI uses GitHub Stacked PRs (`gh stack`) and Merge Queue for development.
+
+### Linear Stack Graph in Jujutsu
+
+Keep all PR commits strictly linear without branching or merge commits:
+`main@origin -> rev1 (PR 1) -> rev2 (PR 2) -> rev3 (PR 3) ...`
+
+Each PR commit has its own auto-generated bookmark (`push-xxxx`) pushed to `origin`.
+
+### Post-Squash Merge Rebasing
+
+GitHub's Merge Queue merges PRs using the `SQUASH` method, resulting in a single squashed commit on `main@origin`. The original individual commit history of the merged PR is replaced on `main`.
+
+When a bottom PR (e.g., PR 1) is squash-merged into `main`:
+
+1. **Fetch the Updated Remote**:
+
+   ```bash
+   jj git fetch --remote origin
+   ```
+
+2. **Rebase Remaining Stack Commits onto `main@origin`**:
+   Rebase the root commit of the remaining unmerged PRs (e.g., PR 2) directly onto `main@origin`:
+
+   ```bash
+   jj rebase -s <first-commit-of-remaining-bottom-pr> -d main@origin
+   ```
+
+3. **Abandon Old Pre-Squash Revisions**:
+   Abandon the old local commits of the merged PR to keep the revision graph clean:
+
+   ```bash
+   jj abandon <old-squashed-commit-range>
+   ```
+
+4. **Push the Rebased Stack**:
+
+   ```bash
+   jj git push
+   ```
+
+---
+
+## 7. Conflict Resolution Workflow (Oldest to Newest)
 
 In Jujutsu, merge and rebase conflicts do not abort operations. Instead, conflicts are recorded as first-class states directly on the affected commits.
 
@@ -220,7 +281,7 @@ In Jujutsu, merge and rebase conflicts do not abort operations. Instead, conflic
 
 ---
 
-## 7. Pre-flight Checklist
+## 8. Pre-flight Checklist
 
 Before finalizing any task or pushing to a remote repository:
 
@@ -229,4 +290,5 @@ Before finalizing any task or pushing to a remote repository:
 - [ ] Passed all linters and tests (`make lint-go`, `make lint-web`, `make test-go`, `make test-web`).
 - [ ] For PR reviews: created a new incremental commit with `jj new` without squashing.
 - [ ] For PR reviews: advanced or moved the PR bookmark with `jj bookmark advance` or `jj bookmark move`.
+- [ ] For stacked PR reviews: cascade-rebased downstream stack commits with `jj rebase -s <next-pr-root> -d <pr-bookmark>`.
 - [ ] For conflict resolution: resolved from oldest to newest commit using `jj new` -> test -> `jj squash`.
