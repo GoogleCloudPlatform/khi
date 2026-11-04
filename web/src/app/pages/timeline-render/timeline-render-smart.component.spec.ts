@@ -251,8 +251,8 @@ describe('TimelineRenderSmartComponent', () => {
       renderedCount: 5,
       totalMatched: 5,
       hasMore: false,
-      viewStartTimeMs: 1_000_000,
-      viewEndTimeMs: 2_000_000,
+      viewStartTimeMs: 950_000,
+      viewEndTimeMs: 2_050_000,
     });
 
     await component.applyAndMeasure({
@@ -273,8 +273,8 @@ describe('TimelineRenderSmartComponent', () => {
         totalMatched: 4,
         renderedCount: 4,
         hasMore: false,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
+        viewStartTimeMs: 950_000,
+        viewEndTimeMs: 2_050_000,
       },
     },
     {
@@ -287,8 +287,8 @@ describe('TimelineRenderSmartComponent', () => {
         totalMatched: 3,
         renderedCount: 3,
         hasMore: false,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
+        viewStartTimeMs: 950_000,
+        viewEndTimeMs: 2_050_000,
       },
     },
     {
@@ -301,8 +301,8 @@ describe('TimelineRenderSmartComponent', () => {
         totalMatched: 3,
         renderedCount: 2,
         hasMore: true,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
+        viewStartTimeMs: 950_000,
+        viewEndTimeMs: 2_050_000,
       },
     },
   ];

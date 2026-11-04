@@ -86,6 +86,8 @@ export class TimelineRenderSmartComponent implements OnInit {
   private static readonly MIN_WIDTH = 800;
   private static readonly MAX_WIDTH = 3840;
   private static readonly DEFAULT_MAX_NODES = 50;
+  // Matches renderViewPaddingRatio in pkg/server/mcp/workbench_render.go.
+  private static readonly VIEW_PADDING_PERCENT = 5n;
 
   private readonly route = inject(ActivatedRoute);
   private readonly appRef = inject(ApplicationRef);
@@ -415,14 +417,19 @@ export class TimelineRenderSmartComponent implements OnInit {
   ): { viewStartTimeMs: number; viewEndTimeMs: number } {
     const minLogNs = this.minQueryLogTimeNs();
     const maxLogNs = this.maxQueryLogTimeNs();
+    // Pad the fallback log range so that events at the edges are not clipped.
+    const fallbackPaddingNs =
+      ((maxLogNs - minLogNs) *
+        TimelineRenderSmartComponent.VIEW_PADDING_PERCENT) /
+      100n;
     const viewStartTimeNs =
       requestedStartTimeMs !== undefined
         ? BigInt(Math.round(requestedStartTimeMs)) * 1_000_000n
-        : minLogNs;
+        : minLogNs - fallbackPaddingNs;
     const viewEndTimeNs =
       requestedEndTimeMs !== undefined
         ? BigInt(Math.round(requestedEndTimeMs)) * 1_000_000n
-        : maxLogNs;
+        : maxLogNs + fallbackPaddingNs;
     const durationNs = Math.max(
       1_000_000,
       Number(viewEndTimeNs - viewStartTimeNs),
