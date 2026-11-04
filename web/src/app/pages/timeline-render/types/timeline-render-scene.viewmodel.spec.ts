@@ -324,4 +324,43 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.spans[2].showCornerBrackets).toBe(false);
     expect(vm.spans[2].labelLeftPx).toBe(6);
   });
+
+  it('excludes markers and spans strictly outside the visible viewport time range', () => {
+    const marker = (id: string, timeMs: number) => ({
+      id,
+      badge: '1',
+      label: id,
+      style: TimelineMarkerStyle.PIN,
+      paletteId: 'default',
+      timeMs,
+      timeLabel: '00:16:39',
+    });
+    const span = (id: string, startTimeMs: number, endTimeMs: number) => ({
+      id,
+      label: id,
+      startTimeMs,
+      endTimeMs,
+      durationLabel: '1s',
+      pattern: TimelineSpanPattern.SOLID,
+      paletteId: 'default',
+    });
+    const vm = buildTimelineSceneViewModel({
+      stageWidthPx: 1308,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        markers: [marker('m-before', 999_999), marker('m-after', 1_100_001)],
+        spans: [
+          span('sp-before', 950_000, 999_000),
+          span('sp-after', 1_100_001, 1_120_000),
+        ],
+      },
+    });
+
+    expect(vm.markers).toEqual([]);
+    expect(vm.spans).toEqual([]);
+    expect(vm.topBandHeightPx).toBe(0);
+    expect(vm.hasOverlayItems).toBe(false);
+  });
 });
