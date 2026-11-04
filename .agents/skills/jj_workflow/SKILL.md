@@ -85,7 +85,6 @@ This freezes your completed change into the commit graph history (`@-`) and move
 > [!IMPORTANT]
 > **Do not invent custom remote branch names manually.**
 > Always let `jj` generate and manage bookmark names automatically.
-> The remote `origin` points directly to `GoogleCloudPlatform/khi`.
 
 When you need to push a change to the remote repository for review or PR creation:
 
@@ -169,7 +168,7 @@ When review comments require code changes:
 7. **Push the Updated PR**:
 
    ```bash
-   jj git push
+   jj git push --tracked
    ```
 
    The GitHub PR will automatically show the new incremental commit, allowing reviewers to verify changes easily.
@@ -207,16 +206,16 @@ When a bottom PR (e.g., PR 1) is squash-merged into `main`:
    ```
 
 3. **Abandon Old Pre-Squash Revisions**:
-   Abandon the old local commits of the merged PR to keep the revision graph clean:
+   Abandon the old local commits of the merged PR using Jujutsu revset syntax to keep the revision graph clean:
 
    ```bash
-   jj abandon <old-squashed-commit-range>
+   jj abandon "main@origin..<old-pr-bookmark-name>"
    ```
 
 4. **Push the Rebased Stack**:
 
    ```bash
-   jj git push
+   jj git push --tracked
    ```
 
 ---
