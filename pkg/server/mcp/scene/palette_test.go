@@ -281,6 +281,7 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 	start := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
 	excludeNoLogs := true
 	dim := true
+	revIdx := 2
 	orig := Spec{
 		InspectionID: "insp-1",
 		Filter: workbench.Filter{
@@ -288,21 +289,35 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 			StartTime:                   &start,
 			ExcludeTimelinesWithoutLogs: &excludeNoLogs,
 		},
-		TimelineIDs: []string{"10", "20"},
+		TimelineIDs: []uint32{10, 20},
 		Annotations: &Annotations{
 			Palette:         []PaletteEntry{{ID: "victim", Color: "red"}},
 			DimUnlistedRows: &dim,
+			Markers: []MarkerAnnotation{
+				{
+					Anchor: Anchor{TimelineID: 10, RevisionIndex: &revIdx, RevisionEdge: RevisionEdgeStart},
+					Label:  "Revision transition",
+				},
+			},
+			DiffExcerpts: []DiffExcerpt{
+				{
+					Revision: RevisionRef{TimelineID: 10, RevisionIndex: 2},
+					Windows:  []SliceWindow{{Query: "image:", BeforeLines: 1, AfterLines: 2}},
+				},
+			},
 		},
 	}
 
 	cloned := orig.Clone()
-	cloned.TimelineIDs[0] = "99"
+	cloned.TimelineIDs[0] = 99
 	*cloned.Filter.ExcludeTimelinesWithoutLogs = false
 	cloned.Annotations.Palette[0].Color = "blue"
 	*cloned.Annotations.DimUnlistedRows = false
+	*cloned.Annotations.Markers[0].Anchor.RevisionIndex = 99
+	cloned.Annotations.DiffExcerpts[0].Windows[0].BeforeLines = 5
 
-	if orig.TimelineIDs[0] != "10" {
-		t.Errorf("orig.TimelineIDs[0] mutated to %q, want \"10\"", orig.TimelineIDs[0])
+	if orig.TimelineIDs[0] != 10 {
+		t.Errorf("orig.TimelineIDs[0] mutated to %d, want 10", orig.TimelineIDs[0])
 	}
 	if !*orig.Filter.ExcludeTimelinesWithoutLogs {
 		t.Error("orig.Filter.ExcludeTimelinesWithoutLogs mutated to false, want true")
@@ -312,5 +327,11 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 	}
 	if !*orig.Annotations.DimUnlistedRows {
 		t.Error("orig.Annotations.DimUnlistedRows mutated to false, want true")
+	}
+	if *orig.Annotations.Markers[0].Anchor.RevisionIndex != 2 {
+		t.Errorf("orig.Annotations.Markers[0].Anchor.RevisionIndex mutated to %d, want 2", *orig.Annotations.Markers[0].Anchor.RevisionIndex)
+	}
+	if orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines != 1 {
+		t.Errorf("orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines mutated to %d, want 1", orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines)
 	}
 }
