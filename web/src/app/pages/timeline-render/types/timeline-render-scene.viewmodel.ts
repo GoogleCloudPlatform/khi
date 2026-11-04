@@ -22,31 +22,18 @@ import {
   TimelineSceneOverlay,
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
+import {
+  MAX_INDEX_PANE_WIDTH_PX,
+  MAX_STAGE_WIDTH_PX,
+  MIN_CHART_VIEWPORT_WIDTH_PX,
+  MIN_INDEX_PANE_WIDTH_PX,
+  TIMELINE_GUTTER_WIDTH_PX,
+  TIMELINE_HEADER_HEIGHT_PX,
+} from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model';
-
-/**
- * Height of the sticky timestamp ruler header inside TimelineFrameComponent in pixels.
- */
-export const TIMELINE_HEADER_HEIGHT_PX = 60;
-
-/**
- * Width of the left resource hierarchy index pane inside TimelineFrameComponent in pixels.
- */
-export const TIMELINE_INDEX_PANE_WIDTH_PX = 300;
-
-/**
- * Width of the resizer gutter between the index pane and chart canvas in pixels.
- */
-export const TIMELINE_GUTTER_WIDTH_PX = 8;
-
-/**
- * Left X offset where the timeline chart area begins in stage coordinates.
- */
-export const TIMELINE_CHART_LEFT_PX =
-  TIMELINE_INDEX_PANE_WIDTH_PX + TIMELINE_GUTTER_WIDTH_PX;
 
 const MARKER_LANE_STEP_PX = 30;
 const MARKER_PILL_HEIGHT_PX = 24;
@@ -73,10 +60,15 @@ export interface TimelineRowMetric {
  * Input geometry and overlay payload used to compute the rendered scene ViewModel.
  */
 export interface TimelineSceneLayoutInput {
-  readonly stageWidthPx: number;
+  /** Fitted width of the left resource hierarchy index pane in CSS pixels. */
+  readonly indexPaneWidthPx: number;
+  /** Inclusive left edge timestamp of the chart viewport in epoch milliseconds. */
   readonly viewportLeftTimeMs: number;
+  /** Horizontal chart scale in CSS pixels per millisecond. */
   readonly pixelsPerMs: number;
+  /** Rendered timeline row height metrics ordered from top to bottom. */
   readonly rows: readonly TimelineRowMetric[];
+  /** Resolved visual overlay payload, or null when rendering an unannotated timeline. */
   readonly overlay: TimelineSceneOverlay | null;
 }
 
@@ -152,13 +144,27 @@ export interface SpanItemViewModel {
  * Layout ViewModel for the timeline stage overlay.
  */
 export interface TimelineSceneViewModel {
+  /** Fitted width of the left resource hierarchy index pane in CSS pixels. */
+  readonly indexPaneWidthPx: number;
+  /** Left X coordinate where the chart viewport begins in CSS pixels. */
+  readonly chartLeftPx: number;
+  /** Width of the right timeline chart viewport in CSS pixels. */
+  readonly chartViewportWidthPx: number;
+  /** Total horizontal stage width in CSS pixels. */
   readonly stageWidthPx: number;
+  /** Height reserved above the timeline frame for staggered marker pills in CSS pixels. */
   readonly topBandHeightPx: number;
+  /** Height of the timeline frame including ruler header and rows in CSS pixels. */
   readonly timelineFrameHeightPx: number;
+  /** Combined height of the top marker band and timeline frame in CSS pixels. */
   readonly stageHeightPx: number;
+  /** Total vertical capture height of the rendered scene in CSS pixels. */
   readonly estimatedTotalHeightPx: number;
+  /** True when at least one visible overlay annotation is rendered. */
   readonly hasOverlayItems: boolean;
+  /** Positioned vertical marker pills and stems. */
   readonly markers: readonly MarkerItemViewModel[];
+  /** Positioned time-range span bands and header chips. */
   readonly spans: readonly SpanItemViewModel[];
 }
 
@@ -222,11 +228,17 @@ export function extractTimelineRowMetrics(
 export function buildTimelineSceneViewModel(
   input: TimelineSceneLayoutInput,
 ): TimelineSceneViewModel {
-  const stageWidthPx = Math.max(
-    TIMELINE_CHART_LEFT_PX + 100,
-    input.stageWidthPx,
+  const indexPaneWidthPx = clampNumber(
+    Number.isFinite(input.indexPaneWidthPx)
+      ? Math.ceil(input.indexPaneWidthPx)
+      : MIN_INDEX_PANE_WIDTH_PX,
+    MIN_INDEX_PANE_WIDTH_PX,
+    MAX_INDEX_PANE_WIDTH_PX,
   );
-  const chartWidthPx = stageWidthPx - TIMELINE_CHART_LEFT_PX;
+  const chartLeftPx = indexPaneWidthPx + TIMELINE_GUTTER_WIDTH_PX;
+  const timelineMinWidthPx = chartLeftPx + MIN_CHART_VIEWPORT_WIDTH_PX;
+  const stageWidthPx = Math.min(timelineMinWidthPx, MAX_STAGE_WIDTH_PX);
+  const chartViewportWidthPx = Math.max(0, stageWidthPx - chartLeftPx);
   const safePixelsPerMs =
     Number.isFinite(input.pixelsPerMs) && input.pixelsPerMs > 0
       ? input.pixelsPerMs
@@ -238,13 +250,14 @@ export function buildTimelineSceneViewModel(
     const clampedX = clampNumber(
       Number.isFinite(rawX) ? rawX : 0,
       0,
-      chartWidthPx,
+      chartViewportWidthPx,
     );
-    return Math.round((TIMELINE_CHART_LEFT_PX + clampedX) * 10) / 10;
+    return Math.round((chartLeftPx + clampedX) * 10) / 10;
   };
 
   const viewportRightTimeMs =
-    input.viewportLeftTimeMs + chartWidthPx / Math.max(safePixelsPerMs, 1e-9);
+    input.viewportLeftTimeMs +
+    chartViewportWidthPx / Math.max(safePixelsPerMs, 1e-9);
   const visibleMarkers =
     safePixelsPerMs > 0
       ? (overlay?.markers ?? []).filter(
@@ -363,6 +376,7 @@ export function buildTimelineSceneViewModel(
 
   const spans = buildSpanViewModels(
     visibleSpans,
+    chartLeftPx,
     stageWidthPx,
     topBandHeightPx,
     stageHeightPx,
@@ -375,6 +389,9 @@ export function buildTimelineSceneViewModel(
   const hasOverlayItems = markers.length > 0 || spans.length > 0;
 
   return {
+    indexPaneWidthPx,
+    chartLeftPx,
+    chartViewportWidthPx,
     stageWidthPx,
     topBandHeightPx,
     timelineFrameHeightPx,
@@ -438,6 +455,7 @@ function packMarkerLanes(
 
 function buildSpanViewModels(
   spans: readonly TimelineResolvedSpan[],
+  chartLeftPx: number,
   stageWidthPx: number,
   topBandHeightPx: number,
   stageHeightPx: number,
@@ -479,7 +497,7 @@ function buildSpanViewModels(
     const widthPx = Math.max(4, Math.abs(x2 - x1));
     const leftPx = clampNumber(
       Math.min(x1, x2),
-      TIMELINE_CHART_LEFT_PX,
+      chartLeftPx,
       stageWidthPx - widthPx,
     );
 

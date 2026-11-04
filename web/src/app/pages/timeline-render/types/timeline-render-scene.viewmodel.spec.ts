@@ -21,11 +21,15 @@ import {
 } from 'src/app/common/schema/timeline-render-types';
 import {
   DEFAULT_REFERENCE_PALETTE_COLORS,
-  TIMELINE_CHART_LEFT_PX,
-  TIMELINE_HEADER_HEIGHT_PX,
   buildTimelineSceneViewModel,
   extractTimelineRowMetrics,
 } from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+import {
+  MIN_CHART_VIEWPORT_WIDTH_PX,
+  MIN_INDEX_PANE_WIDTH_PX,
+  TIMELINE_GUTTER_WIDTH_PX,
+  TIMELINE_HEADER_HEIGHT_PX,
+} from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { HDRColor4, TimelineType } from 'src/app/store/domain/style';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { Timeline } from 'src/app/store/domain/timeline';
@@ -66,6 +70,9 @@ describe('extractTimelineRowMetrics', () => {
 });
 
 describe('buildTimelineSceneViewModel', () => {
+  const defaultChartLeftPx = MIN_INDEX_PANE_WIDTH_PX + TIMELINE_GUTTER_WIDTH_PX;
+  const defaultStageWidthPx = defaultChartLeftPx + MIN_CHART_VIEWPORT_WIDTH_PX;
+
   const sampleRows = [
     { id: 10, heightPx: 50 },
     { id: 20, heightPx: 50 },
@@ -89,9 +96,9 @@ describe('buildTimelineSceneViewModel', () => {
     surface: '#fbeaea',
   };
 
-  it('computes zero topBandHeightPx when overlay is null', () => {
+  it('computes zero topBandHeightPx and baseline minimum width when overlay is null', () => {
     const vm = buildTimelineSceneViewModel({
-      stageWidthPx: 1308,
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
       viewportLeftTimeMs: 1_000_000,
       pixelsPerMs: 0.01,
       rows: sampleRows,
@@ -99,12 +106,20 @@ describe('buildTimelineSceneViewModel', () => {
     });
 
     expect({
+      indexPaneWidthPx: vm.indexPaneWidthPx,
+      chartLeftPx: vm.chartLeftPx,
+      chartViewportWidthPx: vm.chartViewportWidthPx,
+      stageWidthPx: vm.stageWidthPx,
       topBandHeightPx: vm.topBandHeightPx,
       timelineFrameHeightPx: vm.timelineFrameHeightPx,
       stageHeightPx: vm.stageHeightPx,
       estimatedTotalHeightPx: vm.estimatedTotalHeightPx,
       hasOverlayItems: vm.hasOverlayItems,
     }).toEqual({
+      indexPaneWidthPx: 300,
+      chartLeftPx: 308,
+      chartViewportWidthPx: 1280,
+      stageWidthPx: defaultStageWidthPx,
       topBandHeightPx: 0,
       timelineFrameHeightPx: 260,
       stageHeightPx: 260,
@@ -113,9 +128,82 @@ describe('buildTimelineSceneViewModel', () => {
     });
   });
 
+  it('expands stage width horizontally with indexPaneWidthPx while preserving minimum chart viewport width', () => {
+    interface WidthCase {
+      readonly desc: string;
+      readonly indexPaneWidthPx: number;
+      readonly wantIndexPaneWidthPx: number;
+      readonly wantChartLeftPx: number;
+      readonly wantStageWidthPx: number;
+    }
+
+    const widthCases: readonly WidthCase[] = [
+      {
+        desc: 'clamps narrow index pane up to 300px minimum',
+        indexPaneWidthPx: 180,
+        wantIndexPaneWidthPx: 300,
+        wantChartLeftPx: 308,
+        wantStageWidthPx: 1588,
+      },
+      {
+        desc: 'grows stage horizontally for wide index labels without shrinking 1280px chart viewport',
+        indexPaneWidthPx: 480,
+        wantIndexPaneWidthPx: 480,
+        wantChartLeftPx: 488,
+        wantStageWidthPx: 1768,
+      },
+      {
+        desc: 'caps pathological index pane width at 1200px',
+        indexPaneWidthPx: 1600,
+        wantIndexPaneWidthPx: 1200,
+        wantChartLeftPx: 1208,
+        wantStageWidthPx: 2488,
+      },
+    ];
+
+    for (const tc of widthCases) {
+      const vm = buildTimelineSceneViewModel({
+        indexPaneWidthPx: tc.indexPaneWidthPx,
+        viewportLeftTimeMs: 1_000_000,
+        pixelsPerMs: 0.01,
+        rows: sampleRows,
+        overlay: {
+          markers: [
+            {
+              id: 'm1',
+              badge: '1',
+              label: 'Event',
+              style: TimelineMarkerStyle.PIN,
+              paletteId: 'default',
+              timeMs: 1_020_000,
+              timeLabel: '00:17:00',
+              timelineId: 10,
+            },
+          ],
+        },
+      });
+
+      expect({
+        indexPaneWidthPx: vm.indexPaneWidthPx,
+        chartLeftPx: vm.chartLeftPx,
+        chartViewportWidthPx: vm.chartViewportWidthPx,
+        stageWidthPx: vm.stageWidthPx,
+        stemX: vm.markers[0].stemX,
+      })
+        .withContext(tc.desc)
+        .toEqual({
+          indexPaneWidthPx: tc.wantIndexPaneWidthPx,
+          chartLeftPx: tc.wantChartLeftPx,
+          chartViewportWidthPx: 1280,
+          stageWidthPx: tc.wantStageWidthPx,
+          stemX: tc.wantChartLeftPx + 200,
+        });
+    }
+  });
+
   it('staggers overlapping marker pills into separate top-band lanes and resolves named and default-reference palettes', () => {
     const vm = buildTimelineSceneViewModel({
-      stageWidthPx: 1308,
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
       viewportLeftTimeMs: 1_000_000,
       pixelsPerMs: 0.01,
       rows: sampleRows,
@@ -156,7 +244,7 @@ describe('buildTimelineSceneViewModel', () => {
     // Row 20 starts at 72 (band) + 60 (header) + 50 (row 10) = 182, center = 207.
     expect(vm.markers[0].hasTargetDot).toBe(true);
     expect(vm.markers[0].dotY).toBe(207);
-    expect(vm.markers[0].stemX).toBe(TIMELINE_CHART_LEFT_PX + 200);
+    expect(vm.markers[0].stemX).toBe(defaultChartLeftPx + 200);
     // Reference marker extends to full stageHeightPx (72 + 260 = 332).
     expect(vm.markers[1].hasTargetDot).toBe(false);
     expect(vm.markers[1].stemTopPx + vm.markers[1].stemHeightPx).toBe(
@@ -166,7 +254,7 @@ describe('buildTimelineSceneViewModel', () => {
 
   it('scopes spans vertically to target rows, skips unrendered row-scoped spans, and clamps right-edge minimum width', () => {
     const vm = buildTimelineSceneViewModel({
-      stageWidthPx: 1308,
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
       viewportLeftTimeMs: 1_000_000,
       pixelsPerMs: 0.01,
       rows: sampleRows,
@@ -196,8 +284,8 @@ describe('buildTimelineSceneViewModel', () => {
           {
             id: 'sp-right-edge',
             label: 'Edge spike',
-            startTimeMs: 1_100_000,
-            endTimeMs: 1_100_100,
+            startTimeMs: 1_128_000,
+            endTimeMs: 1_128_100,
             durationLabel: '100ms',
             pattern: TimelineSpanPattern.SOLID,
             paletteId: 'trigger',
@@ -218,22 +306,22 @@ describe('buildTimelineSceneViewModel', () => {
       coincidentLeft: false,
       coincidentRight: false,
       labelLeftPx: 6,
-      chipStageLeftPx: TIMELINE_CHART_LEFT_PX + 106,
+      chipStageLeftPx: defaultChartLeftPx + 106,
       chipStageTopPx: TIMELINE_HEADER_HEIGHT_PX + 56,
       chipMaxWidthPx: 288,
-      leftPx: TIMELINE_CHART_LEFT_PX + 100,
+      leftPx: defaultChartLeftPx + 100,
       topPx: TIMELINE_HEADER_HEIGHT_PX + 52,
       widthPx: 300,
       heightPx: 96,
     });
     expect(vm.spans[1].id).toBe('sp-right-edge');
-    expect(vm.spans[1].leftPx).toBe(1304);
+    expect(vm.spans[1].leftPx).toBe(defaultStageWidthPx - 4);
     expect(vm.spans[1].widthPx).toBe(4);
   });
 
   it('disambiguates coinciding span boundaries, slides labels into stem-free sub-intervals, and suppresses brackets on narrow spans', () => {
     const vm = buildTimelineSceneViewModel({
-      stageWidthPx: 1308,
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
       viewportLeftTimeMs: 1_000_000,
       pixelsPerMs: 0.01,
       rows: sampleRows,
@@ -345,15 +433,15 @@ describe('buildTimelineSceneViewModel', () => {
       paletteId: 'default',
     });
     const vm = buildTimelineSceneViewModel({
-      stageWidthPx: 1308,
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
       viewportLeftTimeMs: 1_000_000,
       pixelsPerMs: 0.01,
       rows: sampleRows,
       overlay: {
-        markers: [marker('m-before', 999_999), marker('m-after', 1_100_001)],
+        markers: [marker('m-before', 999_999), marker('m-after', 1_128_001)],
         spans: [
           span('sp-before', 950_000, 999_000),
-          span('sp-after', 1_100_001, 1_120_000),
+          span('sp-after', 1_128_001, 1_140_000),
         ],
       },
     });
