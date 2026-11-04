@@ -14,19 +14,44 @@
  * limitations under the License.
  */
 
+import { unreachable } from 'src/app/common/misc-util';
 import {
+  TimelineCalloutPlacement,
+  TimelineConnectorStyle,
+  TimelineExcerptKind,
+  TimelineExcerptLine,
+  TimelineExcerptLineKind,
+  TimelineExcerptLinePart,
   TimelineMarkerStyle,
+  TimelineResolvedCallout,
+  TimelineResolvedConnector,
+  TimelineResolvedExcerptCard,
   TimelineResolvedMarker,
   TimelineResolvedPaletteColors,
+  TimelineResolvedRowHighlight,
   TimelineResolvedSpan,
   TimelineSceneOverlay,
+  TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import {
+  CalloutItemViewModel,
+  ConnectorItemViewModel,
+  DeckGridPresetSelection,
+  DimmedRowMaskViewModel,
+  ExcerptCardViewModel,
+  ExcerptDeckGridPreset,
+  ExcerptDeckViewModel,
+  ExcerptLineViewModel,
+  ExcerptPinViewModel,
+  ExcerptPinsAndDeckResult,
+  ExcerptTetherViewModel,
   LocalSpanInterval,
   MarkerItemViewModel,
   PackedMarkerLanes,
   PaletteColorResolver,
   PreliminaryMarkerPlacement,
+  RowHighlightBandViewModel,
+  RowHighlightBuildResult,
   SceneHorizontalBounds,
   SpanBoxGeometry,
   SpanHeaderChipLayout,
@@ -59,6 +84,10 @@ import { clampNumber } from 'src/app/utils/math-util';
 const MARKER_LANE_STEP_PX = 30;
 const MARKER_PILL_HEIGHT_PX = 24;
 const MARKER_BAND_VERTICAL_PADDING_PX = 12;
+const DECK_TETHER_STRIP_HEIGHT_PX = 32;
+const DECK_GRID_PADDING_PX = 12;
+const DECK_GRID_GAP_PX = 12;
+const MAX_EXCERPT_DECK_CARDS = 6;
 
 /**
  * Built-in fallback palette colors when a scene item uses the default blue palette.
@@ -90,15 +119,11 @@ export function extractTimelineRowMetrics(
   styleStore: StyleStoreLike,
 ): TimelineRowMetric[] {
   return timelines.map((timeline) => {
-    let timelineType = timeline.type;
-    try {
-      timelineType = styleStore.getTimelineType(timeline.type.id);
-    } catch {
-      timelineType = timeline.type;
-    }
+    const overridden = styleStore.getTimelineType(timeline.type.id);
+    const heightUnits = overridden?.height ?? timeline.type.height;
     return {
       id: timeline.id,
-      heightPx: timelineType.height * BASE_ROW_HEIGHT,
+      heightPx: heightUnits * BASE_ROW_HEIGHT,
     };
   });
 }
@@ -110,17 +135,13 @@ export function resolveSceneHorizontalBounds(
   rawIndexPaneWidthPx: number,
 ): SceneHorizontalBounds {
   const indexPaneWidthPx = clampNumber(
-    Number.isFinite(rawIndexPaneWidthPx)
-      ? Math.ceil(rawIndexPaneWidthPx)
-      : MIN_INDEX_PANE_WIDTH_PX,
+    rawIndexPaneWidthPx,
     MIN_INDEX_PANE_WIDTH_PX,
     MAX_INDEX_PANE_WIDTH_PX,
   );
   const chartLeftPx = indexPaneWidthPx + TIMELINE_GUTTER_WIDTH_PX;
-  const timelineMinWidthPx = chartLeftPx + MIN_CHART_VIEWPORT_WIDTH_PX;
-  const stageWidthPx = Math.min(timelineMinWidthPx, MAX_STAGE_WIDTH_PX);
-  const chartViewportWidthPx = Math.max(0, stageWidthPx - chartLeftPx);
-
+  const chartViewportWidthPx = MIN_CHART_VIEWPORT_WIDTH_PX;
+  const stageWidthPx = chartLeftPx + chartViewportWidthPx;
   return {
     indexPaneWidthPx,
     chartLeftPx,
@@ -313,19 +334,27 @@ export function buildMarkerViewModels(
   return placements.map((item): MarkerItemViewModel => {
     const pillTopPx = 6 + item.laneIndex * MARKER_LANE_STEP_PX;
     const stemTopPx = pillTopPx + MARKER_PILL_HEIGHT_PX;
-    const targetRow =
+    const rowBounds =
       item.marker.timelineId !== undefined
         ? rowBoundsById.get(item.marker.timelineId)
         : undefined;
-    const hasTargetDot =
-      item.marker.style === TimelineMarkerStyle.PIN && targetRow !== undefined;
-    const stemEndPx =
-      hasTargetDot && targetRow ? targetRow.centerPx : stageHeightPx;
-    const fallbackColors =
-      item.marker.style === TimelineMarkerStyle.REFERENCE ||
-      item.marker.paletteId === DEFAULT_REFERENCE_PALETTE_COLORS.id
-        ? DEFAULT_REFERENCE_PALETTE_COLORS
-        : DEFAULT_TIMELINE_PALETTE_COLORS;
+
+    let stemHeightPx: number;
+    let hasTargetDot = false;
+    let dotY = 0;
+
+    if (item.marker.style === TimelineMarkerStyle.PIN) {
+      if (rowBounds) {
+        dotY = rowBounds.centerPx;
+        stemHeightPx = Math.max(0, dotY - stemTopPx);
+        hasTargetDot = true;
+      } else {
+        stemHeightPx = Math.max(0, stageHeightPx - stemTopPx);
+      }
+    } else {
+      stemHeightPx = Math.max(0, stageHeightPx - stemTopPx);
+    }
+
     return {
       id: item.marker.id,
       badge: item.marker.badge,
@@ -333,16 +362,16 @@ export function buildMarkerViewModels(
       timeLabel: item.marker.timeLabel,
       style: item.marker.style,
       paletteId: item.marker.paletteId,
-      colors: resolveColors(item.marker.paletteId, fallbackColors),
+      colors: resolveColors(item.marker.paletteId),
       pillLeftPx: item.pillLeftPx,
       pillTopPx,
       pillWidthPx: item.pillWidthPx,
       pillHeightPx: MARKER_PILL_HEIGHT_PX,
       stemX: item.stemX,
       stemTopPx,
-      stemHeightPx: Math.max(0, stemEndPx - stemTopPx),
+      stemHeightPx,
       hasTargetDot,
-      dotY: hasTargetDot && targetRow ? targetRow.centerPx : stemEndPx,
+      dotY,
       jumpTarget: buildJumpTarget(
         item.marker.timelineId,
         item.marker.revisionIndex,
@@ -353,7 +382,7 @@ export function buildMarkerViewModels(
 }
 
 /**
- * Collects non-zero vertical drop stem segments from marker ViewModels for span chip obstacle avoidance.
+ * Collects vertical stem segments from positioned markers for span label obstacle avoidance.
  */
 export function collectMarkerVerticalStems(
   markers: readonly MarkerItemViewModel[],
@@ -372,7 +401,26 @@ export function collectMarkerVerticalStems(
 }
 
 /**
- * Resolves vertical boundaries and row-scoped insets for a timeline span band.
+ * Collects non-zero vertical drop stem segments from excerpt pin ViewModels for span chip obstacle avoidance.
+ */
+export function collectExcerptPinVerticalStems(
+  pins: readonly ExcerptPinViewModel[],
+): VerticalStemSegment[] {
+  const stems: VerticalStemSegment[] = [];
+  for (const pin of pins) {
+    if (pin.stemHeightPx > 0) {
+      stems.push({
+        x: pin.pinX,
+        topPx: pin.stemTopPx,
+        bottomPx: pin.stemTopPx + pin.stemHeightPx,
+      });
+    }
+  }
+  return stems;
+}
+
+/**
+ * Computes top and bottom vertical boundaries and row-scoping flag for a timeline span.
  */
 export function resolveSpanVerticalBounds(
   span: TimelineResolvedSpan,
@@ -634,7 +682,7 @@ export function buildSpanViewModels(
 }
 
 /**
- * Computes the geometry and layout ViewModel for timeline markers and spans.
+ * Computes the complete geometry and layout ViewModel for all timeline annotations and deck cards.
  */
 export function buildTimelineSceneViewModel(
   input: TimelineSceneLayoutInput,
@@ -663,6 +711,7 @@ export function buildTimelineSceneViewModel(
     topBandHeightPx,
     timelineFrameHeightPx,
     stageHeightPx,
+    rowBoundsList,
     rowBoundsById,
   } = computeStageRowLayout(input.rows, markerPlacements.laneCount);
   const resolveColors = createPaletteColorResolver(input.overlay?.palette);
@@ -673,7 +722,22 @@ export function buildTimelineSceneViewModel(
     rowBoundsById,
     resolveColors,
   );
-  const verticalStems = collectMarkerVerticalStems(markers);
+
+  const excerptResult = buildExcerptPinsAndDeck(
+    input.overlay?.excerpts ?? [],
+    stageWidthPx,
+    topBandHeightPx,
+    stageHeightPx,
+    rowBoundsById,
+    toStageX,
+    resolveColors,
+  );
+
+  const verticalStems: VerticalStemSegment[] = [
+    ...collectMarkerVerticalStems(markers),
+    ...collectExcerptPinVerticalStems(excerptResult.pins),
+  ];
+
   const spans = buildSpanViewModels(
     visibleSpans,
     chartLeftPx,
@@ -686,7 +750,42 @@ export function buildTimelineSceneViewModel(
     verticalStems,
   );
 
-  const hasOverlayItems = markers.length > 0 || spans.length > 0;
+  const rowHighlightResult = buildRowHighlightViewModels(
+    input.overlay?.rowHighlights ?? [],
+    Boolean(input.overlay?.dimUnlistedRows),
+    indexPaneWidthPx,
+    rowBoundsList,
+    rowBoundsById,
+    resolveColors,
+  );
+
+  const connectors = buildConnectorViewModels(
+    input.overlay?.connectors ?? [],
+    topBandHeightPx,
+    rowBoundsById,
+    toStageX,
+    resolveColors,
+  );
+
+  const callouts = buildCalloutViewModels(
+    input.overlay?.callouts ?? [],
+    chartLeftPx,
+    stageWidthPx,
+    topBandHeightPx,
+    stageHeightPx,
+    rowBoundsById,
+    toStageX,
+    resolveColors,
+  );
+
+  const hasOverlayItems =
+    markers.length > 0 ||
+    spans.length > 0 ||
+    rowHighlightResult.highlights.length > 0 ||
+    rowHighlightResult.dimmedMasks.length > 0 ||
+    connectors.length > 0 ||
+    callouts.length > 0 ||
+    excerptResult.pins.length > 0;
 
   return {
     indexPaneWidthPx,
@@ -696,10 +795,517 @@ export function buildTimelineSceneViewModel(
     topBandHeightPx,
     timelineFrameHeightPx,
     stageHeightPx,
-    estimatedTotalHeightPx: stageHeightPx,
+    estimatedTotalHeightPx:
+      stageHeightPx + excerptResult.deck.estimatedHeightPx,
     hasOverlayItems,
     markers,
     spans,
+    rowHighlights: rowHighlightResult.highlights,
+    dimmedRowMasks: rowHighlightResult.dimmedMasks,
+    connectors,
+    callouts,
+    excerptPins: excerptResult.pins,
+    deck: excerptResult.deck,
+  };
+}
+
+function buildRowHighlightViewModels(
+  rowHighlights: readonly TimelineResolvedRowHighlight[],
+  dimUnlistedRows: boolean,
+  indexPaneWidthPx: number,
+  rowBoundsList: readonly TimelineRowStageBounds[],
+  rowBoundsById: ReadonlyMap<number, TimelineRowStageBounds>,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): RowHighlightBuildResult {
+  const highlights: RowHighlightBandViewModel[] = [];
+  const highlightedRowIndices = new Set<number>();
+
+  for (const rh of rowHighlights) {
+    const matchedRows: TimelineRowStageBounds[] = [];
+    const seenIndices = new Set<number>();
+    for (const tid of rh.timelineIds) {
+      const bounds = rowBoundsById.get(tid);
+      if (bounds && !seenIndices.has(bounds.index)) {
+        seenIndices.add(bounds.index);
+        matchedRows.push(bounds);
+        highlightedRowIndices.add(bounds.index);
+      }
+    }
+    if (matchedRows.length === 0) {
+      continue;
+    }
+    matchedRows.sort((a, b) => a.index - b.index);
+
+    let runStart = matchedRows[0];
+    let runEnd = matchedRows[0];
+    let runCount = 0;
+    const colors = resolveColors(rh.paletteId);
+
+    const flushRun = (): void => {
+      highlights.push({
+        id: `${rh.id}-run-${runCount}`,
+        roleLabel: runCount === 0 ? (rh.roleLabel ?? '') : '',
+        paletteId: rh.paletteId,
+        colors,
+        topPx: runStart.topPx,
+        heightPx: runEnd.bottomPx - runStart.topPx,
+        badgeRightX: indexPaneWidthPx - 6,
+      });
+      runCount++;
+    };
+
+    for (let i = 1; i < matchedRows.length; i++) {
+      const curr = matchedRows[i];
+      if (curr.index === runEnd.index + 1) {
+        runEnd = curr;
+      } else if (curr.index > runEnd.index + 1) {
+        flushRun();
+        runStart = curr;
+        runEnd = curr;
+      }
+    }
+    flushRun();
+  }
+
+  const dimmedMasks: DimmedRowMaskViewModel[] = [];
+  if (dimUnlistedRows && highlightedRowIndices.size > 0) {
+    let maskStart: TimelineRowStageBounds | null = null;
+    let maskEnd: TimelineRowStageBounds | null = null;
+    let maskCount = 0;
+
+    for (const bounds of rowBoundsList) {
+      if (!highlightedRowIndices.has(bounds.index)) {
+        if (!maskStart) {
+          maskStart = bounds;
+        }
+        maskEnd = bounds;
+      } else if (maskStart && maskEnd) {
+        dimmedMasks.push({
+          id: `dim-mask-${maskCount++}`,
+          topPx: maskStart.topPx,
+          heightPx: maskEnd.bottomPx - maskStart.topPx,
+        });
+        maskStart = null;
+        maskEnd = null;
+      }
+    }
+    if (maskStart && maskEnd) {
+      dimmedMasks.push({
+        id: `dim-mask-${maskCount}`,
+        topPx: maskStart.topPx,
+        heightPx: maskEnd.bottomPx - maskStart.topPx,
+      });
+    }
+  }
+
+  return { highlights, dimmedMasks };
+}
+
+function buildConnectorViewModels(
+  connectors: readonly TimelineResolvedConnector[],
+  topBandHeightPx: number,
+  rowBoundsById: ReadonlyMap<number, TimelineRowStageBounds>,
+  toStageX: (timeMs: number) => number,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): ConnectorItemViewModel[] {
+  const defaultY = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 24;
+  const result: ConnectorItemViewModel[] = [];
+
+  for (const conn of connectors) {
+    if (
+      (conn.fromTimelineId !== undefined &&
+        !rowBoundsById.has(conn.fromTimelineId)) ||
+      (conn.toTimelineId !== undefined && !rowBoundsById.has(conn.toTimelineId))
+    ) {
+      continue;
+    }
+
+    const fromX = toStageX(conn.fromTimeMs);
+    const toX = toStageX(conn.toTimeMs);
+    const fromY =
+      conn.fromTimelineId !== undefined
+        ? (rowBoundsById.get(conn.fromTimelineId)?.centerPx ?? defaultY)
+        : defaultY;
+    const toY =
+      conn.toTimelineId !== undefined
+        ? (rowBoundsById.get(conn.toTimelineId)?.centerPx ?? fromY)
+        : fromY;
+    const midX = (fromX + toX) / 2;
+
+    let svgPath: string;
+    let hasArrowHead = false;
+    let arrowHeadPoints = '';
+    let labelCenterY = (fromY + toY) / 2;
+
+    if (conn.style === TimelineConnectorStyle.CALIPER) {
+      const caliperY = Math.max(
+        topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 10,
+        Math.min(fromY, toY) - 12,
+      );
+      svgPath = `M ${fromX} ${caliperY - 5} L ${fromX} ${caliperY + 5} M ${toX} ${caliperY - 5} L ${toX} ${caliperY + 5} M ${fromX} ${caliperY} L ${toX} ${caliperY}`;
+      labelCenterY = caliperY - 12;
+    } else {
+      svgPath =
+        conn.style === TimelineConnectorStyle.STEP
+          ? `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`
+          : `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
+
+      if (fromX !== toX || fromY !== toY) {
+        // Evaluates cubic Bezier chord direction near t = 0.85 so wide S-curves and vertical curves orient smoothly.
+        const angleRad =
+          conn.style === TimelineConnectorStyle.STEP
+            ? midX !== toX
+              ? Math.atan2(0, toX - midX)
+              : Math.atan2(toY - fromY, 0)
+            : Math.atan2((toY - fromY) * 0.312, toX - fromX);
+        const baseCenterX = toX - Math.cos(angleRad) * 8;
+        const baseCenterY = toY - Math.sin(angleRad) * 8;
+        const perpX = -Math.sin(angleRad) * 4.5;
+        const perpY = Math.cos(angleRad) * 4.5;
+        const p1X = Math.round((baseCenterX + perpX) * 10) / 10;
+        const p1Y = Math.round((baseCenterY + perpY) * 10) / 10;
+        const p2X = Math.round((baseCenterX - perpX) * 10) / 10;
+        const p2Y = Math.round((baseCenterY - perpY) * 10) / 10;
+        hasArrowHead = true;
+        arrowHeadPoints = `${toX},${toY} ${p1X},${p1Y} ${p2X},${p2Y}`;
+      }
+    }
+
+    result.push({
+      id: conn.id,
+      badge: conn.badge ?? '',
+      label: conn.label ?? '',
+      style: conn.style,
+      paletteId: conn.paletteId,
+      colors: resolveColors(conn.paletteId),
+      svgPath,
+      hasArrowHead,
+      arrowHeadPoints,
+      labelCenterX: midX,
+      labelCenterY,
+    });
+  }
+
+  return result;
+}
+
+function buildCalloutViewModels(
+  callouts: readonly TimelineResolvedCallout[],
+  chartLeftPx: number,
+  stageWidthPx: number,
+  topBandHeightPx: number,
+  stageHeightPx: number,
+  rowBoundsById: ReadonlyMap<number, TimelineRowStageBounds>,
+  toStageX: (timeMs: number) => number,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): CalloutItemViewModel[] {
+  const chartTopPx = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX;
+  const cardHeightPx = 24;
+  const leaderGapPx = 18;
+  const minTop = chartTopPx + 4;
+  const maxTop = stageHeightPx - cardHeightPx - 4;
+  const result: CalloutItemViewModel[] = [];
+
+  for (const callout of callouts) {
+    if (
+      callout.timelineId !== undefined &&
+      !rowBoundsById.has(callout.timelineId)
+    ) {
+      continue;
+    }
+
+    const anchorX = toStageX(callout.timeMs);
+    const anchorY =
+      callout.timelineId !== undefined
+        ? (rowBoundsById.get(callout.timelineId)?.centerPx ?? chartTopPx + 24)
+        : chartTopPx + 24;
+    const cardWidthPx = clampNumber(
+      Math.round(22 + callout.label.length * 6.6),
+      88,
+      320,
+    );
+    const minLeft = chartLeftPx + 6;
+    const maxLeft = stageWidthPx - cardWidthPx - 8;
+
+    const resolvedPlacement: Exclude<
+      TimelineCalloutPlacement,
+      TimelineCalloutPlacement.AUTO
+    > =
+      callout.placement !== TimelineCalloutPlacement.AUTO
+        ? callout.placement
+        : anchorX + leaderGapPx + cardWidthPx <= stageWidthPx - 10
+          ? TimelineCalloutPlacement.RIGHT
+          : anchorX - leaderGapPx - cardWidthPx >= chartLeftPx + 10
+            ? TimelineCalloutPlacement.LEFT
+            : TimelineCalloutPlacement.ABOVE;
+
+    let cardLeftPx: number;
+    let cardTopPx: number;
+    let attachX: number;
+    let attachY: number;
+
+    switch (resolvedPlacement) {
+      case TimelineCalloutPlacement.LEFT:
+      case TimelineCalloutPlacement.RIGHT: {
+        const desiredLeft =
+          resolvedPlacement === TimelineCalloutPlacement.LEFT
+            ? anchorX - leaderGapPx - cardWidthPx
+            : anchorX + leaderGapPx;
+        cardLeftPx = Math.round(clampNumber(desiredLeft, minLeft, maxLeft));
+        cardTopPx = Math.round(
+          clampNumber(anchorY - cardHeightPx / 2, minTop, maxTop),
+        );
+        attachX = clampNumber(anchorX, cardLeftPx, cardLeftPx + cardWidthPx);
+        attachY = cardTopPx + cardHeightPx / 2;
+        break;
+      }
+      case TimelineCalloutPlacement.ABOVE:
+      case TimelineCalloutPlacement.BELOW: {
+        const desiredTop =
+          resolvedPlacement === TimelineCalloutPlacement.ABOVE
+            ? anchorY - leaderGapPx - cardHeightPx
+            : anchorY + leaderGapPx;
+        cardLeftPx = Math.round(
+          clampNumber(anchorX - cardWidthPx / 2, minLeft, maxLeft),
+        );
+        cardTopPx = Math.round(clampNumber(desiredTop, minTop, maxTop));
+        attachX = clampNumber(
+          anchorX,
+          cardLeftPx + 8,
+          cardLeftPx + cardWidthPx - 8,
+        );
+        attachY =
+          resolvedPlacement === TimelineCalloutPlacement.ABOVE
+            ? cardTopPx + cardHeightPx
+            : cardTopPx;
+        break;
+      }
+      default:
+        return unreachable(resolvedPlacement);
+    }
+
+    result.push({
+      id: callout.id,
+      label: callout.label,
+      dashed: Boolean(callout.dashed),
+      paletteId: callout.paletteId,
+      colors: resolveColors(callout.paletteId),
+      anchorX,
+      anchorY,
+      leaderPath: `M ${anchorX} ${anchorY} L ${attachX} ${attachY}`,
+      cardLeftPx,
+      cardTopPx,
+      cardWidthPx,
+      cardHeightPx,
+      jumpTarget: buildJumpTarget(
+        callout.timelineId,
+        callout.revisionIndex,
+        callout.logId,
+      ),
+    });
+  }
+
+  return result;
+}
+
+function buildExcerptPinsAndDeck(
+  excerpts: readonly TimelineResolvedExcerptCard[],
+  stageWidthPx: number,
+  topBandHeightPx: number,
+  stageHeightPx: number,
+  rowBoundsById: ReadonlyMap<number, TimelineRowStageBounds>,
+  toStageX: (timeMs: number) => number,
+  resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
+): ExcerptPinsAndDeckResult {
+  const visibleExcerpts = excerpts.slice(0, MAX_EXCERPT_DECK_CARDS);
+  if (visibleExcerpts.length === 0) {
+    return {
+      pins: [],
+      deck: {
+        gridPreset: ExcerptDeckGridPreset.EMPTY,
+        columns: 0,
+        tetherStripHeightPx: 0,
+        estimatedHeightPx: 0,
+        tethers: [],
+        cards: [],
+      },
+    };
+  }
+
+  const gridConfig = selectDeckGridPreset(visibleExcerpts.length, stageWidthPx);
+  const columns = gridConfig.columns;
+  const usableWidthPx =
+    stageWidthPx - DECK_GRID_PADDING_PX * 2 - (columns - 1) * DECK_GRID_GAP_PX;
+  const colWidthPx = usableWidthPx / columns;
+
+  const pins: ExcerptPinViewModel[] = [];
+  const tethers: ExcerptTetherViewModel[] = [];
+  const cards: ExcerptCardViewModel[] = [];
+  const cardRowHeights: number[] = [];
+
+  const fallbackPinY = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 20;
+
+  for (let i = 0; i < visibleExcerpts.length; i++) {
+    const excerpt = visibleExcerpts[i];
+    const colors = resolveColors(excerpt.paletteId);
+    const pinX = toStageX(excerpt.timeMs);
+    const pinY =
+      rowBoundsById.get(excerpt.timelineId)?.centerPx ?? fallbackPinY;
+    const jumpTarget: TimelineSessionJumpTarget = {
+      timelineId: excerpt.timelineId,
+      revisionIndex: excerpt.revisionIndex,
+      logId: excerpt.logId,
+    };
+
+    const stemTopPx = Math.min(stageHeightPx, pinY + 10);
+    pins.push({
+      id: excerpt.id,
+      badge: excerpt.badge,
+      kind: excerpt.kind,
+      paletteId: excerpt.paletteId,
+      colors,
+      pinX,
+      pinY,
+      stemTopPx,
+      stemHeightPx: Math.max(0, stageHeightPx - stemTopPx),
+      jumpTarget,
+    });
+
+    const colIndex = i % columns;
+    const cardAnchorX =
+      Math.round(
+        (DECK_GRID_PADDING_PX +
+          colIndex * (colWidthPx + DECK_GRID_GAP_PX) +
+          colWidthPx / 2) *
+          10,
+      ) / 10;
+    const ctrlY1 = Math.round(DECK_TETHER_STRIP_HEIGHT_PX * 0.56);
+    const ctrlY2 = Math.round(DECK_TETHER_STRIP_HEIGHT_PX * 0.44);
+    tethers.push({
+      id: `tether-${excerpt.id}`,
+      badge: excerpt.badge,
+      paletteId: excerpt.paletteId,
+      colors,
+      svgPath: `M ${pinX} 0 C ${pinX} ${ctrlY1}, ${cardAnchorX} ${ctrlY2}, ${cardAnchorX} ${DECK_TETHER_STRIP_HEIGHT_PX}`,
+      pinX,
+      cardAnchorX,
+    });
+
+    const formattedLines = excerpt.lines.map((line, lineIdx) =>
+      formatExcerptLine(line, lineIdx),
+    );
+    const logTimestamp = excerpt.logTimestamp ?? '';
+    const insertId = excerpt.insertId ?? '';
+    const hasQueryMetadata = logTimestamp !== '' || insertId !== '';
+    cards.push({
+      id: excerpt.id,
+      gridArea: `card-${i}`,
+      badge: excerpt.badge,
+      kind: excerpt.kind,
+      paletteId: excerpt.paletteId,
+      colors,
+      timeLabel: excerpt.timeLabel,
+      resourcePath: excerpt.resourcePath,
+      title: excerpt.title,
+      subtitle: excerpt.subtitle,
+      logTimestamp,
+      insertId,
+      hasQueryMetadata,
+      lines: formattedLines,
+      note: excerpt.note ?? '',
+      actionLabel:
+        excerpt.kind === TimelineExcerptKind.DIFF ? 'Open Diff' : 'Open Log',
+      jumpTarget,
+    });
+
+    const gridRowIndex = Math.floor(i / columns);
+    const cardEstimatedHeightPx =
+      52 +
+      (hasQueryMetadata ? 20 : 0) +
+      Math.max(1, formattedLines.length) * 20 +
+      (excerpt.note ? 30 : 0) +
+      16;
+    cardRowHeights[gridRowIndex] = Math.max(
+      cardRowHeights[gridRowIndex] ?? 0,
+      cardEstimatedHeightPx,
+    );
+  }
+
+  let cardsGridHeightPx = DECK_GRID_PADDING_PX;
+  for (let r = 0; r < cardRowHeights.length; r++) {
+    cardsGridHeightPx += cardRowHeights[r];
+    if (r > 0) {
+      cardsGridHeightPx += DECK_GRID_GAP_PX;
+    }
+  }
+
+  return {
+    pins,
+    deck: {
+      gridPreset: gridConfig.preset,
+      columns,
+      tetherStripHeightPx: DECK_TETHER_STRIP_HEIGHT_PX,
+      estimatedHeightPx: DECK_TETHER_STRIP_HEIGHT_PX + cardsGridHeightPx,
+      tethers,
+      cards,
+    },
+  };
+}
+
+function selectDeckGridPreset(
+  cardCount: number,
+  stageWidthPx: number,
+): DeckGridPresetSelection {
+  if (cardCount <= 1) {
+    return { preset: ExcerptDeckGridPreset.COLS_1, columns: 1 };
+  }
+  if (cardCount === 2) {
+    return { preset: ExcerptDeckGridPreset.COLS_2, columns: 2 };
+  }
+  if (cardCount === 3) {
+    return { preset: ExcerptDeckGridPreset.COLS_3, columns: 3 };
+  }
+  if (cardCount === 4) {
+    if (stageWidthPx >= 1440) {
+      return { preset: ExcerptDeckGridPreset.COLS_4, columns: 4 };
+    }
+    return { preset: ExcerptDeckGridPreset.GRID_2X2, columns: 2 };
+  }
+  return { preset: ExcerptDeckGridPreset.GRID_3X2, columns: 3 };
+}
+
+function formatExcerptLine(
+  line: TimelineExcerptLine,
+  index: number,
+): ExcerptLineViewModel {
+  const parts: readonly TimelineExcerptLinePart[] =
+    line.parts && line.parts.length > 0
+      ? line.parts
+      : [{ text: line.text, matched: false }];
+
+  let prefixSymbol = '';
+  if (line.kind === TimelineExcerptLineKind.ADDED) {
+    prefixSymbol = '+';
+  } else if (line.kind === TimelineExcerptLineKind.DELETED) {
+    prefixSymbol = '-';
+  } else if (line.kind === TimelineExcerptLineKind.CONTEXT) {
+    prefixSymbol = ' ';
+  }
+
+  return {
+    index,
+    kind: line.kind,
+    gutterOld:
+      line.oldLineNum !== undefined && line.oldLineNum > 0
+        ? String(line.oldLineNum)
+        : '',
+    gutterNew:
+      line.newLineNum !== undefined && line.newLineNum > 0
+        ? String(line.newLineNum)
+        : '',
+    prefixSymbol,
+    text: line.text,
+    parts,
   };
 }
 
