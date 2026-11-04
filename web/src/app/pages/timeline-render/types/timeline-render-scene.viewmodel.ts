@@ -427,8 +427,27 @@ export function buildTimelineSceneViewModel(
     return Math.round((TIMELINE_CHART_LEFT_PX + clampedX) * 10) / 10;
   };
 
+  const viewportRightTimeMs =
+    input.viewportLeftTimeMs + chartWidthPx / Math.max(safePixelsPerMs, 1e-9);
+  const visibleMarkers =
+    safePixelsPerMs > 0
+      ? (overlay?.markers ?? []).filter(
+          (m) =>
+            m.timeMs >= input.viewportLeftTimeMs &&
+            m.timeMs <= viewportRightTimeMs,
+        )
+      : (overlay?.markers ?? []);
+  const visibleSpans =
+    safePixelsPerMs > 0
+      ? (overlay?.spans ?? []).filter(
+          (s) =>
+            Math.max(s.startTimeMs, s.endTimeMs) >= input.viewportLeftTimeMs &&
+            Math.min(s.startTimeMs, s.endTimeMs) <= viewportRightTimeMs,
+        )
+      : (overlay?.spans ?? []);
+
   const markerPlacements = packMarkerLanes(
-    overlay?.markers ?? [],
+    visibleMarkers,
     stageWidthPx,
     toStageX,
   );
@@ -549,7 +568,7 @@ export function buildTimelineSceneViewModel(
   }
 
   const spans = buildSpanViewModels(
-    overlay?.spans ?? [],
+    visibleSpans,
     stageWidthPx,
     topBandHeightPx,
     stageHeightPx,
