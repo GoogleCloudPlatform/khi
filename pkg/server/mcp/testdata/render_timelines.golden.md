@@ -1,6 +1,6 @@
 # Rendered timeline view
 
-Rendered 8 of 8 matched timelines (1600x460 px, 2026-09-24T01:00:00Z to 2026-09-24T02:00:00Z).
+Rendered 8 of 8 matched timelines (1600x460 px @2x, 2026-09-24T01:00:00Z to 2026-09-24T02:00:00Z).
 
 - Image URL: `http://127.0.0.1:8080/api/v1/mcp-assets/ABCDEF.png`
 - Expires at: 2026-09-24T02:30:00Z
