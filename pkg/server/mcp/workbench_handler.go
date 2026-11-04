@@ -86,7 +86,7 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "get_resource_diff",
-		Description: `Get the unified diff between a resource revision and the revision right before it. Long diffs are truncated; pass the byteOffset from the last line to read the rest.`,
+		Description: `Get the unified diff between a resource revision and the revision right before it (metadata.managedFields is omitted by default; set includeManagedFields to true to include it). Long diffs are truncated; pass the byteOffset from the last line to read the rest.`,
 	}, h.handleGetResourceDiff)
 
 	if h.renderer != nil {

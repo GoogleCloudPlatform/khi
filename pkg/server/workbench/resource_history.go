@@ -107,6 +107,17 @@ type ResourceDiff struct {
 	Diff    BodyChunk
 }
 
+// RevisionPair holds the untruncated manifest YAMLs and metadata of a revision and its predecessor.
+type RevisionPair struct {
+	TimelineID       uint32
+	Segments         []TimelineSegment
+	Revision         ResourceRevision
+	Previous         *ResourceRevision
+	NextRevisionTime *time.Time
+	PreviousBody     string
+	Body             string
+}
+
 // GetResourceRevisions returns the revisions of a timeline within the query time range, oldest first,
 // together with the line change counts from each previous revision.
 // Bodies are read only for the returned window so that long revision histories stay cheap to page through.
@@ -186,9 +197,10 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 	}, nil
 }
 
-// GetResourceDiff returns the unified diff from the previous revision to the revision at revisionIndex, sliced from byteOffset.
-// The initial revision is compared against an empty manifest, so all of its lines are reported as added.
-func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset int) (*ResourceDiff, error) {
+// GetRevisionPair returns the untruncated manifest YAMLs and metadata for revisionIndex and its previous revision.
+//
+// When includeManagedFields is false, metadata.managedFields is omitted from both revisions.
+func (w *Workbench) GetRevisionPair(timelineID uint32, revisionIndex int, includeManagedFields bool) (*RevisionPair, error) {
 	index, _, err := w.readyIndex()
 	if err != nil {
 		return nil, err
@@ -205,24 +217,73 @@ func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset
 	if err != nil {
 		return nil, err
 	}
-	body := bodies[tl.Revisions[revisionIndex].ResourceBodyStructID]
-	result := &ResourceDiff{
+	rawBody := bodies[tl.Revisions[revisionIndex].ResourceBodyStructID]
+	pair := &RevisionPair{
 		TimelineID: timelineID,
 		Segments:   segments,
-		Revision:   toResourceRevision(index, tl.Revisions, revisionIndex, body != ""),
+		Revision:   toResourceRevision(index, tl.Revisions, revisionIndex, rawBody != ""),
+		Body:       rawBody,
 	}
-	prevBody := ""
-	prevLabel := "none"
+	if revisionIndex+1 < len(tl.Revisions) && tl.Revisions[revisionIndex+1].ChangedTime > 0 {
+		next := time.Unix(0, tl.Revisions[revisionIndex+1].ChangedTime).UTC()
+		pair.NextRevisionTime = &next
+	}
 	if revisionIndex > 0 {
-		prevBody = bodies[tl.Revisions[revisionIndex-1].ResourceBodyStructID]
-		prev := toResourceRevision(index, tl.Revisions, revisionIndex-1, prevBody != "")
-		result.Previous = &prev
-		prevLabel = revisionLabel(revisionIndex - 1)
+		rawPrevBody := bodies[tl.Revisions[revisionIndex-1].ResourceBodyStructID]
+		prev := toResourceRevision(index, tl.Revisions, revisionIndex-1, rawPrevBody != "")
+		pair.Previous = &prev
+		pair.PreviousBody = rawPrevBody
 	}
-	diff := computeUnifiedDiff(prevBody, body, prevLabel, revisionLabel(revisionIndex))
-	result.Changes = diff.Changes
-	result.Diff = truncateBody(diff.Text, byteOffset, bodyByteLimit)
-	return result, nil
+	if !includeManagedFields {
+		pair.Body = stripManagedFields(pair.Body)
+		pair.PreviousBody = stripManagedFields(pair.PreviousBody)
+	}
+	return pair, nil
+}
+
+// GetResourceDiff returns the unified diff from the previous revision to the revision at revisionIndex, sliced from byteOffset.
+// The initial revision is compared against an empty manifest, so all of its lines are reported as added.
+// When includeManagedFields is false, metadata.managedFields is omitted from both revisions before computing the diff.
+func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset int, includeManagedFields bool) (*ResourceDiff, error) {
+	pair, err := w.GetRevisionPair(timelineID, revisionIndex, includeManagedFields)
+	if err != nil {
+		return nil, err
+	}
+	prevLabel := "none"
+	if pair.Previous != nil {
+		prevLabel = revisionLabel(pair.Previous.Index)
+	}
+	diff := computeUnifiedDiff(pair.PreviousBody, pair.Body, prevLabel, revisionLabel(revisionIndex))
+	return &ResourceDiff{
+		TimelineID: pair.TimelineID,
+		Segments:   pair.Segments,
+		Revision:   pair.Revision,
+		Previous:   pair.Previous,
+		Changes:    diff.Changes,
+		Diff:       truncateBody(diff.Text, byteOffset, bodyByteLimit),
+	}, nil
+}
+
+// ResolveRevisionBounds returns metadata for the revision at revisionIndex together with the next revision's timestamp when one exists.
+func (w *Workbench) ResolveRevisionBounds(timelineID uint32, revisionIndex int) (ResourceRevision, *time.Time, []TimelineSegment, error) {
+	index, _, err := w.readyIndex()
+	if err != nil {
+		return ResourceRevision{}, nil, nil, err
+	}
+	tl, segments, err := lookupTimeline(index, timelineID)
+	if err != nil {
+		return ResourceRevision{}, nil, nil, err
+	}
+	if revisionIndex < 0 || revisionIndex >= len(tl.Revisions) {
+		return ResourceRevision{}, nil, nil, fmt.Errorf("%w: index %d of timeline %d", ErrRevisionNotFound, revisionIndex, timelineID)
+	}
+	rev := toResourceRevision(index, tl.Revisions, revisionIndex, tl.Revisions[revisionIndex].ResourceBodyStructID != 0)
+	var nextTime *time.Time
+	if revisionIndex+1 < len(tl.Revisions) && tl.Revisions[revisionIndex+1].ChangedTime > 0 {
+		t := time.Unix(0, tl.Revisions[revisionIndex+1].ChangedTime).UTC()
+		nextTime = &t
+	}
+	return rev, nextTime, segments, nil
 }
 
 // readRevisionBodies returns the manifest YAMLs of revs keyed by their resource body struct IDs.

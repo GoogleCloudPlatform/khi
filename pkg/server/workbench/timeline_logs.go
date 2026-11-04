@@ -89,6 +89,17 @@ type LogDetail struct {
 	Body            BodyChunk
 }
 
+// RawLogDetail contains metadata, linked timelines, and the untruncated YAML body for a single log entry.
+type RawLogDetail struct {
+	LogID           uint32
+	Time            time.Time
+	Severity        *khifilev6.Severity
+	LogType         string
+	Summary         string
+	LinkedTimelines []LinkedTimeline
+	YAMLBody        string
+}
+
 // GetTimelineLogs filters logs on the specified timeline and aggregates other timelines linked to those logs across all matched entries.
 // OtherTimelines keeps at most maxOtherTimelines timelines with the most matched logs.
 func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filter TimelineLogFilter) (*TimelineLogsResult, error) {
@@ -239,8 +250,8 @@ func logTime(l *cel.LogData) time.Time {
 	return time.Unix(0, l.Timestamp).UTC()
 }
 
-// GetLogDetail returns the metadata, all linked timelines, and the YAML body sliced from byteOffset for a single log ID.
-func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, error) {
+// GetRawLogDetail returns the metadata, all linked timelines, and the untruncated YAML body for a single log ID.
+func (w *Workbench) GetRawLogDetail(logID uint32) (*RawLogDetail, error) {
 	index, styles, err := w.readyIndex()
 	if err != nil {
 		return nil, err
@@ -267,13 +278,47 @@ func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, erro
 		return nil, err
 	}
 
-	return &LogDetail{
+	return &RawLogDetail{
 		LogID:           l.ID,
 		Time:            logTime(l),
 		Severity:        styles.severityMap[l.SeverityTypeID],
 		LogType:         index.StyleResolver.ResolveLogType(l.LogTypeID),
 		Summary:         index.InternPool.ResolveStringFromID(l.SummaryStringID),
 		LinkedTimelines: linked,
-		Body:            truncateBody(yamls[l.BodyStructID], byteOffset, bodyByteLimit),
+		YAMLBody:        yamls[l.BodyStructID],
 	}, nil
+}
+
+// GetLogDetail returns the metadata, all linked timelines, and the YAML body sliced from byteOffset for a single log ID.
+func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, error) {
+	raw, err := w.GetRawLogDetail(logID)
+	if err != nil {
+		return nil, err
+	}
+	return &LogDetail{
+		LogID:           raw.LogID,
+		Time:            raw.Time,
+		Severity:        raw.Severity,
+		LogType:         raw.LogType,
+		Summary:         raw.Summary,
+		LinkedTimelines: raw.LinkedTimelines,
+		Body:            truncateBody(raw.YAMLBody, byteOffset, bodyByteLimit),
+	}, nil
+}
+
+// GetLogQueryMetadata returns the Cloud Logging insertId and UTC timestamp for logID without serializing its YAML body.
+func (w *Workbench) GetLogQueryMetadata(logID uint32) (insertID string, ts time.Time, ok bool) {
+	if logID == 0 {
+		return "", time.Time{}, false
+	}
+	index, _, err := w.readyIndex()
+	if err != nil {
+		return "", time.Time{}, false
+	}
+	l := index.GetLog(logID)
+	if l == nil || l.ID == 0 {
+		return "", time.Time{}, false
+	}
+	insertID, _ = index.InternPool.ResolveStructStringField(l.BodyStructID, "insertId")
+	return insertID, logTime(l), true
 }
