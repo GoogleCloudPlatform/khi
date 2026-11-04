@@ -190,9 +190,6 @@ func (s *Store) MergePatch(parentSceneID string, patch Spec) (Spec, *mcpsdk.Call
 	if patch.MaxNodes > 0 {
 		merged.MaxNodes = patch.MaxNodes
 	}
-	if patch.Width > 0 {
-		merged.Width = patch.Width
-	}
 	if patch.TimezoneShiftHours != 0 {
 		merged.TimezoneShiftHours = patch.TimezoneShiftHours
 	}

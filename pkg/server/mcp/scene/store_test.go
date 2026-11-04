@@ -213,7 +213,6 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			StartTime:     timeRef(tStart),
 			EndTime:       timeRef(tEnd),
 		},
-		Width:    1600,
 		MaxNodes: 50,
 		Annotations: &Annotations{
 			DimUnlistedRows: boolRef(true),
@@ -280,7 +279,6 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 					StartTime:     timeRef(tStart),
 					EndTime:       timeRef(tZoomEnd),
 				},
-				Width:    1600,
 				MaxNodes: 50,
 				Annotations: &Annotations{
 					DimUnlistedRows: boolRef(true),
@@ -295,7 +293,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			targetStore:   store,
 			parentSceneID: parentScene.SceneID,
 			patch: Spec{
-				Width: 2200,
+				MaxDepth: 3,
 				Annotations: &Annotations{
 					Palette: []PaletteEntry{
 						{ID: " trigger ", Color: "teal"},
@@ -311,7 +309,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 					StartTime:     timeRef(tStart),
 					EndTime:       timeRef(tEnd),
 				},
-				Width:    2200,
+				MaxDepth: 3,
 				MaxNodes: 50,
 				Annotations: &Annotations{
 					DimUnlistedRows: boolRef(true),
@@ -345,7 +343,6 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 					StartTime:     timeRef(tStart),
 					EndTime:       timeRef(tEnd),
 				},
-				Width:    1600,
 				MaxNodes: 50,
 			},
 		},
@@ -522,7 +519,7 @@ func TestStore_ServeSceneAndConcurrentAccess(t *testing.T) {
 		wg.Go(func() {
 			_, _ = concurrentStore.Issue(root.SceneID, Spec{InspectionID: "insp-race"}, Document{InspectionID: "insp-race"})
 			_, _ = concurrentStore.Get(root.SceneID)
-			_, _ = concurrentStore.MergePatch(root.SceneID, Spec{Width: 1800})
+			_, _ = concurrentStore.MergePatch(root.SceneID, Spec{MaxNodes: 75})
 			rec := httptest.NewRecorder()
 			concurrentStore.ServeScene(rec, httptest.NewRequest(http.MethodGet, "/api/v1/mcp-scenes/"+root.SceneID, nil), root.SceneID)
 		})
