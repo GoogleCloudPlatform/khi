@@ -16,7 +16,11 @@
 
 import { WritableSignal, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { InspectionQueryUrlOpener } from 'src/app/extensions/extension-common/inspection-query-url-opener';
+import {
+  SESSION_LOCATION_ADAPTER,
+  SessionLocationAdapter,
+  SessionUrlSyncService,
+} from 'src/app/services/session-url-sync.service';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
@@ -26,7 +30,7 @@ import { Revision, Timeline } from 'src/app/store/domain/timeline';
 import { TimelineView } from 'src/app/store/domain/timeline-view';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
-describe('InspectionQueryUrlOpener', () => {
+describe('SessionUrlSyncService', () => {
   const fakeRevision0 = {
     id: 100,
     timelineId: 3,
@@ -56,6 +60,8 @@ describe('InspectionQueryUrlOpener', () => {
 
   let mockLoader: jasmine.SpyObj<InspectionDataLoaderService>;
   let mockSelectionManager: jasmine.SpyObj<SelectionManager>;
+  let currentSearch: string;
+  let locationAdapter: SessionLocationAdapter;
 
   beforeEach(() => {
     inspectionIdSignal = signal<string | null>(null);
@@ -70,6 +76,14 @@ describe('InspectionQueryUrlOpener', () => {
       null,
     );
     selectedLogSignal = signal<ReadonlyDomainElement<Log> | null>(null);
+    currentSearch = '';
+
+    locationAdapter = {
+      getSearch: () => currentSearch,
+      replaceSearch: (search: string) => {
+        currentSearch = search;
+      },
+    };
 
     fakeData = {
       timelineStore: {
@@ -155,6 +169,8 @@ describe('InspectionQueryUrlOpener', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        SessionUrlSyncService,
+        { provide: SESSION_LOCATION_ADAPTER, useValue: locationAdapter },
         { provide: InspectionDataLoaderService, useValue: mockLoader },
         {
           provide: InspectionDataStore,
@@ -170,21 +186,17 @@ describe('InspectionQueryUrlOpener', () => {
   });
 
   it('returns false when inspectionId query parameter is absent', () => {
-    const opener = new InspectionQueryUrlOpener(() => '?foo=bar');
-    const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
+    currentSearch = '?foo=bar';
+    const service = TestBed.inject(SessionUrlSyncService);
+    const opened = service.openFromQueryParams();
     expect(opened).toBeFalse();
     expect(mockLoader.loadInspectionDataFromBackend).not.toHaveBeenCalled();
   });
 
   it('loads inspection and selects target revision when timelineId and revisionIndex are provided', async () => {
-    let currentSearch = '?inspectionId=insp-1&timelineId=3&revisionIndex=1';
-    const opener = new InspectionQueryUrlOpener(
-      () => currentSearch,
-      (next) => {
-        currentSearch = next;
-      },
-    );
-    const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
+    currentSearch = '?inspectionId=insp-1&timelineId=3&revisionIndex=1';
+    const service = TestBed.inject(SessionUrlSyncService);
+    const opened = service.openFromQueryParams();
     expect(opened).toBeTrue();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -202,14 +214,9 @@ describe('InspectionQueryUrlOpener', () => {
   });
 
   it('loads inspection and selects target log when logId is provided', async () => {
-    let currentSearch = '?inspectionId=insp-1&timelineId=3&logId=42';
-    const opener = new InspectionQueryUrlOpener(
-      () => currentSearch,
-      (next) => {
-        currentSearch = next;
-      },
-    );
-    const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
+    currentSearch = '?inspectionId=insp-1&timelineId=3&logId=42';
+    const service = TestBed.inject(SessionUrlSyncService);
+    const opened = service.openFromQueryParams();
     expect(opened).toBeTrue();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -223,14 +230,9 @@ describe('InspectionQueryUrlOpener', () => {
   });
 
   it('ignores non-decimal numeric strings in timelineId and logId query parameters', async () => {
-    let currentSearch = '?inspectionId=insp-1&timelineId=0x3&logId=1e1';
-    const opener = new InspectionQueryUrlOpener(
-      () => currentSearch,
-      (next) => {
-        currentSearch = next;
-      },
-    );
-    const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
+    currentSearch = '?inspectionId=insp-1&timelineId=0x3&logId=1e1';
+    const service = TestBed.inject(SessionUrlSyncService);
+    const opened = service.openFromQueryParams();
     expect(opened).toBeTrue();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -242,15 +244,8 @@ describe('InspectionQueryUrlOpener', () => {
   });
 
   it('synchronizes inspection, selection, and filter changes back to URL query parameters', () => {
-    let currentSearch = '';
-    const opener = new InspectionQueryUrlOpener(
-      () => currentSearch,
-      (next) => {
-        currentSearch = next;
-      },
-    );
-    const opened = TestBed.runInInjectionContext(() => opener.tryOpen());
-    expect(opened).toBeFalse();
+    const service = TestBed.inject(SessionUrlSyncService);
+    expect(service.openFromQueryParams()).toBeFalse();
 
     inspectionIdSignal.set('insp-sync');
     inspectionDataSignal.set(fakeData);

@@ -45,12 +45,25 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { PROGRESS_DIALOG_STATUS_UPDATOR } from 'src/app/services/progress/progress-interface';
 import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
 import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
+import {
+  SESSION_LOCATION_ADAPTER,
+  SessionLocationAdapter,
+} from 'src/app/services/session-url-sync.service';
 
 describe('AppComponent', () => {
   let extensionStore: ExtensionStore;
+  let currentSearch: string;
+  let mockLocationAdapter: SessionLocationAdapter;
 
   beforeEach(async () => {
     extensionStore = new ExtensionStore();
+    currentSearch = '';
+    mockLocationAdapter = {
+      getSearch: () => currentSearch,
+      replaceSearch: (search: string) => {
+        currentSearch = search;
+      },
+    };
 
     await TestBed.configureTestingModule({
       imports: [NoopAnimationsModule],
@@ -92,6 +105,10 @@ describe('AppComponent', () => {
         DiffPageDataSourceServer,
         GraphPageDataSourceServer,
         MenuManager,
+        {
+          provide: SESSION_LOCATION_ADAPTER,
+          useValue: mockLocationAdapter,
+        },
       ],
     }).compileComponents();
     extensionStore.injector = TestBed.inject(Injector);
@@ -151,6 +168,23 @@ describe('AppComponent', () => {
     popupManager.setCurrentPopup(null);
     TestBed.flushEffects();
 
+    fixture.destroy();
+    flush();
+  }));
+
+  it('should load inspection from query params on init when inspectionId is present', fakeAsync(() => {
+    currentSearch = '?inspectionId=insp-1';
+    const dataLoader = TestBed.inject(InspectionDataLoaderService);
+    spyOn(dataLoader, 'loadInspectionDataFromBackend').and.returnValue(
+      Promise.resolve(),
+    );
+
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+
+    expect(dataLoader.loadInspectionDataFromBackend).toHaveBeenCalledWith(
+      'insp-1',
+    );
     fixture.destroy();
     flush();
   }));

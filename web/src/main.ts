@@ -66,11 +66,7 @@ import {
   EXTENSION_STORE,
   ExtensionStore,
 } from './app/extensions/extension-common/extension-store';
-import {
-  KHIExtensionBundle,
-  KHI_FRONTEND_EXTENSION_BUNDLES,
-} from './app/extensions/extension-common/extension';
-import { InspectionQueryUrlOpener } from 'src/app/extensions/extension-common/inspection-query-url-opener';
+import { KHI_FRONTEND_EXTENSION_BUNDLES } from './app/extensions/extension-common/extension';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { KHIIconRegistrationModule } from './app/shared/module/icon-registration.module';
 import { WorkbenchPrefetchService } from 'src/app/services/workbench-prefetch.service';
@@ -135,9 +131,6 @@ export const appConfig: ApplicationConfig = {
     },
     NotificationManager,
     DiffPageDataSource,
-    KHIExtensionBundle.forExtension((extension) => {
-      extension.addURLDataOpenerExtension(new InspectionQueryUrlOpener());
-    }),
     importProvidersFrom(KHIIconRegistrationModule),
     importProvidersFrom(...environment.pluginModules),
     provideAppInitializer(() => {

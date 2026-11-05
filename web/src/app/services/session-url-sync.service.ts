@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-import { EffectRef, effect, inject, signal } from '@angular/core';
-import { URLDataOpenerExtension } from 'src/app/extensions/extension-common/extension-types/url-data-opener';
+import {
+  Injectable,
+  InjectionToken,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { SelectionManager } from 'src/app/services/selection-manager.service';
@@ -24,119 +29,100 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 /**
+ * Adapter interface for reading and replacing the browser URL search query without triggering router navigation.
+ */
+export interface SessionLocationAdapter {
+  /**
+   * Returns the current URL search string, including the leading '?' when non-empty.
+   */
+  readonly getSearch: () => string;
+  /**
+   * Replaces the current URL search string in browser history.
+   */
+  readonly replaceSearch: (search: string) => void;
+}
+
+/**
+ * Dependency injection token providing browser URL search access for {@link SessionUrlSyncService}.
+ */
+export const SESSION_LOCATION_ADAPTER =
+  new InjectionToken<SessionLocationAdapter>('SESSION_LOCATION_ADAPTER', {
+    providedIn: 'root',
+    factory: () => ({
+      getSearch: () => window.location.search,
+      replaceSearch: defaultReplaceLocationSearch,
+    }),
+  });
+
+/**
  * Opens an existing backend inspection from /session/:id query parameters and synchronizes active selection and filter state back to the URL.
  */
-export class InspectionQueryUrlOpener implements URLDataOpenerExtension {
-  private readonly getLocationSearch: () => string;
-  private readonly replaceLocationSearch: (search: string) => void;
+@Injectable()
+export class SessionUrlSyncService {
+  private readonly dataLoader = inject(InspectionDataLoaderService);
+  private readonly dataStore = inject(InspectionDataStore);
+  private readonly selectionManager = inject(SelectionManager);
+  private readonly viewState = inject(ViewStateService);
+  private readonly locationAdapter = inject(SESSION_LOCATION_ADAPTER);
   private readonly isRestoringFromUrl = signal<boolean>(false);
-  private syncEffectRef: EffectRef | null = null;
 
-  constructor(
-    getLocationSearch: () => string = () => window.location.search,
-    replaceLocationSearch: (
-      search: string,
-    ) => void = defaultReplaceLocationSearch,
-  ) {
-    this.getLocationSearch = getLocationSearch;
-    this.replaceLocationSearch = replaceLocationSearch;
+  constructor() {
+    effect(() => {
+      this.syncUrlFromState();
+    });
   }
 
   /**
-   * Checks URL query parameters for inspectionId, initiates loading and selection when present, and registers reactive URL synchronization.
+   * Checks URL query parameters for an inspectionId and initiates loading and target selection when present.
+   *
+   * @returns True when an inspection load was initiated from URL query parameters.
    */
-  public tryOpen(): boolean {
-    const dataLoader = inject(InspectionDataLoaderService);
-    const dataStore = inject(InspectionDataStore);
-    const selectionManager = inject(SelectionManager);
-    const viewState = inject(ViewStateService);
-
-    this.registerUrlSync(dataStore, selectionManager);
-
-    const params = new URLSearchParams(this.getLocationSearch());
+  public openFromQueryParams(): boolean {
+    const params = new URLSearchParams(this.locationAdapter.getSearch());
     const inspectionId = params.get('inspectionId')?.trim();
     if (!inspectionId) {
       return false;
     }
 
     this.isRestoringFromUrl.set(true);
-    void this.loadAndSelect(
-      inspectionId,
-      params,
-      dataLoader,
-      dataStore,
-      selectionManager,
-      viewState,
-    );
+    void this.loadAndSelect(inspectionId, params);
     return true;
   }
 
-  private registerUrlSync(
-    dataStore: InspectionDataStore,
-    selectionManager: SelectionManager,
-  ): void {
-    if (this.syncEffectRef !== null) {
-      return;
-    }
-    this.syncEffectRef = effect(() => {
-      this.syncUrlFromState(dataStore, selectionManager);
-    });
-  }
-
-  private syncUrlFromState(
-    dataStore: InspectionDataStore,
-    selectionManager: SelectionManager,
-  ): void {
-    const data = dataStore.inspectionData();
-    const inspectionId = dataStore.inspectionId()?.trim() ?? '';
-    const timelineView = dataStore.timelineView();
+  private syncUrlFromState(): void {
+    const data = this.dataStore.inspectionData();
+    const inspectionId = this.dataStore.inspectionId()?.trim() ?? '';
+    const timelineView = this.dataStore.timelineView();
     const timelineQuery = timelineView?.timelineQuery() ?? '';
     const logQuery = timelineView?.logQuery() ?? '';
-    const selectedRevision = selectionManager.selectedRevision();
-    const selectedLog = selectionManager.selectedLog();
-    const selectedTimeline = selectionManager.selectedTimeline();
+    const selectedRevision = this.selectionManager.selectedRevision();
+    const selectedLog = this.selectionManager.selectedLog();
+    const selectedTimeline = this.selectionManager.selectedTimeline();
 
-    // Suppress URL writes while initial query parameters are still being restored.
+    // Suppresses URL writes while initial query parameters are still being restored.
     if (this.isRestoringFromUrl() || !data || !inspectionId) {
       return;
     }
 
-    const params = new URLSearchParams(this.getLocationSearch());
+    const params = new URLSearchParams(this.locationAdapter.getSearch());
     params.set('inspectionId', inspectionId);
     setOrDeleteParam(params, 'timelineQuery', timelineQuery);
     setOrDeleteParam(params, 'logQuery', logQuery);
 
-    const validTimeline =
-      selectedTimeline !== null &&
-      selectedTimeline.id > 0 &&
-      hasTimeline(data, selectedTimeline)
-        ? selectedTimeline
-        : null;
-    const validRevision =
-      selectedRevision !== null &&
-      selectedRevision.timelineId > 0 &&
-      selectedRevision.index >= 0 &&
-      hasRevision(data, selectedRevision.timelineId, selectedRevision.index)
-        ? selectedRevision
-        : null;
-
-    if (
-      validRevision !== null &&
-      (validTimeline === null || validTimeline.id === validRevision.timelineId)
-    ) {
-      params.set('timelineId', String(validRevision.timelineId));
-      params.set('revisionIndex', String(validRevision.index));
+    if (selectedRevision !== null) {
+      params.set('timelineId', String(selectedRevision.timelineId));
+      params.set('revisionIndex', String(selectedRevision.index));
       params.delete('logId');
-    } else if (selectedLog !== null && selectedLog.id >= 0) {
-      if (validTimeline !== null) {
-        params.set('timelineId', String(validTimeline.id));
+    } else if (selectedLog !== null) {
+      if (selectedTimeline !== null) {
+        params.set('timelineId', String(selectedTimeline.id));
       } else {
         params.delete('timelineId');
       }
       params.delete('revisionIndex');
       params.set('logId', String(selectedLog.id));
-    } else if (validTimeline !== null) {
-      params.set('timelineId', String(validTimeline.id));
+    } else if (selectedTimeline !== null) {
+      params.set('timelineId', String(selectedTimeline.id));
       params.delete('revisionIndex');
       params.delete('logId');
     } else {
@@ -146,33 +132,29 @@ export class InspectionQueryUrlOpener implements URLDataOpenerExtension {
     }
 
     const encoded = params.toString();
-    this.replaceLocationSearch(encoded ? `?${encoded}` : '');
+    this.locationAdapter.replaceSearch(encoded ? `?${encoded}` : '');
   }
 
   private async loadAndSelect(
     inspectionId: string,
     params: URLSearchParams,
-    dataLoader: InspectionDataLoaderService,
-    dataStore: InspectionDataStore,
-    selectionManager: SelectionManager,
-    viewState: ViewStateService,
   ): Promise<void> {
     try {
-      await dataLoader.loadInspectionDataFromBackend(inspectionId);
-      const data = dataStore.inspectionData();
+      await this.dataLoader.loadInspectionDataFromBackend(inspectionId);
+      const data = this.dataStore.inspectionData();
       if (!data) {
         return;
       }
 
-      const timelineView = dataStore.timelineView();
+      const timelineView = this.dataStore.timelineView();
       if (timelineView) {
         timelineView.expandAllTimelines();
         const timelineQuery = params.get('timelineQuery') ?? '';
         const logQuery = params.get('logQuery') ?? '';
         if (timelineQuery || logQuery) {
-          viewState.isAdvancedMode.set(true);
-          viewState.advancedTimelineIncludeCel.set(timelineQuery);
-          viewState.advancedLogCel.set(logQuery);
+          this.viewState.isAdvancedMode.set(true);
+          this.viewState.advancedTimelineIncludeCel.set(timelineQuery);
+          this.viewState.advancedLogCel.set(logQuery);
           timelineView.backendFilter.updateFilterParams({
             timelineQuery,
             logQuery,
@@ -198,7 +180,7 @@ export class InspectionQueryUrlOpener implements URLDataOpenerExtension {
         revisionIndex !== null &&
         revisionIndex < targetTimeline.revisions.length
       ) {
-        selectionManager.onSelectRevision(
+        this.selectionManager.onSelectRevision(
           targetTimeline.revisions[revisionIndex],
         );
         return;
@@ -206,19 +188,19 @@ export class InspectionQueryUrlOpener implements URLDataOpenerExtension {
 
       if (logId !== null) {
         if (targetTimeline) {
-          selectionManager.onSelectTimeline(targetTimeline);
+          this.selectionManager.onSelectTimeline(targetTimeline);
         }
         try {
           const log = data.logStore.getLog(logId);
-          await selectionManager.onSelectLog(log);
+          await this.selectionManager.onSelectLog(log);
           return;
         } catch {
-          // Fall through to timeline selection if logId is out of range.
+          // Falls through to timeline selection when logId is out of range.
         }
       }
 
       if (targetTimeline) {
-        selectionManager.onSelectTimeline(targetTimeline);
+        this.selectionManager.onSelectTimeline(targetTimeline);
       }
     } finally {
       this.isRestoringFromUrl.set(false);
@@ -235,30 +217,6 @@ function setOrDeleteParam(
     params.set(key, value);
   } else {
     params.delete(key);
-  }
-}
-
-function hasTimeline(
-  data: NonNullable<ReturnType<InspectionDataStore['inspectionData']>>,
-  timeline: ReadonlyDomainElement<Timeline>,
-): boolean {
-  try {
-    return data.timelineStore.getTimeline(timeline.id) === timeline;
-  } catch {
-    return false;
-  }
-}
-
-function hasRevision(
-  data: NonNullable<ReturnType<InspectionDataStore['inspectionData']>>,
-  timelineId: number,
-  revisionIndex: number,
-): boolean {
-  try {
-    const timeline = data.timelineStore.getTimeline(timelineId);
-    return revisionIndex < timeline.revisions.length;
-  } catch {
-    return false;
   }
 }
 

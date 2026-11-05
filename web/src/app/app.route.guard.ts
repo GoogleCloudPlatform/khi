@@ -60,10 +60,7 @@ export const SessionHostGuard = (route: ActivatedRouteSnapshot) => {
   async function createAvailableSession() {
     let currentSessionId = sessionId;
     let changed = false;
-    while (
-      !(await connector.createSession(currentSessionId)) &&
-      currentSessionId < sessionId + 20
-    ) {
+    if (!(await connector.createSession(currentSessionId))) {
       currentSessionId++;
       changed = true;
     }
