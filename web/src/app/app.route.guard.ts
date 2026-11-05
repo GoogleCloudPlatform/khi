@@ -68,6 +68,7 @@ export const SessionHostGuard = (route: ActivatedRouteSnapshot) => {
       const hash = location.hash.substring(1);
       guardResult.next(
         router.createUrlTree(['session', currentSessionId], {
+          queryParams: route.queryParams,
           fragment: hash === '' ? undefined : hash,
         }),
       );

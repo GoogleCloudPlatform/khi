@@ -47,9 +47,11 @@ function getUniqueWindowConnectorService(
 
 function createActivateRouteSnapshotWithSessionId(
   sessionId: string,
+  queryParams: Record<string, string> = {},
 ): ActivatedRouteSnapshot {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   const snapshot = new (ActivatedRouteSnapshot as any)([], { sessionId });
+  snapshot.queryParams = queryParams;
   return snapshot;
 }
 
@@ -102,6 +104,27 @@ describe('SessionHostGuard', () => {
 
     const redirectTo = (await lastValueFrom(guardResult)) as UrlTree;
     expect(redirectTo.toString()).toBe('/session/1');
+  });
+
+  it('should preserve queryParams when redirecting to an incremented session ID', async () => {
+    const route = createActivateRouteSnapshotWithSessionId('0', {
+      inspectionId: 'insp-1',
+      timelineId: '3',
+      revisionIndex: '1',
+    });
+    const connectionProvider = new InMemoryWindowConnectionProvider();
+    const connector = getUniqueWindowConnectorService(connectionProvider);
+    await connector.createSession(0);
+    getUniqueWindowConnectorService(connectionProvider);
+
+    const guardResult = TestBed.runInInjectionContext(() =>
+      SessionHostGuard(route),
+    );
+
+    const redirectTo = (await lastValueFrom(guardResult)) as UrlTree;
+    expect(redirectTo.toString()).toBe(
+      '/session/1?inspectionId=insp-1&timelineId=3&revisionIndex=1',
+    );
   });
 });
 
