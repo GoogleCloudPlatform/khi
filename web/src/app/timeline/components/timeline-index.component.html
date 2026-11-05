@@ -34,7 +34,7 @@
           [style.--guide-level]="level.level"
         ></div>
       }
-      @if (t.hasChildren) {
+      @if (showControls() && t.hasChildren) {
         <button
           type="button"
           class="collapse-toggle-btn"
@@ -64,15 +64,17 @@
           <span class="layer-name">{{ t.layerName }}</span>
         }
       </div>
-      <button
-        type="button"
-        class="menu-trigger-btn"
-        [matMenuTriggerFor]="itemMenu"
-        (click)="$event.stopPropagation()"
-        matTooltip="Menu"
-      >
-        <mat-icon class="menu-icon">more_vert</mat-icon>
-      </button>
+      @if (showControls()) {
+        <button
+          type="button"
+          class="menu-trigger-btn"
+          [matMenuTriggerFor]="itemMenu"
+          (click)="$event.stopPropagation()"
+          matTooltip="Menu"
+        >
+          <mat-icon class="menu-icon">more_vert</mat-icon>
+        </button>
+      }
       <mat-menu #itemMenu="matMenu">
         @if (t.hasChildren) {
           <button mat-menu-item (click)="collapseChildren.emit(t.timeline)">

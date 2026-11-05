@@ -153,6 +153,10 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Whether to display the split pane resizer handle icon.
    */
   readonly showResizerHandle = input<boolean>(true);
+  /**
+   * Whether to display interactive-only controls (collapse toggles and context menu buttons) in the timeline index.
+   */
+  readonly showIndexControls = input<boolean>(true);
 
   /**
    * Indicates whether all child timeline charts have initialized their WebGL contexts and are ready to render.

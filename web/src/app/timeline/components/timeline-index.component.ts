@@ -100,6 +100,9 @@ export class TimelineIndexComponent {
   /** The StyleStore containing all color and layout styling definitions. */
   styleStore = input<StyleStoreLike>();
 
+  /** Whether to show interactive-only controls (collapse toggle and context menu button). Static renders hide them. */
+  showControls = input<boolean>(true);
+
   /** Computed view models for rendering the timeline index rows. */
   timelineVMs = computed<TimelineIndexViewModel[]>(() => {
     this.styleStore()?.stylesUpdated?.();

@@ -104,6 +104,7 @@
           (excludeTimeline)="excludeTimeline.emit($event)"
           (excludeTimelineType)="excludeTimelineType.emit($event)"
           [highlights]="timelineHighlights()"
+          [showControls]="showIndexControls()"
         ></khi-timeline-index>
       </div>
     </div>
@@ -223,6 +224,7 @@
             (excludeTimeline)="excludeTimeline.emit($event)"
             (excludeTimelineType)="excludeTimelineType.emit($event)"
             [highlights]="timelineHighlights()"
+            [showControls]="showIndexControls()"
           ></khi-timeline-index>
         </div>
       </div>
