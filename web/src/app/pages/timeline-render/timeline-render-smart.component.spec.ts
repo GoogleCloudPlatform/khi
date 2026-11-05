@@ -58,7 +58,6 @@ class StubTimelineFrameComponent {
   readonly showLegend = input<unknown>();
   readonly showResizerHandle = input<unknown>();
   readonly showIndexControls = input<unknown>();
-  readonly indexPaneWidth = input<unknown>();
   readonly readyToRender = signal(true);
   readonly pixelsPerNs = model<number>(1e-6);
   readonly viewportLeftTimeNs = model<bigint>(0n);
