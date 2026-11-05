@@ -29,6 +29,7 @@ import {
 } from './app.route.guard';
 import { DiffComponent } from './pages/diff/diff.component';
 import { TaskGraphDebugSmartComponent } from 'src/app/pages/task-graph-debug/task-graph-debug-smart.component';
+import { McpTimelineRenderSmartComponent } from 'src/app/pages/timeline-render/mcp-timeline-render-smart.component';
 import { TimelineRenderSmartComponent } from 'src/app/pages/timeline-render/timeline-render-smart.component';
 import { PageType } from './extensions/extension-common/extension-types/lifecycle-hook';
 
@@ -43,6 +44,11 @@ export const KHIRoutes: Routes = [
     path: 'render/timeline',
     component: TimelineRenderSmartComponent,
     title: 'KHI - Timeline Render',
+  },
+  {
+    path: 'render/mcp-timeline',
+    component: McpTimelineRenderSmartComponent,
+    title: 'KHI - MCP Timeline Render',
   },
   {
     path: 'session/:sessionId',

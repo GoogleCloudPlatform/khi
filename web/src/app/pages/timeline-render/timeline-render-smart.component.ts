@@ -17,27 +17,13 @@
 import {
   ApplicationRef,
   Component,
-  DestroyRef,
   OnInit,
   computed,
   inject,
   signal,
-  viewChild,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import {
-  KhiTimelineRendererBridge,
-  TimelineRenderMeasureResult,
-  TimelineRenderParams,
-} from 'src/app/common/schema/timeline-render-types';
-import {
-  MIN_CHART_VIEWPORT_WIDTH_PX,
-  MIN_INDEX_PANE_WIDTH_PX,
-  TIMELINE_GUTTER_WIDTH_PX,
-  TIMELINE_HEADER_HEIGHT_PX,
-  TIMELINE_TEXT_WIDTH_MEASURER,
-  calculateTimelineStageDimensions,
-} from 'src/app/pages/timeline-render/types/timeline-render-sizing';
+import { TimelineRenderParams } from 'src/app/common/schema/timeline-render-types';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import {
@@ -52,7 +38,6 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { TimelineView } from 'src/app/store/domain/timeline-view';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import {
-  BASE_ROW_HEIGHT,
   TimelineChartStyle,
   TimelineRulerStyle,
   generateDefaultChartStyle,
@@ -67,16 +52,16 @@ const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
   updateProgress: () => undefined,
 };
 
-interface ViewportTimeRange {
+/**
+ * Visible time range in milliseconds applied to the timeline viewport.
+ */
+export interface ViewportTimeRange {
   readonly viewStartTimeMs: number;
   readonly viewEndTimeMs: number;
 }
 
 /**
- * Smart component that renders only the timeline frame for headless screenshot capture.
- *
- * It exposes a browser automation bridge on window.__khiCDPBridge.timelineRenderer so the backend MCP
- * renderer can dynamically switch filters, timeline subsets, and time ranges without reloading.
+ * Smart component rendering a responsive timeline view for standalone browser viewing.
  */
 @Component({
   selector: 'khi-timeline-render-smart',
@@ -93,22 +78,17 @@ interface ViewportTimeRange {
 })
 export class TimelineRenderSmartComponent implements OnInit {
   private static readonly DEFAULT_MAX_NODES = 50;
+  private static readonly DEFAULT_VIEWPORT_WIDTH_PX = 1600;
+  private static readonly INDEX_PANE_WIDTH_PX = 300;
+  private static readonly GUTTER_WIDTH_PX = 8;
 
   private readonly route = inject(ActivatedRoute);
   private readonly appRef = inject(ApplicationRef);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly dataLoader = inject(InspectionDataLoaderService);
   private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly styleOverrideService = inject(StyleOverrideService);
-  private readonly measureText = inject(TIMELINE_TEXT_WIDTH_MEASURER);
-
-  private readonly timelineFrame = viewChild.required<TimelineFrameComponent>(
-    TimelineFrameComponent,
-  );
 
   private loadedInspectionId: string | null = null;
-  private pendingPixelsPerNs = 1e-8;
-  private pendingViewportLeftTimeNs = 0n;
 
   private readonly inspectionDataUniqueIDs = new WeakMap<
     InspectionData,
@@ -126,18 +106,6 @@ export class TimelineRenderSmartComponent implements OnInit {
   protected readonly pixelsPerNs = signal<number>(1e-8);
 
   protected readonly viewportLeftTimeNs = signal<bigint>(0n);
-
-  protected readonly indexPaneWidthPx = signal<number>(MIN_INDEX_PANE_WIDTH_PX);
-
-  protected readonly stageWidthPx = signal<number>(
-    MIN_INDEX_PANE_WIDTH_PX +
-      TIMELINE_GUTTER_WIDTH_PX +
-      MIN_CHART_VIEWPORT_WIDTH_PX,
-  );
-
-  protected readonly stageHeightPx = signal<number>(
-    TIMELINE_HEADER_HEIGHT_PX + BASE_ROW_HEIGHT,
-  );
 
   protected readonly styleStore = computed<StyleStoreLike>(() => {
     return this.styleOverrideService;
@@ -204,29 +172,9 @@ export class TimelineRenderSmartComponent implements OnInit {
   });
 
   /**
-   * Registers the window.__khiCDPBridge.timelineRenderer bridge and applies any initial URL query parameters.
+   * Reads URL query parameters and applies the initial inspection and timeline filters.
    */
   public ngOnInit(): void {
-    const bridge: KhiTimelineRendererBridge = {
-      applyAndMeasure: async (params) => {
-        await document.fonts.ready;
-        return this.applyAndMeasure(params);
-      },
-      waitForStableFrame: async () => {
-        await document.fonts.ready;
-        return this.waitForStableFrame();
-      },
-    };
-    window.__khiCDPBridge = {
-      ...window.__khiCDPBridge,
-      timelineRenderer: bridge,
-    };
-    this.destroyRef.onDestroy(() => {
-      if (window.__khiCDPBridge?.timelineRenderer === bridge) {
-        delete window.__khiCDPBridge.timelineRenderer;
-      }
-    });
-
     const queryParams = this.route.snapshot.queryParamMap;
     const inspectionId = queryParams.get('inspectionId');
     if (inspectionId) {
@@ -237,7 +185,7 @@ export class TimelineRenderSmartComponent implements OnInit {
             .map((v) => Number(v.trim()))
             .filter((n) => Number.isInteger(n) && n > 0)
         : undefined;
-      void this.applyAndMeasure({
+      void this.applyRenderParams({
         inspectionId,
         timelineQuery: queryParams.get('timelineQuery') ?? undefined,
         timelineExclusionQuery:
@@ -249,11 +197,11 @@ export class TimelineRenderSmartComponent implements OnInit {
   }
 
   /**
-   * Loads inspection data if needed, applies filters, selects target timelines, and computes dimensions.
+   * Loads inspection data if needed, applies filters, and updates the displayed timelines.
    */
-  public async applyAndMeasure(
+  public async applyRenderParams(
     params: TimelineRenderParams,
-  ): Promise<TimelineRenderMeasureResult> {
+  ): Promise<ViewportTimeRange> {
     await this.ensureInspectionLoaded(params.inspectionId);
     const timelineView = this.inspectionDataStore.timelineView();
     if (!timelineView) {
@@ -274,63 +222,14 @@ export class TimelineRenderSmartComponent implements OnInit {
     this.renderedTimelines.set(rendered);
     this.timezoneShiftHours.set(params.timezoneShiftHours ?? 0);
 
-    const dimensions = calculateTimelineStageDimensions(
-      rendered,
-      this.styleStore(),
-      this.measureText,
-    );
-    this.indexPaneWidthPx.set(dimensions.indexPaneWidthPx);
-    this.stageWidthPx.set(dimensions.stageWidthPx);
-    this.stageHeightPx.set(dimensions.timelineFrameHeightPx);
-
-    const { viewStartTimeMs, viewEndTimeMs } = this.applyHorizontalViewport(
-      dimensions.chartViewportWidthPx,
+    const viewport = this.applyHorizontalViewport(
       params.viewStartTimeMs,
       params.viewEndTimeMs,
     );
 
     this.appRef.tick();
 
-    return {
-      width: dimensions.stageWidthPx,
-      height: dimensions.timelineFrameHeightPx,
-      renderedCount: rendered.length,
-      totalMatched: matched.length,
-      hasMore: matched.length > rendered.length,
-      viewStartTimeMs,
-      viewEndTimeMs,
-    };
-  }
-
-  /**
-   * Waits for ResizeObserver updates and WebGL/Canvas rendering frames to settle.
-   */
-  public async waitForStableFrame(): Promise<void> {
-    const frame = this.timelineFrame();
-    const maxAttempts = 200;
-    for (let i = 0; i < maxAttempts && !frame.readyToRender(); i++) {
-      await this.nextAnimationFrame();
-    }
-
-    await this.nextAnimationFrame();
-    this.appRef.tick();
-    await this.nextAnimationFrame();
-
-    this.pixelsPerNs.set(this.pendingPixelsPerNs);
-    this.viewportLeftTimeNs.set(this.pendingViewportLeftTimeNs);
-    this.appRef.tick();
-    frame.syncViewportAndInvalidate(
-      this.pendingViewportLeftTimeNs,
-      this.pendingPixelsPerNs,
-    );
-
-    await this.nextAnimationFrame();
-    this.appRef.tick();
-    frame.syncViewportAndInvalidate(
-      this.pendingViewportLeftTimeNs,
-      this.pendingPixelsPerNs,
-    );
-    await this.nextAnimationFrame();
+    return viewport;
   }
 
   private async ensureInspectionLoaded(inspectionId: string): Promise<void> {
@@ -415,7 +314,6 @@ export class TimelineRenderSmartComponent implements OnInit {
   }
 
   private applyHorizontalViewport(
-    chartViewportWidthPx: number,
     requestedStartTimeMs?: number,
     requestedEndTimeMs?: number,
   ): ViewportTimeRange {
@@ -434,11 +332,18 @@ export class TimelineRenderSmartComponent implements OnInit {
       Number(viewEndTimeNs - viewStartTimeNs),
     );
 
-    const safeChartWidthPx = Math.max(100, chartViewportWidthPx);
-    const pixelsPerNs = safeChartWidthPx / durationNs;
+    const availableWidthPx =
+      typeof window !== 'undefined' && window.innerWidth > 0
+        ? window.innerWidth
+        : TimelineRenderSmartComponent.DEFAULT_VIEWPORT_WIDTH_PX;
+    const chartViewportWidthPx = Math.max(
+      100,
+      availableWidthPx -
+        TimelineRenderSmartComponent.INDEX_PANE_WIDTH_PX -
+        TimelineRenderSmartComponent.GUTTER_WIDTH_PX,
+    );
+    const pixelsPerNs = chartViewportWidthPx / durationNs;
 
-    this.pendingPixelsPerNs = pixelsPerNs;
-    this.pendingViewportLeftTimeNs = viewStartTimeNs;
     this.pixelsPerNs.set(pixelsPerNs);
     this.viewportLeftTimeNs.set(viewStartTimeNs);
 
@@ -446,9 +351,5 @@ export class TimelineRenderSmartComponent implements OnInit {
       viewStartTimeMs: BigIntTimeUtil.NsToNumberMs(viewStartTimeNs),
       viewEndTimeMs: BigIntTimeUtil.NsToNumberMs(viewEndTimeNs),
     };
-  }
-
-  private nextAnimationFrame(): Promise<void> {
-    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
   }
 }

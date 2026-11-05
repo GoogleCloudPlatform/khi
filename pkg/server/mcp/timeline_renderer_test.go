@@ -100,7 +100,7 @@ type fakeCDPSessionSnapshot struct {
 	RemainingApplySteps  int
 }
 
-// fakeTimelineCDPServer simulates the /render/timeline CDP protocol from declarative step queues.
+// fakeTimelineCDPServer simulates the /render/mcp-timeline CDP protocol from declarative step queues.
 type fakeTimelineCDPServer struct {
 	t               *testing.T
 	mu              sync.Mutex
@@ -366,7 +366,7 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 				{Result: oversizedResult},
 			},
 			wantSession: fakeCDPSessionSnapshot{
-				NavigatedURLs:   []string{"http://127.0.0.1:8080/render/timeline"},
+				NavigatedURLs:   []string{"http://127.0.0.1:8080/render/mcp-timeline"},
 				BridgePollCount: 1,
 				Viewports: []recordedViewport{
 					{Width: 1600, Height: 360, DeviceScaleFactor: 2},
@@ -413,8 +413,8 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 			},
 			wantSession: fakeCDPSessionSnapshot{
 				NavigatedURLs: []string{
-					"http://127.0.0.1:8080/render/timeline",
-					"http://127.0.0.1:8080/render/timeline",
+					"http://127.0.0.1:8080/render/mcp-timeline",
+					"http://127.0.0.1:8080/render/mcp-timeline",
 				},
 				BridgePollCount: 2,
 				Viewports: []recordedViewport{
@@ -441,7 +441,7 @@ func TestChromeTimelineImageRenderer_RenderTimelineWithMockCDP(t *testing.T) {
 				{HasErr: true, IsTransportErr: true},
 			},
 			wantSession: fakeCDPSessionSnapshot{
-				NavigatedURLs:   []string{"http://127.0.0.1:8080/render/timeline"},
+				NavigatedURLs:   []string{"http://127.0.0.1:8080/render/mcp-timeline"},
 				BridgePollCount: 2,
 			},
 		},

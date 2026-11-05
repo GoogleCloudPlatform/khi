@@ -19,7 +19,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { TimelineRenderSmartComponent } from 'src/app/pages/timeline-render/timeline-render-smart.component';
-import { TIMELINE_TEXT_WIDTH_MEASURER } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
@@ -56,15 +55,11 @@ class StubTimelineFrameComponent {
   readonly initialScaleApplied = input<unknown>();
   readonly allLogs = input<unknown>();
   readonly filteredLogIds = input<unknown>();
-  readonly indexPaneSize = input<number>(300);
   readonly showLegend = input<unknown>();
   readonly showResizerHandle = input<unknown>();
   readonly readyToRender = signal(true);
   readonly pixelsPerNs = model<number>(1e-6);
   readonly viewportLeftTimeNs = model<bigint>(0n);
-  public readonly syncViewportAndInvalidate = jasmine.createSpy(
-    'syncViewportAndInvalidate',
-  );
 }
 
 const mockTimelineType: TimelineType = {
@@ -138,21 +133,6 @@ describe('TimelineRenderSmartComponent', () => {
     updateFilterParamsSpy = jasmine.createSpy('updateFilterParams');
     expandAllSpy = jasmine.createSpy('expandAllTimelines');
 
-    const fakeInspectionData = {
-      metadata: {
-        header: {
-          startTimeUnixSeconds: 1000,
-          endTimeUnixSeconds: 2000,
-        },
-      },
-      logStore: {
-        logs: () => [],
-      },
-      timelineStore: {
-        timelines: allFakeTimelines,
-      },
-    } as unknown as InspectionData;
-
     const fakeTimelineView = {
       expandAllTimelines: expandAllSpy,
       isFiltering: signal(false),
@@ -170,7 +150,20 @@ describe('TimelineRenderSmartComponent', () => {
       'loadInspectionDataFromBackend',
     ]);
     mockLoader.loadInspectionDataFromBackend.and.callFake(async () => {
-      inspectionDataSignal.set(fakeInspectionData);
+      inspectionDataSignal.set({
+        metadata: {
+          header: {
+            startTimeUnixSeconds: 1000,
+            endTimeUnixSeconds: 2000,
+          },
+        },
+        logStore: {
+          logs: () => [],
+        },
+        timelineStore: {
+          timelines: allFakeTimelines,
+        },
+      } as unknown as InspectionData);
       timelineViewSignal.set(fakeTimelineView);
     });
 
@@ -192,16 +185,16 @@ describe('TimelineRenderSmartComponent', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              queryParamMap: convertToParamMap({}),
+              queryParamMap: convertToParamMap({
+                inspectionId: 'insp-route',
+                timelineQuery: 'name == "pod-a"',
+                timelineIds: '4',
+              }),
             },
           },
         },
         { provide: InspectionDataStore, useValue: mockInspectionDataStore },
         { provide: StyleOverrideService, useValue: mockStyleOverrideService },
-        {
-          provide: TIMELINE_TEXT_WIDTH_MEASURER,
-          useValue: (text: string) => text.length * 7,
-        },
       ],
     })
       .overrideComponent(TimelineRenderSmartComponent, {
@@ -217,6 +210,8 @@ describe('TimelineRenderSmartComponent', () => {
     fixture = TestBed.createComponent(TimelineRenderSmartComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
     stubFrame = fixture.debugElement.query(
       By.directive(StubTimelineFrameComponent),
     ).componentInstance as StubTimelineFrameComponent;
@@ -226,23 +221,17 @@ describe('TimelineRenderSmartComponent', () => {
     fixture.destroy();
   });
 
-  it('should register and clean up window.__khiCDPBridge.timelineRenderer on lifecycle', () => {
-    expect(window.__khiCDPBridge?.timelineRenderer).toBeDefined();
-    fixture.destroy();
+  it('should not register window.__khiCDPBridge.timelineRenderer', () => {
     expect(window.__khiCDPBridge?.timelineRenderer).toBeUndefined();
   });
 
-  it('should load inspection data once and reuse it on subsequent calls for the same inspectionId', async () => {
-    const firstResult = await component.applyAndMeasure({
-      inspectionId: 'insp-1',
-      timelineQuery: 'name == "pod-a"',
-    });
+  it('should automatically apply parameters from route query params on ngOnInit', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
 
-    expect(mockLoader.loadInspectionDataFromBackend).toHaveBeenCalledTimes(1);
     expect(mockLoader.loadInspectionDataFromBackend).toHaveBeenCalledWith(
-      'insp-1',
+      'insp-route',
     );
-    expect(expandAllSpy).toHaveBeenCalled();
     expect(updateFilterParamsSpy).toHaveBeenCalledWith({
       timelineQuery: 'name == "pod-a"',
       timelineExclusionQuery: '',
@@ -251,24 +240,35 @@ describe('TimelineRenderSmartComponent', () => {
       filterStartTime: null,
       filterEndTime: null,
     });
-    // MIN_INDEX_PANE_WIDTH_PX (300) + GUTTER_WIDTH (8) + MIN_CHART_VIEWPORT_WIDTH_PX (1280) = 1588.
-    // HEADER_HEIGHT (60) + 5 rows * (height 2 * BASE_ROW_HEIGHT 25 = 50) = 310.
-    expect(firstResult).toEqual({
-      width: 1588,
-      height: 310,
-      renderedCount: 5,
-      totalMatched: 5,
-      hasMore: false,
-      viewStartTimeMs: 1_000_000,
-      viewEndTimeMs: 2_000_000,
-    });
-    expect(stubFrame.indexPaneSize()).toBe(300);
+    expect(stubFrame.timelines().map((t) => t.id)).toEqual([1, 2, 3, 4]);
+  });
 
-    await component.applyAndMeasure({
+  it('should render viewport container without fixed inline width or height styles', () => {
+    const viewportEl: HTMLElement = fixture.debugElement.query(
+      By.css('.timeline-render-viewport'),
+    ).nativeElement;
+
+    expect(viewportEl.style.width).toBe('');
+    expect(viewportEl.style.height).toBe('');
+  });
+
+  it('should load inspection data once and reuse it on subsequent calls for the same inspectionId', async () => {
+    await component.applyRenderParams({
+      inspectionId: 'insp-1',
+      timelineQuery: 'name == "pod-a"',
+    });
+
+    const callsAfterFirst =
+      mockLoader.loadInspectionDataFromBackend.calls.count();
+
+    await component.applyRenderParams({
       inspectionId: 'insp-1',
       timelineQuery: 'name == "pod-b"',
     });
-    expect(mockLoader.loadInspectionDataFromBackend).toHaveBeenCalledTimes(1);
+
+    expect(mockLoader.loadInspectionDataFromBackend.calls.count()).toBe(
+      callsAfterFirst,
+    );
   });
 
   const selectionCases = [
@@ -276,229 +276,61 @@ describe('TimelineRenderSmartComponent', () => {
       desc: 'includes ancestor timelines when filtering by timelineIds',
       params: { timelineIds: [4] },
       wantIds: [1, 2, 3, 4],
-      wantResult: {
-        width: 1588,
-        height: 260,
-        totalMatched: 4,
-        renderedCount: 4,
-        hasMore: false,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
-      },
     },
     {
       desc: 'excludes timelines deeper than maxDepth',
       params: { timelineIds: [4], maxDepth: 2 },
       wantIds: [1, 2, 3],
-      wantResult: {
-        width: 1588,
-        height: 210,
-        totalMatched: 3,
-        renderedCount: 3,
-        hasMore: false,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
-      },
     },
     {
-      desc: 'truncates rendered timelines to maxNodes and sets hasMore',
+      desc: 'truncates rendered timelines to maxNodes',
       params: { timelineIds: [4], maxDepth: 2, maxNodes: 2 },
       wantIds: [1, 2],
-      wantResult: {
-        width: 1588,
-        height: 160,
-        totalMatched: 3,
-        renderedCount: 2,
-        hasMore: true,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
-      },
     },
   ];
 
   for (const tc of selectionCases) {
     it(`should ${tc.desc}`, async () => {
-      const res = await component.applyAndMeasure({
+      await component.applyRenderParams({
         inspectionId: 'insp-1',
         ...tc.params,
       });
       fixture.detectChanges();
-      expect(res).toEqual(tc.wantResult);
       expect(stubFrame.timelines().map((t) => t.id)).toEqual(tc.wantIds);
     });
   }
 
   it('should zoom horizontal viewport to requested viewStartTimeMs and viewEndTimeMs', async () => {
-    const res = await component.applyAndMeasure({
+    const res = await component.applyRenderParams({
       inspectionId: 'insp-1',
       viewStartTimeMs: 1200_000,
-      viewEndTimeMs: 1400_000, // duration = 200_000_000_000ns -> pixelsPerNs = 1280 / 200_000_000_000 = 6.4e-9.
+      viewEndTimeMs: 1400_000,
     });
     fixture.detectChanges();
 
     expect(res).toEqual({
-      width: 1588,
-      height: 310,
-      renderedCount: 5,
-      totalMatched: 5,
-      hasMore: false,
       viewStartTimeMs: 1_200_000,
       viewEndTimeMs: 1_400_000,
     });
-    expect({
-      viewportLeftTimeNs: stubFrame.viewportLeftTimeNs(),
-      pixelsPerNs: stubFrame.pixelsPerNs(),
-    }).toEqual({
-      viewportLeftTimeNs: 1_200_000_000_000n,
-      pixelsPerNs: 6.4e-9,
-    });
-  });
-
-  it('should expand indexPaneSize and stage width horizontally when rendered timeline names are wide while keeping minimum chart viewport width', async () => {
-    const widePod = createFakeTimeline(
-      6,
-      [1, 2, 3, 6],
-      'gke-test-cluster-e2-standard-8-pool-node-12345678-abcd',
-    );
-    filteredTimelinesSignal.set([
-      rootTimeline,
-      namespaceTimeline,
-      podTimelineA,
-      widePod,
-    ]);
-
-    const res = await component.applyAndMeasure({
-      inspectionId: 'insp-1',
-      viewStartTimeMs: 1200_000,
-      viewEndTimeMs: 1400_000,
-    });
-    fixture.detectChanges();
-
-    const indexPaneSize = stubFrame.indexPaneSize();
-    expect(indexPaneSize).toBeGreaterThan(300);
-    expect(res.width).toBe(indexPaneSize + 8 + 1280);
-    expect(stubFrame.pixelsPerNs()).toBe(6.4e-9);
-  });
-
-  it('should wait for frame readiness and restore viewport signals in waitForStableFrame', async () => {
-    await component.applyAndMeasure({
-      inspectionId: 'insp-1',
-      viewStartTimeMs: 1200_000,
-      viewEndTimeMs: 1400_000,
-    });
-    fixture.detectChanges();
-
-    stubFrame.readyToRender.set(false);
-    // Simulate a scroll event mutating the two-way bound model signal before waitForStableFrame runs.
-    stubFrame.viewportLeftTimeNs.set(999_000_000_000n);
-    fixture.detectChanges();
-
-    let rafCount = 0;
-    spyOn(window, 'requestAnimationFrame').and.callFake(
-      (cb: FrameRequestCallback): number => {
-        rafCount++;
-        if (rafCount >= 2) {
-          stubFrame.readyToRender.set(true);
-        }
-        cb(performance.now());
-        return rafCount;
-      },
-    );
-
-    await component.waitForStableFrame();
-    fixture.detectChanges();
-
-    expect({
-      viewportLeftTimeNs: stubFrame.viewportLeftTimeNs(),
-      pixelsPerNs: stubFrame.pixelsPerNs(),
-    }).toEqual({
-      viewportLeftTimeNs: 1_200_000_000_000n,
-      pixelsPerNs: 6.4e-9,
-    });
-    expect(stubFrame.syncViewportAndInvalidate.calls.allArgs()).toEqual([
-      [1_200_000_000_000n, 6.4e-9],
-      [1_200_000_000_000n, 6.4e-9],
-    ]);
+    expect(stubFrame.viewportLeftTimeNs()).toBe(1_200_000_000_000n);
+    expect(stubFrame.pixelsPerNs()).toBeGreaterThan(0);
   });
 
   it('should throw when loading a different inspection fails on a warm page', async () => {
-    await component.applyAndMeasure({
+    await component.applyRenderParams({
       inspectionId: 'insp-1',
     });
 
-    // Simulate loadInspectionDataFromBackend('insp-2') catching an error internally without updating inspectionDataStore.
     mockLoader.loadInspectionDataFromBackend.and.callFake(async () => {
       // Store remains set to insp-1's data.
     });
 
     await expectAsync(
-      component.applyAndMeasure({
+      component.applyRenderParams({
         inspectionId: 'insp-2',
       }),
     ).toBeRejectedWithError(
       /Failed to load inspection data for inspectionId=insp-2/,
     );
-  });
-
-  it('should wait for document.fonts.ready in CDP bridge functions before completing', async () => {
-    let resolveFontsReady!: (value: FontFaceSet) => void;
-    const fontsReadyPromise = new Promise<FontFaceSet>((resolve) => {
-      resolveFontsReady = resolve;
-    });
-    const fontsReadySpy = spyOnProperty(
-      document.fonts,
-      'ready',
-      'get',
-    ).and.returnValue(fontsReadyPromise);
-
-    const bridge = window.__khiCDPBridge?.timelineRenderer;
-    expect(bridge).toBeDefined();
-
-    let applyCompleted = false;
-    const bridgeApplyPromise = bridge!
-      .applyAndMeasure({
-        inspectionId: 'insp-1',
-      })
-      .then(() => {
-        applyCompleted = true;
-      });
-
-    await Promise.resolve();
-    expect(applyCompleted).toBeFalse();
-
-    resolveFontsReady(document.fonts);
-    await bridgeApplyPromise;
-    expect(applyCompleted).toBeTrue();
-
-    let resolveFrameFontsReady!: (value: FontFaceSet) => void;
-    const frameFontsReadyPromise = new Promise<FontFaceSet>((resolve) => {
-      resolveFrameFontsReady = resolve;
-    });
-    fontsReadySpy.and.returnValue(frameFontsReadyPromise);
-
-    let frameCompleted = false;
-    const bridgeFramePromise = bridge!.waitForStableFrame().then(() => {
-      frameCompleted = true;
-    });
-
-    await Promise.resolve();
-    expect(frameCompleted).toBeFalse();
-
-    resolveFrameFontsReady(document.fonts);
-    await bridgeFramePromise;
-    expect(frameCompleted).toBeTrue();
-  });
-
-  it('should not wait for document.fonts.ready when applyAndMeasure is called directly', async () => {
-    const neverResolvingFonts = new Promise<FontFaceSet>(() => undefined);
-    spyOnProperty(document.fonts, 'ready', 'get').and.returnValue(
-      neverResolvingFonts,
-    );
-
-    const result = await component.applyAndMeasure({
-      inspectionId: 'insp-1',
-    });
-
-    expect(result.renderedCount).toBe(5);
   });
 });

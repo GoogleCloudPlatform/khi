@@ -14,11 +14,7 @@
  limitations under the License.
 -->
 
-<div
-  class="timeline-render-viewport"
-  [style.width.px]="stageWidthPx()"
-  [style.height.px]="stageHeightPx()"
->
+<div class="timeline-render-viewport">
   <khi-timeline-frame
     [inspectionDataUniqueID]="inspectionDataUniqueID()"
     [styleStore]="styleStore()"
@@ -34,7 +30,6 @@
     [initialScaleApplied]="true"
     [allLogs]="allLogs()"
     [filteredLogIds]="filteredLogIds()"
-    [indexPaneSize]="indexPaneWidthPx()"
     [showLegend]="false"
     [showResizerHandle]="false"
   ></khi-timeline-frame>

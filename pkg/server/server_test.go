@@ -53,6 +53,12 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 			wantCode:      200,
 		},
 		{
+			name:          "mcp render route should serve SPA index.html",
+			requestMethod: "GET",
+			requestPath:   "/render/mcp-timeline",
+			wantCode:      200,
+		},
+		{
 			name:          "static resource must be served",
 			requestMethod: "GET",
 			requestPath:   "/test.html",
@@ -84,6 +90,13 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 			serverBasePath: "/custom/base/path/foo",
 			requestMethod:  "GET",
 			requestPath:    "/custom/base/path/foo/render/timeline",
+			wantCode:       200,
+		},
+		{
+			name:           "mcp render route should serve SPA index.html with custom server base path",
+			serverBasePath: "/custom/base/path/foo",
+			requestMethod:  "GET",
+			requestPath:    "/custom/base/path/foo/render/mcp-timeline",
 			wantCode:       200,
 		},
 	}
