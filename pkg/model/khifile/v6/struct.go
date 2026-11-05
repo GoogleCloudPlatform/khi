@@ -444,17 +444,13 @@ func matchFieldKeySegments(key string, segments []string) (int, bool) {
 			return 0, false
 		}
 		seg := segments[matched]
-		sepIdx := strings.IndexByte(key, fieldPathSeparator[0])
-		if sepIdx < 0 {
-			if key != seg {
-				return 0, false
-			}
+		if key == seg {
 			return matched + 1, true
 		}
-		if key[:sepIdx] != seg {
+		if len(key) <= len(seg) || key[len(seg)] != fieldPathSeparator[0] || key[:len(seg)] != seg {
 			return 0, false
 		}
-		key = key[sepIdx+1:]
+		key = key[len(seg)+1:]
 		matched++
 	}
 }

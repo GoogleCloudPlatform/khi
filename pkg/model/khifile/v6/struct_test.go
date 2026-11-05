@@ -587,6 +587,18 @@ func TestMatchFieldKeySegments(t *testing.T) {
 			segments: []string{"", "a"},
 			want:     matchResult{Matched: 2, OK: true},
 		},
+		{
+			name:     "rejects shorter flat key",
+			key:      "logName",
+			segments: []string{"insertId"},
+			want:     matchResult{Matched: 0, OK: false},
+		},
+		{
+			name:     "rejects longer flat key sharing prefix without separator",
+			key:      "insertIdExtra",
+			segments: []string{"insertId"},
+			want:     matchResult{Matched: 0, OK: false},
+		},
 	}
 
 	for _, tc := range testCases {
