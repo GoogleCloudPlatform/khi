@@ -14,17 +14,19 @@
  limitations under the License.
 -->
 
-@if (deck().cards.length > 0) {
+@let deckVm = deck();
+
+@if (deckVm.cards.length > 0) {
   <div class="evidence-deck-root">
     <svg
       class="tether-strip"
-      [attr.height]="deck().tetherStripHeightPx"
+      [attr.height]="deckVm.tetherStripHeightPx"
       [attr.viewBox]="
-        '0 0 ' + stageWidthPx() + ' ' + deck().tetherStripHeightPx
+        '0 0 ' + stageWidthPx() + ' ' + deckVm.tetherStripHeightPx
       "
       [attr.width]="stageWidthPx()"
     >
-      @for (tether of deck().tethers; track tether.id) {
+      @for (tether of deckVm.tethers; track tether.id) {
         <g
           class="tether-group"
           [class.is-hovered]="hoveredBadge() === tether.badge"
@@ -34,15 +36,15 @@
           <circle
             class="tether-joint"
             [attr.cx]="tether.cardAnchorX"
-            [attr.cy]="deck().tetherStripHeightPx - 2"
+            [attr.cy]="deckVm.tetherStripHeightPx - 2"
             r="3"
           />
         </g>
       }
     </svg>
 
-    <div class="cards-grid" [class]="deck().gridPreset">
-      @for (card of deck().cards; track card.id) {
+    <div class="cards-grid" [class]="deckVm.gridPreset">
+      @for (card of deckVm.cards; track card.id) {
         <article
           class="evidence-card"
           [class.is-hovered]="hoveredBadge() === card.badge"
