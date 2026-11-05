@@ -251,14 +251,12 @@ func (s Spec) Clone() Spec {
 type ExcerptLineKind string
 
 const (
-	// ExcerptLineKindContext represents an unchanged context line in a unified diff.
+	// ExcerptLineKindContext represents an unchanged context line in a unified diff or structured log.
 	ExcerptLineKindContext ExcerptLineKind = "context"
 	// ExcerptLineKindAdded represents an added line in a unified diff.
 	ExcerptLineKindAdded ExcerptLineKind = "added"
 	// ExcerptLineKindDeleted represents a deleted line in a unified diff.
 	ExcerptLineKindDeleted ExcerptLineKind = "deleted"
-	// ExcerptLineKindLog represents a structured YAML or expanded multiline log line.
-	ExcerptLineKindLog ExcerptLineKind = "log"
 	// ExcerptLineKindSummary represents a parser-distilled single-line log summary.
 	ExcerptLineKindSummary ExcerptLineKind = "summary"
 	// ExcerptLineKindOmitted represents a folded gap of omitted lines.
