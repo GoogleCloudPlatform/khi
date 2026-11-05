@@ -115,7 +115,7 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 	grant := h.assetStore.Issue(renderRes.PNGBytes, "image/png", ".png")
 	storedScene, err := h.sceneStore.Issue(input.ParentSceneID, mergedSpec, toSceneDocument(renderReq))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to issue timeline scene: %w", err)
+		return mdtemplate.ErrorResult("INTERNAL_ERROR", fmt.Sprintf("Failed to issue timeline scene: %s.", err.Error()))
 	}
 
 	expiresAt := grant.ExpiresAt
@@ -143,7 +143,7 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 		Applied:         applied,
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to render render_timelines template: %w", err)
+		return mdtemplate.ErrorResult("INTERNAL_ERROR", fmt.Sprintf("Failed to render render_timelines template: %s.", err.Error()))
 	}
 
 	return &mcpsdk.CallToolResult{
