@@ -567,8 +567,26 @@ func TestGetResourceDiff(t *testing.T) {
 }
 
 func TestGetResourceDiff_IncludeManagedFields(t *testing.T) {
-	const rev0Full = "apiVersion: v1\nkind: Pod\nmetadata:\n  managedFields:\n  - manager: kubelet\n    time: 2026-10-01T09:00:00Z\n  name: nginx\nstatus:\n  phase: Pending\n"
-	const rev1Full = "apiVersion: v1\nkind: Pod\nmetadata:\n  managedFields:\n  - manager: kubelet\n    time: 2026-10-01T09:05:00Z\n  name: nginx\nstatus:\n  phase: Running\n"
+	const rev0Full = `apiVersion: v1
+kind: Pod
+metadata:
+  managedFields:
+  - manager: kubelet
+    time: 2026-10-01T09:00:00Z
+  name: nginx
+status:
+  phase: Pending
+`
+	const rev1Full = `apiVersion: v1
+kind: Pod
+metadata:
+  managedFields:
+  - manager: kubelet
+    time: 2026-10-01T09:05:00Z
+  name: nginx
+status:
+  phase: Running
+`
 
 	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
 	principalA := pool.InternString(testRevisionPrincipalA).ID()
@@ -590,8 +608,28 @@ func TestGetResourceDiff_IncludeManagedFields(t *testing.T) {
 	wantSegments := []TimelineSegment{{Type: "Pod", Name: "nginx"}}
 	wantRev0 := ResourceRevision{Index: 0, Time: testRevision0Time, Verb: "CREATE", State: "Pending", Principal: testRevisionPrincipalA, LogID: 1, HasBody: true}
 	wantRev1 := ResourceRevision{Index: 1, Time: testRevision1Time, Verb: "UPDATE", State: "Running", Principal: testRevisionPrincipalA, LogID: 2, HasBody: true}
-	const strippedDiff = "--- revision 0\n+++ revision 1\n@@ -3,4 +3,4 @@\n metadata:\n   name: nginx\n status:\n-  phase: Pending\n+  phase: Running\n"
-	const fullDiff = "--- revision 0\n+++ revision 1\n@@ -3,7 +3,7 @@\n metadata:\n   managedFields: \n   - manager: kubelet\n-    time: 2026-10-01T09:00:00Z\n+    time: 2026-10-01T09:05:00Z\n   name: nginx\n status:\n-  phase: Pending\n+  phase: Running\n"
+	const strippedDiff = `--- revision 0
++++ revision 1
+@@ -3,4 +3,4 @@
+ metadata:
+   name: nginx
+ status:
+-  phase: Pending
++  phase: Running
+`
+	const fullDiff = `--- revision 0
++++ revision 1
+@@ -3,7 +3,7 @@
+ metadata:
+   managedFields: 
+   - manager: kubelet
+-    time: 2026-10-01T09:00:00Z
++    time: 2026-10-01T09:05:00Z
+   name: nginx
+ status:
+-  phase: Pending
++  phase: Running
+`
 
 	testCases := []struct {
 		name                 string
