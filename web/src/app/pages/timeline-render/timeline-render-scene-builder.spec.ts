@@ -20,10 +20,12 @@ import {
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import {
-  DEFAULT_REFERENCE_PALETTE_COLORS,
-  DEFAULT_TIMELINE_PALETTE_COLORS,
   TimelineRowStageBounds,
   VerticalStemSegment,
+} from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+import {
+  DEFAULT_REFERENCE_PALETTE_COLORS,
+  DEFAULT_TIMELINE_PALETTE_COLORS,
   buildMarkerViewModels,
   buildSpanViewModels,
   buildTimelineSceneViewModel,
@@ -39,7 +41,7 @@ import {
   resolveSpanBoxGeometry,
   resolveSpanVerticalBounds,
   selectVisibleAnnotations,
-} from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+} from 'src/app/pages/timeline-render/timeline-render-scene-builder';
 import {
   MAX_STAGE_WIDTH_PX,
   MIN_CHART_VIEWPORT_WIDTH_PX,
