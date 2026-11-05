@@ -24,23 +24,27 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 )
 
 // TimelineRenderRequest holds the parameters passed to the frontend /render/mcp-timeline page.
 type TimelineRenderRequest struct {
-	InspectionID           string   `json:"inspectionId"`
-	TimelineQuery          string   `json:"timelineQuery,omitempty"`
-	TimelineExclusionQuery string   `json:"timelineExclusionQuery,omitempty"`
-	LogQuery               string   `json:"logQuery,omitempty"`
-	ExcludeNoLogs          bool     `json:"excludeNoLogs,omitempty"`
-	FilterStartTimeNs      string   `json:"filterStartTimeNs,omitempty"`
-	FilterEndTimeNs        string   `json:"filterEndTimeNs,omitempty"`
-	ViewStartTimeMs        *int64   `json:"viewStartTimeMs,omitempty"`
-	ViewEndTimeMs          *int64   `json:"viewEndTimeMs,omitempty"`
-	TimelineIDs            []uint32 `json:"timelineIds,omitempty"`
-	MaxDepth               int      `json:"maxDepth,omitempty"`
-	MaxNodes               int      `json:"maxNodes,omitempty"`
-	TimezoneShiftHours     float64  `json:"timezoneShiftHours,omitempty"`
+	SceneID                string         `json:"sceneId,omitempty"`
+	ParentSceneID          string         `json:"parentSceneId,omitempty"`
+	InspectionID           string         `json:"inspectionId"`
+	TimelineQuery          string         `json:"timelineQuery,omitempty"`
+	TimelineExclusionQuery string         `json:"timelineExclusionQuery,omitempty"`
+	LogQuery               string         `json:"logQuery,omitempty"`
+	ExcludeNoLogs          bool           `json:"excludeNoLogs,omitempty"`
+	FilterStartTimeNs      string         `json:"filterStartTimeNs,omitempty"`
+	FilterEndTimeNs        string         `json:"filterEndTimeNs,omitempty"`
+	ViewStartTimeMs        *int64         `json:"viewStartTimeMs,omitempty"`
+	ViewEndTimeMs          *int64         `json:"viewEndTimeMs,omitempty"`
+	TimelineIDs            []uint32       `json:"timelineIds,omitempty"`
+	MaxDepth               int            `json:"maxDepth,omitempty"`
+	MaxNodes               int            `json:"maxNodes,omitempty"`
+	TimezoneShiftHours     float64        `json:"timezoneShiftHours,omitempty"`
+	Overlay                *scene.Overlay `json:"overlay,omitempty"`
 }
 
 // TimelineRenderResult holds the captured PNG image and measurement metadata.
