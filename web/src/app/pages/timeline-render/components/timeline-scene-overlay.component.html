@@ -1,0 +1,248 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="scene-overlay-root">
+  @if (scene().topBandHeightPx > 0) {
+    <div
+      class="top-annotation-band-bg"
+      [style.height.px]="scene().topBandHeightPx"
+    ></div>
+  }
+
+  @for (mask of scene().dimmedRowMasks; track mask.id) {
+    <div
+      class="dimmed-row-mask"
+      [style.height.px]="mask.heightPx"
+      [style.top.px]="mask.topPx"
+    ></div>
+  }
+
+  @for (rh of scene().rowHighlights; track rh.id) {
+    <div
+      class="row-highlight-band"
+      [style.--palette-main]="rh.colors.main"
+      [style.--palette-on-main]="rh.colors.onMain"
+      [style.--palette-soft]="rh.colors.soft"
+      [style.--palette-surface]="rh.colors.surface"
+      [style.height.px]="rh.heightPx"
+      [style.top.px]="rh.topPx"
+    >
+      <div class="row-highlight-accent"></div>
+      @if (rh.roleLabel) {
+        <span class="row-role-badge" [style.left.px]="rh.badgeRightX">
+          {{ rh.roleLabel }}
+        </span>
+      }
+    </div>
+  }
+
+  @for (span of scene().spans; track span.id) {
+    <div
+      [class]="
+        'span-box pattern-' +
+        span.pattern +
+        (span.isRowScoped ? ' scoped' : ' full') +
+        (span.showCornerBrackets ? '' : ' narrow')
+      "
+      [style.--palette-main]="span.colors.main"
+      [style.--palette-on-main]="span.colors.onMain"
+      [style.--palette-soft]="span.colors.soft"
+      [style.--palette-surface]="span.colors.surface"
+      [style.height.px]="span.heightPx"
+      [style.left.px]="span.leftPx"
+      [style.top.px]="span.topPx"
+      [style.width.px]="span.widthPx"
+    >
+      @if (span.showCornerBrackets) {
+        <span
+          class="span-bracket left"
+          [class.coincident]="span.coincidentLeft"
+        ></span>
+        <span
+          class="span-bracket right"
+          [class.coincident]="span.coincidentRight"
+        ></span>
+      }
+    </div>
+  }
+
+  <svg
+    class="vector-layer"
+    [attr.height]="scene().stageHeightPx"
+    [attr.viewBox]="'0 0 ' + scene().stageWidthPx + ' ' + scene().stageHeightPx"
+    [attr.width]="scene().stageWidthPx"
+  >
+    @for (conn of scene().connectors; track conn.id) {
+      <g class="connector-group" [style.--palette-main]="conn.colors.main">
+        <path
+          class="connector-path"
+          [class.caliper]="conn.style === TimelineConnectorStyle.CALIPER"
+          [attr.d]="conn.svgPath"
+        />
+        @if (conn.hasArrowHead) {
+          <polygon
+            class="connector-arrow"
+            [attr.points]="conn.arrowHeadPoints"
+          />
+        }
+      </g>
+    }
+
+    @for (callout of scene().callouts; track callout.id) {
+      <g class="callout-vector" [style.--palette-main]="callout.colors.main">
+        <path
+          class="callout-leader"
+          [class.dashed]="callout.dashed"
+          [attr.d]="callout.leaderPath"
+        />
+        <circle
+          class="callout-anchor-dot"
+          [attr.cx]="callout.anchorX"
+          [attr.cy]="callout.anchorY"
+          r="3.5"
+        />
+      </g>
+    }
+  </svg>
+
+  @for (conn of scene().connectors; track conn.id) {
+    @if (conn.badge || conn.label) {
+      <div
+        class="connector-chip"
+        [style.--palette-main]="conn.colors.main"
+        [style.--palette-on-main]="conn.colors.onMain"
+        [style.--palette-surface]="conn.colors.surface"
+        [style.left.px]="conn.labelCenterX"
+        [style.top.px]="conn.labelCenterY"
+      >
+        @if (conn.badge) {
+          <span class="chip-badge">{{ conn.badge }}</span>
+        }
+        @if (conn.label) {
+          <span class="chip-text">{{ conn.label }}</span>
+        }
+      </div>
+    }
+  }
+
+  @for (marker of scene().markers; track marker.id) {
+    <div
+      [class]="
+        'marker-stem' +
+        (marker.style === TimelineMarkerStyle.REFERENCE
+          ? ' reference'
+          : ' pin') +
+        (hoveredBadge() === marker.badge ? ' is-hovered' : '')
+      "
+      [style.--palette-main]="marker.colors.main"
+      [style.height.px]="marker.stemHeightPx"
+      [style.left.px]="marker.stemX"
+      [style.top.px]="marker.stemTopPx"
+    ></div>
+
+    @if (marker.hasTargetDot) {
+      <div
+        class="marker-target-dot"
+        [style.--palette-main]="marker.colors.main"
+        [style.left.px]="marker.stemX"
+        [style.top.px]="marker.dotY"
+      ></div>
+    }
+
+    <div
+      [class]="
+        'marker-pill' +
+        (interactiveMode() && marker.jumpTarget ? ' clickable' : '') +
+        (hoveredBadge() === marker.badge ? ' is-hovered' : '')
+      "
+      [style.--palette-main]="marker.colors.main"
+      [style.--palette-on-main]="marker.colors.onMain"
+      [style.--palette-surface]="marker.colors.surface"
+      [style.height.px]="marker.pillHeightPx"
+      [style.left.px]="marker.pillLeftPx"
+      [style.max-width.px]="marker.pillWidthPx"
+      [style.top.px]="marker.pillTopPx"
+      (click)="onJumpClick(marker.jumpTarget)"
+      (mouseenter)="onBadgeMouseEnter(marker.badge)"
+      (mouseleave)="onBadgeMouseLeave()"
+    >
+      <span class="pill-badge">{{ marker.badge }}</span>
+      <span class="pill-label">{{ marker.label }}</span>
+      <span class="pill-time">{{ marker.timeLabel }}</span>
+    </div>
+  }
+
+  @for (span of scene().spans; track span.id) {
+    <span
+      class="span-label-chip"
+      [style.--palette-main]="span.colors.main"
+      [style.--palette-surface]="span.colors.surface"
+      [style.left.px]="span.chipStageLeftPx"
+      [style.max-width.px]="span.chipMaxWidthPx"
+      [style.top.px]="span.chipStageTopPx"
+    >
+      {{ span.headerText }}
+    </span>
+  }
+
+  @for (callout of scene().callouts; track callout.id) {
+    <div
+      [class]="
+        'callout-card' +
+        (callout.dashed ? ' dashed' : '') +
+        (interactiveMode() && callout.jumpTarget ? ' clickable' : '')
+      "
+      [style.--palette-main]="callout.colors.main"
+      [style.height.px]="callout.cardHeightPx"
+      [style.left.px]="callout.cardLeftPx"
+      [style.max-width.px]="callout.cardWidthPx"
+      [style.top.px]="callout.cardTopPx"
+      (click)="onJumpClick(callout.jumpTarget)"
+    >
+      <span class="callout-text">{{ callout.label }}</span>
+    </div>
+  }
+
+  @for (pin of scene().excerptPins; track pin.id) {
+    <div
+      [class]="
+        'excerpt-drop-stem' +
+        (hoveredBadge() === pin.badge ? ' is-hovered' : '')
+      "
+      [style.--palette-main]="pin.colors.main"
+      [style.height.px]="pin.stemHeightPx"
+      [style.left.px]="pin.pinX"
+      [style.top.px]="pin.stemTopPx"
+    ></div>
+
+    <div
+      [class]="
+        'excerpt-pin-badge' +
+        (interactiveMode() ? ' clickable' : '') +
+        (hoveredBadge() === pin.badge ? ' is-hovered' : '')
+      "
+      [style.--palette-main]="pin.colors.main"
+      [style.--palette-on-main]="pin.colors.onMain"
+      [style.left.px]="pin.pinX"
+      [style.top.px]="pin.pinY"
+      (click)="onJumpClick(pin.jumpTarget)"
+      (mouseenter)="onBadgeMouseEnter(pin.badge)"
+      (mouseleave)="onBadgeMouseLeave()"
+    >
+      {{ pin.badge }}
+    </div>
+  }
+</div>
