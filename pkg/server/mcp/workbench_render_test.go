@@ -378,3 +378,31 @@ func extractRenderedImageMetadata(t *testing.T, markdown string) (string, string
 	expiresAt, _, _ := strings.Cut(afterExpires, "\n")
 	return issuedURL, expiresAt
 }
+
+func TestBuildTimelineRenderRequest_MaxNodes(t *testing.T) {
+	testCases := []struct {
+		name     string
+		maxNodes int
+		want     int
+	}{
+		{name: "negative uses default", maxNodes: -1, want: 50},
+		{name: "zero uses default", maxNodes: 0, want: 50},
+		{name: "small positive stays unchanged", maxNodes: 1, want: 1},
+		{name: "in range stays unchanged", maxNodes: 75, want: 75},
+		{name: "exact cap stays unchanged", maxNodes: 150, want: 150},
+		{name: "above cap is capped", maxNodes: 151, want: 150},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildTimelineRenderRequest(
+				RenderTimelinesInput{MaxNodes: tc.maxNodes},
+				workbench.AppliedFilter{},
+				nil,
+			)
+			if got.MaxNodes != tc.want {
+				t.Errorf("buildTimelineRenderRequest() MaxNodes = %d, want %d", got.MaxNodes, tc.want)
+			}
+		})
+	}
+}
