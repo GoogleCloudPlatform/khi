@@ -202,18 +202,14 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 	// Explicit viewStartTime / viewEndTime are used as-is.
 	padding := filterViewPadding(applied)
 	if input.ViewStartTime != nil {
-		startMs := input.ViewStartTime.UnixMilli()
-		req.ViewStartTimeMs = &startMs
+		req.ViewStartTimeMs = new(input.ViewStartTime.UnixMilli())
 	} else if !applied.StartTime.IsZero() {
-		startMs := applied.StartTime.Add(-padding).UnixMilli()
-		req.ViewStartTimeMs = &startMs
+		req.ViewStartTimeMs = new(applied.StartTime.Add(-padding).UnixMilli())
 	}
 	if input.ViewEndTime != nil {
-		endMs := input.ViewEndTime.UnixMilli()
-		req.ViewEndTimeMs = &endMs
+		req.ViewEndTimeMs = new(input.ViewEndTime.UnixMilli())
 	} else if !applied.EndTime.IsZero() {
-		endMs := applied.EndTime.Add(padding).UnixMilli()
-		req.ViewEndTimeMs = &endMs
+		req.ViewEndTimeMs = new(applied.EndTime.Add(padding).UnixMilli())
 	}
 	return req
 }

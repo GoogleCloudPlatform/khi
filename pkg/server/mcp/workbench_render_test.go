@@ -440,8 +440,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790848800000000000",
-				ViewStartTimeMs:   ptr(startTime.Add(-3 * time.Minute).UnixMilli()),
-				ViewEndTimeMs:     ptr(endTime.Add(3 * time.Minute).UnixMilli()),
+				ViewStartTimeMs:   new(startTime.Add(-3 * time.Minute).UnixMilli()),
+				ViewEndTimeMs:     new(endTime.Add(3 * time.Minute).UnixMilli()),
 			},
 		},
 		{
@@ -450,8 +450,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790845200000000000",
-				ViewStartTimeMs:   ptr(startTime.Add(-time.Second).UnixMilli()),
-				ViewEndTimeMs:     ptr(startTime.Add(time.Second).UnixMilli()),
+				ViewStartTimeMs:   new(startTime.Add(-time.Second).UnixMilli()),
+				ViewEndTimeMs:     new(startTime.Add(time.Second).UnixMilli()),
 			},
 		},
 		{
@@ -459,7 +459,7 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			applied: workbench.AppliedFilter{StartTime: startTime},
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
-				ViewStartTimeMs:   ptr(startTime.UnixMilli()),
+				ViewStartTimeMs:   new(startTime.UnixMilli()),
 			},
 		},
 		{
@@ -472,8 +472,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790848800000000000",
-				ViewStartTimeMs:   ptr(viewStartTime.UnixMilli()),
-				ViewEndTimeMs:     ptr(viewEndTime.UnixMilli()),
+				ViewStartTimeMs:   new(viewStartTime.UnixMilli()),
+				ViewEndTimeMs:     new(viewEndTime.UnixMilli()),
 			},
 		},
 		{
@@ -483,8 +483,8 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			want: viewport{
 				FilterStartTimeNs: "1790845200000000000",
 				FilterEndTimeNs:   "1790848800000000000",
-				ViewStartTimeMs:   ptr(viewStartTime.UnixMilli()),
-				ViewEndTimeMs:     ptr(endTime.Add(3 * time.Minute).UnixMilli()),
+				ViewStartTimeMs:   new(viewStartTime.UnixMilli()),
+				ViewEndTimeMs:     new(endTime.Add(3 * time.Minute).UnixMilli()),
 			},
 		},
 	}
@@ -503,8 +503,4 @@ func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }
