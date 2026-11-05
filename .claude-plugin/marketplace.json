@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "khi",
+  "description": "Agent plugins for Kubernetes History Inspector (KHI)",
+  "owner": {
+    "name": "Google LLC"
+  },
+  "plugins": [
+    {
+      "name": "khi",
+      "description": "Investigate Kubernetes cluster incidents with Kubernetes History Inspector (KHI).",
+      "source": "./plugins/khi"
+    }
+  ]
+}
