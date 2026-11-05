@@ -404,6 +404,23 @@ type Document struct {
 	Overlay                *Overlay  `json:"overlay,omitempty"`
 }
 
+func isAnnotationsEmpty(a *Annotations) bool {
+	if a == nil {
+		return true
+	}
+	return len(a.ClearLayers) == 0 &&
+		len(a.RemoveIDs) == 0 &&
+		len(a.Palette) == 0 &&
+		len(a.Markers) == 0 &&
+		len(a.Spans) == 0 &&
+		len(a.RowHighlights) == 0 &&
+		a.DimUnlistedRows == nil &&
+		len(a.DiffExcerpts) == 0 &&
+		len(a.LogExcerpts) == 0 &&
+		len(a.Connectors) == 0 &&
+		len(a.Callouts) == 0
+}
+
 func cloneFilter(f workbench.Filter) workbench.Filter {
 	out := f
 	if f.StartTime != nil {
