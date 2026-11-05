@@ -41,18 +41,15 @@ type RenderTimelinesInput struct {
 }
 
 type renderTimelinesTemplateData struct {
-	RenderedCount     int
-	TotalMatched      int
-	HasMore           bool
-	MaxAllowedNodes   int
-	Width             int
-	Height            int
-	DeviceScaleFactor int
-	ViewStartTime     time.Time
-	ViewEndTime       time.Time
-	ImageURL          string
-	ExpiresAt         time.Time
-	Applied           workbench.AppliedFilter
+	RenderedCount   int
+	TotalMatched    int
+	HasMore         bool
+	MaxAllowedNodes int
+	ViewStartTime   time.Time
+	ViewEndTime     time.Time
+	ImageURL        string
+	ExpiresAt       time.Time
+	Applied         workbench.AppliedFilter
 }
 
 func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.CallToolRequest, input RenderTimelinesInput) (*mcpsdk.CallToolResult, any, error) {
@@ -91,18 +88,15 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 	grant := h.assetStore.Issue(renderRes.PNGBytes, "image/png", ".png")
 
 	summaryText, err := h.templates.Render("render_timelines.md.tmpl", renderTimelinesTemplateData{
-		RenderedCount:     renderRes.RenderedCount,
-		TotalMatched:      renderRes.TotalMatched,
-		HasMore:           renderRes.HasMore,
-		MaxAllowedNodes:   maxRenderMaxNodes,
-		Width:             renderRes.Width,
-		Height:            renderRes.Height,
-		DeviceScaleFactor: renderRes.DeviceScaleFactor,
-		ViewStartTime:     time.UnixMilli(renderRes.ViewStartTimeMs).UTC(),
-		ViewEndTime:       time.UnixMilli(renderRes.ViewEndTimeMs).UTC(),
-		ImageURL:          grant.URL,
-		ExpiresAt:         grant.ExpiresAt,
-		Applied:           applied,
+		RenderedCount:   renderRes.RenderedCount,
+		TotalMatched:    renderRes.TotalMatched,
+		HasMore:         renderRes.HasMore,
+		MaxAllowedNodes: maxRenderMaxNodes,
+		ViewStartTime:   time.UnixMilli(renderRes.ViewStartTimeMs).UTC(),
+		ViewEndTime:     time.UnixMilli(renderRes.ViewEndTimeMs).UTC(),
+		ImageURL:        grant.URL,
+		ExpiresAt:       grant.ExpiresAt,
+		Applied:         applied,
 	})
 	if err != nil {
 		return nil, nil, err

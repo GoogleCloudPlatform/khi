@@ -45,15 +45,12 @@ type TimelineRenderRequest struct {
 
 // TimelineRenderResult holds the captured PNG image and measurement metadata.
 type TimelineRenderResult struct {
-	PNGBytes          []byte
-	Width             int
-	Height            int
-	DeviceScaleFactor int
-	RenderedCount     int
-	TotalMatched      int
-	HasMore           bool
-	ViewStartTimeMs   int64
-	ViewEndTimeMs     int64
+	PNGBytes        []byte
+	RenderedCount   int
+	TotalMatched    int
+	HasMore         bool
+	ViewStartTimeMs int64
+	ViewEndTimeMs   int64
 }
 
 // TimelineImageRenderer renders timeline views into PNG screenshots.
@@ -216,15 +213,12 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 	}
 
 	return &TimelineRenderResult{
-		PNGBytes:          pngBytes,
-		Width:             measure.Width,
-		Height:            measure.Height,
-		DeviceScaleFactor: scaleFactor,
-		RenderedCount:     measure.RenderedCount,
-		TotalMatched:      measure.TotalMatched,
-		HasMore:           measure.HasMore,
-		ViewStartTimeMs:   measure.ViewStartTimeMs,
-		ViewEndTimeMs:     measure.ViewEndTimeMs,
+		PNGBytes:        pngBytes,
+		RenderedCount:   measure.RenderedCount,
+		TotalMatched:    measure.TotalMatched,
+		HasMore:         measure.HasMore,
+		ViewStartTimeMs: measure.ViewStartTimeMs,
+		ViewEndTimeMs:   measure.ViewEndTimeMs,
 	}, nil
 }
 

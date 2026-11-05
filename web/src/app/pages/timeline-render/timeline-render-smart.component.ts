@@ -447,14 +447,22 @@ export class TimelineRenderSmartComponent implements OnInit {
     if (typeof document === 'undefined' || !document.fonts) {
       return;
     }
-    if (typeof document.fonts.load === 'function') {
-      await Promise.allSettled([
-        document.fonts.load('400 14px Roboto'),
-        document.fonts.load('500 10px Roboto'),
-      ]);
-    }
     if (document.fonts.ready) {
       await document.fonts.ready;
+    }
+    if (typeof document.fonts.forEach === 'function') {
+      const pendingLoads: Promise<FontFace>[] = [];
+      document.fonts.forEach((fontFace) => {
+        if (fontFace.status === 'unloaded') {
+          pendingLoads.push(fontFace.load());
+        }
+      });
+      if (pendingLoads.length > 0) {
+        await Promise.allSettled(pendingLoads);
+        if (document.fonts.ready) {
+          await document.fonts.ready;
+        }
+      }
     }
   }
 

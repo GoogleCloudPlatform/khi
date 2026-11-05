@@ -1,6 +1,6 @@
 # Rendered timeline view
 
-Rendered {{ .RenderedCount }} of {{ .TotalMatched }} matched timelines ({{ .Width }}x{{ .Height }} px{{ if gt .DeviceScaleFactor 1 }} @{{ .DeviceScaleFactor }}x{{ end }}, {{ time .ViewStartTime }} to {{ time .ViewEndTime }}).
+Rendered {{ .RenderedCount }} of {{ .TotalMatched }} matched timelines ({{ time .ViewStartTime }} to {{ time .ViewEndTime }}).
 {{- if .HasMore }}
 Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to {{ .MaxAllowedNodes }}) to render omitted timelines.
 {{- end }}

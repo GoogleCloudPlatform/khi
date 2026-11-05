@@ -439,4 +439,35 @@ describe('TimelineRenderSmartComponent', () => {
       /Failed to load inspection data for inspectionId=insp-2/,
     );
   });
+
+  it('should load unloaded stylesheet FontFace entries from document.fonts and skip loaded ones', async () => {
+    const unloadedLoadSpy = jasmine.createSpy('unloadedLoad');
+    const unloadedFace = {
+      status: 'unloaded',
+      load: unloadedLoadSpy,
+    } as unknown as FontFace;
+    unloadedLoadSpy.and.resolveTo(unloadedFace);
+
+    const loadedLoadSpy = jasmine.createSpy('loadedLoad');
+    const loadedFace = {
+      status: 'loaded',
+      load: loadedLoadSpy,
+    } as unknown as FontFace;
+
+    spyOn(document.fonts, 'forEach').and.callFake(
+      (
+        callback: (value: FontFace, key: FontFace, parent: FontFaceSet) => void,
+      ) => {
+        callback(unloadedFace, unloadedFace, document.fonts);
+        callback(loadedFace, loadedFace, document.fonts);
+      },
+    );
+
+    await component.applyAndMeasure({
+      inspectionId: 'insp-1',
+    });
+
+    expect(unloadedLoadSpy).toHaveBeenCalledTimes(1);
+    expect(loadedLoadSpy).not.toHaveBeenCalled();
+  });
 });

@@ -19,6 +19,7 @@ import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model';
+import { clampNumber } from 'src/app/utils/math-util';
 
 /**
  * Height of the sticky timestamp ruler header inside TimelineFrameComponent in CSS pixels.
@@ -261,11 +262,4 @@ function resolveRowHeightPx(
     timelineType = timeline.type;
   }
   return timelineType.height * BASE_ROW_HEIGHT;
-}
-
-function clampNumber(value: number, min: number, max: number): number {
-  if (max < min) {
-    return min;
-  }
-  return Math.max(min, Math.min(max, value));
 }
