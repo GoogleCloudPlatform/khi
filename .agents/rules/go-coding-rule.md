@@ -35,6 +35,26 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
    - Updating test call sites, constructors, and assertions to adapt to refactored signatures is expected and required.
    - Refer to the `backward-compatibility-policy` skill for concrete anti-patterns and details.
 
+4. **Multiline String Literals**:
+   - When a string literal contains line breaks, such as YAML, JSON, or Markdown fixtures and expected multi-line output in tests, write it as a raw string literal enclosed in backquotes that keeps the real line breaks.
+   - Do **NOT** embed `\n` escape sequences in the middle of a string literal, and do not join fixed lines with `"\n"` to build multi-line content.
+   - Exceptions:
+     - A single trailing `\n` at the end of a format string (e.g., `fmt.Fprintf(w, "%s\n", line)`).
+     - The `\n` that puts a `cmp.Diff` result on its own line in a test failure message (e.g., `t.Errorf("MyFunction() mismatch (-want +got):\n%s", diff)`).
+     - Content that itself contains backquotes, which a raw string literal cannot hold.
+
+```go
+// BAD: escaped line breaks hide the structure of the content.
+const nodeYAML = "apiVersion: v1\nkind: Node\nmetadata:\n  name: node-1\n"
+
+// GOOD: a raw string literal keeps the real line breaks.
+const nodeYAML = `apiVersion: v1
+kind: Node
+metadata:
+  name: node-1
+`
+```
+
 ## Testing Practices
 
 1. **Table-Driven Tests**: Tests must be written using the table-driven testing pattern. Define a slice of anonymous structs representing the test cases, and iterate over them using `t.Run()`.
