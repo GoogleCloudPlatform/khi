@@ -46,6 +46,7 @@ var (
 )
 
 // Resolve validates and resolves all annotations in spec against wb and applied, returning the frontend overlay payload.
+// Auto-assigned badges for markers and excerpt cards are back-filled on spec.Annotations.
 func Resolve(
 	ctx context.Context,
 	wb *workbench.Workbench,
@@ -439,20 +440,4 @@ func validateAnnotationCounts(ann *Annotations) *mcpsdk.CallToolResult {
 		return res
 	}
 	return nil
-}
-
-func resolveExcerpts(
-	wb *workbench.Workbench,
-	inspectionID string,
-	spec *Spec,
-	applied workbench.AppliedFilter,
-	paletteReg *paletteRegistry,
-	autoInclude *roaring.Bitmap,
-	overlay *Overlay,
-) (*mcpsdk.CallToolResult, error) {
-	return nil, nil
-}
-
-func assignInheritedPaletteIDs(overlay *Overlay, reg *paletteRegistry) {
-	overlay.Palette = slices.Clone(reg.ordered)
 }
