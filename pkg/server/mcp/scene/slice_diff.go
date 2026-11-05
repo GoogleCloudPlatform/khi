@@ -288,13 +288,7 @@ func renderDiffIntervals(
 	for idx, iv := range intervals {
 		if idx > 0 {
 			prevEnd := intervals[idx-1].end
-			if gapHasChanges(ops, prevEnd, iv.start) {
-				if diffSkipped := countSkippedDiffLines(ops, hunks, prevEnd, iv.start); diffSkipped > 0 {
-					out = append(out, makeDiffOmittedLine(diffSkipped, true))
-				}
-			} else if unchangedSkipped := iv.start - prevEnd; unchangedSkipped > 0 {
-				out = append(out, makeDiffOmittedLine(unchangedSkipped, false))
-			}
+			out = append(out, renderGap(ops, hunks, prevEnd, iv.start)...)
 		}
 
 		for opIdx := iv.start; opIdx < iv.end; opIdx++ {
@@ -348,6 +342,32 @@ func countSkippedDiffLines(ops []workbench.DiffOp, hunks []diffHunkRange, gapSta
 		}
 	}
 	return total
+}
+
+func renderGap(ops []workbench.DiffOp, hunks []diffHunkRange, gapStart, gapEnd int) []ExcerptLine {
+	var out []ExcerptLine
+	cursor := gapStart
+	for _, h := range hunks {
+		if h.opEnd <= cursor {
+			continue
+		}
+		if h.opStart >= gapEnd {
+			break
+		}
+		lo := max(h.opStart, cursor)
+		hi := min(h.opEnd, gapEnd)
+		if gapHasChanges(ops, lo, hi) {
+			if lo > cursor {
+				out = append(out, makeDiffOmittedLine(lo-cursor, false))
+			}
+			out = append(out, makeDiffOmittedLine(hi-lo, true))
+			cursor = hi
+		}
+	}
+	if gapEnd > cursor {
+		out = append(out, makeDiffOmittedLine(gapEnd-cursor, false))
+	}
+	return out
 }
 
 func makeDiffOmittedLine(count int, hasChanges bool) ExcerptLine {

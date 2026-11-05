@@ -269,6 +269,46 @@ func TestSliceUnifiedDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "renders both unchanged and diff omitted placeholders when gap skips an entire middle hunk",
+			oldText: "a: 1\nb: 2\nc: 3\nd: 4\ne: 5\nf: 6\ng: 7\nh: 8\ni: 9\nj: 10\nk: 11\nl: 12\nm: 13\nn: 14\no: 15\np: 16\nq: 17\nr: 18\ns: 19\n",
+			newText: "a: 1_mod\nb: 2\nc: 3\nd: 4\ne: 5\nf: 6\ng: 7\nh: 8\ni: 9\nj: 10_mod\nk: 11\nl: 12\nm: 13\nn: 14\no: 15\np: 16\nq: 17\nr: 18\ns: 19_mod\n",
+			opts: DiffSliceOptions{
+				Windows: []SliceWindow{
+					{Query: "1_mod"},
+					{Query: "19_mod"},
+				},
+			},
+			want: &DiffSliceResult{
+				Changes:        workbench.LineChangeCount{Added: 3, Deleted: 3},
+				TotalDiffLines: 18,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindDeleted, OldLineNum: 1, Text: "a: 1"},
+					{
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 1,
+						Text:       "a: 1_mod",
+						Parts: []LinePart{
+							{Text: "a: "},
+							{Text: "1_mod", Matched: true},
+						},
+					},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 unchanged lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 unchanged lines omitted"},
+					{Kind: ExcerptLineKindDeleted, OldLineNum: 19, Text: "s: 19"},
+					{
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 19,
+						Text:       "s: 19_mod",
+						Parts: []LinePart{
+							{Text: "s: "},
+							{Text: "19_mod", Matched: true},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
