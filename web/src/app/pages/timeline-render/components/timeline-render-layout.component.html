@@ -14,10 +14,12 @@
  limitations under the License.
 -->
 
+@let sceneVm = scene();
+
 <div
   class="render-shell"
   [class.interactive]="interactiveMode()"
-  [style.width.px]="interactiveMode() ? null : scene().stageWidthPx"
+  [style.width.px]="interactiveMode() ? null : sceneVm.stageWidthPx"
 >
   @if (interactiveMode()) {
     <header class="interactive-toolbar">
@@ -50,15 +52,15 @@
       {{ errorMessage() }}
     </div>
   } @else {
-    <div class="composite-canvas" [style.width.px]="scene().stageWidthPx">
+    <div class="composite-canvas" [style.width.px]="sceneVm.stageWidthPx">
       <div
         class="top-band-spacer"
-        [style.height.px]="scene().topBandHeightPx"
+        [style.height.px]="sceneVm.topBandHeightPx"
       ></div>
 
       <div
         class="timeline-frame-box"
-        [style.height.px]="scene().timelineFrameHeightPx"
+        [style.height.px]="sceneVm.timelineFrameHeightPx"
       >
         <khi-timeline-frame
           [allLogs]="allLogs()"
@@ -66,7 +68,7 @@
           [collapsedTimelineIds]="collapsedTimelineIds()"
           [filteredLogIds]="filteredLogIds()"
           [horizontalOverdrawInPx]="horizontalOverdrawInPx()"
-          [indexPaneSize]="scene().indexPaneWidthPx"
+          [indexPaneSize]="sceneVm.indexPaneWidthPx"
           [initialScaleApplied]="true"
           [inspectionDataUniqueID]="inspectionDataUniqueID()"
           [maxQueryLogTimeNs]="maxQueryLogTimeNs()"
@@ -82,12 +84,12 @@
         ></khi-timeline-frame>
       </div>
 
-      @if (scene().hasOverlayItems) {
+      @if (sceneVm.hasOverlayItems) {
         <div class="overlay-host">
           <khi-timeline-scene-overlay
             [hoveredBadge]="hoveredBadge()"
             [interactiveMode]="interactiveMode()"
-            [scene]="scene()"
+            [scene]="sceneVm"
             (badgeHover)="onBadgeHover($event)"
             (jumpToSession)="onJumpToSession($event)"
           ></khi-timeline-scene-overlay>
@@ -95,12 +97,12 @@
       }
 
       <div #deckContainer class="deck-host">
-        @if (scene().deck.cards.length > 0) {
+        @if (sceneVm.deck.cards.length > 0) {
           <khi-timeline-evidence-deck
-            [deck]="scene().deck"
+            [deck]="sceneVm.deck"
             [hoveredBadge]="hoveredBadge()"
             [interactiveMode]="interactiveMode()"
-            [stageWidthPx]="scene().stageWidthPx"
+            [stageWidthPx]="sceneVm.stageWidthPx"
             (badgeHover)="onBadgeHover($event)"
             (jumpToSession)="onJumpToSession($event)"
           ></khi-timeline-evidence-deck>
