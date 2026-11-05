@@ -154,7 +154,6 @@ func verifyTimelinesExist(wb *workbench.Workbench, inspectionID string, rawIDs [
 }
 
 func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.AppliedFilter, timelineIDs []uint32) TimelineRenderRequest {
-	// Reuse the shared default-and-cap normalization for the rendering limit.
 	maxNodes := mdtemplate.NormalizePageSize(
 		input.MaxNodes, defaultRenderMaxNodes, maxRenderMaxNodes,
 	)

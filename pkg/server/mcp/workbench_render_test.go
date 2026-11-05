@@ -379,29 +379,104 @@ func extractRenderedImageMetadata(t *testing.T, markdown string) (string, string
 	return issuedURL, expiresAt
 }
 
-func TestBuildTimelineRenderRequest_MaxNodes(t *testing.T) {
+func TestBuildTimelineRenderRequest(t *testing.T) {
+	startTime := time.Unix(100, 123456789).UTC()
+	endTime := time.Unix(200, 987654321).UTC()
+	startMs, endMs := int64(100123), int64(200987)
+
 	testCases := []struct {
-		name     string
-		maxNodes int
-		want     int
+		name        string
+		input       RenderTimelinesInput
+		applied     workbench.AppliedFilter
+		timelineIDs []uint32
+		want        TimelineRenderRequest
 	}{
-		{name: "negative uses default", maxNodes: -1, want: 50},
-		{name: "zero uses default", maxNodes: 0, want: 50},
-		{name: "small positive stays unchanged", maxNodes: 1, want: 1},
-		{name: "in range stays unchanged", maxNodes: 75, want: 75},
-		{name: "exact cap stays unchanged", maxNodes: 150, want: 150},
-		{name: "above cap is capped", maxNodes: 151, want: 150},
+		{
+			name:  "negative maxNodes uses default",
+			input: RenderTimelinesInput{MaxNodes: -1},
+			want:  TimelineRenderRequest{MaxNodes: 50, Width: 1600},
+		},
+		{
+			name: "zero values use defaults",
+			want: TimelineRenderRequest{MaxNodes: 50, Width: 1600},
+		},
+		{
+			name:  "small positive maxNodes stays unchanged",
+			input: RenderTimelinesInput{MaxNodes: 1},
+			want:  TimelineRenderRequest{MaxNodes: 1, Width: 1600},
+		},
+		{
+			name:  "in range maxNodes stays unchanged",
+			input: RenderTimelinesInput{MaxNodes: 75},
+			want:  TimelineRenderRequest{MaxNodes: 75, Width: 1600},
+		},
+		{
+			name:  "exact maxNodes cap stays unchanged",
+			input: RenderTimelinesInput{MaxNodes: 150},
+			want:  TimelineRenderRequest{MaxNodes: 150, Width: 1600},
+		},
+		{
+			name:  "above maxNodes cap is capped",
+			input: RenderTimelinesInput{MaxNodes: 151},
+			want:  TimelineRenderRequest{MaxNodes: 150, Width: 1600},
+		},
+		{
+			name:  "negative width uses default and negative depth becomes zero",
+			input: RenderTimelinesInput{Width: -1, MaxDepth: -1},
+			want:  TimelineRenderRequest{MaxNodes: 50, Width: 1600},
+		},
+		{
+			name:  "positive width below minimum is raised",
+			input: RenderTimelinesInput{Width: 799},
+			want:  TimelineRenderRequest{MaxNodes: 50, Width: 800},
+		},
+		{
+			name:  "width above maximum is capped",
+			input: RenderTimelinesInput{Width: 3841},
+			want:  TimelineRenderRequest{MaxNodes: 50, Width: 3840},
+		},
+		{
+			name: "forwards request parameters and applied filters",
+			input: RenderTimelinesInput{
+				InspectionID:       "inspection-1",
+				MaxNodes:           20,
+				MaxDepth:           3,
+				Width:              1200,
+				TimezoneShiftHours: 5.5,
+			},
+			applied: workbench.AppliedFilter{
+				TimelineQuery:               `timelineType == "Pod"`,
+				TimelineExclusionQuery:      `timelineType == "Node"`,
+				LogQuery:                    "severity >= WARNING",
+				ExcludeTimelinesWithoutLogs: true,
+				StartTime:                   startTime,
+				EndTime:                     endTime,
+			},
+			timelineIDs: []uint32{1, 2},
+			want: TimelineRenderRequest{
+				InspectionID:           "inspection-1",
+				TimelineQuery:          `timelineType == "Pod"`,
+				TimelineExclusionQuery: `timelineType == "Node"`,
+				LogQuery:               "severity >= WARNING",
+				ExcludeNoLogs:          true,
+				TimelineIDs:            []uint32{1, 2},
+				MaxNodes:               20,
+				MaxDepth:               3,
+				Width:                  1200,
+				TimezoneShiftHours:     5.5,
+				ViewStartTimeMs:        &startMs,
+				ViewEndTimeMs:          &endMs,
+				FilterStartTimeNs:      "100123456789",
+				FilterEndTimeNs:        "200987654321",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := buildTimelineRenderRequest(
-				RenderTimelinesInput{MaxNodes: tc.maxNodes},
-				workbench.AppliedFilter{},
-				nil,
-			)
-			if got.MaxNodes != tc.want {
-				t.Errorf("buildTimelineRenderRequest() MaxNodes = %d, want %d", got.MaxNodes, tc.want)
+			got := buildTimelineRenderRequest(tc.input, tc.applied, tc.timelineIDs)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("buildTimelineRenderRequest() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
