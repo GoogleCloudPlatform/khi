@@ -48,20 +48,10 @@ func resolveAnchor(
 	hasLog := anchor.LogID != 0
 	hasRev := anchor.RevisionIndex != nil
 	hasTime := anchor.Time != nil && !anchor.Time.IsZero()
-	count := 0
-	if hasLog {
-		count++
-	}
-	if hasRev {
-		count++
-	}
-	if hasTime {
-		count++
-	}
-	if count != 1 {
+	if !hasLog && !hasRev && !hasTime {
 		res, _, _ := mdtemplate.ErrorResult(
 			"INVALID_ANCHOR",
-			fmt.Sprintf("Specify exactly one of `logId`, `revisionIndex`, or `time` in `%s`.", fieldPath),
+			fmt.Sprintf("Specify at least one of `logId`, `revisionIndex`, or `time` in `%s`.", fieldPath),
 		)
 		return resolvedAnchorPoint{}, res, nil
 	}

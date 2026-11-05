@@ -17,6 +17,7 @@ package scene
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/inspectionserver"
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/google/go-cmp/cmp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMain(m *testing.M) {
@@ -337,52 +339,127 @@ func TestResolveAnchor(t *testing.T) {
 	applied := fx.wb.ResolveFilter(workbench.Filter{})
 	rawFilter := workbench.Filter{}
 
-	t.Run("resolves log anchor with auto-selected leaf timeline", func(t *testing.T) {
-		pt, errRes, err := resolveAnchor(fx.wb, fx.inspectionID, applied, rawFilter, "test", Anchor{LogID: fx.oomLogID})
-		if err != nil || errRes != nil {
-			t.Fatalf("unexpected error: err=%v, errRes=%+v", err, errRes)
-		}
-		if pt.timelineID != fx.appTid {
-			t.Errorf("pt.timelineID = %d, want %d (app timeline)", pt.timelineID, fx.appTid)
-		}
-		if pt.logID != fx.oomLogID {
-			t.Errorf("pt.logID = %d, want %d", pt.logID, fx.oomLogID)
-		}
-	})
+	revZero := 0
+	fallbackTime := fx.baseTime.Add(5 * time.Minute)
+	oomTime := fx.baseTime.Add(25 * time.Minute)
+	nodeRev0Time := fx.baseTime.Add(10 * time.Minute)
+	nodeRev1Time := fx.baseTime.Add(20 * time.Minute)
 
-	t.Run("resolves revision anchor start and end edge", func(t *testing.T) {
-		revIdx := 0
-		ptStart, errRes, err := resolveAnchor(fx.wb, fx.inspectionID, applied, rawFilter, "test", Anchor{
-			TimelineID:    fx.nodeTid,
-			RevisionIndex: &revIdx,
-			RevisionEdge:  RevisionEdgeStart,
+	testCases := []struct {
+		name               string
+		anchor             Anchor
+		wantTime           time.Time
+		wantTimelineID     uint32
+		wantLogID          uint32
+		wantHasRevIndex    bool
+		wantErrPrefix      string
+		wantErrTextContain string
+	}{
+		{
+			name:           "resolves log anchor with auto-selected leaf timeline",
+			anchor:         Anchor{LogID: fx.oomLogID},
+			wantTime:       oomTime,
+			wantTimelineID: fx.appTid,
+			wantLogID:      fx.oomLogID,
+		},
+		{
+			name: "resolves revision anchor start edge",
+			anchor: Anchor{
+				TimelineID:    fx.nodeTid,
+				RevisionIndex: &revZero,
+				RevisionEdge:  RevisionEdgeStart,
+			},
+			wantTime:        nodeRev0Time,
+			wantTimelineID:  fx.nodeTid,
+			wantHasRevIndex: true,
+		},
+		{
+			name: "resolves revision anchor end edge",
+			anchor: Anchor{
+				TimelineID:    fx.nodeTid,
+				RevisionIndex: &revZero,
+				RevisionEdge:  RevisionEdgeEnd,
+			},
+			wantTime:        nodeRev1Time,
+			wantTimelineID:  fx.nodeTid,
+			wantHasRevIndex: true,
+		},
+		{
+			name: "prefers logId over revisionIndex and time when multiple fields are set",
+			anchor: Anchor{
+				TimelineID:    fx.nodeTid,
+				LogID:         fx.oomLogID,
+				RevisionIndex: &revZero,
+				Time:          &fallbackTime,
+			},
+			wantTime:       oomTime,
+			wantTimelineID: fx.nodeTid,
+			wantLogID:      fx.oomLogID,
+		},
+		{
+			name: "prefers revisionIndex over time when both are set",
+			anchor: Anchor{
+				TimelineID:    fx.nodeTid,
+				RevisionIndex: &revZero,
+				Time:          &fallbackTime,
+			},
+			wantTime:        nodeRev0Time,
+			wantTimelineID:  fx.nodeTid,
+			wantHasRevIndex: true,
+		},
+		{
+			name:               "returns INVALID_ANCHOR when no fields are set",
+			anchor:             Anchor{},
+			wantErrPrefix:      "Error: INVALID_ANCHOR",
+			wantErrTextContain: "Specify at least one of `logId`, `revisionIndex`, or `time` in `test`.",
+		},
+		{
+			name:               "returns INVALID_ANCHOR when only zero time is set",
+			anchor:             Anchor{Time: &time.Time{}},
+			wantErrPrefix:      "Error: INVALID_ANCHOR",
+			wantErrTextContain: "Specify at least one of `logId`, `revisionIndex`, or `time` in `test`.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pt, errRes, err := resolveAnchor(fx.wb, fx.inspectionID, applied, rawFilter, "test", tc.anchor)
+			if err != nil {
+				t.Fatalf("resolveAnchor() unexpected error = %v", err)
+			}
+			if tc.wantErrPrefix != "" {
+				if errRes == nil || !errRes.IsError || len(errRes.Content) == 0 {
+					t.Fatalf("expected error result with prefix %q, got errRes=%+v", tc.wantErrPrefix, errRes)
+				}
+				tcText, ok := errRes.Content[0].(*mcpsdk.TextContent)
+				if !ok {
+					t.Fatalf("errRes.Content[0] = %T, want *mcpsdk.TextContent", errRes.Content[0])
+				}
+				if !strings.HasPrefix(tcText.Text, tc.wantErrPrefix) {
+					t.Errorf("error text = %q, want prefix %q", tcText.Text, tc.wantErrPrefix)
+				}
+				if tc.wantErrTextContain != "" && !strings.Contains(tcText.Text, tc.wantErrTextContain) {
+					t.Errorf("error text = %q, want substring %q", tcText.Text, tc.wantErrTextContain)
+				}
+				return
+			}
+			if errRes != nil {
+				t.Fatalf("resolveAnchor() unexpected tool error = %+v", errRes)
+			}
+			if !pt.time.Equal(tc.wantTime) {
+				t.Errorf("pt.time = %v, want %v", pt.time, tc.wantTime)
+			}
+			if pt.timelineID != tc.wantTimelineID {
+				t.Errorf("pt.timelineID = %d, want %d", pt.timelineID, tc.wantTimelineID)
+			}
+			if tc.wantLogID != 0 && pt.logID != tc.wantLogID {
+				t.Errorf("pt.logID = %d, want %d", pt.logID, tc.wantLogID)
+			}
+			if (pt.revisionIndex != nil) != tc.wantHasRevIndex {
+				t.Errorf("pt.revisionIndex != nil is %v, want %v", pt.revisionIndex != nil, tc.wantHasRevIndex)
+			}
 		})
-		if err != nil || errRes != nil {
-			t.Fatalf("unexpected error: err=%v, errRes=%+v", err, errRes)
-		}
-		if !ptStart.time.Equal(fx.baseTime.Add(10 * time.Minute)) {
-			t.Errorf("ptStart.time = %v, want %v", ptStart.time, fx.baseTime.Add(10*time.Minute))
-		}
-
-		ptEnd, errRes, err := resolveAnchor(fx.wb, fx.inspectionID, applied, rawFilter, "test", Anchor{
-			TimelineID:    fx.nodeTid,
-			RevisionIndex: &revIdx,
-			RevisionEdge:  RevisionEdgeEnd,
-		})
-		if err != nil || errRes != nil {
-			t.Fatalf("unexpected error: err=%v, errRes=%+v", err, errRes)
-		}
-		if !ptEnd.time.Equal(fx.baseTime.Add(20 * time.Minute)) {
-			t.Errorf("ptEnd.time = %v, want %v", ptEnd.time, fx.baseTime.Add(20*time.Minute))
-		}
-	})
-
-	t.Run("returns INVALID_ANCHOR when multiple or zero fields set", func(t *testing.T) {
-		_, errRes, err := resolveAnchor(fx.wb, fx.inspectionID, applied, rawFilter, "test", Anchor{})
-		if err != nil || errRes == nil || !errRes.IsError {
-			t.Fatalf("expected INVALID_ANCHOR error result, got err=%v, errRes=%+v", err, errRes)
-		}
-	})
+	}
 }
 
 func TestResolveScopedTimelineIDs(t *testing.T) {
