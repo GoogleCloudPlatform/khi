@@ -16,6 +16,7 @@ package scene
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -123,6 +124,9 @@ func setupResolverFixture(t *testing.T) resolverFixture {
 				const nodeRev0 = `apiVersion: v1
 kind: Node
 metadata:
+  managedFields:
+  - manager: kubelet
+    operation: Update
   name: gke-node-1
 status:
   ready: "True"
@@ -131,6 +135,9 @@ status:
 				const nodeRev1 = `apiVersion: v1
 kind: Node
 metadata:
+  managedFields:
+  - manager: kubelet
+    operation: Apply
   name: gke-node-1
 status:
   ready: "False"
@@ -260,6 +267,24 @@ message: "OOMKilled container app\nexitCode: 137"
 	}
 }
 
+func TestSliceWorkbenchIntegration(t *testing.T) {
+	fx := setupResolverFixture(t)
+
+	t.Run("SliceResourceDiff returns ErrTimelineNotFound for unknown timeline", func(t *testing.T) {
+		_, err := SliceResourceDiff(fx.wb, 999999, 0, DiffSliceOptions{})
+		if !errors.Is(err, workbench.ErrTimelineNotFound) {
+			t.Fatalf("SliceResourceDiff() error = %v, want %v", err, workbench.ErrTimelineNotFound)
+		}
+	})
+
+	t.Run("SliceLogDetail returns ErrLogNotFound for unknown log", func(t *testing.T) {
+		_, err := SliceLogDetail(fx.wb, 999999, LogSliceOptions{})
+		if !errors.Is(err, workbench.ErrLogNotFound) {
+			t.Fatalf("SliceLogDetail() error = %v, want %v", err, workbench.ErrLogNotFound)
+		}
+	})
+}
+
 func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 	fx := setupResolverFixture(t)
 	ctx := context.Background()
@@ -306,6 +331,21 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 					PaletteID:     "victim",
 				},
 			},
+			DiffExcerpts: []DiffExcerpt{
+				{
+					Revision:  RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
+					Windows:   []SliceWindow{{Query: "KubeletNotReady", BeforeLines: 0, AfterLines: 0}},
+					Note:      "Node transitioned to KubeletNotReady",
+					PaletteID: "trigger",
+				},
+			},
+			LogExcerpts: []LogExcerpt{
+				{
+					LogID:   fx.oomEventLogID,
+					Windows: []SliceWindow{{Query: "exitCode: 137", BeforeLines: 0, AfterLines: 0}},
+					Note:    "Exit code 137 recorded",
+				},
+			},
 			Connectors: []ConnectorAnnotation{
 				{
 					From:      Anchor{TimelineID: fx.nodeTimelineID, RevisionIndex: &revOne},
@@ -324,6 +364,12 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 		},
 	}
 
+	nodeBounds, err := fx.wb.ResolveRevisionBounds(fx.nodeTimelineID, 1)
+	if err != nil {
+		t.Fatalf("ResolveRevisionBounds(node, 1) error = %v", err)
+	}
+	nodeRev1LogID := nodeBounds.Revision.LogID
+
 	fullOverlay := &Overlay{
 		AutoIncludeTimelineIDs: []uint32{fx.nodeTimelineID, fx.podTimelineID, fx.appTimelineID},
 		Palette: []ResolvedPaletteColors{
@@ -341,6 +387,13 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Soft:    "rgba(211, 47, 47, 0.13)",
 				Surface: "#fbeaea",
 			},
+			{
+				ID:      "default-reference",
+				Main:    "#5e35b1",
+				OnMain:  "#fafafa",
+				Soft:    "rgba(94, 53, 177, 0.13)",
+				Surface: "#efebf7",
+			},
 		},
 		DimUnlistedRows: true,
 		Markers: []ResolvedMarker{
@@ -349,7 +402,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Badge:     "ALERT",
 				Label:     "PagerDuty alert fired",
 				Style:     MarkerStyleReference,
-				PaletteID: "",
+				PaletteID: "default-reference",
 				TimeMs:    alertTime.UnixMilli(),
 				TimeLabel: "09:24:30Z",
 			},
@@ -358,7 +411,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Badge:      "1",
 				Label:      "Container OOMKilled",
 				Style:      MarkerStylePin,
-				PaletteID:  "",
+				PaletteID:  "victim",
 				TimeMs:     fx.baseTime.Add(25 * time.Minute).UnixMilli(),
 				TimeLabel:  "09:25:00Z",
 				TimelineID: fx.appTimelineID,
@@ -384,6 +437,67 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				PaletteID:   "victim",
 			},
 		},
+		Excerpts: []ResolvedExcerptCard{
+			{
+				ID:           "excerpt-1",
+				Kind:         ExcerptKindDiff,
+				Badge:        "E1",
+				PaletteID:    "trigger",
+				TimeMs:       fx.baseTime.Add(24 * time.Minute).UnixMilli(),
+				TimeLabel:    "09:24:00Z",
+				TimelineID:   fx.nodeTimelineID,
+				ResourcePath: "node · gke-node-1",
+				Title:        "Patch · Resource exists",
+				Subtitle:     "+2 / -2 · 7 diff lines",
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindDeleted, OldLineNum: 6, Text: `  ready: "True"`},
+					{Kind: ExcerptLineKindDeleted, OldLineNum: 7, Text: "  reason: KubeletReady"},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: `  ready: "False"`},
+					{
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 7,
+						Text:       "  reason: KubeletNotReady",
+						Parts: []LinePart{
+							{Text: "  reason: "},
+							{Text: "KubeletNotReady", Matched: true},
+						},
+					},
+				},
+				Note:          "Node transitioned to KubeletNotReady",
+				LogTimestamp:  "2026-10-01T09:24:00Z",
+				LogID:         nodeRev1LogID,
+				RevisionIndex: &revOne,
+			},
+			{
+				ID:           "excerpt-2",
+				Kind:         ExcerptKindLog,
+				Badge:        "E2",
+				PaletteID:    "victim",
+				TimeMs:       fx.baseTime.Add(25 * time.Minute).UnixMilli(),
+				TimeLabel:    "09:25:00Z",
+				TimelineID:   fx.appTimelineID,
+				ResourcePath: "web-1/app · container",
+				Title:        "k8s event · ERROR",
+				Subtitle:     "4 lines",
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindSummary, Text: "Container app OOMKilled"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 4,
+						Text:       "  exitCode: 137",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "exitCode: 137", Matched: true},
+						},
+					},
+				},
+				Note:         "Exit code 137 recorded",
+				LogTimestamp: "2026-10-01T09:25:00Z",
+				InsertID:     "evt-oom",
+				LogID:        fx.oomEventLogID,
+			},
+		},
 		Connectors: []ResolvedConnector{
 			{
 				ID:             "connector-1",
@@ -403,7 +517,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Label:      "Leaf container selected automatically",
 				Placement:  CalloutPlacementAuto,
 				Dashed:     true,
-				PaletteID:  "",
+				PaletteID:  "victim",
 				TimeMs:     fx.baseTime.Add(25 * time.Minute).UnixMilli(),
 				TimelineID: fx.appTimelineID,
 				LogID:      fx.oomEventLogID,
@@ -412,9 +526,11 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name        string
-		spec        Spec
-		wantOverlay *Overlay
+		name           string
+		spec           Spec
+		wantOverlay    *Overlay
+		wantDiffBadges []string
+		wantLogBadges  []string
 	}{
 		{
 			name:        "empty annotations returns nil overlay",
@@ -422,9 +538,11 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			wantOverlay: nil,
 		},
 		{
-			name:        "resolves all layers and auto-includes timelines",
-			spec:        spec,
-			wantOverlay: fullOverlay,
+			name:           "resolves all layers and auto-includes timelines",
+			spec:           spec,
+			wantOverlay:    fullOverlay,
+			wantDiffBadges: []string{"E1"},
+			wantLogBadges:  []string{"E2"},
 		},
 	}
 
@@ -442,8 +560,57 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			if diff := cmp.Diff(tc.wantOverlay, gotOverlay); diff != "" {
 				t.Errorf("Resolve() overlay mismatch (-want +got):\n%s", diff)
 			}
+			if specCopy.Annotations != nil {
+				var gotDiffBadges, gotLogBadges []string
+				for _, d := range specCopy.Annotations.DiffExcerpts {
+					gotDiffBadges = append(gotDiffBadges, d.Badge)
+				}
+				for _, l := range specCopy.Annotations.LogExcerpts {
+					gotLogBadges = append(gotLogBadges, l.Badge)
+				}
+				if diff := cmp.Diff(tc.wantDiffBadges, gotDiffBadges); diff != "" {
+					t.Errorf("diffExcerpt badges mismatch (-want +got):\n%s", diff)
+				}
+				if diff := cmp.Diff(tc.wantLogBadges, gotLogBadges); diff != "" {
+					t.Errorf("logExcerpt badges mismatch (-want +got):\n%s", diff)
+				}
+			}
 		})
 	}
+
+	t.Run("diff excerpt resolves audit log insertId and timestamp without internal rev prefixes", func(t *testing.T) {
+		diffSpec := Spec{
+			InspectionID: fx.inspectionID,
+			Annotations: &Annotations{
+				DiffExcerpts: []DiffExcerpt{
+					{
+						Revision: RevisionRef{TimelineID: fx.podTimelineID, RevisionIndex: 0},
+					},
+				},
+			},
+		}
+		applied := fx.wb.ResolveFilter(diffSpec.Filter)
+		gotOverlay, errRes, err := Resolve(ctx, fx.wb, fx.inspectionID, &diffSpec, applied)
+		if err != nil {
+			t.Fatalf("Resolve() unexpected error = %v", err)
+		}
+		if errRes != nil {
+			t.Fatalf("Resolve() unexpected tool error = %+v", errRes)
+		}
+		if gotOverlay == nil || len(gotOverlay.Excerpts) != 1 {
+			t.Fatalf("Resolve() overlay = %+v, want 1 card", gotOverlay)
+		}
+		card := gotOverlay.Excerpts[0]
+		if card.Title != "Create · Resource exists" {
+			t.Errorf("card.Title = %q, want %q", card.Title, "Create · Resource exists")
+		}
+		if card.LogTimestamp != "2026-10-01T09:12:00Z" {
+			t.Errorf("card.LogTimestamp = %q, want %q", card.LogTimestamp, "2026-10-01T09:12:00Z")
+		}
+		if card.InsertID != "audit-pod-web-1" {
+			t.Errorf("card.InsertID = %q, want %q", card.InsertID, "audit-pod-web-1")
+		}
+	})
 }
 
 func TestResolve_Errors(t *testing.T) {
@@ -511,6 +678,75 @@ func TestResolve_Errors(t *testing.T) {
 				},
 			},
 			wantCode: "INVALID_CEL",
+		},
+		{
+			name: "unmatched diff slice query returns SLICE_QUERY_NOT_FOUND with guidance",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					DiffExcerpts: []DiffExcerpt{
+						{
+							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
+							Windows:  []SliceWindow{{Query: "NoSuchCondition"}},
+						},
+					},
+				},
+			},
+			wantCode: "SLICE_QUERY_NOT_FOUND",
+		},
+		{
+			name: "unmatched log slice query returns SLICE_QUERY_NOT_FOUND with summary",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					LogExcerpts: []LogExcerpt{
+						{
+							LogID:   fx.oomEventLogID,
+							Windows: []SliceWindow{{Query: "NoSuchField"}},
+						},
+					},
+				},
+			},
+			wantCode: "SLICE_QUERY_NOT_FOUND",
+		},
+		{
+			name: "empty slice window query returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					LogExcerpts: []LogExcerpt{
+						{
+							LogID:   fx.oomEventLogID,
+							Windows: []SliceWindow{{Query: ""}},
+						},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "unknown logId in logExcerpt returns LOG_NOT_FOUND",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					LogExcerpts: []LogExcerpt{
+						{
+							LogID: 999999,
+						},
+					},
+				},
+			},
+			wantCode: "LOG_NOT_FOUND",
+		},
+		{
+			name: "exceeding total excerpt card cap returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					LogExcerpts: make([]LogExcerpt, 7),
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
 		},
 		{
 			name: "unregistered paletteId returns UNKNOWN_PALETTE_ID",

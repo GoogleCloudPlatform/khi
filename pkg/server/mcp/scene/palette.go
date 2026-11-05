@@ -17,6 +17,7 @@ package scene
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -26,11 +27,18 @@ import (
 )
 
 const (
-	maxScenePaletteEntries = 16
-	maxPaletteIDRunes      = 40
-	lightOnMainHex         = "#fafafa"
-	darkOnMainHex          = "#212121"
+	maxScenePaletteEntries    = 16
+	defaultPaletteID          = "default"
+	defaultReferencePaletteID = "default-reference"
+	maxPaletteIDRunes         = 40
+	lightOnMainHex            = "#fafafa"
+	darkOnMainHex             = "#212121"
 )
+
+type revAnchorKey struct {
+	timelineID uint32
+	revIndex   int
+}
 
 type rgbColor struct {
 	r uint8
@@ -199,4 +207,217 @@ func contrastRatio(l1, l2 float64) float64 {
 	lighter := max(l1, l2)
 	darker := min(l1, l2)
 	return (lighter + 0.05) / (darker + 0.05)
+}
+
+func assignInheritedPaletteIDs(overlay *Overlay, reg *paletteRegistry) {
+	type scopedHighlight struct {
+		paletteID string
+		rowSet    map[uint32]bool
+		rowCount  int
+	}
+	var explicitHighlights []scopedHighlight
+	for _, rh := range overlay.RowHighlights {
+		if rh.PaletteID == "" {
+			continue
+		}
+		rowSet := make(map[uint32]bool, len(rh.TimelineIDs))
+		for _, tid := range rh.TimelineIDs {
+			rowSet[tid] = true
+		}
+		explicitHighlights = append(explicitHighlights, scopedHighlight{
+			paletteID: rh.PaletteID,
+			rowSet:    rowSet,
+			rowCount:  len(rh.TimelineIDs),
+		})
+	}
+
+	enclosingRowPalette := func(timelineID uint32) string {
+		if timelineID == 0 {
+			return ""
+		}
+		bestID := ""
+		bestCount := math.MaxInt
+		for _, h := range explicitHighlights {
+			if h.rowSet[timelineID] && h.rowCount <= bestCount {
+				bestID = h.paletteID
+				bestCount = h.rowCount
+			}
+		}
+		return bestID
+	}
+
+	byRev := make(map[revAnchorKey]string)
+	byLog := make(map[uint32]string)
+	recordAnchor := func(timelineID uint32, revIdx *int, logID uint32, pid string) {
+		if pid == "" {
+			return
+		}
+		if timelineID != 0 && revIdx != nil {
+			key := revAnchorKey{timelineID: timelineID, revIndex: *revIdx}
+			if _, exists := byRev[key]; !exists {
+				byRev[key] = pid
+			}
+		}
+		if logID != 0 {
+			if _, exists := byLog[logID]; !exists {
+				byLog[logID] = pid
+			}
+		}
+	}
+
+	for _, m := range overlay.Markers {
+		recordAnchor(m.TimelineID, m.RevisionIndex, m.LogID, m.PaletteID)
+	}
+	for _, ex := range overlay.Excerpts {
+		recordAnchor(ex.TimelineID, ex.RevisionIndex, ex.LogID, ex.PaletteID)
+	}
+	for _, ca := range overlay.Callouts {
+		recordAnchor(ca.TimelineID, ca.RevisionIndex, ca.LogID, ca.PaletteID)
+	}
+
+	lookupCoAnchor := func(timelineID uint32, revIdx *int, logID uint32) string {
+		if timelineID != 0 && revIdx != nil {
+			if pid := byRev[revAnchorKey{timelineID: timelineID, revIndex: *revIdx}]; pid != "" {
+				return pid
+			}
+		}
+		if logID != 0 {
+			if pid := byLog[logID]; pid != "" {
+				return pid
+			}
+		}
+		return ""
+	}
+
+	for i := range overlay.Markers {
+		m := &overlay.Markers[i]
+		if m.PaletteID != "" {
+			continue
+		}
+		if pid := lookupCoAnchor(m.TimelineID, m.RevisionIndex, m.LogID); pid != "" {
+			m.PaletteID = pid
+			continue
+		}
+		if pid := enclosingRowPalette(m.TimelineID); pid != "" {
+			m.PaletteID = pid
+			recordAnchor(m.TimelineID, m.RevisionIndex, m.LogID, pid)
+			continue
+		}
+		if m.Style == MarkerStyleReference {
+			m.PaletteID = defaultReferencePaletteID
+		} else {
+			m.PaletteID = defaultPaletteID
+		}
+	}
+
+	for i := range overlay.Excerpts {
+		ex := &overlay.Excerpts[i]
+		if ex.PaletteID != "" {
+			continue
+		}
+		if pid := lookupCoAnchor(ex.TimelineID, ex.RevisionIndex, ex.LogID); pid != "" {
+			ex.PaletteID = pid
+			continue
+		}
+		if pid := enclosingRowPalette(ex.TimelineID); pid != "" {
+			ex.PaletteID = pid
+			recordAnchor(ex.TimelineID, ex.RevisionIndex, ex.LogID, pid)
+			continue
+		}
+		ex.PaletteID = defaultPaletteID
+	}
+
+	for i := range overlay.Callouts {
+		ca := &overlay.Callouts[i]
+		if ca.PaletteID != "" {
+			continue
+		}
+		if pid := lookupCoAnchor(ca.TimelineID, ca.RevisionIndex, ca.LogID); pid != "" {
+			ca.PaletteID = pid
+			continue
+		}
+		if pid := enclosingRowPalette(ca.TimelineID); pid != "" {
+			ca.PaletteID = pid
+			continue
+		}
+		ca.PaletteID = defaultPaletteID
+	}
+
+	for i := range overlay.Spans {
+		sp := &overlay.Spans[i]
+		if sp.PaletteID != "" {
+			continue
+		}
+		if len(sp.TimelineIDs) > 0 {
+			shared := ""
+			consistent := true
+			for _, tid := range sp.TimelineIDs {
+				pid := enclosingRowPalette(tid)
+				if pid == "" {
+					consistent = false
+					break
+				}
+				if shared == "" {
+					shared = pid
+				} else if shared != pid {
+					consistent = false
+					break
+				}
+			}
+			if consistent && shared != "" {
+				sp.PaletteID = shared
+				continue
+			}
+		}
+		sp.PaletteID = defaultPaletteID
+	}
+
+	for i := range overlay.Connectors {
+		conn := &overlay.Connectors[i]
+		if conn.PaletteID != "" {
+			continue
+		}
+		if pid := enclosingRowPalette(conn.FromTimelineID); pid != "" {
+			conn.PaletteID = pid
+			continue
+		}
+		if pid := enclosingRowPalette(conn.ToTimelineID); pid != "" {
+			conn.PaletteID = pid
+			continue
+		}
+		conn.PaletteID = defaultPaletteID
+	}
+
+	used := make(map[string]bool)
+	for _, m := range overlay.Markers {
+		used[m.PaletteID] = true
+	}
+	for _, sp := range overlay.Spans {
+		used[sp.PaletteID] = true
+	}
+	for _, rh := range overlay.RowHighlights {
+		used[rh.PaletteID] = true
+	}
+	for _, ex := range overlay.Excerpts {
+		used[ex.PaletteID] = true
+	}
+	for _, conn := range overlay.Connectors {
+		used[conn.PaletteID] = true
+	}
+	for _, ca := range overlay.Callouts {
+		used[ca.PaletteID] = true
+	}
+
+	resolvedPalette := slices.Clone(reg.ordered)
+	if used[defaultPaletteID] {
+		if _, exists := reg.byID[defaultPaletteID]; !exists {
+			resolvedPalette = append(resolvedPalette, derivePaletteColors(defaultPaletteID, mustParseHexColor(presetPaletteColors["blue"])))
+		}
+	}
+	if used[defaultReferencePaletteID] {
+		if _, exists := reg.byID[defaultReferencePaletteID]; !exists {
+			resolvedPalette = append(resolvedPalette, derivePaletteColors(defaultReferencePaletteID, mustParseHexColor(presetPaletteColors["purple"])))
+		}
+	}
+	overlay.Palette = resolvedPalette
 }
