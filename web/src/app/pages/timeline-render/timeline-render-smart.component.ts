@@ -18,6 +18,7 @@ import {
   ApplicationRef,
   Component,
   DestroyRef,
+  ElementRef,
   OnInit,
   computed,
   inject,
@@ -52,6 +53,10 @@ import {
 } from 'src/app/timeline/components/style-model';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
+import {
+  computeIndexPaneWidth,
+  createCanvasTextMeasurer,
+} from 'src/app/pages/timeline-render/index-pane-width';
 
 const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
   show: () => undefined,
@@ -80,7 +85,9 @@ const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
 })
 export class TimelineRenderSmartComponent implements OnInit {
   private static readonly HEADER_HEIGHT = 60;
-  private static readonly INDEX_PANE_WIDTH = 300;
+  private static readonly MIN_INDEX_PANE_WIDTH = 300;
+  // The index pane never takes more than this fraction of the render width, so the chart keeps enough space.
+  private static readonly MAX_INDEX_PANE_WIDTH_RATIO = 0.5;
   private static readonly GUTTER_WIDTH = 8;
   private static readonly DEFAULT_WIDTH = 1600;
   private static readonly MIN_WIDTH = 800;
@@ -93,6 +100,8 @@ export class TimelineRenderSmartComponent implements OnInit {
   private readonly dataLoader = inject(InspectionDataLoaderService);
   private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly styleOverrideService = inject(StyleOverrideService);
+  private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly measureText = createCanvasTextMeasurer();
 
   private readonly timelineFrame = viewChild.required<TimelineFrameComponent>(
     TimelineFrameComponent,
@@ -114,6 +123,11 @@ export class TimelineRenderSmartComponent implements OnInit {
   >([]);
 
   protected readonly timezoneShiftHours = signal<number>(0);
+
+  /** Width of the index pane, sized to fit the longest rendered label. */
+  protected readonly indexPaneWidth = signal<number>(
+    TimelineRenderSmartComponent.MIN_INDEX_PANE_WIDTH,
+  );
 
   protected readonly pixelsPerNs = signal<number>(1e-8);
 
@@ -256,6 +270,7 @@ export class TimelineRenderSmartComponent implements OnInit {
       ),
     );
     const height = this.calculateTotalHeight(rendered);
+    this.indexPaneWidth.set(this.calculateIndexPaneWidth(rendered, width));
     const { viewStartTimeMs, viewEndTimeMs } = this.applyHorizontalViewport(
       width,
       params.viewStartTimeMs,
@@ -408,6 +423,25 @@ export class TimelineRenderSmartComponent implements OnInit {
     );
   }
 
+  private calculateIndexPaneWidth(
+    timelines: readonly ReadonlyDomainElement<Timeline>[],
+    width: number,
+  ): number {
+    return computeIndexPaneWidth(
+      timelines.map((t) => ({
+        name: t.name,
+        layerName: t.type.label,
+        layer: t.layer,
+      })),
+      this.measureText,
+      getComputedStyle(this.hostElement.nativeElement).fontFamily,
+      TimelineRenderSmartComponent.MIN_INDEX_PANE_WIDTH,
+      Math.floor(
+        width * TimelineRenderSmartComponent.MAX_INDEX_PANE_WIDTH_RATIO,
+      ),
+    );
+  }
+
   private applyHorizontalViewport(
     width: number,
     requestedStartTimeMs?: number,
@@ -430,9 +464,7 @@ export class TimelineRenderSmartComponent implements OnInit {
 
     const chartViewportWidth = Math.max(
       100,
-      width -
-        TimelineRenderSmartComponent.INDEX_PANE_WIDTH -
-        TimelineRenderSmartComponent.GUTTER_WIDTH,
+      width - this.indexPaneWidth() - TimelineRenderSmartComponent.GUTTER_WIDTH,
     );
     const pixelsPerNs = chartViewportWidth / durationNs;
 

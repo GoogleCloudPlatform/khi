@@ -411,6 +411,21 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect(frameFixture.nativeElement.querySelector('.gutter-hint')).toBeNull();
   });
 
+  it('should hide index menu buttons when showIndexControls is false', () => {
+    frameFixture.componentRef.setInput('timelines', [new MockTimeline(1)]);
+    frameFixture.detectChanges();
+    expect(
+      frameFixture.nativeElement.querySelector('.menu-trigger-btn'),
+    ).not.toBeNull();
+
+    frameFixture.componentRef.setInput('showIndexControls', false);
+    frameFixture.detectChanges();
+
+    expect(
+      frameFixture.nativeElement.querySelector('.menu-trigger-btn'),
+    ).toBeNull();
+  });
+
   it('should compute readyToRender only when all child charts are ready', () => {
     const charts = queryCharts();
     for (const tc of [
