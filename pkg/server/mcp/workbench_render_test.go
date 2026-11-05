@@ -48,7 +48,7 @@ func TestRenderTimelines_Golden(t *testing.T) {
 		SceneID:         "scn_abcdef1234567890",
 		ParentSceneID:   "scn_parent00000000",
 		ImageURL:        "http://127.0.0.1:8080/api/v1/mcp-assets/ABCDEF.png",
-		InteractiveURL:  "http://127.0.0.1:8080/render/timeline?sceneId=scn_abcdef1234567890",
+		InteractiveURL:  "http://127.0.0.1:8080/render/mcp-timeline?sceneId=scn_abcdef1234567890",
 		ExpiresAt:       time.Date(2026, 9, 24, 2, 30, 0, 0, time.UTC),
 		Applied: workbench.AppliedFilter{
 			TimelineQuery:               `timelineType == "Pod"`,
@@ -104,7 +104,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	const (
 		placeholderSceneID        = "scn_<SCENE_TOKEN>"
 		placeholderImageURL       = testAssetBaseURL + "<TOKEN>.png"
-		placeholderInteractiveURL = testServerBaseURL + "/render/timeline?sceneId=" + placeholderSceneID
+		placeholderInteractiveURL = testServerBaseURL + "/render/mcp-timeline?sceneId=" + placeholderSceneID
 	)
 
 	testCases := []struct {
@@ -357,7 +357,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					if expiresAt.Before(before.Add(DefaultAssetTTL)) {
 						t.Errorf("Expires at = %v, want at least %v", expiresAt, before.Add(DefaultAssetTTL))
 					}
-					wantInteractiveURL := testServerBaseURL + "/render/timeline?sceneId=" + issuedSceneID
+					wantInteractiveURL := testServerBaseURL + "/render/mcp-timeline?sceneId=" + issuedSceneID
 					if issuedInteractiveURL != wantInteractiveURL {
 						t.Errorf("Interactive URL = %q, want %q", issuedInteractiveURL, wantInteractiveURL)
 					}

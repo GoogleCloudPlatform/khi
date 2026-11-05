@@ -124,7 +124,7 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 	}
 	interactiveURL := ""
 	if h.baseURL != "" {
-		interactiveURL = fmt.Sprintf("%s/render/timeline?sceneId=%s", h.baseURL, url.QueryEscape(storedScene.SceneID))
+		interactiveURL = fmt.Sprintf("%s/render/mcp-timeline?sceneId=%s", h.baseURL, url.QueryEscape(storedScene.SceneID))
 	}
 
 	summaryText, err := h.templates.Render("render_timelines.md.tmpl", renderTimelinesTemplateData{
