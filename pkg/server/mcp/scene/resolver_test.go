@@ -370,6 +370,12 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 	}
 	nodeRev1LogID := nodeBounds.Revision.LogID
 
+	podBounds, err := fx.wb.ResolveRevisionBounds(fx.podTimelineID, 0)
+	if err != nil {
+		t.Fatalf("ResolveRevisionBounds(pod, 0) error = %v", err)
+	}
+	podRev0LogID := podBounds.Revision.LogID
+
 	fullOverlay := &Overlay{
 		AutoIncludeTimelineIDs: []uint32{fx.nodeTimelineID, fx.podTimelineID, fx.appTimelineID},
 		Palette: []ResolvedPaletteColors{
@@ -525,24 +531,87 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 		},
 	}
 
+	revZero := 0
+	auditDiffOverlay := &Overlay{
+		AutoIncludeTimelineIDs: []uint32{fx.podTimelineID},
+		Palette: []ResolvedPaletteColors{
+			{
+				ID:      "default",
+				Main:    "#1976d2",
+				OnMain:  "#fafafa",
+				Soft:    "rgba(25, 118, 210, 0.13)",
+				Surface: "#e8f1fb",
+			},
+		},
+		Excerpts: []ResolvedExcerptCard{
+			{
+				ID:           "excerpt-1",
+				Kind:         ExcerptKindDiff,
+				Badge:        "E1",
+				PaletteID:    "default",
+				TimeMs:       fx.baseTime.Add(12 * time.Minute).UnixMilli(),
+				TimeLabel:    "09:12:00Z",
+				TimelineID:   fx.podTimelineID,
+				ResourcePath: "pod · default/web-1",
+				Title:        "Create · Resource exists",
+				Subtitle:     "+6 / -0 · 6 diff lines",
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindAdded, NewLineNum: 1, Text: "apiVersion: v1"},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 2, Text: "kind: Pod"},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 3, Text: "metadata:"},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 4, Text: "  name: web-1"},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 5, Text: "status:"},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: "  phase: Running"},
+				},
+				LogTimestamp:  "2026-10-01T09:12:00Z",
+				InsertID:      "audit-pod-web-1",
+				LogID:         podRev0LogID,
+				RevisionIndex: &revZero,
+			},
+		},
+	}
+
+	type resolveResult struct {
+		Overlay    *Overlay
+		DiffBadges []string
+		LogBadges  []string
+	}
+
 	testCases := []struct {
-		name           string
-		spec           Spec
-		wantOverlay    *Overlay
-		wantDiffBadges []string
-		wantLogBadges  []string
+		name string
+		spec Spec
+		want resolveResult
 	}{
 		{
-			name:        "empty annotations returns nil overlay",
-			spec:        Spec{InspectionID: fx.inspectionID},
-			wantOverlay: nil,
+			name: "empty annotations returns nil overlay",
+			spec: Spec{InspectionID: fx.inspectionID},
+			want: resolveResult{},
 		},
 		{
-			name:           "resolves all layers and auto-includes timelines",
-			spec:           spec,
-			wantOverlay:    fullOverlay,
-			wantDiffBadges: []string{"E1"},
-			wantLogBadges:  []string{"E2"},
+			name: "resolves all layers and auto-includes timelines",
+			spec: spec,
+			want: resolveResult{
+				Overlay:    fullOverlay,
+				DiffBadges: []string{"E1"},
+				LogBadges:  []string{"E2"},
+			},
+		},
+		{
+			name: "diff excerpt resolves audit log insertId and timestamp without internal rev prefixes",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					DiffExcerpts: []DiffExcerpt{
+						{
+							Revision: RevisionRef{TimelineID: fx.podTimelineID, RevisionIndex: 0},
+						},
+					},
+				},
+			},
+			want: resolveResult{
+				Overlay:    auditDiffOverlay,
+				DiffBadges: []string{"E1"},
+			},
 		},
 	}
 
@@ -557,60 +626,22 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			if errRes != nil {
 				t.Fatalf("Resolve() unexpected tool error = %+v", errRes)
 			}
-			if diff := cmp.Diff(tc.wantOverlay, gotOverlay); diff != "" {
-				t.Errorf("Resolve() overlay mismatch (-want +got):\n%s", diff)
+			got := resolveResult{
+				Overlay: gotOverlay,
 			}
 			if specCopy.Annotations != nil {
-				var gotDiffBadges, gotLogBadges []string
 				for _, d := range specCopy.Annotations.DiffExcerpts {
-					gotDiffBadges = append(gotDiffBadges, d.Badge)
+					got.DiffBadges = append(got.DiffBadges, d.Badge)
 				}
 				for _, l := range specCopy.Annotations.LogExcerpts {
-					gotLogBadges = append(gotLogBadges, l.Badge)
+					got.LogBadges = append(got.LogBadges, l.Badge)
 				}
-				if diff := cmp.Diff(tc.wantDiffBadges, gotDiffBadges); diff != "" {
-					t.Errorf("diffExcerpt badges mismatch (-want +got):\n%s", diff)
-				}
-				if diff := cmp.Diff(tc.wantLogBadges, gotLogBadges); diff != "" {
-					t.Errorf("logExcerpt badges mismatch (-want +got):\n%s", diff)
-				}
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Resolve() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
-
-	t.Run("diff excerpt resolves audit log insertId and timestamp without internal rev prefixes", func(t *testing.T) {
-		diffSpec := Spec{
-			InspectionID: fx.inspectionID,
-			Annotations: &Annotations{
-				DiffExcerpts: []DiffExcerpt{
-					{
-						Revision: RevisionRef{TimelineID: fx.podTimelineID, RevisionIndex: 0},
-					},
-				},
-			},
-		}
-		applied := fx.wb.ResolveFilter(diffSpec.Filter)
-		gotOverlay, errRes, err := Resolve(ctx, fx.wb, fx.inspectionID, &diffSpec, applied)
-		if err != nil {
-			t.Fatalf("Resolve() unexpected error = %v", err)
-		}
-		if errRes != nil {
-			t.Fatalf("Resolve() unexpected tool error = %+v", errRes)
-		}
-		if gotOverlay == nil || len(gotOverlay.Excerpts) != 1 {
-			t.Fatalf("Resolve() overlay = %+v, want 1 card", gotOverlay)
-		}
-		card := gotOverlay.Excerpts[0]
-		if card.Title != "Create · Resource exists" {
-			t.Errorf("card.Title = %q, want %q", card.Title, "Create · Resource exists")
-		}
-		if card.LogTimestamp != "2026-10-01T09:12:00Z" {
-			t.Errorf("card.LogTimestamp = %q, want %q", card.LogTimestamp, "2026-10-01T09:12:00Z")
-		}
-		if card.InsertID != "audit-pod-web-1" {
-			t.Errorf("card.InsertID = %q, want %q", card.InsertID, "audit-pod-web-1")
-		}
-	})
 }
 
 func TestResolve_Errors(t *testing.T) {
