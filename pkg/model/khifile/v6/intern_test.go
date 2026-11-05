@@ -687,3 +687,89 @@ func TestInternPool_ErrorPropagation(t *testing.T) {
 		})
 	}
 }
+
+func TestInternPool_ResolveStructStringField(t *testing.T) {
+	type stringFieldResult struct {
+		Value string
+		OK    bool
+	}
+
+	idGen := id.NewGenerator()
+	parentPool := NewTestInternPool(idGen)
+	serverPool := NewTestServerInternPool(parentPool, idGen)
+
+	parentFieldSetID := parentPool.InternFieldSet([]string{"metadata\x00uid", "count"}).ID()
+	parentUIDStrID := parentPool.InternString("parent-uid").ID()
+	parentStructID := parentPool.InternStruct(parentFieldSetID, []*khifile.InternedValue{
+		{Kind: &khifile.InternedValue_StringValue{StringValue: parentUIDStrID}},
+		{Kind: &khifile.InternedValue_Int64Value{Int64Value: 7}},
+	}).ID()
+
+	serverFieldSetID := serverPool.InternFieldSet([]string{"label", "parentRef"}).ID()
+	serverLabelStrID := serverPool.InternString("server-only-label").ID()
+	serverStructID := serverPool.InternStruct(serverFieldSetID, []*khifile.InternedValue{
+		{Kind: &khifile.InternedValue_StringValue{StringValue: serverLabelStrID}},
+		{Kind: &khifile.InternedValue_StructId{StructId: parentStructID}},
+	}).ID()
+
+	testCases := []struct {
+		name      string
+		pool      ReadonlyPool
+		structID  uint32
+		fieldPath []string
+		want      stringFieldResult
+	}{
+		{
+			name:      "resolves flattened string field from client InternPool",
+			pool:      parentPool,
+			structID:  parentStructID,
+			fieldPath: []string{"metadata", "uid"},
+			want:      stringFieldResult{Value: "parent-uid", OK: true},
+		},
+		{
+			name:      "resolves server string field from server InternPool",
+			pool:      serverPool,
+			structID:  serverStructID,
+			fieldPath: []string{"label"},
+			want:      stringFieldResult{Value: "server-only-label", OK: true},
+		},
+		{
+			name:      "falls back to parentPool when structID lives in parentPool",
+			pool:      serverPool,
+			structID:  parentStructID,
+			fieldPath: []string{"metadata", "uid"},
+			want:      stringFieldResult{Value: "parent-uid", OK: true},
+		},
+		{
+			name:      "resolves nested StructId referencing struct in parentPool",
+			pool:      serverPool,
+			structID:  serverStructID,
+			fieldPath: []string{"parentRef", "metadata", "uid"},
+			want:      stringFieldResult{Value: "parent-uid", OK: true},
+		},
+		{
+			name:      "returns false for non-string field",
+			pool:      parentPool,
+			structID:  parentStructID,
+			fieldPath: []string{"count"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+		{
+			name:      "returns false for unknown structID",
+			pool:      serverPool,
+			structID:  999,
+			fieldPath: []string{"label"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			val, ok := tc.pool.ResolveStructStringField(tc.structID, tc.fieldPath...)
+			got := stringFieldResult{Value: val, OK: ok}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ResolveStructStringField(%d, %v) mismatch (-want +got):\n%s", tc.structID, tc.fieldPath, diff)
+			}
+		})
+	}
+}

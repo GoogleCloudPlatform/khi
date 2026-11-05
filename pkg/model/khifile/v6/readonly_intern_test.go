@@ -171,3 +171,150 @@ func TestReadonlyInternPool_ClientAndServerStrings(t *testing.T) {
 		})
 	}
 }
+
+func TestReadonlyInternPool_ResolveStructStringField(t *testing.T) {
+	type stringFieldResult struct {
+		Value string
+		OK    bool
+	}
+
+	pool := NewReadonlyInternPool()
+	pool.IngestChunk(&pbv6.InterningPoolChunk{
+		Strings: []*pbv6.InternString{
+			{Id: proto.Uint32(1), Value: proto.String("insertId")},
+			{Id: proto.Uint32(2), Value: proto.String("ins-123")},
+			{Id: proto.Uint32(3), Value: proto.String("metadata\x00uid")},
+			{Id: proto.Uint32(4), Value: proto.String("pod-uid-1")},
+			{Id: proto.Uint32(5), Value: proto.String("empty")},
+			{Id: proto.Uint32(6), Value: proto.String("")},
+			{Id: proto.Uint32(7), Value: proto.String("count")},
+			{Id: proto.Uint32(8), Value: proto.String("nestedRef")},
+			{Id: proto.Uint32(9), Value: proto.String("nestedInline")},
+			{Id: proto.Uint32(10), Value: proto.String("name")},
+			{Id: proto.Uint32(11), Value: proto.String("annotations\x00kubectl.kubernetes.io/restartedAt")},
+			{Id: proto.Uint32(12), Value: proto.String("2026-01-01T00:00:00Z")},
+			{Id: proto.Uint32(id.ServerStringIDBase + 1), Value: proto.String("server-val")},
+		},
+		FieldPathSets: []*pbv6.InternFieldPathSet{
+			{Id: proto.Uint32(1), FieldPathStringIds: []uint32{1, 3, 5, 7, 8, 9, 11}},
+			{Id: proto.Uint32(2), FieldPathStringIds: []uint32{10}},
+		},
+		Structs: []*pb.InternedStruct{
+			{
+				Id: proto.Uint32(2), FieldPathSetId: proto.Uint32(2),
+				Values: []*pb.InternedValue{{Kind: &pb.InternedValue_StringValue{StringValue: id.ServerStringIDBase + 1}}},
+			},
+			{
+				Id: proto.Uint32(1), FieldPathSetId: proto.Uint32(1),
+				Values: []*pb.InternedValue{
+					{Kind: &pb.InternedValue_StringValue{StringValue: 2}},
+					{Kind: &pb.InternedValue_StringValue{StringValue: 4}},
+					{Kind: &pb.InternedValue_StringValue{StringValue: 6}},
+					{Kind: &pb.InternedValue_Int64Value{Int64Value: 42}},
+					{Kind: &pb.InternedValue_StructId{StructId: 2}},
+					{Kind: &pb.InternedValue_StructValue{StructValue: &pb.InternedStruct{
+						FieldPathSetId: proto.Uint32(2),
+						Values:         []*pb.InternedValue{{Kind: &pb.InternedValue_StringValue{StringValue: 4}}},
+					}}},
+					{Kind: &pb.InternedValue_StringValue{StringValue: 12}},
+				},
+			},
+		},
+	})
+
+	testCases := []struct {
+		name      string
+		structID  uint32
+		fieldPath []string
+		want      stringFieldResult
+	}{
+		{
+			name:      "resolves top-level string field",
+			structID:  1,
+			fieldPath: []string{"insertId"},
+			want:      stringFieldResult{Value: "ins-123", OK: true},
+		},
+		{
+			name:      "resolves flattened nested string field",
+			structID:  1,
+			fieldPath: []string{"metadata", "uid"},
+			want:      stringFieldResult{Value: "pod-uid-1", OK: true},
+		},
+		{
+			name:      "resolves segment containing literal dots",
+			structID:  1,
+			fieldPath: []string{"annotations", "kubectl.kubernetes.io/restartedAt"},
+			want:      stringFieldResult{Value: "2026-01-01T00:00:00Z", OK: true},
+		},
+		{
+			name:      "resolves nested StructId with server string value",
+			structID:  1,
+			fieldPath: []string{"nestedRef", "name"},
+			want:      stringFieldResult{Value: "server-val", OK: true},
+		},
+		{
+			name:      "resolves inline StructValue",
+			structID:  1,
+			fieldPath: []string{"nestedInline", "name"},
+			want:      stringFieldResult{Value: "pod-uid-1", OK: true},
+		},
+		{
+			name:      "distinguishes empty string from missing field",
+			structID:  1,
+			fieldPath: []string{"empty"},
+			want:      stringFieldResult{Value: "", OK: true},
+		},
+		{
+			name:      "returns false for non-string scalar",
+			structID:  1,
+			fieldPath: []string{"count"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+		{
+			name:      "returns false when querying map prefix without leaf",
+			structID:  1,
+			fieldPath: []string{"metadata"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+		{
+			name:      "returns false when traversing through scalar field",
+			structID:  1,
+			fieldPath: []string{"count", "sub"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+		{
+			name:      "returns false for missing field",
+			structID:  1,
+			fieldPath: []string{"unknown"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+		{
+			name:      "returns false for zero structID",
+			structID:  0,
+			fieldPath: []string{"insertId"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+		{
+			name:      "returns false for non-existent structID",
+			structID:  999,
+			fieldPath: []string{"insertId"},
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+		{
+			name:      "returns false for empty fieldPath",
+			structID:  1,
+			fieldPath: nil,
+			want:      stringFieldResult{Value: "", OK: false},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			val, ok := pool.ResolveStructStringField(tc.structID, tc.fieldPath...)
+			got := stringFieldResult{Value: val, OK: ok}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ResolveStructStringField(%d, %v) mismatch (-want +got):\n%s", tc.structID, tc.fieldPath, diff)
+			}
+		})
+	}
+}
