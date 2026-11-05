@@ -17,11 +17,11 @@
 /**
  * timeline-render-types.ts
  * Defines the browser automation bridge and payload schemas exchanged between
- * the KHI backend headless renderer and the frontend timeline render page.
+ * the KHI backend headless renderer and the frontend MCP timeline render page (/render/mcp-timeline).
  */
 
 /**
- * Request parameters for rendering a timeline view in the headless renderer page.
+ * Request parameters for rendering a timeline view in timeline render pages.
  */
 export interface TimelineRenderParams {
   readonly inspectionId: string;
@@ -53,7 +53,7 @@ export interface TimelineRenderMeasureResult {
 }
 
 /**
- * Browser automation bridge for timeline rendering exposed on window.__khiCDPBridge.timelineRenderer.
+ * Browser automation bridge for MCP timeline rendering exposed on window.__khiCDPBridge.timelineRenderer.
  */
 export interface KhiTimelineRendererBridge {
   /**

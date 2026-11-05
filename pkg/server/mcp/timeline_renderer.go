@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
 )
 
-// TimelineRenderRequest holds the parameters passed to the frontend /render/timeline page.
+// TimelineRenderRequest holds the parameters passed to the frontend /render/mcp-timeline page.
 type TimelineRenderRequest struct {
 	InspectionID           string   `json:"inspectionId"`
 	TimelineQuery          string   `json:"timelineQuery,omitempty"`
@@ -160,7 +160,7 @@ func (r *ChromeTimelineImageRenderer) ensurePageReadyLocked(ctx context.Context)
 }
 
 func (r *ChromeTimelineImageRenderer) navigateToRenderPageLocked(ctx context.Context) error {
-	renderURL := r.baseURL + "/render/timeline"
+	renderURL := r.baseURL + "/render/mcp-timeline"
 	if err := r.client.Navigate(ctx, renderURL); err != nil {
 		return fmt.Errorf("failed to navigate to %s: %w", renderURL, err)
 	}
@@ -176,11 +176,11 @@ func (r *ChromeTimelineImageRenderer) navigateToRenderPageLocked(ctx context.Con
 		}
 		var transportErr *cdp.TransportError
 		if errors.As(err, &transportErr) {
-			return fmt.Errorf("CDP connection failed while waiting for /render/timeline bridge initialization: %w", err)
+			return fmt.Errorf("CDP connection failed while waiting for /render/mcp-timeline bridge initialization: %w", err)
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for /render/timeline bridge initialization: %w", ctx.Err())
+			return fmt.Errorf("timed out waiting for /render/mcp-timeline bridge initialization: %w", ctx.Err())
 		case <-ticker.C:
 		}
 	}
