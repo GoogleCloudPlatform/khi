@@ -120,11 +120,41 @@ func setupResolverFixture(t *testing.T) resolverFixture {
 					return tlCS.Flush(tlAcc, builder.LogAccumulator)
 				}
 
-				const nodeRev0 = "apiVersion: v1\nkind: Node\nmetadata:\n  name: gke-node-1\nstatus:\n  ready: \"True\"\n  reason: KubeletReady\n"
-				const nodeRev1 = "apiVersion: v1\nkind: Node\nmetadata:\n  name: gke-node-1\nstatus:\n  ready: \"False\"\n  reason: KubeletNotReady\n"
-				const nodeRev2 = "apiVersion: v1\nkind: Node\nmetadata:\n  name: gke-node-1\nstatus:\n  ready: \"True\"\n  reason: KubeletReady\n"
-				const podAudit0 = "insertId: audit-pod-web-1\nprotoPayload:\n  methodName: io.k8s.core.v1.pods.create\n"
-				const podRev0 = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: web-1\nstatus:\n  phase: Running\n"
+				const nodeRev0 = `apiVersion: v1
+kind: Node
+metadata:
+  name: gke-node-1
+status:
+  ready: "True"
+  reason: KubeletReady
+`
+				const nodeRev1 = `apiVersion: v1
+kind: Node
+metadata:
+  name: gke-node-1
+status:
+  ready: "False"
+  reason: KubeletNotReady
+`
+				const nodeRev2 = `apiVersion: v1
+kind: Node
+metadata:
+  name: gke-node-1
+status:
+  ready: "True"
+  reason: KubeletReady
+`
+				const podAudit0 = `insertId: audit-pod-web-1
+protoPayload:
+  methodName: io.k8s.core.v1.pods.create
+`
+				const podRev0 = `apiVersion: v1
+kind: Pod
+metadata:
+  name: web-1
+status:
+  phase: Running
+`
 
 				if err := recordRev(10*time.Minute, nodePath, nodeRev0, nodeRev0, "Node Ready=True", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbCreate, inspectioncore.SeverityInfo); err != nil {
 					return struct{}{}, err
@@ -140,7 +170,9 @@ func setupResolverFixture(t *testing.T) resolverFixture {
 				}
 
 				oomTime := baseTime.Add(25 * time.Minute)
-				logNode, err := structured.FromYAML("insertId: evt-oom\nmessage: \"OOMKilled container app\\nexitCode: 137\"\n")
+				logNode, err := structured.FromYAML(`insertId: evt-oom
+message: "OOMKilled container app\nexitCode: 137"
+`)
 				if err != nil {
 					return struct{}{}, err
 				}
