@@ -14,29 +14,29 @@
  limitations under the License.
 -->
 
-<div
-  class="mcp-timeline-render-viewport"
-  [style.width.px]="stageWidthPx()"
-  [style.height.px]="stageHeightPx()"
->
-  <khi-timeline-frame
-    [inspectionDataUniqueID]="inspectionDataUniqueID()"
-    [styleStore]="styleStore()"
-    [chartStyle]="chartStyle()"
-    [rulerStyle]="rulerStyle()"
-    [timelines]="renderedTimelines()"
-    [collapsedTimelineIds]="collapsedTimelineIds"
-    [timezoneShiftHours]="timezoneShiftHours()"
-    [(pixelsPerNs)]="pixelsPerNs"
-    [(viewportLeftTimeNs)]="viewportLeftTimeNs"
-    [minQueryLogTimeNs]="minQueryLogTimeNs()"
-    [maxQueryLogTimeNs]="maxQueryLogTimeNs()"
-    [initialScaleApplied]="true"
-    [allLogs]="allLogs()"
-    [filteredLogIds]="filteredLogIds()"
-    [indexPaneSize]="indexPaneWidthPx()"
-    [horizontalOverdrawInPx]="horizontalOverdrawPx"
-    [showLegend]="false"
-    [showResizerHandle]="false"
-  ></khi-timeline-frame>
-</div>
+<khi-timeline-render-layout
+  [allLogs]="allLogs()"
+  [chartStyle]="chartStyle()"
+  [collapsedTimelineIds]="collapsedTimelineIds"
+  [errorMessage]="errorMessage()"
+  [filteredLogIds]="filteredLogIds()"
+  [horizontalOverdrawInPx]="horizontalOverdrawPx"
+  [hoveredBadge]="hoveredBadge()"
+  [inspectionDataUniqueID]="inspectionDataUniqueID()"
+  [inspectionId]="activeInspectionId()"
+  [interactiveMode]="interactiveMode()"
+  [maxQueryLogTimeNs]="maxQueryLogTimeNs()"
+  [minQueryLogTimeNs]="minQueryLogTimeNs()"
+  [parentSceneId]="activeParentSceneId()"
+  [(pixelsPerNs)]="pixelsPerNs"
+  [rulerStyle]="rulerStyle()"
+  [scene]="sceneViewModel()"
+  [sceneId]="activeSceneId()"
+  [styleStore]="styleStore()"
+  [timelines]="renderedTimelines()"
+  [timezoneShiftHours]="timezoneShiftHours()"
+  [(viewportLeftTimeNs)]="viewportLeftTimeNs"
+  (badgeHover)="onBadgeHover($event)"
+  (jumpToSession)="onJumpToSession($event)"
+  (openFullSession)="onOpenFullSession()"
+></khi-timeline-render-layout>

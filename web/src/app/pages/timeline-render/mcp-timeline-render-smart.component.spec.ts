@@ -14,14 +14,27 @@
  * limitations under the License.
  */
 
+import { provideHttpClient } from '@angular/common/http';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { Component, WritableSignal, input, model, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import {
   TimelineExcerptKind,
   TimelineExcerptLineKind,
+  TimelineMarkerStyle,
 } from 'src/app/common/schema/timeline-render-types';
-import { McpTimelineRenderSmartComponent } from 'src/app/pages/timeline-render/mcp-timeline-render-smart.component';
+import { TimelineEvidenceDeckComponent } from 'src/app/pages/timeline-render/components/timeline-evidence-deck.component';
+import { TimelineRenderLayoutComponent } from 'src/app/pages/timeline-render/components/timeline-render-layout.component';
+import { TimelineSceneOverlayComponent } from 'src/app/pages/timeline-render/components/timeline-scene-overlay.component';
+import {
+  McpTimelineRenderSmartComponent,
+  TIMELINE_SESSION_URL_OPENER,
+} from 'src/app/pages/timeline-render/mcp-timeline-render-smart.component';
 import { TIMELINE_TEXT_WIDTH_MEASURER } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
@@ -115,6 +128,7 @@ describe('McpTimelineRenderSmartComponent', () => {
   let fixture: ComponentFixture<McpTimelineRenderSmartComponent>;
   let stubFrame: StubTimelineFrameComponent;
   let mockLoader: jasmine.SpyObj<InspectionDataLoaderService>;
+  let sessionUrlOpenerSpy: jasmine.Spy<(url: string) => void>;
   let inspectionDataSignal: WritableSignal<InspectionData | null>;
   let timelineViewSignal: WritableSignal<TimelineView | null>;
   let filteredTimelinesSignal: WritableSignal<
@@ -141,6 +155,7 @@ describe('McpTimelineRenderSmartComponent', () => {
       signal<ReadonlyDomainElement<Timeline>[]>(allFakeTimelines);
     updateFilterParamsSpy = jasmine.createSpy('updateFilterParams');
     expandAllSpy = jasmine.createSpy('expandAllTimelines');
+    sessionUrlOpenerSpy = jasmine.createSpy('sessionUrlOpener');
 
     const fakeInspectionData = {
       metadata: {
@@ -192,19 +207,42 @@ describe('McpTimelineRenderSmartComponent', () => {
     await TestBed.configureTestingModule({
       imports: [McpTimelineRenderSmartComponent],
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({}),
+            },
+          },
+        },
         { provide: InspectionDataStore, useValue: mockInspectionDataStore },
         { provide: StyleOverrideService, useValue: mockStyleOverrideService },
         {
           provide: TIMELINE_TEXT_WIDTH_MEASURER,
           useValue: (text: string) => text.length * 7,
         },
+        {
+          provide: TIMELINE_SESSION_URL_OPENER,
+          useValue: sessionUrlOpenerSpy,
+        },
       ],
     })
       .overrideComponent(McpTimelineRenderSmartComponent, {
         set: {
-          imports: [StubTimelineFrameComponent],
+          imports: [TimelineRenderLayoutComponent],
           providers: [
             { provide: InspectionDataLoaderService, useValue: mockLoader },
+          ],
+        },
+      })
+      .overrideComponent(TimelineRenderLayoutComponent, {
+        set: {
+          imports: [
+            StubTimelineFrameComponent,
+            TimelineSceneOverlayComponent,
+            TimelineEvidenceDeckComponent,
           ],
         },
       })
@@ -564,6 +602,322 @@ describe('McpTimelineRenderSmartComponent', () => {
     expect(stubFrame.pixelsPerNs()).toBeCloseTo(
       chartViewportWidthPx / 200_000_000_000,
       15,
+    );
+  });
+
+  it('should preserve overlay autoIncludeTimelineIds and ancestors when maxNodes truncates matched timelines', async () => {
+    const res = await component.applyAndMeasure({
+      inspectionId: 'insp-1',
+      maxNodes: 2,
+      overlay: {
+        autoIncludeTimelineIds: [4],
+      },
+    });
+    fixture.detectChanges();
+
+    expect(stubFrame.timelines().map((t) => t.id)).toEqual([1, 2, 3, 4]);
+    expect(res.renderedCount).toBe(4);
+    expect(res.hasMore).toBe(true);
+  });
+
+  it('should compute composite height including top marker band and bottom deck cards', async () => {
+    const res = await component.applyAndMeasure({
+      inspectionId: 'insp-1',
+      overlay: {
+        markers: [
+          {
+            id: 'm-1',
+            badge: '1',
+            label: 'Test Marker',
+            style: TimelineMarkerStyle.PIN,
+            paletteId: 'default',
+            timeMs: 1_200_000,
+            timeLabel: '00:20:00',
+            timelineId: 3,
+          },
+        ],
+        excerpts: [
+          {
+            id: 'ex-1',
+            kind: TimelineExcerptKind.DIFF,
+            badge: 'E1',
+            paletteId: 'default',
+            timeMs: 1_250_000,
+            timeLabel: '00:20:50',
+            timelineId: 3,
+            resourcePath: 'pod/default/test-pod-a',
+            title: 'Patch',
+            subtitle: '',
+            lines: [{ kind: TimelineExcerptLineKind.ADDED, text: 'diff' }],
+          },
+        ],
+      },
+    });
+    fixture.detectChanges();
+
+    expect(res.height).toBeGreaterThan(310);
+  });
+
+  it('should load scene from backend and enable interactive mode when sceneId is in route queryParams', async () => {
+    const queryParamsMap = new Map<string, string>([
+      ['sceneId', 'scn_test123'],
+    ]);
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [McpTimelineRenderSmartComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: {
+                get: (key: string) => queryParamsMap.get(key) ?? null,
+              },
+            },
+          },
+        },
+        {
+          provide: InspectionDataStore,
+          useValue: {
+            inspectionData: inspectionDataSignal,
+            timelineView: timelineViewSignal,
+          },
+        },
+        {
+          provide: StyleOverrideService,
+          useValue: {
+            severities: [],
+            timelineTypes: [mockTimelineType],
+            getTimelineType: () => mockTimelineType,
+          },
+        },
+        {
+          provide: TIMELINE_TEXT_WIDTH_MEASURER,
+          useValue: (text: string) => text.length * 7,
+        },
+        {
+          provide: TIMELINE_SESSION_URL_OPENER,
+          useValue: sessionUrlOpenerSpy,
+        },
+      ],
+    })
+      .overrideComponent(McpTimelineRenderSmartComponent, {
+        set: {
+          imports: [TimelineRenderLayoutComponent],
+          providers: [
+            { provide: InspectionDataLoaderService, useValue: mockLoader },
+          ],
+        },
+      })
+      .overrideComponent(TimelineRenderLayoutComponent, {
+        set: {
+          imports: [
+            StubTimelineFrameComponent,
+            TimelineSceneOverlayComponent,
+            TimelineEvidenceDeckComponent,
+          ],
+        },
+      })
+      .compileComponents();
+
+    const localFixture = TestBed.createComponent(
+      McpTimelineRenderSmartComponent,
+    );
+    const localHttpMock = TestBed.inject(HttpTestingController);
+    localFixture.detectChanges();
+
+    const req = localHttpMock.expectOne('/api/v1/mcp-scenes/scn_test123');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      sceneId: 'scn_test123',
+      inspectionId: 'insp-1',
+      timelineQuery: 'name == "node-3"',
+    });
+
+    await localFixture.whenStable();
+    localFixture.detectChanges();
+
+    expect(localFixture.componentInstance['interactiveMode']()).toBe(true);
+    expect(localFixture.componentInstance['activeSceneId']()).toBe(
+      'scn_test123',
+    );
+    expect(localFixture.componentInstance['errorMessage']()).toBe('');
+
+    localFixture.componentInstance['onJumpToSession']({
+      timelineId: 3,
+      logId: 19,
+    });
+    expect(sessionUrlOpenerSpy).toHaveBeenCalledWith(
+      '/session/0?inspectionId=insp-1&timelineId=3&logId=19',
+    );
+
+    localFixture.componentInstance['onOpenFullSession']();
+    expect(sessionUrlOpenerSpy).toHaveBeenCalledWith(
+      '/session/0?inspectionId=insp-1&timelineQuery=name+%3D%3D+%22node-3%22',
+    );
+  });
+
+  it('should display expired scene message when loading scene returns HTTP 410', async () => {
+    const queryParamsMap = new Map<string, string>([
+      ['sceneId', 'scn_expired'],
+    ]);
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [McpTimelineRenderSmartComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: {
+                get: (key: string) => queryParamsMap.get(key) ?? null,
+              },
+            },
+          },
+        },
+        {
+          provide: InspectionDataStore,
+          useValue: {
+            inspectionData: inspectionDataSignal,
+            timelineView: timelineViewSignal,
+          },
+        },
+        {
+          provide: StyleOverrideService,
+          useValue: {
+            severities: [],
+            timelineTypes: [mockTimelineType],
+            getTimelineType: () => mockTimelineType,
+          },
+        },
+        {
+          provide: TIMELINE_TEXT_WIDTH_MEASURER,
+          useValue: (text: string) => text.length * 7,
+        },
+        {
+          provide: TIMELINE_SESSION_URL_OPENER,
+          useValue: sessionUrlOpenerSpy,
+        },
+      ],
+    })
+      .overrideComponent(McpTimelineRenderSmartComponent, {
+        set: {
+          imports: [TimelineRenderLayoutComponent],
+          providers: [
+            { provide: InspectionDataLoaderService, useValue: mockLoader },
+          ],
+        },
+      })
+      .overrideComponent(TimelineRenderLayoutComponent, {
+        set: {
+          imports: [
+            StubTimelineFrameComponent,
+            TimelineSceneOverlayComponent,
+            TimelineEvidenceDeckComponent,
+          ],
+        },
+      })
+      .compileComponents();
+
+    const localFixture = TestBed.createComponent(
+      McpTimelineRenderSmartComponent,
+    );
+    const localHttpMock = TestBed.inject(HttpTestingController);
+    localFixture.detectChanges();
+
+    const req = localHttpMock.expectOne('/api/v1/mcp-scenes/scn_expired');
+    req.flush('Expired', { status: 410, statusText: 'Gone' });
+
+    await localFixture.whenStable();
+    localFixture.detectChanges();
+
+    expect(localFixture.componentInstance['errorMessage']()).toContain(
+      'Scene scn_expired has expired',
+    );
+  });
+
+  it('should display not found scene message when loading scene returns HTTP 404', async () => {
+    const queryParamsMap = new Map<string, string>([
+      ['sceneId', 'scn_not_found'],
+    ]);
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [McpTimelineRenderSmartComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: {
+                get: (key: string) => queryParamsMap.get(key) ?? null,
+              },
+            },
+          },
+        },
+        {
+          provide: InspectionDataStore,
+          useValue: {
+            inspectionData: inspectionDataSignal,
+            timelineView: timelineViewSignal,
+          },
+        },
+        {
+          provide: StyleOverrideService,
+          useValue: {
+            severities: [],
+            timelineTypes: [mockTimelineType],
+            getTimelineType: () => mockTimelineType,
+          },
+        },
+        {
+          provide: TIMELINE_TEXT_WIDTH_MEASURER,
+          useValue: (text: string) => text.length * 7,
+        },
+        {
+          provide: TIMELINE_SESSION_URL_OPENER,
+          useValue: sessionUrlOpenerSpy,
+        },
+      ],
+    })
+      .overrideComponent(McpTimelineRenderSmartComponent, {
+        set: {
+          imports: [TimelineRenderLayoutComponent],
+          providers: [
+            { provide: InspectionDataLoaderService, useValue: mockLoader },
+          ],
+        },
+      })
+      .overrideComponent(TimelineRenderLayoutComponent, {
+        set: {
+          imports: [
+            StubTimelineFrameComponent,
+            TimelineSceneOverlayComponent,
+            TimelineEvidenceDeckComponent,
+          ],
+        },
+      })
+      .compileComponents();
+
+    const localFixture = TestBed.createComponent(
+      McpTimelineRenderSmartComponent,
+    );
+    const localHttpMock = TestBed.inject(HttpTestingController);
+    localFixture.detectChanges();
+
+    const req = localHttpMock.expectOne('/api/v1/mcp-scenes/scn_not_found');
+    req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+
+    await localFixture.whenStable();
+    localFixture.detectChanges();
+
+    expect(localFixture.componentInstance['errorMessage']()).toContain(
+      'Scene scn_not_found was not found',
     );
   });
 });
