@@ -24,7 +24,7 @@ import {
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import { TimelineSceneOverlayComponent } from 'src/app/pages/timeline-render/components/timeline-scene-overlay.component';
-import { buildTimelineSceneViewModel } from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+import { buildTimelineSceneViewModel } from 'src/app/pages/timeline-render/timeline-render-scene-builder';
 
 const meta: Meta<TimelineSceneOverlayComponent> = {
   title: 'TimelineRender/TimelineSceneOverlay',
