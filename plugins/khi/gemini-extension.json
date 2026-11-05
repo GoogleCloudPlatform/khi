@@ -1,0 +1,10 @@
+{
+  "name": "khi",
+  "version": "0.1.0",
+  "description": "Investigate Kubernetes cluster incidents with Kubernetes History Inspector (KHI).",
+  "mcpServers": {
+    "khi": {
+      "httpUrl": "${KHI_MCP_URL:-http://127.0.0.1:8080/mcp}"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "khi",
+  "version": "0.1.0",
+  "description": "Investigate Kubernetes cluster incidents with Kubernetes History Inspector (KHI).",
+  "author": {
+    "name": "Google LLC"
+  },
+  "repository": "https://github.com/GoogleCloudPlatform/khi",
+  "license": "Apache-2.0",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Kubernetes History Inspector (KHI)",
+    "shortDescription": "Investigate Kubernetes cluster incidents with KHI timelines and logs",
+    "category": "Developer Tools"
+  }
+}
