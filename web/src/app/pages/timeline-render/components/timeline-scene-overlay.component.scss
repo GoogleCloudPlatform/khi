@@ -1,0 +1,479 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$surface-band-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$surface-pill-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$band-divider-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$dim-mask-bg: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50),
+  0.58
+);
+$pill-shadow: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900),
+  0.16
+);
+$text-primary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$text-secondary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+
+$fallback-palette-main: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  700
+);
+$fallback-palette-on-main: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  50
+);
+$fallback-palette-soft: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-blue-palette, 500),
+  0.13
+);
+$fallback-palette-surface: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  50
+);
+
+:host {
+  display: block;
+  height: 100%;
+  pointer-events: none;
+  width: 100%;
+}
+
+.scene-overlay-root {
+  --palette-main: #{$fallback-palette-main};
+  --palette-on-main: #{$fallback-palette-on-main};
+  --palette-soft: #{$fallback-palette-soft};
+  --palette-surface: #{$fallback-palette-surface};
+
+  font-family: Roboto, sans-serif;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  position: relative;
+  width: 100%;
+}
+
+.top-annotation-band-bg {
+  background-color: $surface-band-bg;
+  border-bottom: 1px solid $band-divider-color;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  z-index: 1;
+}
+
+.dimmed-row-mask {
+  background-color: $dim-mask-bg;
+  left: 0;
+  position: absolute;
+  width: 100%;
+  z-index: 2;
+}
+
+.row-highlight-band {
+  background-color: var(--palette-soft);
+  border-bottom: 1px solid var(--palette-main);
+  border-top: 1px solid var(--palette-main);
+  box-sizing: border-box;
+  left: 0;
+  position: absolute;
+  width: 100%;
+  z-index: 3;
+}
+
+.row-highlight-accent {
+  background-color: var(--palette-main);
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 4px;
+}
+
+.row-role-badge {
+  background-color: var(--palette-main);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px $pill-shadow;
+  color: var(--palette-on-main);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 16px;
+  max-width: 180px;
+  overflow: hidden;
+  padding: 1px 7px;
+  position: absolute;
+  text-overflow: ellipsis;
+  top: 4px;
+  transform: translateX(-100%);
+  white-space: nowrap;
+}
+
+.span-box {
+  box-sizing: border-box;
+  overflow: hidden;
+  position: absolute;
+  z-index: 4;
+
+  &.pattern-solid {
+    background-color: var(--palette-soft);
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--palette-main) 38%, transparent);
+    border-top: 2.5px solid var(--palette-main);
+
+    &.narrow {
+      border-left: 1.5px solid var(--palette-main);
+      border-right: 1.5px solid var(--palette-main);
+    }
+  }
+
+  &.pattern-hatched {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--palette-soft),
+      var(--palette-soft) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+    border-bottom: 1.5px dashed var(--palette-main);
+    border-top: 2.5px solid var(--palette-main);
+
+    &.narrow {
+      border-left: 1.5px dashed var(--palette-main);
+      border-right: 1.5px dashed var(--palette-main);
+    }
+  }
+
+  &.pattern-outline {
+    background-color: transparent;
+    border-bottom: 1.5px solid var(--palette-main);
+    border-top: 2.5px solid var(--palette-main);
+
+    &.narrow {
+      border-left: 1.5px solid var(--palette-main);
+      border-right: 1.5px solid var(--palette-main);
+    }
+  }
+
+  &.scoped {
+    border-radius: 4px;
+  }
+}
+
+.span-bracket {
+  border-bottom: 2px solid var(--palette-main);
+  border-top: 2px solid var(--palette-main);
+  bottom: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 8px;
+
+  &.left {
+    border-left: 2.5px solid var(--palette-main);
+    left: 0;
+
+    &.coincident {
+      left: 3px;
+    }
+  }
+
+  &.right {
+    border-right: 2.5px solid var(--palette-main);
+    right: 0;
+
+    &.coincident {
+      right: 3px;
+    }
+  }
+}
+
+.span-label-chip {
+  background-color: var(--palette-surface);
+  border: 1px solid var(--palette-main);
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 2px $surface-pill-bg,
+    0 1px 3px $pill-shadow;
+  box-sizing: border-box;
+  color: var(--palette-main);
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 15px;
+  overflow: hidden;
+  padding: 1px 6px;
+  pointer-events: none;
+  position: absolute;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  z-index: 9;
+}
+
+.vector-layer {
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  z-index: 6;
+}
+
+.connector-path {
+  fill: none;
+  stroke: var(--palette-main);
+  stroke-width: 2;
+
+  &.caliper {
+    stroke-width: 1.75;
+  }
+}
+
+.connector-arrow {
+  fill: var(--palette-main);
+}
+
+.callout-leader {
+  fill: none;
+  stroke: var(--palette-main);
+  stroke-width: 1.5;
+
+  &.dashed {
+    stroke-dasharray: 4 3;
+  }
+}
+
+.callout-anchor-dot {
+  fill: var(--palette-main);
+  stroke: $surface-pill-bg;
+  stroke-width: 1.5;
+}
+
+.connector-chip {
+  align-items: center;
+  background-color: var(--palette-surface);
+  border: 1px solid var(--palette-main);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px $pill-shadow;
+  color: var(--palette-main);
+  column-gap: 4px;
+  display: grid;
+  font-size: 11px;
+  font-weight: 600;
+  grid-auto-flow: column;
+  line-height: 16px;
+  padding: 1px 6px;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  z-index: 7;
+}
+
+.chip-badge {
+  background-color: var(--palette-main);
+  border-radius: 8px;
+  color: var(--palette-on-main);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  padding: 0 5px;
+}
+
+.chip-text {
+  color: var(--palette-main);
+}
+
+.marker-stem {
+  border-left: 2px solid var(--palette-main);
+  box-shadow:
+    -1.5px 0 0 $surface-pill-bg,
+    1.5px 0 0 $surface-pill-bg;
+  position: absolute;
+  transform: translateX(-1px);
+  width: 0;
+  z-index: 5;
+
+  &.reference {
+    border-left-style: dashed;
+  }
+
+  &.is-hovered {
+    border-left-width: 3px;
+  }
+}
+
+.marker-target-dot {
+  background-color: var(--palette-main);
+  border: 2px solid $surface-pill-bg;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px $pill-shadow;
+  box-sizing: border-box;
+  height: 10px;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  z-index: 10;
+}
+
+.marker-pill {
+  align-items: center;
+  background-color: var(--palette-surface);
+  border: 1px solid var(--palette-main);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px $pill-shadow;
+  box-sizing: border-box;
+  column-gap: 5px;
+  display: grid;
+  font-size: 11px;
+  grid-template:
+    'badge label time' auto
+    / auto 1fr auto;
+  overflow: hidden;
+  padding: 0 7px 0 4px;
+  position: absolute;
+  white-space: nowrap;
+  z-index: 9;
+
+  &.interactive {
+    pointer-events: auto;
+  }
+
+  &.clickable {
+    cursor: pointer;
+  }
+
+  &.is-hovered {
+    box-shadow: 0 2px 6px $pill-shadow;
+    transform: translateY(-1px);
+  }
+}
+
+.pill-badge {
+  background-color: var(--palette-main);
+  border-radius: 9px;
+  color: var(--palette-on-main);
+  font-size: 10px;
+  font-weight: 700;
+  grid-area: badge;
+  line-height: 16px;
+  padding: 0 6px;
+}
+
+.pill-label {
+  color: $text-primary;
+  font-weight: 600;
+  grid-area: label;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill-time {
+  color: $text-secondary;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  grid-area: time;
+}
+
+.callout-card {
+  align-items: center;
+  background-color: $surface-pill-bg;
+  border: 1.5px solid var(--palette-main);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px $pill-shadow;
+  box-sizing: border-box;
+  display: grid;
+  grid-template:
+    'text' 1fr
+    / 1fr;
+  overflow: hidden;
+  padding: 0 8px;
+  position: absolute;
+  white-space: nowrap;
+  z-index: 8;
+
+  &.dashed {
+    border-style: dashed;
+  }
+
+  &.clickable {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+}
+
+.callout-text {
+  color: $text-primary;
+  font-size: 11px;
+  font-weight: 600;
+  grid-area: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.excerpt-drop-stem {
+  border-left: 1.5px dashed var(--palette-main);
+  box-shadow:
+    -1px 0 0 $surface-pill-bg,
+    1px 0 0 $surface-pill-bg;
+  opacity: 0.72;
+  position: absolute;
+  transform: translateX(-0.75px);
+  width: 0;
+  z-index: 5;
+
+  &.is-hovered {
+    border-left-style: solid;
+    border-left-width: 2.5px;
+    opacity: 1;
+  }
+}
+
+.excerpt-pin-badge {
+  align-items: center;
+  background-color: var(--palette-main);
+  border: 2px solid $surface-pill-bg;
+  border-radius: 11px;
+  box-shadow: 0 2px 5px $pill-shadow;
+  color: var(--palette-on-main);
+  display: grid;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  grid-template:
+    'label' 1fr
+    / 1fr;
+  height: 20px;
+  justify-items: center;
+  min-width: 26px;
+  padding: 0 5px;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  z-index: 10;
+
+  &.clickable {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  &.is-hovered {
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+}
