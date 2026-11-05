@@ -15,19 +15,13 @@
  */
 
 import {
-  TimelineCalloutPlacement,
   TimelineConnectorStyle,
   TimelineExcerptKind,
-  TimelineExcerptLine,
   TimelineExcerptLineKind,
   TimelineExcerptLinePart,
   TimelineMarkerStyle,
-  TimelineResolvedCallout,
-  TimelineResolvedConnector,
-  TimelineResolvedExcerptCard,
   TimelineResolvedMarker,
   TimelineResolvedPaletteColors,
-  TimelineResolvedRowHighlight,
   TimelineResolvedSpan,
   TimelineSceneOverlay,
   TimelineSpanPattern,
@@ -190,6 +184,22 @@ export interface DimmedRowMaskViewModel {
   readonly topPx: number;
   /** Vertical height of the dimmed row mask in CSS pixels. */
   readonly heightPx: number;
+}
+
+/**
+ * Computed SVG path, arrowhead polygon, and midpoint coordinates for a timeline connector.
+ */
+export interface ConnectorPathGeometry {
+  /** SVG path data string tracing the connector curve, step, or caliper ticks. */
+  readonly svgPath: string;
+  /** True when a directional polygon arrowhead is rendered at the destination endpoint. */
+  readonly hasArrowHead: boolean;
+  /** Space-separated SVG polygon vertex coordinates for the arrowhead, or empty when omitted. */
+  readonly arrowHeadPoints: string;
+  /** Stage-relative center X coordinate of the midpoint label chip in CSS pixels. */
+  readonly labelCenterX: number;
+  /** Stage-relative center Y coordinate of the midpoint label chip in CSS pixels. */
+  readonly labelCenterY: number;
 }
 
 /**

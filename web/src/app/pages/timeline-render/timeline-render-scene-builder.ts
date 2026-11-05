@@ -18,7 +18,6 @@ import { unreachable } from 'src/app/common/misc-util';
 import {
   TimelineCalloutPlacement,
   TimelineConnectorStyle,
-  TimelineExcerptKind,
   TimelineExcerptLine,
   TimelineExcerptLineKind,
   TimelineExcerptLinePart,
@@ -31,14 +30,13 @@ import {
   TimelineResolvedRowHighlight,
   TimelineResolvedSpan,
   TimelineSceneOverlay,
-  TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import {
   CalloutItemViewModel,
   ConnectorItemViewModel,
+  ConnectorPathGeometry,
   DimmedRowMaskViewModel,
   ExcerptCardViewModel,
-  ExcerptDeckViewModel,
   ExcerptLineViewModel,
   ExcerptPinViewModel,
   ExcerptPinsAndDeckResult,
@@ -325,27 +323,19 @@ export function buildMarkerViewModels(
   return placements.map((item): MarkerItemViewModel => {
     const pillTopPx = 6 + item.laneIndex * MARKER_LANE_STEP_PX;
     const stemTopPx = pillTopPx + MARKER_PILL_HEIGHT_PX;
-    const rowBounds =
+    const targetRow =
       item.marker.timelineId !== undefined
         ? rowBoundsById.get(item.marker.timelineId)
         : undefined;
-
-    let stemHeightPx: number;
-    let hasTargetDot = false;
-    let dotY = 0;
-
-    if (item.marker.style === TimelineMarkerStyle.PIN) {
-      if (rowBounds) {
-        dotY = rowBounds.centerPx;
-        stemHeightPx = Math.max(0, dotY - stemTopPx);
-        hasTargetDot = true;
-      } else {
-        stemHeightPx = Math.max(0, stageHeightPx - stemTopPx);
-      }
-    } else {
-      stemHeightPx = Math.max(0, stageHeightPx - stemTopPx);
-    }
-
+    const hasTargetDot =
+      item.marker.style === TimelineMarkerStyle.PIN && targetRow !== undefined;
+    const stemEndPx =
+      hasTargetDot && targetRow ? targetRow.centerPx : stageHeightPx;
+    const fallbackColors =
+      item.marker.style === TimelineMarkerStyle.REFERENCE ||
+      item.marker.paletteId === DEFAULT_REFERENCE_PALETTE_COLORS.id
+        ? DEFAULT_REFERENCE_PALETTE_COLORS
+        : DEFAULT_TIMELINE_PALETTE_COLORS;
     return {
       id: item.marker.id,
       badge: item.marker.badge,
@@ -353,16 +343,16 @@ export function buildMarkerViewModels(
       timeLabel: item.marker.timeLabel,
       style: item.marker.style,
       paletteId: item.marker.paletteId,
-      colors: resolveColors(item.marker.paletteId),
+      colors: resolveColors(item.marker.paletteId, fallbackColors),
       pillLeftPx: item.pillLeftPx,
       pillTopPx,
       pillWidthPx: item.pillWidthPx,
       pillHeightPx: MARKER_PILL_HEIGHT_PX,
       stemX: item.stemX,
       stemTopPx,
-      stemHeightPx,
+      stemHeightPx: Math.max(0, stemEndPx - stemTopPx),
       hasTargetDot,
-      dotY,
+      dotY: hasTargetDot && targetRow ? targetRow.centerPx : stemEndPx,
       jumpTarget: buildJumpTarget(
         item.marker.timelineId,
         item.marker.revisionIndex,
@@ -809,7 +799,10 @@ export function buildTimelineSceneViewModel(
   };
 }
 
-function buildRowHighlightViewModels(
+/**
+ * Builds positioned focal subtree highlight bands and dimmed background row masks.
+ */
+export function buildRowHighlightViewModels(
   rowHighlights: readonly TimelineResolvedRowHighlight[],
   dimUnlistedRows: boolean,
   indexPaneWidthPx: number,
@@ -901,14 +894,133 @@ function buildRowHighlightViewModels(
   return { highlights, dimmedMasks };
 }
 
-function buildConnectorViewModels(
+function formatConnectorArrowHead(
+  toX: number,
+  toY: number,
+  angleRad: number,
+): string {
+  const baseCenterX = toX - Math.cos(angleRad) * 8;
+  const baseCenterY = toY - Math.sin(angleRad) * 8;
+  const perpX = -Math.sin(angleRad) * 4.5;
+  const perpY = Math.cos(angleRad) * 4.5;
+  const p1X = Math.round((baseCenterX + perpX) * 10) / 10;
+  const p1Y = Math.round((baseCenterY + perpY) * 10) / 10;
+  const p2X = Math.round((baseCenterX - perpX) * 10) / 10;
+  const p2Y = Math.round((baseCenterY - perpY) * 10) / 10;
+  return `${toX},${toY} ${p1X},${p1Y} ${p2X},${p2Y}`;
+}
+
+/**
+ * Computes SVG cubic Bezier curve geometry and arrowhead for curved connectors.
+ */
+export function buildCurveConnectorPath(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+): ConnectorPathGeometry {
+  const midX = (fromX + toX) / 2;
+  const svgPath = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
+  const hasArrowHead = fromX !== toX || fromY !== toY;
+  let arrowHeadPoints = '';
+  if (hasArrowHead) {
+    // Evaluates cubic Bezier chord direction near t = 0.85 so wide S-curves and vertical curves orient smoothly.
+    const angleRad = Math.atan2((toY - fromY) * 0.312, toX - fromX);
+    arrowHeadPoints = formatConnectorArrowHead(toX, toY, angleRad);
+  }
+  return {
+    svgPath,
+    hasArrowHead,
+    arrowHeadPoints,
+    labelCenterX: midX,
+    labelCenterY: (fromY + toY) / 2,
+  };
+}
+
+/**
+ * Computes SVG orthogonal stepped line geometry and arrowhead for stepped connectors.
+ */
+export function buildStepConnectorPath(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+): ConnectorPathGeometry {
+  const midX = (fromX + toX) / 2;
+  const svgPath = `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`;
+  const hasArrowHead = fromX !== toX || fromY !== toY;
+  let arrowHeadPoints = '';
+  if (hasArrowHead) {
+    const angleRad =
+      midX !== toX ? Math.atan2(0, toX - midX) : Math.atan2(toY - fromY, 0);
+    arrowHeadPoints = formatConnectorArrowHead(toX, toY, angleRad);
+  }
+  return {
+    svgPath,
+    hasArrowHead,
+    arrowHeadPoints,
+    labelCenterX: midX,
+    labelCenterY: (fromY + toY) / 2,
+  };
+}
+
+/**
+ * Computes SVG horizontal bar and boundary tick mark geometry for duration caliper connectors.
+ */
+export function buildCaliperConnectorPath(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  chartTopPx: number,
+): ConnectorPathGeometry {
+  const midX = (fromX + toX) / 2;
+  const caliperY = Math.max(chartTopPx + 10, Math.min(fromY, toY) - 12);
+  const svgPath = `M ${fromX} ${caliperY - 5} L ${fromX} ${caliperY + 5} M ${toX} ${caliperY - 5} L ${toX} ${caliperY + 5} M ${fromX} ${caliperY} L ${toX} ${caliperY}`;
+  return {
+    svgPath,
+    hasArrowHead: false,
+    arrowHeadPoints: '',
+    labelCenterX: midX,
+    labelCenterY: caliperY - 12,
+  };
+}
+
+/**
+ * Dispatches connector geometry calculation by style and returns positioned path data.
+ */
+export function resolveConnectorPathGeometry(
+  style: TimelineConnectorStyle,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  chartTopPx: number,
+): ConnectorPathGeometry {
+  switch (style) {
+    case TimelineConnectorStyle.CURVE:
+      return buildCurveConnectorPath(fromX, fromY, toX, toY);
+    case TimelineConnectorStyle.STEP:
+      return buildStepConnectorPath(fromX, fromY, toX, toY);
+    case TimelineConnectorStyle.CALIPER:
+      return buildCaliperConnectorPath(fromX, fromY, toX, toY, chartTopPx);
+    default:
+      return unreachable(style);
+  }
+}
+
+/**
+ * Builds positioned connector and duration caliper ViewModels for causal relationship lines.
+ */
+export function buildConnectorViewModels(
   connectors: readonly TimelineResolvedConnector[],
   topBandHeightPx: number,
   rowBoundsById: ReadonlyMap<number, TimelineRowStageBounds>,
   toStageX: (timeMs: number) => number,
   resolveColors: (paletteId: string) => TimelineResolvedPaletteColors,
 ): ConnectorItemViewModel[] {
-  const defaultY = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 24;
+  const chartTopPx = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX;
+  const defaultY = chartTopPx + 24;
   const result: ConnectorItemViewModel[] = [];
 
   for (const conn of connectors) {
@@ -930,46 +1042,15 @@ function buildConnectorViewModels(
       conn.toTimelineId !== undefined
         ? (rowBoundsById.get(conn.toTimelineId)?.centerPx ?? fromY)
         : fromY;
-    const midX = (fromX + toX) / 2;
 
-    let svgPath: string;
-    let hasArrowHead = false;
-    let arrowHeadPoints = '';
-    let labelCenterY = (fromY + toY) / 2;
-
-    if (conn.style === TimelineConnectorStyle.CALIPER) {
-      const caliperY = Math.max(
-        topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX + 10,
-        Math.min(fromY, toY) - 12,
-      );
-      svgPath = `M ${fromX} ${caliperY - 5} L ${fromX} ${caliperY + 5} M ${toX} ${caliperY - 5} L ${toX} ${caliperY + 5} M ${fromX} ${caliperY} L ${toX} ${caliperY}`;
-      labelCenterY = caliperY - 12;
-    } else {
-      svgPath =
-        conn.style === TimelineConnectorStyle.STEP
-          ? `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`
-          : `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
-
-      if (fromX !== toX || fromY !== toY) {
-        // Evaluates cubic Bezier chord direction near t = 0.85 so wide S-curves and vertical curves orient smoothly.
-        const angleRad =
-          conn.style === TimelineConnectorStyle.STEP
-            ? midX !== toX
-              ? Math.atan2(0, toX - midX)
-              : Math.atan2(toY - fromY, 0)
-            : Math.atan2((toY - fromY) * 0.312, toX - fromX);
-        const baseCenterX = toX - Math.cos(angleRad) * 8;
-        const baseCenterY = toY - Math.sin(angleRad) * 8;
-        const perpX = -Math.sin(angleRad) * 4.5;
-        const perpY = Math.cos(angleRad) * 4.5;
-        const p1X = Math.round((baseCenterX + perpX) * 10) / 10;
-        const p1Y = Math.round((baseCenterY + perpY) * 10) / 10;
-        const p2X = Math.round((baseCenterX - perpX) * 10) / 10;
-        const p2Y = Math.round((baseCenterY - perpY) * 10) / 10;
-        hasArrowHead = true;
-        arrowHeadPoints = `${toX},${toY} ${p1X},${p1Y} ${p2X},${p2Y}`;
-      }
-    }
+    const geometry = resolveConnectorPathGeometry(
+      conn.style,
+      fromX,
+      fromY,
+      toX,
+      toY,
+      chartTopPx,
+    );
 
     result.push({
       id: conn.id,
@@ -978,18 +1059,21 @@ function buildConnectorViewModels(
       style: conn.style,
       paletteId: conn.paletteId,
       colors: resolveColors(conn.paletteId),
-      svgPath,
-      hasArrowHead,
-      arrowHeadPoints,
-      labelCenterX: midX,
-      labelCenterY,
+      svgPath: geometry.svgPath,
+      hasArrowHead: geometry.hasArrowHead,
+      arrowHeadPoints: geometry.arrowHeadPoints,
+      labelCenterX: geometry.labelCenterX,
+      labelCenterY: geometry.labelCenterY,
     });
   }
 
   return result;
 }
 
-function buildCalloutViewModels(
+/**
+ * Builds positioned inline callout cards and leader lines for pinned events.
+ */
+export function buildCalloutViewModels(
   callouts: readonly TimelineResolvedCallout[],
   chartLeftPx: number,
   stageWidthPx: number,
@@ -1108,7 +1192,10 @@ function buildCalloutViewModels(
   return result;
 }
 
-function buildExcerptPinsAndDeck(
+/**
+ * Builds synchronized bottom evidence deck cards, S-curve tethers, and timeline drop pins.
+ */
+export function buildExcerptPinsAndDeck(
   excerpts: readonly TimelineResolvedExcerptCard[],
   deckPlan: ExcerptDeckLayoutPlan,
   stageWidthPx: number,

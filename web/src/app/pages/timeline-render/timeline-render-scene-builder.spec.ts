@@ -30,8 +30,12 @@ import {
 import {
   DEFAULT_REFERENCE_PALETTE_COLORS,
   DEFAULT_TIMELINE_PALETTE_COLORS,
+  buildCaliperConnectorPath,
+  buildConnectorViewModels,
+  buildCurveConnectorPath,
   buildMarkerViewModels,
   buildSpanViewModels,
+  buildStepConnectorPath,
   buildTimelineSceneViewModel,
   collectMarkerVerticalStems,
   computeStageRowLayout,
@@ -41,6 +45,7 @@ import {
   findStemFreeSpanIntervals,
   layoutSpanHeaderChip,
   packMarkerLanes,
+  resolveConnectorPathGeometry,
   resolveSceneHorizontalBounds,
   resolveSpanBoxGeometry,
   resolveSpanVerticalBounds,
@@ -1506,5 +1511,172 @@ describe('buildSpanViewModels', () => {
     expect(result.length).toBe(1);
     expect(result[0].id).toBe('sp-valid');
     expect(result[0].colors).toBe(defaultColors);
+  });
+});
+
+describe('buildCurveConnectorPath', () => {
+  it('computes cubic Bezier SVG path and directional arrowhead', () => {
+    const geom = buildCurveConnectorPath(100, 50, 300, 150);
+    expect(geom.svgPath).toBe('M 100 50 C 200 50, 200 150, 300 150');
+    expect(geom.hasArrowHead).toBe(true);
+    expect(geom.arrowHeadPoints.length).toBeGreaterThan(0);
+    expect(geom.labelCenterX).toBe(200);
+    expect(geom.labelCenterY).toBe(100);
+  });
+
+  it('omits arrowhead when endpoints coincide', () => {
+    const geom = buildCurveConnectorPath(100, 50, 100, 50);
+    expect(geom.svgPath).toBe('M 100 50 C 100 50, 100 50, 100 50');
+    expect(geom.hasArrowHead).toBe(false);
+    expect(geom.arrowHeadPoints).toBe('');
+    expect(geom.labelCenterX).toBe(100);
+    expect(geom.labelCenterY).toBe(50);
+  });
+});
+
+describe('buildStepConnectorPath', () => {
+  it('computes orthogonal stepped SVG path and horizontal arrowhead', () => {
+    const geom = buildStepConnectorPath(100, 50, 300, 150);
+    expect(geom.svgPath).toBe('M 100 50 L 200 50 L 200 150 L 300 150');
+    expect(geom.hasArrowHead).toBe(true);
+    expect(geom.labelCenterX).toBe(200);
+    expect(geom.labelCenterY).toBe(100);
+  });
+
+  it('orients vertical arrowhead when endpoints share X coordinate', () => {
+    const geom = buildStepConnectorPath(100, 50, 100, 150);
+    expect(geom.svgPath).toBe('M 100 50 L 100 50 L 100 150 L 100 150');
+    expect(geom.hasArrowHead).toBe(true);
+    expect(geom.arrowHeadPoints).toBe('100,150 95.5,142 104.5,142');
+  });
+
+  it('omits arrowhead when endpoints coincide', () => {
+    const geom = buildStepConnectorPath(100, 50, 100, 50);
+    expect(geom.hasArrowHead).toBe(false);
+    expect(geom.arrowHeadPoints).toBe('');
+  });
+});
+
+describe('buildCaliperConnectorPath', () => {
+  it('computes tick marks and horizontal bar above min Y', () => {
+    const geom = buildCaliperConnectorPath(100, 100, 300, 200, 20);
+    const wantCaliperY = 100 - 12; // 88, which is > 20 + 10 = 30
+    expect(geom.svgPath).toBe(
+      `M 100 ${wantCaliperY - 5} L 100 ${wantCaliperY + 5} M 300 ${wantCaliperY - 5} L 300 ${wantCaliperY + 5} M 100 ${wantCaliperY} L 300 ${wantCaliperY}`,
+    );
+    expect(geom.hasArrowHead).toBe(false);
+    expect(geom.arrowHeadPoints).toBe('');
+    expect(geom.labelCenterX).toBe(200);
+    expect(geom.labelCenterY).toBe(wantCaliperY - 12);
+  });
+
+  it('clamps caliper Y to chartTopPx + 10 when rows are near top', () => {
+    const geom = buildCaliperConnectorPath(100, 30, 300, 30, 25);
+    // min(30, 30) - 12 = 18 < 25 + 10 = 35 -> clamped to 35
+    expect(geom.labelCenterY).toBe(35 - 12);
+  });
+});
+
+describe('resolveConnectorPathGeometry', () => {
+  it('delegates to specific geometry builder according to connector style', () => {
+    const curve = resolveConnectorPathGeometry(
+      TimelineConnectorStyle.CURVE,
+      100,
+      50,
+      200,
+      50,
+      0,
+    );
+    const step = resolveConnectorPathGeometry(
+      TimelineConnectorStyle.STEP,
+      100,
+      50,
+      200,
+      50,
+      0,
+    );
+    const caliper = resolveConnectorPathGeometry(
+      TimelineConnectorStyle.CALIPER,
+      100,
+      50,
+      200,
+      50,
+      0,
+    );
+    expect(curve.svgPath).toContain('C');
+    expect(step.svgPath).toContain('L');
+    expect(caliper.svgPath).toContain('M 200');
+  });
+});
+
+describe('buildConnectorViewModels', () => {
+  const rowBoundsMap = new Map<number, TimelineRowStageBounds>([
+    [
+      10,
+      {
+        index: 0,
+        id: 10,
+        topPx: 40,
+        bottomPx: 80,
+        centerPx: 60,
+        heightPx: 40,
+      },
+    ],
+    [
+      20,
+      {
+        index: 1,
+        id: 20,
+        topPx: 80,
+        bottomPx: 120,
+        centerPx: 100,
+        heightPx: 40,
+      },
+    ],
+  ]);
+
+  it('skips connectors with unrendered target rows and applies resolved palette colors', () => {
+    const connectors = [
+      {
+        id: 'conn-valid',
+        style: TimelineConnectorStyle.CURVE,
+        paletteId: 'default',
+        fromTimeMs: 1000,
+        fromTimelineId: 10,
+        toTimeMs: 2000,
+        toTimelineId: 20,
+      },
+      {
+        id: 'conn-missing-from',
+        style: TimelineConnectorStyle.CURVE,
+        paletteId: 'default',
+        fromTimeMs: 1000,
+        fromTimelineId: 999,
+        toTimeMs: 2000,
+        toTimelineId: 20,
+      },
+      {
+        id: 'conn-missing-to',
+        style: TimelineConnectorStyle.CURVE,
+        paletteId: 'default',
+        fromTimeMs: 1000,
+        fromTimelineId: 10,
+        toTimeMs: 2000,
+        toTimelineId: 999,
+      },
+    ];
+
+    const vms = buildConnectorViewModels(
+      connectors,
+      0,
+      rowBoundsMap,
+      (t) => t / 10,
+      () => DEFAULT_TIMELINE_PALETTE_COLORS,
+    );
+
+    expect(vms.length).toBe(1);
+    expect(vms[0].id).toBe('conn-valid');
+    expect(vms[0].colors).toEqual(DEFAULT_TIMELINE_PALETTE_COLORS);
+    expect(vms[0].labelCenterY).toBe(80);
   });
 });
