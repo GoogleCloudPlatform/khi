@@ -430,3 +430,205 @@ func extractRenderedSceneMetadata(t *testing.T, markdown string) (sceneID, image
 	expiresAt, _, _ = strings.Cut(afterExpires, "\n")
 	return sceneID, imageURL, interactiveURL, expiresAt
 }
+
+func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testing.T) {
+	inspectionServer, inspectionID := setupRealisticTimelineTestServer(t)
+	indexMgr := workbench.NewInspectionIndexManager(inspectionServer, t.TempDir())
+	mgr := workbench.NewWorkbenchManager(inspectionServer, indexMgr, 5)
+	t.Cleanup(indexMgr.Wait)
+
+	ctx := context.Background()
+	fakePNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+	baseTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+
+	renderer := &fakeTimelineImageRenderer{
+		result: &TimelineRenderResult{
+			PNGBytes:        fakePNG,
+			RenderedCount:   12,
+			TotalMatched:    12,
+			HasMore:         false,
+			ViewStartTimeMs: baseTime.UnixMilli(),
+			ViewEndTimeMs:   baseTime.Add(1 * time.Hour).UnixMilli(),
+		},
+	}
+	assetStore := NewAssetStore(testAssetBaseURL, DefaultAssetTTL)
+	sceneStore := scene.NewStore(scene.DefaultTTL)
+	handler := NewWorkbenchHandler(mgr, renderer, assetStore, sceneStore, testServerBaseURL)
+
+	wb, toolRes, err := handler.acquireWorkbench(ctx, inspectionID)
+	if err != nil || toolRes != nil {
+		t.Fatalf("acquireWorkbench() failed: err=%v toolRes=%v", err, toolRes)
+	}
+
+	var nodeReadyTimelineID uint32
+	var appTimelineID uint32
+	var oomLogID uint32
+	for id, tl := range wb.SearchIndex().TimelineMap {
+		if tl != nil && tl.Name == "Ready" {
+			nodeReadyTimelineID = uint32(id)
+		}
+		if tl != nil && tl.Name == "app" {
+			page, err := wb.GetTimelineLogs(ctx, uint32(id), workbench.TimelineLogFilter{LogQuery: `severity == ERROR`})
+			if err == nil && len(page.Logs) > 0 {
+				appTimelineID = uint32(id)
+				oomLogID = page.Logs[0].LogID
+			}
+		}
+	}
+	if nodeReadyTimelineID == 0 || appTimelineID == 0 || oomLogID == 0 {
+		t.Fatalf("failed to locate fixture IDs: nodeReadyTimelineID=%d appTimelineID=%d oomLogID=%d", nodeReadyTimelineID, appTimelineID, oomLogID)
+	}
+
+	// Step 1: Create initial annotated parent scene.
+	dimUnlisted := true
+	parentRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		InspectionID: inspectionID,
+		Filter: workbench.Filter{
+			TimelineQuery: `path["namespace"] == "default"`,
+		},
+		Annotations: &scene.Annotations{
+			Palette: []scene.PaletteEntry{
+				{ID: "trigger", Color: "amber"},
+				{ID: "victim", Color: "red"},
+			},
+			RowHighlights: []scene.RowHighlight{
+				{
+					TimelineQuery: `name == "frontend-web-6d8f9b-x7k2p"`,
+					RoleLabel:     "VICTIM · Pod-1",
+					PaletteID:     "victim",
+				},
+			},
+			DimUnlistedRows: &dimUnlisted,
+			Markers: []scene.MarkerAnnotation{
+				{
+					Anchor: scene.Anchor{TimelineID: appTimelineID, LogID: oomLogID},
+					Label:  "OOMKilled container app",
+				},
+			},
+		},
+	})
+	if err != nil || parentRes.IsError {
+		t.Fatalf("Step 1 handleRenderTimelines() failed: err=%v res=%v", err, parentRes)
+	}
+	parentText := parentRes.Content[1].(*mcpsdk.TextContent).Text
+	parentSceneID, _, _, _ := extractRenderedSceneMetadata(t, parentText)
+	if !strings.Contains(parentText, "Annotations: 1 marker [1], 1 row highlight, unlisted rows dimmed.") {
+		t.Errorf("Step 1 summary missing annotation summary:\n%s", parentText)
+	}
+
+	// Step 2: Incrementally patch parentSceneId with diffExcerpts + logExcerpts.
+	childARes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			DiffExcerpts: []scene.DiffExcerpt{
+				{
+					Revision: scene.RevisionRef{
+						TimelineID:    nodeReadyTimelineID,
+						RevisionIndex: 1,
+					},
+					Windows: []scene.SliceWindow{
+						{Query: "MemoryPressure", BeforeLines: 1, AfterLines: 1},
+					},
+					Note: "Node Ready condition flipped to False",
+				},
+			},
+			LogExcerpts: []scene.LogExcerpt{
+				{
+					LogID:      oomLogID,
+					TimelineID: appTimelineID,
+					Note:       "Container OOM termination event",
+				},
+			},
+		},
+	})
+	if err != nil || childARes.IsError {
+		t.Fatalf("Step 2 handleRenderTimelines() failed: err=%v res=%v", err, childARes)
+	}
+	childAText := childARes.Content[1].(*mcpsdk.TextContent).Text
+	childASceneID, _, _, _ := extractRenderedSceneMetadata(t, childAText)
+	if !strings.Contains(childAText, "(derived from `"+parentSceneID+"`)") {
+		t.Errorf("Step 2 summary missing parent lineage:\n%s", childAText)
+	}
+	if len(renderer.gotReq.Overlay.Excerpts) != 2 {
+		t.Fatalf("Step 2 Excerpts len = %d, want 2", len(renderer.gotReq.Overlay.Excerpts))
+	}
+	if renderer.gotReq.Overlay.Excerpts[1].PaletteID != "victim" {
+		t.Errorf("Step 2 co-anchored log excerpt PaletteID = %q, want \"victim\"", renderer.gotReq.Overlay.Excerpts[1].PaletteID)
+	}
+	for _, line := range renderer.gotReq.Overlay.Excerpts[0].Lines {
+		if strings.Contains(line.Text, "managedFields") {
+			t.Errorf("Step 2 diff excerpt leaked managedFields: %q", line.Text)
+		}
+	}
+
+	// Step 3: Branch a second variant from the same parentSceneId without mutating parent or childA.
+	spanStart := baseTime.Add(24 * time.Minute)
+	spanEnd := baseTime.Add(29*time.Minute + 30*time.Second)
+	childBRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			ClearLayers: []scene.AnnotationLayer{scene.AnnotationLayerMarkers},
+			Spans: []scene.SpanAnnotation{
+				{
+					Start:     scene.Anchor{Time: &spanStart},
+					End:       scene.Anchor{Time: &spanEnd},
+					Label:     "Customer impact window",
+					Pattern:   scene.SpanPatternHatched,
+					PaletteID: "trigger",
+				},
+			},
+		},
+	})
+	if err != nil || childBRes.IsError {
+		t.Fatalf("Step 3 handleRenderTimelines() failed: err=%v res=%v", err, childBRes)
+	}
+	if len(renderer.gotReq.Overlay.Markers) != 0 || len(renderer.gotReq.Overlay.Spans) != 1 || len(renderer.gotReq.Overlay.Excerpts) != 0 {
+		t.Errorf("Step 3 branched overlay mismatch: markers=%d spans=%d excerpts=%d",
+			len(renderer.gotReq.Overlay.Markers), len(renderer.gotReq.Overlay.Spans), len(renderer.gotReq.Overlay.Excerpts))
+	}
+
+	// Confirm parent and childA remain untouched in sceneStore.
+	storedParent, err := sceneStore.Get(parentSceneID)
+	if err != nil || len(storedParent.Document.Overlay.Markers) != 1 || len(storedParent.Document.Overlay.Excerpts) != 0 {
+		t.Errorf("storedParent mutated unexpectedly: err=%v overlay=%+v", err, storedParent.Document.Overlay)
+	}
+	storedChildA, err := sceneStore.Get(childASceneID)
+	if err != nil || len(storedChildA.Document.Overlay.Excerpts) != 2 {
+		t.Errorf("storedChildA mutated unexpectedly: err=%v overlay=%+v", err, storedChildA.Document.Overlay)
+	}
+
+	// Step 4: Verify actionable error codes (SLICE_QUERY_NOT_FOUND and ANCHOR_OUT_OF_VIEWPORT).
+	errSliceRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			DiffExcerpts: []scene.DiffExcerpt{
+				{
+					Revision: scene.RevisionRef{TimelineID: nodeReadyTimelineID, RevisionIndex: 1},
+					Windows:  []scene.SliceWindow{{Query: "NonExistentFieldXYZ"}},
+				},
+			},
+		},
+	})
+	if err != nil || !errSliceRes.IsError {
+		t.Fatalf("SLICE_QUERY_NOT_FOUND check failed: err=%v res=%v", err, errSliceRes)
+	}
+	if gotErrText := errSliceRes.Content[0].(*mcpsdk.TextContent).Text; !strings.HasPrefix(gotErrText, "Error: SLICE_QUERY_NOT_FOUND") {
+		t.Errorf("expected SLICE_QUERY_NOT_FOUND, got:\n%s", gotErrText)
+	}
+
+	narrowStart := baseTime.Add(40 * time.Minute)
+	narrowEnd := baseTime.Add(50 * time.Minute)
+	errViewportRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Filter: workbench.Filter{
+			StartTime: &narrowStart,
+			EndTime:   &narrowEnd,
+		},
+	})
+	if err != nil || !errViewportRes.IsError {
+		t.Fatalf("ANCHOR_OUT_OF_VIEWPORT check failed: err=%v res=%v", err, errViewportRes)
+	}
+	if gotErrText := errViewportRes.Content[0].(*mcpsdk.TextContent).Text; !strings.HasPrefix(gotErrText, "Error: ANCHOR_OUT_OF_VIEWPORT") {
+		t.Errorf("expected ANCHOR_OUT_OF_VIEWPORT, got:\n%s", gotErrText)
+	}
+}

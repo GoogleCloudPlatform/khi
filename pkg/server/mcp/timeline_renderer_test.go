@@ -43,6 +43,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	serverapiv1 "github.com/GoogleCloudPlatform/khi/pkg/server/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
@@ -533,7 +534,17 @@ func setupRealisticTimelineTestServer(t *testing.T) (*coreinspection.InspectionT
 
 				recordRevision := func(offset time.Duration, path *khifilev6.TimelinePath, state *pb.RevisionState, verb *pb.Verb, principal, summary string, sev *pb.Severity) error {
 					ts := baseTime.Add(offset)
-					node, err := structured.FromYAML("summary: ok")
+					manifestYAML := strings.Join([]string{
+						"metadata:",
+						"  managedFields:",
+						"    - manager: kubelet",
+						"      operation: Update",
+						"spec:",
+						"  principal: " + principal,
+						"status:",
+						"  summary: " + summary,
+					}, "\n")
+					node, err := structured.FromYAML(manifestYAML)
 					if err != nil {
 						return err
 					}
@@ -844,4 +855,69 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("renders overlay with markers and excerpt cards", func(t *testing.T) {
+		revIdx := 1
+		annotatedRes, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
+			InspectionID: inspectionID,
+			MaxNodes:     50,
+			Overlay: &scene.Overlay{
+				Palette: []scene.ResolvedPaletteColors{
+					{
+						ID:      "trigger",
+						Main:    "#b45309",
+						OnMain:  "#fafafa",
+						Soft:    "rgba(180, 83, 9, 0.13)",
+						Surface: "#f8eee6",
+					},
+				},
+				Markers: []scene.ResolvedMarker{
+					{
+						ID:        "marker-1",
+						Badge:     "1",
+						Label:     "MemoryPressure detected",
+						Style:     scene.MarkerStylePin,
+						PaletteID: "trigger",
+						TimeMs:    baseTime.Add(24 * time.Minute).UnixMilli(),
+						TimeLabel: "09:24:00",
+					},
+				},
+				Excerpts: []scene.ResolvedExcerptCard{
+					{
+						ID:            "excerpt-1",
+						Kind:          scene.ExcerptKindDiff,
+						Badge:         "E1",
+						PaletteID:     "trigger",
+						TimeMs:        baseTime.Add(24 * time.Minute).UnixMilli(),
+						TimeLabel:     "09:24:00",
+						TimelineID:    1,
+						ResourcePath:  "node/gke-prod-default-pool-a1b2c3",
+						Title:         "Patch · Condition False",
+						Subtitle:      "+1 / -1 · 2 diff lines",
+						LogTimestamp:  "2026-10-01T09:24:00Z",
+						InsertID:      "audit-node-mempressure-1",
+						RevisionIndex: &revIdx,
+						Lines: []scene.ExcerptLine{
+							{Kind: scene.ExcerptLineKindDeleted, OldLineNum: 4, Text: "  summary: Node Ready=True"},
+							{Kind: scene.ExcerptLineKindAdded, NewLineNum: 4, Text: "  summary: MemoryPressure detected"},
+						},
+						Note: "Node Ready condition flipped to False",
+					},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("annotated RenderTimeline() unexpected error = %v", err)
+		}
+		if len(annotatedRes.PNGBytes) < 8 || string(annotatedRes.PNGBytes[:8]) != "\x89PNG\r\n\x1a\n" {
+			t.Fatalf("annotated RenderTimeline() did not return valid PNG header, len=%d", len(annotatedRes.PNGBytes))
+		}
+		pngCfg, err := png.DecodeConfig(bytes.NewReader(annotatedRes.PNGBytes))
+		if err != nil {
+			t.Fatalf("png.DecodeConfig() failed: %v", err)
+		}
+		if pngCfg.Height <= minHeaderPNGHeight {
+			t.Errorf("captured PNG height = %d, want > %d", pngCfg.Height, minHeaderPNGHeight)
+		}
+	})
 }
