@@ -109,27 +109,12 @@ export class SessionUrlSyncService {
     setOrDeleteParam(params, 'timelineQuery', timelineQuery);
     setOrDeleteParam(params, 'logQuery', logQuery);
 
-    if (selectedRevision !== null) {
-      params.set('timelineId', String(selectedRevision.timelineId));
-      params.set('revisionIndex', String(selectedRevision.index));
-      params.delete('logId');
-    } else if (selectedLog !== null) {
-      if (selectedTimeline !== null) {
-        params.set('timelineId', String(selectedTimeline.id));
-      } else {
-        params.delete('timelineId');
-      }
-      params.delete('revisionIndex');
-      params.set('logId', String(selectedLog.id));
-    } else if (selectedTimeline !== null) {
-      params.set('timelineId', String(selectedTimeline.id));
-      params.delete('revisionIndex');
-      params.delete('logId');
-    } else {
-      params.delete('timelineId');
-      params.delete('revisionIndex');
-      params.delete('logId');
-    }
+    const timelineId = selectedRevision?.timelineId ?? selectedTimeline?.id;
+    const revisionIndex = selectedRevision?.index;
+    const logId = selectedRevision === null ? selectedLog?.id : undefined;
+    setOrDeleteParam(params, 'timelineId', String(timelineId ?? ''));
+    setOrDeleteParam(params, 'revisionIndex', String(revisionIndex ?? ''));
+    setOrDeleteParam(params, 'logId', String(logId ?? ''));
 
     const encoded = params.toString();
     this.locationAdapter.replaceSearch(encoded ? `?${encoded}` : '');
