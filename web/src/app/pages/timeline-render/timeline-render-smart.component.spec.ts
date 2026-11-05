@@ -440,29 +440,65 @@ describe('TimelineRenderSmartComponent', () => {
     );
   });
 
-  it('should wait for document.fonts.ready before completing applyAndMeasure', async () => {
+  it('should wait for document.fonts.ready in CDP bridge functions before completing', async () => {
     let resolveFontsReady!: (value: FontFaceSet) => void;
     const fontsReadyPromise = new Promise<FontFaceSet>((resolve) => {
       resolveFontsReady = resolve;
     });
-    spyOnProperty(document.fonts, 'ready', 'get').and.returnValue(
-      fontsReadyPromise,
-    );
+    const fontsReadySpy = spyOnProperty(
+      document.fonts,
+      'ready',
+      'get',
+    ).and.returnValue(fontsReadyPromise);
 
-    let completed = false;
-    const applyPromise = component
+    const bridge = window.__khiCDPBridge?.timelineRenderer;
+    expect(bridge).toBeDefined();
+
+    let applyCompleted = false;
+    const bridgeApplyPromise = bridge!
       .applyAndMeasure({
         inspectionId: 'insp-1',
       })
       .then(() => {
-        completed = true;
+        applyCompleted = true;
       });
 
     await Promise.resolve();
-    expect(completed).toBeFalse();
+    expect(applyCompleted).toBeFalse();
 
     resolveFontsReady(document.fonts);
-    await applyPromise;
-    expect(completed).toBeTrue();
+    await bridgeApplyPromise;
+    expect(applyCompleted).toBeTrue();
+
+    let resolveFrameFontsReady!: (value: FontFaceSet) => void;
+    const frameFontsReadyPromise = new Promise<FontFaceSet>((resolve) => {
+      resolveFrameFontsReady = resolve;
+    });
+    fontsReadySpy.and.returnValue(frameFontsReadyPromise);
+
+    let frameCompleted = false;
+    const bridgeFramePromise = bridge!.waitForStableFrame().then(() => {
+      frameCompleted = true;
+    });
+
+    await Promise.resolve();
+    expect(frameCompleted).toBeFalse();
+
+    resolveFrameFontsReady(document.fonts);
+    await bridgeFramePromise;
+    expect(frameCompleted).toBeTrue();
+  });
+
+  it('should not wait for document.fonts.ready when applyAndMeasure is called directly', async () => {
+    const neverResolvingFonts = new Promise<FontFaceSet>(() => undefined);
+    spyOnProperty(document.fonts, 'ready', 'get').and.returnValue(
+      neverResolvingFonts,
+    );
+
+    const result = await component.applyAndMeasure({
+      inspectionId: 'insp-1',
+    });
+
+    expect(result.renderedCount).toBe(5);
   });
 });

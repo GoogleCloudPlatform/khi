@@ -208,8 +208,14 @@ export class TimelineRenderSmartComponent implements OnInit {
    */
   public ngOnInit(): void {
     const bridge: KhiTimelineRendererBridge = {
-      applyAndMeasure: (params) => this.applyAndMeasure(params),
-      waitForStableFrame: () => this.waitForStableFrame(),
+      applyAndMeasure: async (params) => {
+        await document.fonts.ready;
+        return this.applyAndMeasure(params);
+      },
+      waitForStableFrame: async () => {
+        await document.fonts.ready;
+        return this.waitForStableFrame();
+      },
     };
     window.__khiCDPBridge = {
       ...window.__khiCDPBridge,
@@ -268,7 +274,6 @@ export class TimelineRenderSmartComponent implements OnInit {
     this.renderedTimelines.set(rendered);
     this.timezoneShiftHours.set(params.timezoneShiftHours ?? 0);
 
-    await document.fonts.ready;
     const dimensions = calculateTimelineStageDimensions(
       rendered,
       this.styleStore(),
