@@ -14,15 +14,17 @@
  limitations under the License.
 -->
 
+@let sceneVm = scene();
+
 <div class="scene-overlay-root">
-  @if (scene().topBandHeightPx > 0) {
+  @if (sceneVm.topBandHeightPx > 0) {
     <div
       class="top-annotation-band-bg"
-      [style.height.px]="scene().topBandHeightPx"
+      [style.height.px]="sceneVm.topBandHeightPx"
     ></div>
   }
 
-  @for (mask of scene().dimmedRowMasks; track mask.id) {
+  @for (mask of sceneVm.dimmedRowMasks; track mask.id) {
     <div
       class="dimmed-row-mask"
       [style.height.px]="mask.heightPx"
@@ -30,7 +32,7 @@
     ></div>
   }
 
-  @for (rh of scene().rowHighlights; track rh.id) {
+  @for (rh of sceneVm.rowHighlights; track rh.id) {
     <div
       class="row-highlight-band"
       [style.--palette-main]="rh.colors.main"
@@ -49,14 +51,13 @@
     </div>
   }
 
-  @for (span of scene().spans; track span.id) {
+  @for (span of sceneVm.spans; track span.id) {
     <div
-      [class]="
-        'span-box pattern-' +
-        span.pattern +
-        (span.isRowScoped ? ' scoped' : ' full') +
-        (span.showCornerBrackets ? '' : ' narrow')
-      "
+      class="span-box"
+      [class]="'pattern-' + span.pattern"
+      [class.scoped]="span.isRowScoped"
+      [class.full]="!span.isRowScoped"
+      [class.narrow]="!span.showCornerBrackets"
       [style.--palette-main]="span.colors.main"
       [style.--palette-on-main]="span.colors.onMain"
       [style.--palette-soft]="span.colors.soft"
@@ -81,11 +82,11 @@
 
   <svg
     class="vector-layer"
-    [attr.height]="scene().stageHeightPx"
-    [attr.viewBox]="'0 0 ' + scene().stageWidthPx + ' ' + scene().stageHeightPx"
-    [attr.width]="scene().stageWidthPx"
+    [attr.height]="sceneVm.stageHeightPx"
+    [attr.viewBox]="'0 0 ' + sceneVm.stageWidthPx + ' ' + sceneVm.stageHeightPx"
+    [attr.width]="sceneVm.stageWidthPx"
   >
-    @for (conn of scene().connectors; track conn.id) {
+    @for (conn of sceneVm.connectors; track conn.id) {
       <g class="connector-group" [style.--palette-main]="conn.colors.main">
         <path
           class="connector-path"
@@ -101,7 +102,7 @@
       </g>
     }
 
-    @for (callout of scene().callouts; track callout.id) {
+    @for (callout of sceneVm.callouts; track callout.id) {
       <g class="callout-vector" [style.--palette-main]="callout.colors.main">
         <path
           class="callout-leader"
@@ -118,7 +119,7 @@
     }
   </svg>
 
-  @for (conn of scene().connectors; track conn.id) {
+  @for (conn of sceneVm.connectors; track conn.id) {
     @if (conn.badge || conn.label) {
       <div
         class="connector-chip"
@@ -138,15 +139,12 @@
     }
   }
 
-  @for (marker of scene().markers; track marker.id) {
+  @for (marker of sceneVm.markers; track marker.id) {
     <div
-      [class]="
-        'marker-stem' +
-        (marker.style === TimelineMarkerStyle.REFERENCE
-          ? ' reference'
-          : ' pin') +
-        (hoveredBadge() === marker.badge ? ' is-hovered' : '')
-      "
+      class="marker-stem"
+      [class.reference]="marker.style === TimelineMarkerStyle.REFERENCE"
+      [class.pin]="marker.style !== TimelineMarkerStyle.REFERENCE"
+      [class.is-hovered]="hoveredBadge() === marker.badge"
       [style.--palette-main]="marker.colors.main"
       [style.height.px]="marker.stemHeightPx"
       [style.left.px]="marker.stemX"
@@ -184,7 +182,7 @@
     </div>
   }
 
-  @for (span of scene().spans; track span.id) {
+  @for (span of sceneVm.spans; track span.id) {
     <span
       class="span-label-chip"
       [style.--palette-main]="span.colors.main"
@@ -197,13 +195,11 @@
     </span>
   }
 
-  @for (callout of scene().callouts; track callout.id) {
+  @for (callout of sceneVm.callouts; track callout.id) {
     <div
-      [class]="
-        'callout-card' +
-        (callout.dashed ? ' dashed' : '') +
-        (interactiveMode() && callout.jumpTarget ? ' clickable' : '')
-      "
+      class="callout-card"
+      [class.dashed]="callout.dashed"
+      [class.clickable]="interactiveMode() && !!callout.jumpTarget"
       [style.--palette-main]="callout.colors.main"
       [style.height.px]="callout.cardHeightPx"
       [style.left.px]="callout.cardLeftPx"
@@ -215,12 +211,10 @@
     </div>
   }
 
-  @for (pin of scene().excerptPins; track pin.id) {
+  @for (pin of sceneVm.excerptPins; track pin.id) {
     <div
-      [class]="
-        'excerpt-drop-stem' +
-        (hoveredBadge() === pin.badge ? ' is-hovered' : '')
-      "
+      class="excerpt-drop-stem"
+      [class.is-hovered]="hoveredBadge() === pin.badge"
       [style.--palette-main]="pin.colors.main"
       [style.height.px]="pin.stemHeightPx"
       [style.left.px]="pin.pinX"
@@ -228,11 +222,9 @@
     ></div>
 
     <div
-      [class]="
-        'excerpt-pin-badge' +
-        (interactiveMode() ? ' clickable' : '') +
-        (hoveredBadge() === pin.badge ? ' is-hovered' : '')
-      "
+      class="excerpt-pin-badge"
+      [class.clickable]="interactiveMode()"
+      [class.is-hovered]="hoveredBadge() === pin.badge"
       [style.--palette-main]="pin.colors.main"
       [style.--palette-on-main]="pin.colors.onMain"
       [style.left.px]="pin.pinX"
