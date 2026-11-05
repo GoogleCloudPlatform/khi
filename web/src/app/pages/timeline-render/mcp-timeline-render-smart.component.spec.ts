@@ -17,6 +17,10 @@
 import { Component, WritableSignal, input, model, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import {
+  TimelineExcerptKind,
+  TimelineExcerptLineKind,
+} from 'src/app/common/schema/timeline-render-types';
 import { McpTimelineRenderSmartComponent } from 'src/app/pages/timeline-render/mcp-timeline-render-smart.component';
 import { TIMELINE_TEXT_WIDTH_MEASURER } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
@@ -56,6 +60,7 @@ class StubTimelineFrameComponent {
   readonly allLogs = input<unknown>();
   readonly filteredLogIds = input<unknown>();
   readonly indexPaneSize = input<number>(300);
+  readonly horizontalOverdrawInPx = input<number>(300);
   readonly showLegend = input<unknown>();
   readonly showResizerHandle = input<unknown>();
   readonly readyToRender = signal(true);
@@ -489,5 +494,76 @@ describe('McpTimelineRenderSmartComponent', () => {
     });
 
     expect(result.renderedCount).toBe(5);
+  });
+
+  it('should expand index pane and chart viewport width for overlay role badges and evidence deck cards', async () => {
+    const res = await component.applyAndMeasure({
+      inspectionId: 'insp-1',
+      viewStartTimeMs: 1_200_000,
+      viewEndTimeMs: 1_400_000,
+      overlay: {
+        rowHighlights: [
+          {
+            id: 'rh-trigger',
+            roleLabel: 'TRIGGER · Control Plane Policy Update',
+            timelineIds: [3],
+            paletteId: 'default',
+          },
+        ],
+        excerpts: [
+          {
+            id: 'ex-1',
+            kind: TimelineExcerptKind.DIFF,
+            badge: 'E1',
+            paletteId: 'default',
+            timeMs: 1_250_000,
+            timeLabel: '00:20:50',
+            timelineId: 3,
+            resourcePath: 'pod/default/test-pod-a',
+            title: 'Patch',
+            subtitle: '',
+            lines: [
+              { kind: TimelineExcerptLineKind.ADDED, text: 'a'.repeat(90) },
+            ],
+          },
+          {
+            id: 'ex-2',
+            kind: TimelineExcerptKind.LOG,
+            badge: 'E2',
+            paletteId: 'default',
+            timeMs: 1_260_000,
+            timeLabel: '00:21:00',
+            timelineId: 3,
+            resourcePath: 'pod/default/test-pod-a',
+            title: 'Log',
+            subtitle: '',
+            lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: 'ok' }],
+          },
+          {
+            id: 'ex-3',
+            kind: TimelineExcerptKind.LOG,
+            badge: 'E3',
+            paletteId: 'default',
+            timeMs: 1_270_000,
+            timeLabel: '00:21:10',
+            timelineId: 3,
+            resourcePath: 'pod/default/test-pod-a',
+            title: 'Log',
+            subtitle: '',
+            lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: 'ok' }],
+          },
+        ],
+      },
+    });
+    fixture.detectChanges();
+
+    const indexPaneSize = stubFrame.indexPaneSize();
+    const chartViewportWidthPx = res.width - indexPaneSize - 8;
+    expect(indexPaneSize).toBeGreaterThan(300);
+    expect(chartViewportWidthPx).toBeGreaterThan(1280);
+    expect(stubFrame.pixelsPerNs()).toBeCloseTo(
+      chartViewportWidthPx / 200_000_000_000,
+      15,
+    );
   });
 });

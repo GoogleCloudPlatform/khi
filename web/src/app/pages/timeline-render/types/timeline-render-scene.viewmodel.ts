@@ -15,6 +15,10 @@
  */
 
 import {
+  TimelineConnectorStyle,
+  TimelineExcerptKind,
+  TimelineExcerptLineKind,
+  TimelineExcerptLinePart,
   TimelineMarkerStyle,
   TimelineResolvedMarker,
   TimelineResolvedPaletteColors,
@@ -22,22 +26,21 @@ import {
   TimelineSceneOverlay,
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
+import {
+  ExcerptDeckGridPreset,
+  ExcerptDeckLayoutPlan,
+  TextWidthMeasurer,
+} from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 
 /**
  * Target resource timeline, revision, or log entry to focus when opening a full KHI session.
  */
 export interface TimelineSessionJumpTarget {
-  /**
-   * Target timeline domain ID when navigating to a specific resource row.
-   */
+  /** Target timeline domain ID when navigating to a specific resource row. */
   readonly timelineId?: number;
-  /**
-   * Target revision index within the resource timeline when focusing a state diff.
-   */
+  /** Target revision index within the resource timeline when focusing a state diff. */
   readonly revisionIndex?: number;
-  /**
-   * Target log entry ID when focusing a specific log line in KHI.
-   */
+  /** Target log entry ID when focusing a specific log line in KHI. */
   readonly logId?: number;
 }
 
@@ -45,13 +48,9 @@ export interface TimelineSessionJumpTarget {
  * Minimal height metric for a single rendered timeline row.
  */
 export interface TimelineRowMetric {
-  /**
-   * Unique numeric timeline domain ID for the rendered row.
-   */
+  /** Unique numeric timeline domain ID for the rendered row. */
   readonly id: number;
-  /**
-   * Rendered vertical row height in CSS pixels.
-   */
+  /** Rendered vertical row height in CSS pixels. */
   readonly heightPx: number;
 }
 
@@ -69,6 +68,10 @@ export interface TimelineSceneLayoutInput {
   readonly rows: readonly TimelineRowMetric[];
   /** Resolved visual overlay payload, or null when rendering an unannotated timeline. */
   readonly overlay: TimelineSceneOverlay | null;
+  /** Optional text width measurer used to size bottom evidence deck columns deterministically. */
+  readonly measureText?: TextWidthMeasurer;
+  /** Optional precomputed bottom deck layout plan to avoid re-measuring card text. */
+  readonly deckPlan?: ExcerptDeckLayoutPlan;
 }
 
 /**
@@ -101,11 +104,11 @@ export interface MarkerItemViewModel {
   readonly stemX: number;
   /** Top Y coordinate where the vertical marker stem begins in stage CSS pixels. */
   readonly stemTopPx: number;
-  /** Vertical length of the marker stem in CSS pixels. */
+  /** Vertical length of the marker stem extending down into the chart in CSS pixels. */
   readonly stemHeightPx: number;
-  /** True when the marker terminates with a target dot on a matched timeline row. */
+  /** True when a target dot should be rendered at the row intersection point. */
   readonly hasTargetDot: boolean;
-  /** Center Y coordinate of the target row dot in stage CSS pixels. */
+  /** Vertical Y coordinate of the target dot in stage CSS pixels. */
   readonly dotY: number;
   /** Optional session jump target when clicking the marker in interactive mode. */
   readonly jumpTarget: TimelineSessionJumpTarget | null;
@@ -117,42 +120,274 @@ export interface MarkerItemViewModel {
 export interface SpanItemViewModel {
   /** Unique scene identifier for the span annotation. */
   readonly id: string;
-  /** Formatted header chip text combining the span label and optional duration. */
+  /** Human-readable label displayed inside the span header chip. */
   readonly headerText: string;
-  /** Fill pattern applied to the span background band. */
+  /** Visual fill pattern for the span body. */
   readonly pattern: TimelineSpanPattern;
   /** Palette identifier referenced by this span. */
   readonly paletteId: string;
-  /** Resolved semantic foreground and surface colors for rendering the span. */
+  /** Resolved semantic stroke and surface colors for rendering the span. */
   readonly colors: TimelineResolvedPaletteColors;
-  /** True when the span is vertically restricted to specific timeline rows. */
+  /** True when the span is bounded to specific timeline rows rather than full chart height. */
   readonly isRowScoped: boolean;
-  /** True when corner brackets are rendered to frame a wide enough span band. */
+  /** True when corner bracket accents should be rendered on the span body. */
   readonly showCornerBrackets: boolean;
-  /** True when the left span boundary coincides with a vertical marker or excerpt stem. */
+  /** True when a vertical marker stem coincides with the span's left boundary. */
   readonly coincidentLeft: boolean;
-  /** True when the right span boundary coincides with a vertical marker or excerpt stem. */
+  /** True when a vertical marker stem coincides with the span's right boundary. */
   readonly coincidentRight: boolean;
-  /** Local horizontal offset of the header chip from the left edge of the span in CSS pixels. */
+  /** Horizontal offset of the header chip relative to span left in pixels. */
   readonly labelLeftPx: number;
-  /** Stage-relative left X coordinate of the header chip in CSS pixels. */
+  /** Left X coordinate of the header chip in stage CSS pixels. */
   readonly chipStageLeftPx: number;
-  /** Stage-relative top Y coordinate of the header chip in CSS pixels. */
+  /** Top Y coordinate of the header chip in stage CSS pixels. */
   readonly chipStageTopPx: number;
-  /** Maximum horizontal width available to the header chip before truncation in CSS pixels. */
+  /** Maximum allowable width of the header chip in CSS pixels before truncation. */
   readonly chipMaxWidthPx: number;
-  /** Stage-relative left X coordinate of the span band in CSS pixels. */
+  /** Left X coordinate of the span body in stage CSS pixels. */
   readonly leftPx: number;
-  /** Stage-relative top Y coordinate of the span band in CSS pixels. */
+  /** Top Y coordinate of the span body in stage CSS pixels. */
   readonly topPx: number;
-  /** Horizontal width of the span band in CSS pixels. */
+  /** Horizontal width of the span body in CSS pixels. */
   readonly widthPx: number;
-  /** Vertical height of the span band in CSS pixels. */
+  /** Vertical height of the span body in CSS pixels. */
   readonly heightPx: number;
 }
 
 /**
- * Layout ViewModel for the timeline stage overlay.
+ * Positioned focal subtree highlight band and left-gutter role badge for row highlights.
+ */
+export interface RowHighlightBandViewModel {
+  /** Unique scene identifier for this highlight run. */
+  readonly id: string;
+  /** Formatted role label displayed in the left gutter, or empty string. */
+  readonly roleLabel: string;
+  /** Palette identifier referenced by this row highlight. */
+  readonly paletteId: string;
+  /** Resolved semantic background, border, and badge colors. */
+  readonly colors: TimelineResolvedPaletteColors;
+  /** Stage-relative top Y coordinate of the highlight band in CSS pixels. */
+  readonly topPx: number;
+  /** Vertical height of the highlight band covering contiguous rows in CSS pixels. */
+  readonly heightPx: number;
+  /** Stage-relative right X coordinate where the role badge chip ends in CSS pixels. */
+  readonly badgeRightX: number;
+}
+
+/**
+ * Positioned translucent mask over contiguous background rows when dimUnlistedRows is active.
+ */
+export interface DimmedRowMaskViewModel {
+  /** Unique identifier for this contiguous dimmed background row mask. */
+  readonly id: string;
+  /** Stage-relative top Y coordinate of the dimmed row mask in CSS pixels. */
+  readonly topPx: number;
+  /** Vertical height of the dimmed row mask in CSS pixels. */
+  readonly heightPx: number;
+}
+
+/**
+ * Computed SVG path, arrowhead polygon, and midpoint coordinates for a timeline connector.
+ */
+export interface ConnectorPathGeometry {
+  /** SVG path data string tracing the connector curve, step, or caliper ticks. */
+  readonly svgPath: string;
+  /** True when a directional polygon arrowhead is rendered at the destination endpoint. */
+  readonly hasArrowHead: boolean;
+  /** Space-separated SVG polygon vertex coordinates for the arrowhead, or empty when omitted. */
+  readonly arrowHeadPoints: string;
+  /** Stage-relative center X coordinate of the midpoint label chip in CSS pixels. */
+  readonly labelCenterX: number;
+  /** Stage-relative center Y coordinate of the midpoint label chip in CSS pixels. */
+  readonly labelCenterY: number;
+}
+
+/**
+ * Positioned SVG path, polygon arrowhead, and midpoint label chip for timeline connectors.
+ */
+export interface ConnectorItemViewModel {
+  /** Unique scene identifier for the causal connector or duration caliper. */
+  readonly id: string;
+  /** Optional short badge token rendered in the midpoint connector chip. */
+  readonly badge: string;
+  /** Optional descriptive or delta-time label rendered at the connector midpoint. */
+  readonly label: string;
+  /** Geometric path style controlling curved, stepped, or caliper rendering. */
+  readonly style: TimelineConnectorStyle;
+  /** Palette identifier referenced by this connector. */
+  readonly paletteId: string;
+  /** Resolved semantic stroke and label colors for rendering the connector. */
+  readonly colors: TimelineResolvedPaletteColors;
+  /** SVG path data string tracing the connector curve, step, or caliper ticks. */
+  readonly svgPath: string;
+  /** True when a directional polygon arrowhead is rendered at the destination endpoint. */
+  readonly hasArrowHead: boolean;
+  /** Space-separated SVG polygon vertex coordinates for the arrowhead, or empty when omitted. */
+  readonly arrowHeadPoints: string;
+  /** Stage-relative center X coordinate of the midpoint label chip in CSS pixels. */
+  readonly labelCenterX: number;
+  /** Stage-relative center Y coordinate of the midpoint label chip in CSS pixels. */
+  readonly labelCenterY: number;
+}
+
+/**
+ * Positioned compact single-line inline callout card and leader line for timeline callouts.
+ */
+export interface CalloutItemViewModel {
+  /** Unique scene identifier for the inline callout annotation. */
+  readonly id: string;
+  /** Single-line text label displayed inside the callout card. */
+  readonly label: string;
+  /** True when the leader line uses a dashed stroke style. */
+  readonly dashed: boolean;
+  /** Palette identifier referenced by this callout. */
+  readonly paletteId: string;
+  /** Resolved semantic border, stroke, and surface colors for the callout. */
+  readonly colors: TimelineResolvedPaletteColors;
+  /** Stage-relative X coordinate of the target timeline anchor point in CSS pixels. */
+  readonly anchorX: number;
+  /** Stage-relative Y coordinate of the target timeline anchor point in CSS pixels. */
+  readonly anchorY: number;
+  /** SVG path data string connecting the anchor dot to the callout card edge. */
+  readonly leaderPath: string;
+  /** Stage-relative left X coordinate of the callout card in CSS pixels. */
+  readonly cardLeftPx: number;
+  /** Stage-relative top Y coordinate of the callout card in CSS pixels. */
+  readonly cardTopPx: number;
+  /** Horizontal width of the callout card in CSS pixels. */
+  readonly cardWidthPx: number;
+  /** Vertical height of the callout card in CSS pixels. */
+  readonly cardHeightPx: number;
+  /** Optional session jump target when clicking the callout in interactive mode. */
+  readonly jumpTarget: TimelineSessionJumpTarget | null;
+}
+
+/**
+ * Positioned badge pin and vertical drop stem on the timeline canvas for evidence excerpts.
+ */
+export interface ExcerptPinViewModel {
+  /** Unique scene identifier matching the paired bottom evidence deck card. */
+  readonly id: string;
+  /** Short badge token tying the timeline pin to its deck card and S-curve tether. */
+  readonly badge: string;
+  /** Evidence kind distinguishing resource manifest diffs from raw log excerpts. */
+  readonly kind: TimelineExcerptKind;
+  /** Palette identifier referenced by this excerpt pin. */
+  readonly paletteId: string;
+  /** Resolved semantic pin and drop-stem colors. */
+  readonly colors: TimelineResolvedPaletteColors;
+  /** Stage-relative center X coordinate of the timeline pin in CSS pixels. */
+  readonly pinX: number;
+  /** Stage-relative center Y coordinate of the timeline pin in CSS pixels. */
+  readonly pinY: number;
+  /** Stage-relative top Y coordinate where the vertical drop stem starts below the pin. */
+  readonly stemTopPx: number;
+  /** Vertical length of the drop stem reaching the bottom tether channel in CSS pixels. */
+  readonly stemHeightPx: number;
+  /** Session jump target pointing to the backing timeline revision or log entry. */
+  readonly jumpTarget: TimelineSessionJumpTarget;
+}
+
+/**
+ * Formatted display row inside an evidence deck card with normalized highlight parts.
+ */
+export interface ExcerptLineViewModel {
+  /** Zero-based vertical line index within the card body. */
+  readonly index: number;
+  /** Visual diff kind or structured log category. */
+  readonly kind: TimelineExcerptLineKind;
+  /** Optional old line number for diff gutter rendering. */
+  readonly gutterOld: string;
+  /** Optional new line number for diff gutter rendering. */
+  readonly gutterNew: string;
+  /** Leading diff prefix symbol (+, -, or space). */
+  readonly prefixSymbol: string;
+  /** Raw line text without diff prefix. */
+  readonly text: string;
+  /** Highlight parts splitting text into matched and unmatched segments. */
+  readonly parts: readonly TimelineExcerptLinePart[];
+}
+
+/**
+ * ViewModel for a single bottom evidence deck diff or log card.
+ */
+export interface ExcerptCardViewModel {
+  /** Unique scene identifier matching the source excerpt card payload. */
+  readonly id: string;
+  /** CSS grid area identifier assigned to this card. */
+  readonly gridArea: string;
+  /** Short badge token rendered on the card header matching its timeline pin. */
+  readonly badge: string;
+  /** Evidence kind distinguishing resource manifest diffs from raw log excerpts. */
+  readonly kind: TimelineExcerptKind;
+  /** Palette identifier referenced by this card. */
+  readonly paletteId: string;
+  /** Resolved semantic card border, header, and badge colors. */
+  readonly colors: TimelineResolvedPaletteColors;
+  /** Formatted timestamp string for the event. */
+  readonly timeLabel: string;
+  /** Full Kubernetes resource hierarchy path. */
+  readonly resourcePath: string;
+  /** Primary card title. */
+  readonly title: string;
+  /** Secondary subtitle or method name. */
+  readonly subtitle: string;
+  /** Formatted Cloud Logging timestamp when available, or empty string. */
+  readonly logTimestamp: string;
+  /** Cloud Logging insertId for deduplication when available, or empty string. */
+  readonly insertId: string;
+  /** True when log query metadata fields should be rendered in the card header. */
+  readonly hasQueryMetadata: boolean;
+  /** Formatted diff or log body rows. */
+  readonly lines: readonly ExcerptLineViewModel[];
+  /** Optional human-readable analyst note explaining the card's significance. */
+  readonly note: string;
+  /** Action button text ('Open Diff' or 'Open Log'). */
+  readonly actionLabel: string;
+  /** Session jump target pointing to the backing timeline revision or log entry. */
+  readonly jumpTarget: TimelineSessionJumpTarget;
+}
+
+/**
+ * S-curve cubic Bezier SVG tether connecting a timeline pin drop stem to its deck card column.
+ */
+export interface ExcerptTetherViewModel {
+  /** Unique scene identifier for this tether curve. */
+  readonly id: string;
+  /** Short badge token matching the parent excerpt. */
+  readonly badge: string;
+  /** Palette identifier referenced by this tether. */
+  readonly paletteId: string;
+  /** Resolved semantic stroke color for rendering the tether S-curve. */
+  readonly colors: TimelineResolvedPaletteColors;
+  /** SVG path data string tracing the cubic Bezier S-curve from pin to card anchor. */
+  readonly svgPath: string;
+  /** Stage-relative X coordinate where the tether begins below the drop stem in CSS pixels. */
+  readonly pinX: number;
+  /** Stage-relative X coordinate where the tether meets the deck card column in CSS pixels. */
+  readonly cardAnchorX: number;
+}
+
+/**
+ * ViewModel for the bottom synchronized evidence deck and its 32px S-curve tether channel.
+ */
+export interface ExcerptDeckViewModel {
+  /** Selected grid layout preset based on card count and available stage width. */
+  readonly gridPreset: ExcerptDeckGridPreset;
+  /** Number of equal-width columns in the CSS grid. */
+  readonly columns: number;
+  /** Height of the S-curve tether strip connecting timeline pins to deck cards in CSS pixels. */
+  readonly tetherStripHeightPx: number;
+  /** Estimated total vertical height of the tether strip plus card grid in CSS pixels. */
+  readonly estimatedHeightPx: number;
+  /** Positioned cubic Bezier tethers linking timeline pins to deck columns. */
+  readonly tethers: readonly ExcerptTetherViewModel[];
+  /** Formatted evidence diff and log card ViewModels in display order. */
+  readonly cards: readonly ExcerptCardViewModel[];
+}
+
+/**
+ * Complete layout ViewModel for the timeline stage overlay and bottom evidence deck.
  */
 export interface TimelineSceneViewModel {
   /** Fitted width of the left resource hierarchy index pane in CSS pixels. */
@@ -177,6 +412,18 @@ export interface TimelineSceneViewModel {
   readonly markers: readonly MarkerItemViewModel[];
   /** Positioned time-range span bands and header chips. */
   readonly spans: readonly SpanItemViewModel[];
+  /** Positioned focal subtree highlight bands and left-gutter role badges. */
+  readonly rowHighlights: readonly RowHighlightBandViewModel[];
+  /** Positioned translucent masks over contiguous unlisted background rows. */
+  readonly dimmedRowMasks: readonly DimmedRowMaskViewModel[];
+  /** Positioned causal connectors and horizontal duration calipers. */
+  readonly connectors: readonly ConnectorItemViewModel[];
+  /** Positioned single-line inline callout cards and leader lines. */
+  readonly callouts: readonly CalloutItemViewModel[];
+  /** Positioned timeline pins and vertical drop stems linked to evidence deck cards. */
+  readonly excerptPins: readonly ExcerptPinViewModel[];
+  /** Bottom synchronized evidence deck grid and S-curve tether channel. */
+  readonly deck: ExcerptDeckViewModel;
 }
 
 /**
@@ -261,6 +508,26 @@ export interface PackedMarkerLanes {
   readonly laneCount: number;
   /** Positioned preliminary marker placements ordered by timestamp. */
   readonly items: readonly PreliminaryMarkerPlacement[];
+}
+
+/**
+ * Assembled row highlight bands and contiguous dimmed background row masks.
+ */
+export interface RowHighlightBuildResult {
+  /** Positioned row highlight bands. */
+  readonly highlights: readonly RowHighlightBandViewModel[];
+  /** Positioned dimmed row masks over unlisted rows. */
+  readonly dimmedMasks: readonly DimmedRowMaskViewModel[];
+}
+
+/**
+ * Assembled timeline excerpt pins and bottom evidence deck ViewModel.
+ */
+export interface ExcerptPinsAndDeckResult {
+  /** Positioned excerpt pins on the timeline. */
+  readonly pins: readonly ExcerptPinViewModel[];
+  /** Synchronized bottom evidence deck ViewModel. */
+  readonly deck: ExcerptDeckViewModel;
 }
 
 /**

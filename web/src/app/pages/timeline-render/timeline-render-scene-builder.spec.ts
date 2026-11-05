@@ -15,6 +15,10 @@
  */
 
 import {
+  TimelineCalloutPlacement,
+  TimelineConnectorStyle,
+  TimelineExcerptKind,
+  TimelineExcerptLineKind,
   TimelineMarkerStyle,
   TimelineResolvedPaletteColors,
   TimelineSpanPattern,
@@ -26,8 +30,12 @@ import {
 import {
   DEFAULT_REFERENCE_PALETTE_COLORS,
   DEFAULT_TIMELINE_PALETTE_COLORS,
+  buildCaliperConnectorPath,
+  buildConnectorViewModels,
+  buildCurveConnectorPath,
   buildMarkerViewModels,
   buildSpanViewModels,
+  buildStepConnectorPath,
   buildTimelineSceneViewModel,
   collectMarkerVerticalStems,
   computeStageRowLayout,
@@ -37,17 +45,21 @@ import {
   findStemFreeSpanIntervals,
   layoutSpanHeaderChip,
   packMarkerLanes,
+  resolveConnectorPathGeometry,
   resolveSceneHorizontalBounds,
   resolveSpanBoxGeometry,
   resolveSpanVerticalBounds,
   selectVisibleAnnotations,
 } from 'src/app/pages/timeline-render/timeline-render-scene-builder';
 import {
+  ExcerptDeckGridPreset,
+  MAX_DECK_CARD_WIDTH_PX,
   MAX_STAGE_WIDTH_PX,
   MIN_CHART_VIEWPORT_WIDTH_PX,
   MIN_INDEX_PANE_WIDTH_PX,
   TIMELINE_GUTTER_WIDTH_PX,
   TIMELINE_HEADER_HEIGHT_PX,
+  TextWidthMeasurer,
 } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { HDRColor4, TimelineType } from 'src/app/store/domain/style';
 import { StyleStore } from 'src/app/store/domain/style-store';
@@ -85,6 +97,18 @@ describe('extractTimelineRowMetrics', () => {
       { id: 100, heightPx: 2 * BASE_ROW_HEIGHT },
       { id: 200, heightPx: 1.5 * BASE_ROW_HEIGHT },
     ]);
+
+    const undefinedReturningStore = {
+      severities: [],
+      timelineTypes: [],
+      getTimelineType: () => undefined,
+    } as unknown as StyleStore;
+    expect(
+      extractTimelineRowMetrics(timelines, undefinedReturningStore),
+    ).toEqual([
+      { id: 100, heightPx: 1 * BASE_ROW_HEIGHT },
+      { id: 200, heightPx: 1.5 * BASE_ROW_HEIGHT },
+    ]);
   });
 });
 
@@ -115,7 +139,7 @@ describe('buildTimelineSceneViewModel', () => {
     surface: '#fbeaea',
   };
 
-  it('computes zero topBandHeightPx and baseline minimum width when overlay is null', () => {
+  it('computes zero topBandHeightPx, baseline minimum width, and empty deck when overlay is null', () => {
     const vm = buildTimelineSceneViewModel({
       indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
       viewportLeftTimeMs: 1_000_000,
@@ -134,6 +158,7 @@ describe('buildTimelineSceneViewModel', () => {
       stageHeightPx: vm.stageHeightPx,
       estimatedTotalHeightPx: vm.estimatedTotalHeightPx,
       hasOverlayItems: vm.hasOverlayItems,
+      deckPreset: vm.deck.gridPreset,
     }).toEqual({
       indexPaneWidthPx: 300,
       chartLeftPx: 308,
@@ -144,6 +169,7 @@ describe('buildTimelineSceneViewModel', () => {
       stageHeightPx: 260,
       estimatedTotalHeightPx: 260,
       hasOverlayItems: false,
+      deckPreset: ExcerptDeckGridPreset.EMPTY,
     });
   });
 
@@ -338,6 +364,332 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.spans[1].widthPx).toBe(4);
   });
 
+  it('merges contiguous row highlights, deduplicates repeated IDs, and emits dimmed background row masks', () => {
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        palette: [victimPalette],
+        rowHighlights: [
+          {
+            id: 'rh-1',
+            roleLabel: 'VICTIM · Pod',
+            timelineIds: [20, 20, 30],
+            paletteId: 'victim',
+          },
+        ],
+        dimUnlistedRows: true,
+      },
+    });
+
+    expect(vm.rowHighlights).toEqual([
+      {
+        id: 'rh-1-run-0',
+        roleLabel: 'VICTIM · Pod',
+        paletteId: 'victim',
+        colors: victimPalette,
+        topPx: TIMELINE_HEADER_HEIGHT_PX + 50,
+        heightPx: 100,
+        badgeRightX: 294,
+      },
+    ]);
+    expect(vm.dimmedRowMasks).toEqual([
+      { id: 'dim-mask-0', topPx: 60, heightPx: 50 },
+      { id: 'dim-mask-1', topPx: 210, heightPx: 50 },
+    ]);
+
+    const whitespaceVm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        rowHighlights: [
+          {
+            id: 'rh-blank',
+            roleLabel: '   ',
+            timelineIds: [10],
+            paletteId: 'default',
+          },
+        ],
+      },
+    });
+    expect(whitespaceVm.rowHighlights[0].roleLabel).toBe('');
+  });
+
+  it('flips auto callouts, skips unrendered targets, orients vertical step arrows, and synchronizes deck cards', () => {
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        palette: [triggerPalette, victimPalette],
+        callouts: [
+          {
+            id: 'cal-right-edge',
+            label: 'Container killed near right border',
+            placement: TimelineCalloutPlacement.AUTO,
+            dashed: true,
+            paletteId: 'trigger',
+            timeMs: 1_125_000,
+            timelineId: 30,
+          },
+          {
+            id: 'cal-unrendered',
+            label: 'Hidden target',
+            placement: TimelineCalloutPlacement.RIGHT,
+            paletteId: 'trigger',
+            timeMs: 1_020_000,
+            timelineId: 999,
+          },
+        ],
+        connectors: [
+          {
+            id: 'conn-curve',
+            badge: '1',
+            label: '+10s',
+            style: TimelineConnectorStyle.CURVE,
+            paletteId: 'victim',
+            fromTimeMs: 1_010_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_020_000,
+            toTimelineId: 30,
+          },
+          {
+            id: 'conn-caliper',
+            label: '15s',
+            style: TimelineConnectorStyle.CALIPER,
+            paletteId: 'trigger',
+            fromTimeMs: 1_020_000,
+            fromTimelineId: 20,
+            toTimeMs: 1_035_000,
+            toTimelineId: 20,
+          },
+          {
+            id: 'conn-step-vertical',
+            style: TimelineConnectorStyle.STEP,
+            paletteId: 'victim',
+            fromTimeMs: 1_025_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_025_000,
+            toTimelineId: 30,
+          },
+          {
+            id: 'conn-zero',
+            style: TimelineConnectorStyle.CURVE,
+            paletteId: 'victim',
+            fromTimeMs: 1_025_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_025_000,
+            toTimelineId: 10,
+          },
+          {
+            id: 'conn-unrendered',
+            style: TimelineConnectorStyle.CURVE,
+            paletteId: 'victim',
+            fromTimeMs: 1_010_000,
+            fromTimelineId: 10,
+            toTimeMs: 1_020_000,
+            toTimelineId: 999,
+          },
+        ],
+        excerpts: [
+          {
+            id: 'ex-1',
+            kind: TimelineExcerptKind.DIFF,
+            badge: 'E1',
+            paletteId: 'victim',
+            timeMs: 1_010_000,
+            timeLabel: '00:16:50',
+            timelineId: 10,
+            resourcePath: 'node · test-node-1',
+            title: 'Patch · Resource exists',
+            subtitle: '+1 / -1 · 2 diff lines',
+            logTimestamp: '2026-10-01T00:16:50.123456789Z',
+            insertId: 'audit-node-1-rev2',
+            revisionIndex: 2,
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.DELETED,
+                oldLineNum: 12,
+                text: 'status: True',
+              },
+              {
+                kind: TimelineExcerptLineKind.ADDED,
+                newLineNum: 12,
+                text: 'status: False',
+                parts: [{ text: 'status: ' }, { text: 'False', matched: true }],
+              },
+            ],
+            note: 'Node readiness flipped to False',
+          },
+          {
+            id: 'ex-2',
+            kind: TimelineExcerptKind.LOG,
+            badge: 'E2',
+            paletteId: 'trigger',
+            timeMs: 1_030_000,
+            timeLabel: '00:17:10',
+            timelineId: 30,
+            resourcePath: 'pod · default/test-pod-0',
+            title: 'k8s-event · Warning',
+            subtitle: '5 lines',
+            logTimestamp: '2026-10-01T00:17:10Z',
+            logId: 42,
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.OMITTED,
+                text: '5 lines omitted',
+                omitted: 5,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(vm.callouts.length).toBe(1);
+    expect(vm.callouts[0].cardLeftPx + vm.callouts[0].cardWidthPx).toBeLessThan(
+      vm.callouts[0].anchorX,
+    );
+    expect(vm.connectors.map((c) => c.hasArrowHead)).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ]);
+    // Vertical downward STEP arrow tip is at y=185 (row 30 center), with base points above at y=177.
+    expect(vm.connectors[2].arrowHeadPoints).toBe(
+      '558,185 553.5,177 562.5,177',
+    );
+    expect(vm.deck.gridPreset).toBe(ExcerptDeckGridPreset.COLS_2);
+    expect(vm.deck.tethers[0].cardAnchorX).toBeLessThan(
+      vm.deck.tethers[1].cardAnchorX,
+    );
+    expect(vm.excerptPins[0].colors).toEqual(victimPalette);
+    expect(vm.deck.cards[0].colors).toEqual(victimPalette);
+    expect(vm.deck.cards[0].hasQueryMetadata).toBe(true);
+    expect(vm.deck.cards[0].logTimestamp).toBe(
+      '2026-10-01T00:16:50.123456789Z',
+    );
+    expect(vm.deck.cards[0].insertId).toBe('audit-node-1-rev2');
+    expect(vm.deck.cards[1].colors).toEqual(triggerPalette);
+    expect(vm.deck.cards[1].insertId).toBe('');
+    expect(vm.deck.cards.map((c) => c.actionLabel)).toEqual([
+      'Open Diff',
+      'Open Log',
+    ]);
+    expect(vm.estimatedTotalHeightPx).toBeGreaterThan(vm.stageHeightPx);
+  });
+
+  it('caps deck cards at 6 under the 3x2 grid preset', () => {
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        excerpts: Array.from({ length: 7 }, (_, i) => ({
+          id: `ex-${i}`,
+          kind: TimelineExcerptKind.LOG,
+          badge: `E${i + 1}`,
+          paletteId: 'default',
+          timeMs: 1_005_000 + i * 5_000,
+          timeLabel: '00:16:45',
+          timelineId: 10,
+          resourcePath: 'pod · p',
+          title: 'log',
+          subtitle: '1 line',
+          lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: 'err' }],
+        })),
+      },
+    });
+
+    expect(vm.deck.gridPreset).toBe(ExcerptDeckGridPreset.GRID_3X2);
+    expect(vm.deck.cards.length).toBe(6);
+    expect(vm.excerptPins.length).toBe(6);
+  });
+
+  it('expands stage width horizontally for wide evidence deck cards and falls back to 2x2 when 4 columns exceed 4096px', () => {
+    const fixedMeasurer: TextWidthMeasurer = (text: string) => text.length * 7;
+    const makeLogCard = (id: string, index: number, lineText: string) => ({
+      id,
+      kind: TimelineExcerptKind.LOG,
+      badge: `E${index + 1}`,
+      paletteId: 'default',
+      timeMs: 1_010_000 + index * 5_000,
+      timeLabel: '00:16:50',
+      timelineId: 10,
+      resourcePath: 'pod · test-pod-0',
+      title: 'container-log',
+      subtitle: '1 line',
+      lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: lineText }],
+    });
+
+    // 4 moderate cards (100 chars -> 748px each): 24 + 4 * 748 + 36 = 3052 <= 4096 -> COLS_4.
+    const fourColVm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      measureText: fixedMeasurer,
+      overlay: {
+        excerpts: [
+          makeLogCard('e1', 0, 'a'.repeat(100)),
+          makeLogCard('e2', 1, 'ok'),
+          makeLogCard('e3', 2, 'ok'),
+          makeLogCard('e4', 3, 'ok'),
+        ],
+      },
+    });
+    expect({
+      gridPreset: fourColVm.deck.gridPreset,
+      columns: fourColVm.deck.columns,
+      indexPaneWidthPx: fourColVm.indexPaneWidthPx,
+      stageWidthPx: fourColVm.stageWidthPx,
+      chartViewportWidthPx: fourColVm.chartViewportWidthPx,
+    }).toEqual({
+      gridPreset: ExcerptDeckGridPreset.COLS_4,
+      columns: 4,
+      indexPaneWidthPx: 300,
+      stageWidthPx: 3052,
+      chartViewportWidthPx: 3052 - 308,
+    });
+
+    // 4 ultra-wide cards (200 chars -> 1448px unclamped): 4 cols = 5852 > 4096 -> GRID_2X2 clamped at 1000px.
+    const twoByTwoVm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      measureText: fixedMeasurer,
+      overlay: {
+        excerpts: [
+          makeLogCard('e1', 0, 'w'.repeat(200)),
+          makeLogCard('e2', 1, 'ok'),
+          makeLogCard('e3', 2, 'ok'),
+          makeLogCard('e4', 3, 'ok'),
+        ],
+      },
+    });
+    const wantTwoByTwoWidth = 24 + 2 * MAX_DECK_CARD_WIDTH_PX + 12;
+    expect({
+      gridPreset: twoByTwoVm.deck.gridPreset,
+      columns: twoByTwoVm.deck.columns,
+      stageWidthPx: twoByTwoVm.stageWidthPx,
+      chartViewportWidthPx: twoByTwoVm.chartViewportWidthPx,
+    }).toEqual({
+      gridPreset: ExcerptDeckGridPreset.GRID_2X2,
+      columns: 2,
+      stageWidthPx: wantTwoByTwoWidth,
+      chartViewportWidthPx: wantTwoByTwoWidth - 308,
+    });
+    expect(twoByTwoVm.stageWidthPx).toBeLessThanOrEqual(MAX_STAGE_WIDTH_PX);
+  });
+
   it('disambiguates coinciding span boundaries, slides labels into stem-free sub-intervals, and suppresses brackets on narrow spans', () => {
     const vm = buildTimelineSceneViewModel({
       indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
@@ -469,6 +821,85 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.spans).toEqual([]);
     expect(vm.topBandHeightPx).toBe(0);
     expect(vm.hasOverlayItems).toBe(false);
+  });
+
+  it('retains boundary markers at exact viewEndTimeMs under non-power-of-two pixelsPerMs rounding', () => {
+    const startTimeMs = 1_000_000;
+    const durationMs = 49_000;
+    const endTimeMs = startTimeMs + durationMs;
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: startTimeMs,
+      pixelsPerMs: MIN_CHART_VIEWPORT_WIDTH_PX / durationMs,
+      rows: sampleRows,
+      overlay: {
+        markers: [
+          {
+            id: 'm-right-boundary',
+            badge: '1',
+            label: 'Exact right boundary',
+            style: TimelineMarkerStyle.PIN,
+            paletteId: 'default',
+            timeMs: endTimeMs,
+            timeLabel: '00:17:29',
+            timelineId: 10,
+          },
+        ],
+      },
+    });
+
+    expect(vm.markers.map((m) => m.id)).toEqual(['m-right-boundary']);
+    expect(vm.markers[0].stemX).toBe(defaultStageWidthPx);
+  });
+
+  it('increases estimated deck height when clamped card columns wrap long log lines', () => {
+    const fixedMeasurer: TextWidthMeasurer = (text: string) => text.length * 7;
+    const buildWithLine = (lineText: string) =>
+      buildTimelineSceneViewModel({
+        indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+        viewportLeftTimeMs: 1_000_000,
+        pixelsPerMs: 0.01,
+        rows: sampleRows,
+        measureText: fixedMeasurer,
+        overlay: {
+          excerpts: [
+            {
+              id: 'e1',
+              kind: TimelineExcerptKind.LOG,
+              badge: 'E1',
+              paletteId: 'default',
+              timeMs: 1_010_000,
+              timeLabel: '00:16:50',
+              timelineId: 10,
+              resourcePath: 'pod · test-pod-0',
+              title: 'container-log',
+              subtitle: '1 line',
+              lines: [
+                { kind: TimelineExcerptLineKind.CONTEXT, text: lineText },
+              ],
+            },
+            {
+              id: 'e2',
+              kind: TimelineExcerptKind.LOG,
+              badge: 'E2',
+              paletteId: 'default',
+              timeMs: 1_020_000,
+              timeLabel: '00:17:00',
+              timelineId: 10,
+              resourcePath: 'pod · test-pod-0',
+              title: 'container-log',
+              subtitle: '1 line',
+              lines: [{ kind: TimelineExcerptLineKind.CONTEXT, text: 'ok' }],
+            },
+          ],
+        },
+      });
+
+    const singleLineVm = buildWithLine('short line');
+    const wrappedLineVm = buildWithLine('w'.repeat(200));
+    expect(wrappedLineVm.deck.estimatedHeightPx).toBeGreaterThan(
+      singleLineVm.deck.estimatedHeightPx,
+    );
   });
 });
 
@@ -1080,5 +1511,172 @@ describe('buildSpanViewModels', () => {
     expect(result.length).toBe(1);
     expect(result[0].id).toBe('sp-valid');
     expect(result[0].colors).toBe(defaultColors);
+  });
+});
+
+describe('buildCurveConnectorPath', () => {
+  it('computes cubic Bezier SVG path and directional arrowhead', () => {
+    const geom = buildCurveConnectorPath(100, 50, 300, 150);
+    expect(geom.svgPath).toBe('M 100 50 C 200 50, 200 150, 300 150');
+    expect(geom.hasArrowHead).toBe(true);
+    expect(geom.arrowHeadPoints.length).toBeGreaterThan(0);
+    expect(geom.labelCenterX).toBe(200);
+    expect(geom.labelCenterY).toBe(100);
+  });
+
+  it('omits arrowhead when endpoints coincide', () => {
+    const geom = buildCurveConnectorPath(100, 50, 100, 50);
+    expect(geom.svgPath).toBe('M 100 50 C 100 50, 100 50, 100 50');
+    expect(geom.hasArrowHead).toBe(false);
+    expect(geom.arrowHeadPoints).toBe('');
+    expect(geom.labelCenterX).toBe(100);
+    expect(geom.labelCenterY).toBe(50);
+  });
+});
+
+describe('buildStepConnectorPath', () => {
+  it('computes orthogonal stepped SVG path and horizontal arrowhead', () => {
+    const geom = buildStepConnectorPath(100, 50, 300, 150);
+    expect(geom.svgPath).toBe('M 100 50 L 200 50 L 200 150 L 300 150');
+    expect(geom.hasArrowHead).toBe(true);
+    expect(geom.labelCenterX).toBe(200);
+    expect(geom.labelCenterY).toBe(100);
+  });
+
+  it('orients vertical arrowhead when endpoints share X coordinate', () => {
+    const geom = buildStepConnectorPath(100, 50, 100, 150);
+    expect(geom.svgPath).toBe('M 100 50 L 100 50 L 100 150 L 100 150');
+    expect(geom.hasArrowHead).toBe(true);
+    expect(geom.arrowHeadPoints).toBe('100,150 95.5,142 104.5,142');
+  });
+
+  it('omits arrowhead when endpoints coincide', () => {
+    const geom = buildStepConnectorPath(100, 50, 100, 50);
+    expect(geom.hasArrowHead).toBe(false);
+    expect(geom.arrowHeadPoints).toBe('');
+  });
+});
+
+describe('buildCaliperConnectorPath', () => {
+  it('computes tick marks and horizontal bar above min Y', () => {
+    const geom = buildCaliperConnectorPath(100, 100, 300, 200, 20);
+    const wantCaliperY = 100 - 12; // 88, which is > 20 + 10 = 30
+    expect(geom.svgPath).toBe(
+      `M 100 ${wantCaliperY - 5} L 100 ${wantCaliperY + 5} M 300 ${wantCaliperY - 5} L 300 ${wantCaliperY + 5} M 100 ${wantCaliperY} L 300 ${wantCaliperY}`,
+    );
+    expect(geom.hasArrowHead).toBe(false);
+    expect(geom.arrowHeadPoints).toBe('');
+    expect(geom.labelCenterX).toBe(200);
+    expect(geom.labelCenterY).toBe(wantCaliperY - 12);
+  });
+
+  it('clamps caliper Y to chartTopPx + 10 when rows are near top', () => {
+    const geom = buildCaliperConnectorPath(100, 30, 300, 30, 25);
+    // min(30, 30) - 12 = 18 < 25 + 10 = 35 -> clamped to 35
+    expect(geom.labelCenterY).toBe(35 - 12);
+  });
+});
+
+describe('resolveConnectorPathGeometry', () => {
+  it('delegates to specific geometry builder according to connector style', () => {
+    const curve = resolveConnectorPathGeometry(
+      TimelineConnectorStyle.CURVE,
+      100,
+      50,
+      200,
+      50,
+      0,
+    );
+    const step = resolveConnectorPathGeometry(
+      TimelineConnectorStyle.STEP,
+      100,
+      50,
+      200,
+      50,
+      0,
+    );
+    const caliper = resolveConnectorPathGeometry(
+      TimelineConnectorStyle.CALIPER,
+      100,
+      50,
+      200,
+      50,
+      0,
+    );
+    expect(curve.svgPath).toContain('C');
+    expect(step.svgPath).toContain('L');
+    expect(caliper.svgPath).toContain('M 200');
+  });
+});
+
+describe('buildConnectorViewModels', () => {
+  const rowBoundsMap = new Map<number, TimelineRowStageBounds>([
+    [
+      10,
+      {
+        index: 0,
+        id: 10,
+        topPx: 40,
+        bottomPx: 80,
+        centerPx: 60,
+        heightPx: 40,
+      },
+    ],
+    [
+      20,
+      {
+        index: 1,
+        id: 20,
+        topPx: 80,
+        bottomPx: 120,
+        centerPx: 100,
+        heightPx: 40,
+      },
+    ],
+  ]);
+
+  it('skips connectors with unrendered target rows and applies resolved palette colors', () => {
+    const connectors = [
+      {
+        id: 'conn-valid',
+        style: TimelineConnectorStyle.CURVE,
+        paletteId: 'default',
+        fromTimeMs: 1000,
+        fromTimelineId: 10,
+        toTimeMs: 2000,
+        toTimelineId: 20,
+      },
+      {
+        id: 'conn-missing-from',
+        style: TimelineConnectorStyle.CURVE,
+        paletteId: 'default',
+        fromTimeMs: 1000,
+        fromTimelineId: 999,
+        toTimeMs: 2000,
+        toTimelineId: 20,
+      },
+      {
+        id: 'conn-missing-to',
+        style: TimelineConnectorStyle.CURVE,
+        paletteId: 'default',
+        fromTimeMs: 1000,
+        fromTimelineId: 10,
+        toTimeMs: 2000,
+        toTimelineId: 999,
+      },
+    ];
+
+    const vms = buildConnectorViewModels(
+      connectors,
+      0,
+      rowBoundsMap,
+      (t) => t / 10,
+      () => DEFAULT_TIMELINE_PALETTE_COLORS,
+    );
+
+    expect(vms.length).toBe(1);
+    expect(vms[0].id).toBe('conn-valid');
+    expect(vms[0].colors).toEqual(DEFAULT_TIMELINE_PALETTE_COLORS);
+    expect(vms[0].labelCenterY).toBe(80);
   });
 });
