@@ -440,34 +440,29 @@ describe('TimelineRenderSmartComponent', () => {
     );
   });
 
-  it('should load unloaded stylesheet FontFace entries from document.fonts and skip loaded ones', async () => {
-    const unloadedLoadSpy = jasmine.createSpy('unloadedLoad');
-    const unloadedFace = {
-      status: 'unloaded',
-      load: unloadedLoadSpy,
-    } as unknown as FontFace;
-    unloadedLoadSpy.and.resolveTo(unloadedFace);
-
-    const loadedLoadSpy = jasmine.createSpy('loadedLoad');
-    const loadedFace = {
-      status: 'loaded',
-      load: loadedLoadSpy,
-    } as unknown as FontFace;
-
-    spyOn(document.fonts, 'forEach').and.callFake(
-      (
-        callback: (value: FontFace, key: FontFace, parent: FontFaceSet) => void,
-      ) => {
-        callback(unloadedFace, unloadedFace, document.fonts);
-        callback(loadedFace, loadedFace, document.fonts);
-      },
+  it('should wait for document.fonts.ready before completing applyAndMeasure', async () => {
+    let resolveFontsReady!: (value: FontFaceSet) => void;
+    const fontsReadyPromise = new Promise<FontFaceSet>((resolve) => {
+      resolveFontsReady = resolve;
+    });
+    spyOnProperty(document.fonts, 'ready', 'get').and.returnValue(
+      fontsReadyPromise,
     );
 
-    await component.applyAndMeasure({
-      inspectionId: 'insp-1',
-    });
+    let completed = false;
+    const applyPromise = component
+      .applyAndMeasure({
+        inspectionId: 'insp-1',
+      })
+      .then(() => {
+        completed = true;
+      });
 
-    expect(unloadedLoadSpy).toHaveBeenCalledTimes(1);
-    expect(loadedLoadSpy).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(completed).toBeFalse();
+
+    resolveFontsReady(document.fonts);
+    await applyPromise;
+    expect(completed).toBeTrue();
   });
 });

@@ -268,7 +268,7 @@ export class TimelineRenderSmartComponent implements OnInit {
     this.renderedTimelines.set(rendered);
     this.timezoneShiftHours.set(params.timezoneShiftHours ?? 0);
 
-    await this.waitForFontsReady();
+    await document.fonts.ready;
     const dimensions = calculateTimelineStageDimensions(
       rendered,
       this.styleStore(),
@@ -441,29 +441,6 @@ export class TimelineRenderSmartComponent implements OnInit {
       viewStartTimeMs: BigIntTimeUtil.NsToNumberMs(viewStartTimeNs),
       viewEndTimeMs: BigIntTimeUtil.NsToNumberMs(viewEndTimeNs),
     };
-  }
-
-  private async waitForFontsReady(): Promise<void> {
-    if (typeof document === 'undefined' || !document.fonts) {
-      return;
-    }
-    if (document.fonts.ready) {
-      await document.fonts.ready;
-    }
-    if (typeof document.fonts.forEach === 'function') {
-      const pendingLoads: Promise<FontFace>[] = [];
-      document.fonts.forEach((fontFace) => {
-        if (fontFace.status === 'unloaded') {
-          pendingLoads.push(fontFace.load());
-        }
-      });
-      if (pendingLoads.length > 0) {
-        await Promise.allSettled(pendingLoads);
-        if (document.fonts.ready) {
-          await document.fonts.ready;
-        }
-      }
-    }
   }
 
   private nextAnimationFrame(): Promise<void> {
