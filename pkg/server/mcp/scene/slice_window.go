@@ -191,7 +191,7 @@ func buildLineParts(line string, spans []byteSpan) []LinePart {
 	for _, s := range spans {
 		start := max(0, min(len(line), s.start))
 		end := max(start, min(len(line), s.end))
-		for start > 0 && !utf8.RuneStart(line[start]) {
+		for start > 0 && start < len(line) && !utf8.RuneStart(line[start]) {
 			start--
 		}
 		for end < len(line) && !utf8.RuneStart(line[end]) {
@@ -247,7 +247,7 @@ func extractTopLevelYAMLKeys(yamlBody string) []string {
 }
 
 func parseTopLevelYAMLKey(line string) (string, bool) {
-	if line == "" || line[0] == ' ' || line[0] == '-' {
+	if line == "" || line[0] == ' ' || line[0] == '-' || line[0] == '#' {
 		return "", false
 	}
 	if strings.HasSuffix(line, ":") {
