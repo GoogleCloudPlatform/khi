@@ -98,18 +98,6 @@ func TestStore_IssueAndGet(t *testing.T) {
 		t.Fatalf("Issue().SceneID = %q, want prefix \"scn_\"", issued.SceneID)
 	}
 
-	// Mutating caller inputs and returned Stored values must not mutate stored scene state.
-	spec.TimelineIDs[0] = 999
-	spec.Annotations.Markers[0].Label = "mutated"
-	viewStartMs = -1
-	revIdx = 99
-	doc.TimelineIDs[0] = 999
-	doc.Overlay.Markers[0].Label = "mutated"
-	doc.Overlay.Spans[0].TimelineIDs[0] = 999
-	doc.Overlay.Excerpts[0].Lines[0].Parts[0].Text = "mutated"
-	issued.Spec.TimelineIDs[0] = 888
-	issued.Document.TimelineIDs[0] = 888
-
 	wantRevIdx := 1
 	wantViewStartMs := int64(1759309200000)
 	wantExpiresAt := issueNow.Add(30 * time.Minute)
@@ -152,7 +140,7 @@ func TestStore_IssueAndGet(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name:    "returns deep copy of unexpired scene",
+			name:    "returns unexpired scene",
 			now:     issueNow.Add(10 * time.Minute),
 			sceneID: issued.SceneID,
 			want:    wantStored,

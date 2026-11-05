@@ -51,12 +51,6 @@ type Stored struct {
 	Document      Document
 }
 
-func (st Stored) clone() Stored {
-	st.Spec = st.Spec.Clone()
-	st.Document = cloneDocument(st.Document)
-	return st
-}
-
 type sceneEntry struct {
 	stored   Stored
 	jsonData []byte
@@ -105,8 +99,7 @@ func (s *Store) Issue(parentSceneID string, spec Spec, doc Document) (Stored, er
 		ExpiresAt:     expiresAt,
 		Spec:          spec,
 		Document:      doc,
-	}.clone()
-	ret := stored.clone()
+	}
 
 	s.mu.Lock()
 	// Sweeping expired entries on issue bounds memory growth without a background goroutine.
@@ -121,16 +114,16 @@ func (s *Store) Issue(parentSceneID string, spec Spec, doc Document) (Stored, er
 	}
 	s.mu.Unlock()
 
-	return ret, nil
+	return stored, nil
 }
 
-// Get retrieves an unexpired Stored scene by sceneID without mutating the stored scene.
+// Get retrieves an unexpired Stored scene by sceneID.
 func (s *Store) Get(sceneID string) (Stored, error) {
 	entry, err := s.lookup(sceneID)
 	if err != nil {
 		return Stored{}, err
 	}
-	return entry.stored.clone(), nil
+	return entry.stored, nil
 }
 
 // MergePatch resolves parentSceneID when set and merges patch overrides and annotations into a new immutable Spec.
@@ -179,7 +172,7 @@ func (s *Store) MergePatch(parentSceneID string, patch Spec) (Spec, *mcpsdk.Call
 		return Spec{}, res
 	}
 
-	merged := parent.Spec
+	merged := parent.Spec.Clone()
 	merged.Filter = mergeFilters(merged.Filter, patch.Filter)
 	if len(patch.TimelineIDs) > 0 {
 		merged.TimelineIDs = slices.Clone(patch.TimelineIDs)
