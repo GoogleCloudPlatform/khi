@@ -67,6 +67,9 @@ func resolveAnchor(
 	}
 
 	idx := wb.SearchIndex()
+	if idx == nil {
+		return resolvedAnchorPoint{}, nil, fmt.Errorf("search index is not ready")
+	}
 	var pt resolvedAnchorPoint
 
 	switch {
@@ -83,7 +86,7 @@ func resolveAnchor(
 		pt.logID = anchor.LogID
 		pt.time = time.Unix(0, logEntry.Timestamp).UTC()
 		if anchor.TimelineID != 0 {
-			if idx == nil || idx.TimelineMap[anchor.TimelineID] == nil {
+			if idx.TimelineMap[anchor.TimelineID] == nil {
 				res, _, _ := timelineNotFoundResult(inspectionID, anchor.TimelineID)
 				return resolvedAnchorPoint{}, res, nil
 			}
@@ -134,7 +137,7 @@ func resolveAnchor(
 	case hasTime:
 		pt.time = anchor.Time.UTC()
 		if anchor.TimelineID != 0 {
-			if idx == nil || idx.TimelineMap[anchor.TimelineID] == nil {
+			if idx.TimelineMap[anchor.TimelineID] == nil {
 				res, _, _ := timelineNotFoundResult(inspectionID, anchor.TimelineID)
 				return resolvedAnchorPoint{}, res, nil
 			}
@@ -225,6 +228,7 @@ func resolveScopedTimelineIDs(
 			addDescendants(idx, tid, matched)
 		}
 	}
+	autoInclude.Or(matched)
 
 	return matched.ToArray(), nil, nil
 }
