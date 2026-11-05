@@ -16,6 +16,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,10 +26,13 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+const testServerBaseURL = "http://127.0.0.1:8080"
 
 func TestRenderTimelines_Golden(t *testing.T) {
 	startTime := time.Date(2026, 9, 24, 1, 0, 0, 0, time.UTC)
@@ -40,7 +44,11 @@ func TestRenderTimelines_Golden(t *testing.T) {
 		MaxAllowedNodes: maxRenderMaxNodes,
 		ViewStartTime:   startTime,
 		ViewEndTime:     endTime,
+		OverlaySummary:  "1 marker [1], 1 deck excerpt [E1]",
+		SceneID:         "scn_abcdef1234567890",
+		ParentSceneID:   "scn_parent00000000",
 		ImageURL:        "http://127.0.0.1:8080/api/v1/mcp-assets/ABCDEF.png",
+		InteractiveURL:  "http://127.0.0.1:8080/render/mcp-timeline?sceneId=scn_abcdef1234567890",
 		ExpiresAt:       time.Date(2026, 9, 24, 2, 30, 0, 0, time.UTC),
 		Applied: workbench.AppliedFilter{
 			TimelineQuery:               `timelineType == "Pod"`,
@@ -87,12 +95,17 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	wantInvalidCELResult, _, _ := mdtemplate.CELErrorResult("filter.timelineQuery", "invalid &&& syntax", invalidCELErr)
 
 	type renderTestOutcome struct {
-		Result    *mcpsdk.CallToolResult
-		Request   *TimelineRenderRequest
-		ServedPNG []byte
+		Result                *mcpsdk.CallToolResult
+		Request               *TimelineRenderRequest
+		ServedPNG             []byte
+		ServedSceneInspection string
 	}
 
-	const placeholderURL = testAssetBaseURL + "<TOKEN>.png"
+	const (
+		placeholderSceneID        = "scn_<SCENE_TOKEN>"
+		placeholderImageURL       = testAssetBaseURL + "<TOKEN>.png"
+		placeholderInteractiveURL = testServerBaseURL + "/render/mcp-timeline?sceneId=" + placeholderSceneID
+	)
 
 	testCases := []struct {
 		name     string
@@ -101,7 +114,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 		want     renderTestOutcome
 	}{
 		{
-			name: "valid render_timelines returns PNG ImageContent, image URL, and Markdown TextContent",
+			name: "valid render_timelines returns PNG ImageContent, sceneId, dual URLs, and Markdown TextContent",
 			renderer: &fakeTimelineImageRenderer{
 				result: &TimelineRenderResult{
 					PNGBytes:        fakePNG,
@@ -128,13 +141,16 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 								"",
 								"Rendered 8 of 8 matched timelines (2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"",
-								"- Image URL: `" + placeholderURL + "`",
+								"- Scene ID: `" + placeholderSceneID + "`",
+								"- Image URL: `" + placeholderImageURL + "`",
+								"- Interactive URL: `" + placeholderInteractiveURL + "`",
 								"- Expires at: <EXPIRES_AT>",
 								"",
-								"Embed the image in Markdown (`![Timeline](" + placeholderURL + ")`) or download the PNG before it expires:",
+								"Pass `parentSceneId: \"" + placeholderSceneID + "\"` to `render_timelines` to refine or branch this scene, or open the Interactive URL in a browser to jump directly to pinned diffs and logs in KHI.",
+								"Embed the static PNG in Markdown (`![Timeline](" + placeholderImageURL + ")`) or download it before it expires:",
 								"",
 								"```sh",
-								"curl --fail-with-body -o timeline.png '" + placeholderURL + "'",
+								"curl --fail-with-body -o timeline.png '" + placeholderImageURL + "'",
 								"```",
 								"",
 								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
@@ -146,7 +162,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					InspectionID: inspectionID,
 					MaxNodes:     defaultRenderMaxNodes,
 				},
-				ServedPNG: fakePNG,
+				ServedPNG:             fakePNG,
+				ServedSceneInspection: inspectionID,
 			},
 		},
 		{
@@ -187,13 +204,16 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 								"Rendered 20 of 75 matched timelines (2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to 150) to render omitted timelines.",
 								"",
-								"- Image URL: `" + placeholderURL + "`",
+								"- Scene ID: `" + placeholderSceneID + "`",
+								"- Image URL: `" + placeholderImageURL + "`",
+								"- Interactive URL: `" + placeholderInteractiveURL + "`",
 								"- Expires at: <EXPIRES_AT>",
 								"",
-								"Embed the image in Markdown (`![Timeline](" + placeholderURL + ")`) or download the PNG before it expires:",
+								"Pass `parentSceneId: \"" + placeholderSceneID + "\"` to `render_timelines` to refine or branch this scene, or open the Interactive URL in a browser to jump directly to pinned diffs and logs in KHI.",
+								"Embed the static PNG in Markdown (`![Timeline](" + placeholderImageURL + ")`) or download it before it expires:",
 								"",
 								"```sh",
-								"curl --fail-with-body -o timeline.png '" + placeholderURL + "'",
+								"curl --fail-with-body -o timeline.png '" + placeholderImageURL + "'",
 								"```",
 								"",
 								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
@@ -220,15 +240,30 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					MaxNodes:           20,
 					TimezoneShiftHours: 9,
 				},
-				ServedPNG: fakePNG,
+				ServedPNG:             fakePNG,
+				ServedSceneInspection: inspectionID,
 			},
 		},
 		{
-			name:     "missing inspectionId returns INVALID_ARGUMENT",
+			name:     "missing both inspectionId and parentSceneId returns INVALID_ARGUMENT",
 			renderer: &fakeTimelineImageRenderer{},
 			input:    RenderTimelinesInput{},
 			want: renderTestOutcome{
-				Result: wantErrorResult("INVALID_ARGUMENT", "inspectionId is required."),
+				Result: wantErrorResult("INVALID_ARGUMENT", "Specify inspectionId to create a new scene, or parentSceneId to patch an existing scene."),
+			},
+		},
+		{
+			name:     "unknown parentSceneId returns SCENE_NOT_FOUND",
+			renderer: &fakeTimelineImageRenderer{},
+			input: RenderTimelinesInput{
+				ParentSceneID: "scn_missing",
+			},
+			want: renderTestOutcome{
+				Result: wantErrorResult(
+					"SCENE_NOT_FOUND",
+					"No scene with ID `scn_missing` exists.",
+					"Create a new scene by specifying `inspectionId` and `filter`.",
+				),
 			},
 		},
 		{
@@ -301,7 +336,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			assetStore := NewAssetStore(testAssetBaseURL, DefaultAssetTTL)
-			handler := NewWorkbenchHandler(mgr, tc.renderer, assetStore)
+			sceneStore := scene.NewStore(scene.DefaultTTL)
+			handler := NewWorkbenchHandler(mgr, tc.renderer, assetStore, sceneStore, testServerBaseURL)
 			before := time.Now().UTC().Truncate(time.Second)
 
 			res, _, err := handler.handleRenderTimelines(context.Background(), nil, tc.input)
@@ -310,9 +346,10 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			}
 
 			var servedPNG []byte
+			var servedSceneInspection string
 			if res != nil && !res.IsError && len(res.Content) >= 2 {
 				if textContent, ok := res.Content[1].(*mcpsdk.TextContent); ok {
-					issuedURL, expiresAtStr := extractRenderedImageMetadata(t, textContent.Text)
+					issuedSceneID, issuedImageURL, issuedInteractiveURL, expiresAtStr := extractRenderedSceneMetadata(t, textContent.Text)
 					expiresAt, parseErr := time.Parse(time.RFC3339, expiresAtStr)
 					if parseErr != nil {
 						t.Fatalf("Expires at %q failed RFC3339 parse: %v", expiresAtStr, parseErr)
@@ -320,26 +357,44 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					if expiresAt.Before(before.Add(DefaultAssetTTL)) {
 						t.Errorf("Expires at = %v, want at least %v", expiresAt, before.Add(DefaultAssetTTL))
 					}
-
-					fileName := strings.TrimPrefix(issuedURL, testAssetBaseURL)
-					rec := httptest.NewRecorder()
-					req := httptest.NewRequest(http.MethodGet, issuedURL, nil)
-					assetStore.ServeAsset(rec, req, fileName)
-					if rec.Code != http.StatusOK {
-						t.Fatalf("GET %s returned %d, want %d", issuedURL, rec.Code, http.StatusOK)
+					wantInteractiveURL := testServerBaseURL + "/render/mcp-timeline?sceneId=" + issuedSceneID
+					if issuedInteractiveURL != wantInteractiveURL {
+						t.Errorf("Interactive URL = %q, want %q", issuedInteractiveURL, wantInteractiveURL)
 					}
-					servedPNG = rec.Body.Bytes()
 
-					normalizedText := strings.ReplaceAll(textContent.Text, issuedURL, placeholderURL)
+					fileName := strings.TrimPrefix(issuedImageURL, testAssetBaseURL)
+					assetRec := httptest.NewRecorder()
+					assetReq := httptest.NewRequest(http.MethodGet, issuedImageURL, nil)
+					assetStore.ServeAsset(assetRec, assetReq, fileName)
+					if assetRec.Code != http.StatusOK {
+						t.Fatalf("GET %s returned %d, want %d", issuedImageURL, assetRec.Code, http.StatusOK)
+					}
+					servedPNG = assetRec.Body.Bytes()
+
+					sceneRec := httptest.NewRecorder()
+					sceneReq := httptest.NewRequest(http.MethodGet, testServerBaseURL+"/api/v1/mcp-scenes/"+issuedSceneID, nil)
+					sceneStore.ServeScene(sceneRec, sceneReq, issuedSceneID)
+					if sceneRec.Code != http.StatusOK {
+						t.Fatalf("GET scene %s returned %d, want %d", issuedSceneID, sceneRec.Code, http.StatusOK)
+					}
+					var decodedDoc scene.Document
+					if err := json.Unmarshal(sceneRec.Body.Bytes(), &decodedDoc); err != nil {
+						t.Fatalf("json.Unmarshal(scene doc) failed: %v", err)
+					}
+					servedSceneInspection = decodedDoc.InspectionID
+
+					normalizedText := strings.ReplaceAll(textContent.Text, issuedSceneID, placeholderSceneID)
+					normalizedText = strings.ReplaceAll(normalizedText, issuedImageURL, placeholderImageURL)
 					normalizedText = strings.Replace(normalizedText, "- Expires at: "+expiresAtStr, "- Expires at: <EXPIRES_AT>", 1)
 					textContent.Text = normalizedText
 				}
 			}
 
 			got := renderTestOutcome{
-				Result:    res,
-				Request:   tc.renderer.gotReq,
-				ServedPNG: servedPNG,
+				Result:                res,
+				Request:               tc.renderer.gotReq,
+				ServedPNG:             servedPNG,
+				ServedSceneInspection: servedSceneInspection,
 			}
 			if diff := cmp.Diff(tc.want, got, ignoreMCPUnexported); diff != "" {
 				t.Errorf("handleRenderTimelines() outcome mismatch (-want +got):\n%s", diff)
@@ -348,23 +403,30 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	}
 }
 
-func extractRenderedImageMetadata(t *testing.T, markdown string) (string, string) {
+func extractRenderedSceneMetadata(t *testing.T, markdown string) (sceneID, imageURL, interactiveURL, expiresAt string) {
 	t.Helper()
-	const urlPrefix = "- Image URL: `"
-	_, afterURL, found := strings.Cut(markdown, urlPrefix)
-	if !found {
-		t.Fatalf("render_timelines markdown missing %q:\n%s", urlPrefix, markdown)
+
+	extractCodeField := func(prefix string) (string, string) {
+		_, after, found := strings.Cut(markdown, prefix)
+		if !found {
+			t.Fatalf("render_timelines markdown missing %q:\n%s", prefix, markdown)
+		}
+		val, rest, found := strings.Cut(after, "`")
+		if !found {
+			t.Fatalf("render_timelines markdown missing closing backtick for %q:\n%s", prefix, markdown)
+		}
+		return val, rest
 	}
-	issuedURL, rest, found := strings.Cut(afterURL, "`")
-	if !found {
-		t.Fatalf("render_timelines markdown missing closing backtick for Image URL:\n%s", markdown)
-	}
+
+	sceneID, _ = extractCodeField("- Scene ID: `")
+	imageURL, _ = extractCodeField("- Image URL: `")
+	interactiveURL, rest := extractCodeField("- Interactive URL: `")
 
 	const expiresPrefix = "\n- Expires at: "
 	_, afterExpires, found := strings.Cut(rest, expiresPrefix)
 	if !found {
 		t.Fatalf("render_timelines markdown missing %q:\n%s", expiresPrefix, markdown)
 	}
-	expiresAt, _, _ := strings.Cut(afterExpires, "\n")
-	return issuedURL, expiresAt
+	expiresAt, _, _ = strings.Cut(afterExpires, "\n")
+	return sceneID, imageURL, interactiveURL, expiresAt
 }

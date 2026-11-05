@@ -27,7 +27,7 @@ import (
 
 func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {
 	mgr, inspectionID := newTestWorkbenchManager(t)
-	handler := NewWorkbenchHandler(mgr, nil, nil)
+	handler := NewWorkbenchHandler(mgr, nil, nil, nil, "")
 
 	testCases := []struct {
 		name  string
