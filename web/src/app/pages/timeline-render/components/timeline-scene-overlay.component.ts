@@ -23,7 +23,6 @@ import {
 import {
   TimelineConnectorStyle,
   TimelineMarkerStyle,
-  TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import {
   TimelineSceneViewModel,
@@ -44,11 +43,6 @@ export class TimelineSceneOverlayComponent {
    * Exports TimelineMarkerStyle enum to the template.
    */
   protected readonly TimelineMarkerStyle = TimelineMarkerStyle;
-
-  /**
-   * Exports TimelineSpanPattern enum to the template.
-   */
-  protected readonly TimelineSpanPattern = TimelineSpanPattern;
 
   /**
    * Exports TimelineConnectorStyle enum to the template.

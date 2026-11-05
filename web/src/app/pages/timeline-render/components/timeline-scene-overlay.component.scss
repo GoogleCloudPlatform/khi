@@ -151,14 +151,24 @@ $fallback-palette-surface: mat.m2-get-color-from-palette(
       transparent 6px,
       transparent 12px
     );
-    border: 1.5px dashed var(--palette-main);
+    border-bottom: 1.5px dashed var(--palette-main);
     border-top: 2.5px solid var(--palette-main);
+
+    &.narrow {
+      border-left: 1.5px dashed var(--palette-main);
+      border-right: 1.5px dashed var(--palette-main);
+    }
   }
 
   &.pattern-outline {
     background-color: transparent;
-    border: 1.5px solid var(--palette-main);
-    border-top-width: 2.5px;
+    border-bottom: 1.5px solid var(--palette-main);
+    border-top: 2.5px solid var(--palette-main);
+
+    &.narrow {
+      border-left: 1.5px solid var(--palette-main);
+      border-right: 1.5px solid var(--palette-main);
+    }
   }
 
   &.scoped {
@@ -341,9 +351,12 @@ $fallback-palette-surface: mat.m2-get-color-from-palette(
   white-space: nowrap;
   z-index: 9;
 
+  &.interactive {
+    pointer-events: auto;
+  }
+
   &.clickable {
     cursor: pointer;
-    pointer-events: auto;
   }
 
   &.is-hovered {

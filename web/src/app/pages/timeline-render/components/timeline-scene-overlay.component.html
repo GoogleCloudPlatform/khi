@@ -163,11 +163,10 @@
     }
 
     <div
-      [class]="
-        'marker-pill' +
-        (interactiveMode() && marker.jumpTarget ? ' clickable' : '') +
-        (hoveredBadge() === marker.badge ? ' is-hovered' : '')
-      "
+      class="marker-pill"
+      [class.interactive]="interactiveMode()"
+      [class.clickable]="interactiveMode() && !!marker.jumpTarget"
+      [class.is-hovered]="hoveredBadge() === marker.badge"
       [style.--palette-main]="marker.colors.main"
       [style.--palette-on-main]="marker.colors.onMain"
       [style.--palette-surface]="marker.colors.surface"
