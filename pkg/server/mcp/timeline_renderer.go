@@ -40,15 +40,12 @@ type TimelineRenderRequest struct {
 	TimelineIDs            []uint32 `json:"timelineIds,omitempty"`
 	MaxDepth               int      `json:"maxDepth,omitempty"`
 	MaxNodes               int      `json:"maxNodes,omitempty"`
-	Width                  int      `json:"width,omitempty"`
 	TimezoneShiftHours     float64  `json:"timezoneShiftHours,omitempty"`
 }
 
 // TimelineRenderResult holds the captured PNG image and measurement metadata.
 type TimelineRenderResult struct {
 	PNGBytes        []byte
-	Width           int
-	Height          int
 	RenderedCount   int
 	TotalMatched    int
 	HasMore         bool
@@ -91,7 +88,23 @@ func NewChromeTimelineImageRenderer(browser *cdp.Browser, baseURL string) *Chrom
 	}
 }
 
-const defaultTimelineRenderTimeout = 30 * time.Second
+const (
+	defaultTimelineRenderTimeout      = 30 * time.Second
+	defaultTimelineDeviceScaleFactor  = 2
+	fallbackTimelineDeviceScaleFactor = 1
+	// maxTimelinePhysicalDimension caps the rendered backing store dimension so SwiftShader
+	// WebGL2 and Chromium Canvas2D stay safely within an 8192px texture and renderbuffer limit.
+	maxTimelinePhysicalDimension = 8192
+)
+
+// timelineDeviceScaleFactor returns Retina 2x scale when the physical dimensions fit within
+// WebGL backing store limits, and falls back to 1x for oversized layouts.
+func timelineDeviceScaleFactor(width, height int) int {
+	if max(width, height)*defaultTimelineDeviceScaleFactor > maxTimelinePhysicalDimension {
+		return fallbackTimelineDeviceScaleFactor
+	}
+	return defaultTimelineDeviceScaleFactor
+}
 
 // RenderTimeline applies the requested timeline parameters and captures a PNG screenshot.
 func (r *ChromeTimelineImageRenderer) RenderTimeline(ctx context.Context, req TimelineRenderRequest) (*TimelineRenderResult, error) {
@@ -185,7 +198,8 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 		return nil, fmt.Errorf("failed to apply timeline render parameters: %w", err)
 	}
 
-	if err := r.client.SetViewportSize(ctx, measure.Width, measure.Height); err != nil {
+	scaleFactor := timelineDeviceScaleFactor(measure.Width, measure.Height)
+	if err := r.client.SetViewportSize(ctx, measure.Width, measure.Height, float64(scaleFactor)); err != nil {
 		return nil, fmt.Errorf("failed to set viewport dimensions: %w", err)
 	}
 
@@ -200,8 +214,6 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 
 	return &TimelineRenderResult{
 		PNGBytes:        pngBytes,
-		Width:           measure.Width,
-		Height:          measure.Height,
 		RenderedCount:   measure.RenderedCount,
 		TotalMatched:    measure.TotalMatched,
 		HasMore:         measure.HasMore,

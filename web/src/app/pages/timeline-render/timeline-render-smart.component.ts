@@ -30,6 +30,14 @@ import {
   TimelineRenderMeasureResult,
   TimelineRenderParams,
 } from 'src/app/common/schema/timeline-render-types';
+import {
+  MIN_CHART_VIEWPORT_WIDTH_PX,
+  MIN_INDEX_PANE_WIDTH_PX,
+  TIMELINE_GUTTER_WIDTH_PX,
+  TIMELINE_HEADER_HEIGHT_PX,
+  TIMELINE_TEXT_WIDTH_MEASURER,
+  calculateTimelineStageDimensions,
+} from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import {
@@ -59,6 +67,11 @@ const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
   updateProgress: () => undefined,
 };
 
+interface ViewportTimeRange {
+  readonly viewStartTimeMs: number;
+  readonly viewEndTimeMs: number;
+}
+
 /**
  * Smart component that renders only the timeline frame for headless screenshot capture.
  *
@@ -79,12 +92,6 @@ const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
   ],
 })
 export class TimelineRenderSmartComponent implements OnInit {
-  private static readonly HEADER_HEIGHT = 60;
-  private static readonly INDEX_PANE_WIDTH = 300;
-  private static readonly GUTTER_WIDTH = 8;
-  private static readonly DEFAULT_WIDTH = 1600;
-  private static readonly MIN_WIDTH = 800;
-  private static readonly MAX_WIDTH = 3840;
   private static readonly DEFAULT_MAX_NODES = 50;
 
   private readonly route = inject(ActivatedRoute);
@@ -93,6 +100,7 @@ export class TimelineRenderSmartComponent implements OnInit {
   private readonly dataLoader = inject(InspectionDataLoaderService);
   private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly styleOverrideService = inject(StyleOverrideService);
+  private readonly measureText = inject(TIMELINE_TEXT_WIDTH_MEASURER);
 
   private readonly timelineFrame = viewChild.required<TimelineFrameComponent>(
     TimelineFrameComponent,
@@ -118,6 +126,18 @@ export class TimelineRenderSmartComponent implements OnInit {
   protected readonly pixelsPerNs = signal<number>(1e-8);
 
   protected readonly viewportLeftTimeNs = signal<bigint>(0n);
+
+  protected readonly indexPaneWidthPx = signal<number>(MIN_INDEX_PANE_WIDTH_PX);
+
+  protected readonly stageWidthPx = signal<number>(
+    MIN_INDEX_PANE_WIDTH_PX +
+      TIMELINE_GUTTER_WIDTH_PX +
+      MIN_CHART_VIEWPORT_WIDTH_PX,
+  );
+
+  protected readonly stageHeightPx = signal<number>(
+    TIMELINE_HEADER_HEIGHT_PX + BASE_ROW_HEIGHT,
+  );
 
   protected readonly styleStore = computed<StyleStoreLike>(() => {
     return this.styleOverrideService;
@@ -188,8 +208,14 @@ export class TimelineRenderSmartComponent implements OnInit {
    */
   public ngOnInit(): void {
     const bridge: KhiTimelineRendererBridge = {
-      applyAndMeasure: (params) => this.applyAndMeasure(params),
-      waitForStableFrame: () => this.waitForStableFrame(),
+      applyAndMeasure: async (params) => {
+        await document.fonts.ready;
+        return this.applyAndMeasure(params);
+      },
+      waitForStableFrame: async () => {
+        await document.fonts.ready;
+        return this.waitForStableFrame();
+      },
     };
     window.__khiCDPBridge = {
       ...window.__khiCDPBridge,
@@ -248,16 +274,17 @@ export class TimelineRenderSmartComponent implements OnInit {
     this.renderedTimelines.set(rendered);
     this.timezoneShiftHours.set(params.timezoneShiftHours ?? 0);
 
-    const width = Math.max(
-      TimelineRenderSmartComponent.MIN_WIDTH,
-      Math.min(
-        TimelineRenderSmartComponent.MAX_WIDTH,
-        params.width ?? TimelineRenderSmartComponent.DEFAULT_WIDTH,
-      ),
+    const dimensions = calculateTimelineStageDimensions(
+      rendered,
+      this.styleStore(),
+      this.measureText,
     );
-    const height = this.calculateTotalHeight(rendered);
+    this.indexPaneWidthPx.set(dimensions.indexPaneWidthPx);
+    this.stageWidthPx.set(dimensions.stageWidthPx);
+    this.stageHeightPx.set(dimensions.timelineFrameHeightPx);
+
     const { viewStartTimeMs, viewEndTimeMs } = this.applyHorizontalViewport(
-      width,
+      dimensions.chartViewportWidthPx,
       params.viewStartTimeMs,
       params.viewEndTimeMs,
     );
@@ -265,8 +292,8 @@ export class TimelineRenderSmartComponent implements OnInit {
     this.appRef.tick();
 
     return {
-      width,
-      height,
+      width: dimensions.stageWidthPx,
+      height: dimensions.timelineFrameHeightPx,
       renderedCount: rendered.length,
       totalMatched: matched.length,
       hasMore: matched.length > rendered.length,
@@ -387,32 +414,11 @@ export class TimelineRenderSmartComponent implements OnInit {
     return matched;
   }
 
-  private calculateTotalHeight(
-    timelines: readonly ReadonlyDomainElement<Timeline>[],
-  ): number {
-    const styleStore = this.styleStore();
-    let rowsHeight = 0;
-    for (const timeline of timelines) {
-      let timelineType = timeline.type;
-      try {
-        timelineType =
-          styleStore.getTimelineType(timeline.type.id) ?? timeline.type;
-      } catch {
-        timelineType = timeline.type;
-      }
-      rowsHeight += timelineType.height * BASE_ROW_HEIGHT;
-    }
-    return Math.max(
-      TimelineRenderSmartComponent.HEADER_HEIGHT + BASE_ROW_HEIGHT,
-      Math.ceil(TimelineRenderSmartComponent.HEADER_HEIGHT + rowsHeight),
-    );
-  }
-
   private applyHorizontalViewport(
-    width: number,
+    chartViewportWidthPx: number,
     requestedStartTimeMs?: number,
     requestedEndTimeMs?: number,
-  ): { viewStartTimeMs: number; viewEndTimeMs: number } {
+  ): ViewportTimeRange {
     const minLogNs = this.minQueryLogTimeNs();
     const maxLogNs = this.maxQueryLogTimeNs();
     const viewStartTimeNs =
@@ -428,13 +434,8 @@ export class TimelineRenderSmartComponent implements OnInit {
       Number(viewEndTimeNs - viewStartTimeNs),
     );
 
-    const chartViewportWidth = Math.max(
-      100,
-      width -
-        TimelineRenderSmartComponent.INDEX_PANE_WIDTH -
-        TimelineRenderSmartComponent.GUTTER_WIDTH,
-    );
-    const pixelsPerNs = chartViewportWidth / durationNs;
+    const safeChartWidthPx = Math.max(100, chartViewportWidthPx);
+    const pixelsPerNs = safeChartWidthPx / durationNs;
 
     this.pendingPixelsPerNs = pixelsPerNs;
     this.pendingViewportLeftTimeNs = viewStartTimeNs;

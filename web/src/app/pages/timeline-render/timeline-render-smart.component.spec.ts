@@ -19,6 +19,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { TimelineRenderSmartComponent } from 'src/app/pages/timeline-render/timeline-render-smart.component';
+import { TIMELINE_TEXT_WIDTH_MEASURER } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
@@ -55,6 +56,7 @@ class StubTimelineFrameComponent {
   readonly initialScaleApplied = input<unknown>();
   readonly allLogs = input<unknown>();
   readonly filteredLogIds = input<unknown>();
+  readonly indexPaneSize = input<number>(300);
   readonly showLegend = input<unknown>();
   readonly showResizerHandle = input<unknown>();
   readonly readyToRender = signal(true);
@@ -82,6 +84,7 @@ const mockTimelineType: TimelineType = {
 function createFakeTimeline(
   id: number,
   pathIds: number[],
+  name = `node-${id}`,
 ): ReadonlyDomainElement<Timeline> {
   const pathNodes: TimelinePathNode[] = pathIds.map((nodeId) => ({
     id: nodeId,
@@ -91,8 +94,8 @@ function createFakeTimeline(
   }));
   return {
     id,
-    name: `node-${id}`,
-    rawName: `node-${id}`,
+    name,
+    rawName: name,
     type: mockTimelineType,
     path: pathNodes,
     layer: pathNodes.length - 1,
@@ -195,6 +198,10 @@ describe('TimelineRenderSmartComponent', () => {
         },
         { provide: InspectionDataStore, useValue: mockInspectionDataStore },
         { provide: StyleOverrideService, useValue: mockStyleOverrideService },
+        {
+          provide: TIMELINE_TEXT_WIDTH_MEASURER,
+          useValue: (text: string) => text.length * 7,
+        },
       ],
     })
       .overrideComponent(TimelineRenderSmartComponent, {
@@ -244,9 +251,10 @@ describe('TimelineRenderSmartComponent', () => {
       filterStartTime: null,
       filterEndTime: null,
     });
-    // HEADER_HEIGHT (60) + 5 rows * (height 2 * BASE_ROW_HEIGHT 25 = 50) = 310
+    // MIN_INDEX_PANE_WIDTH_PX (300) + GUTTER_WIDTH (8) + MIN_CHART_VIEWPORT_WIDTH_PX (1280) = 1588.
+    // HEADER_HEIGHT (60) + 5 rows * (height 2 * BASE_ROW_HEIGHT 25 = 50) = 310.
     expect(firstResult).toEqual({
-      width: 1600,
+      width: 1588,
       height: 310,
       renderedCount: 5,
       totalMatched: 5,
@@ -254,6 +262,7 @@ describe('TimelineRenderSmartComponent', () => {
       viewStartTimeMs: 1_000_000,
       viewEndTimeMs: 2_000_000,
     });
+    expect(stubFrame.indexPaneSize()).toBe(300);
 
     await component.applyAndMeasure({
       inspectionId: 'insp-1',
@@ -268,7 +277,7 @@ describe('TimelineRenderSmartComponent', () => {
       params: { timelineIds: [4] },
       wantIds: [1, 2, 3, 4],
       wantResult: {
-        width: 1600,
+        width: 1588,
         height: 260,
         totalMatched: 4,
         renderedCount: 4,
@@ -282,7 +291,7 @@ describe('TimelineRenderSmartComponent', () => {
       params: { timelineIds: [4], maxDepth: 2 },
       wantIds: [1, 2, 3],
       wantResult: {
-        width: 1600,
+        width: 1588,
         height: 210,
         totalMatched: 3,
         renderedCount: 3,
@@ -296,7 +305,7 @@ describe('TimelineRenderSmartComponent', () => {
       params: { timelineIds: [4], maxDepth: 2, maxNodes: 2 },
       wantIds: [1, 2],
       wantResult: {
-        width: 1600,
+        width: 1588,
         height: 160,
         totalMatched: 3,
         renderedCount: 2,
@@ -322,14 +331,13 @@ describe('TimelineRenderSmartComponent', () => {
   it('should zoom horizontal viewport to requested viewStartTimeMs and viewEndTimeMs', async () => {
     const res = await component.applyAndMeasure({
       inspectionId: 'insp-1',
-      width: 1308, // chartViewportWidth = 1308 - 308 = 1000px
       viewStartTimeMs: 1200_000,
-      viewEndTimeMs: 1400_000, // duration = 200_000_000_000ns -> pixelsPerNs = 1000 / 200_000_000_000 = 5e-9
+      viewEndTimeMs: 1400_000, // duration = 200_000_000_000ns -> pixelsPerNs = 1280 / 200_000_000_000 = 6.4e-9.
     });
     fixture.detectChanges();
 
     expect(res).toEqual({
-      width: 1308,
+      width: 1588,
       height: 310,
       renderedCount: 5,
       totalMatched: 5,
@@ -342,14 +350,39 @@ describe('TimelineRenderSmartComponent', () => {
       pixelsPerNs: stubFrame.pixelsPerNs(),
     }).toEqual({
       viewportLeftTimeNs: 1_200_000_000_000n,
-      pixelsPerNs: 5e-9,
+      pixelsPerNs: 6.4e-9,
     });
+  });
+
+  it('should expand indexPaneSize and stage width horizontally when rendered timeline names are wide while keeping minimum chart viewport width', async () => {
+    const widePod = createFakeTimeline(
+      6,
+      [1, 2, 3, 6],
+      'gke-test-cluster-e2-standard-8-pool-node-12345678-abcd',
+    );
+    filteredTimelinesSignal.set([
+      rootTimeline,
+      namespaceTimeline,
+      podTimelineA,
+      widePod,
+    ]);
+
+    const res = await component.applyAndMeasure({
+      inspectionId: 'insp-1',
+      viewStartTimeMs: 1200_000,
+      viewEndTimeMs: 1400_000,
+    });
+    fixture.detectChanges();
+
+    const indexPaneSize = stubFrame.indexPaneSize();
+    expect(indexPaneSize).toBeGreaterThan(300);
+    expect(res.width).toBe(indexPaneSize + 8 + 1280);
+    expect(stubFrame.pixelsPerNs()).toBe(6.4e-9);
   });
 
   it('should wait for frame readiness and restore viewport signals in waitForStableFrame', async () => {
     await component.applyAndMeasure({
       inspectionId: 'insp-1',
-      width: 1308,
       viewStartTimeMs: 1200_000,
       viewEndTimeMs: 1400_000,
     });
@@ -380,11 +413,11 @@ describe('TimelineRenderSmartComponent', () => {
       pixelsPerNs: stubFrame.pixelsPerNs(),
     }).toEqual({
       viewportLeftTimeNs: 1_200_000_000_000n,
-      pixelsPerNs: 5e-9,
+      pixelsPerNs: 6.4e-9,
     });
     expect(stubFrame.syncViewportAndInvalidate.calls.allArgs()).toEqual([
-      [1_200_000_000_000n, 5e-9],
-      [1_200_000_000_000n, 5e-9],
+      [1_200_000_000_000n, 6.4e-9],
+      [1_200_000_000_000n, 6.4e-9],
     ]);
   });
 
@@ -405,5 +438,67 @@ describe('TimelineRenderSmartComponent', () => {
     ).toBeRejectedWithError(
       /Failed to load inspection data for inspectionId=insp-2/,
     );
+  });
+
+  it('should wait for document.fonts.ready in CDP bridge functions before completing', async () => {
+    let resolveFontsReady!: (value: FontFaceSet) => void;
+    const fontsReadyPromise = new Promise<FontFaceSet>((resolve) => {
+      resolveFontsReady = resolve;
+    });
+    const fontsReadySpy = spyOnProperty(
+      document.fonts,
+      'ready',
+      'get',
+    ).and.returnValue(fontsReadyPromise);
+
+    const bridge = window.__khiCDPBridge?.timelineRenderer;
+    expect(bridge).toBeDefined();
+
+    let applyCompleted = false;
+    const bridgeApplyPromise = bridge!
+      .applyAndMeasure({
+        inspectionId: 'insp-1',
+      })
+      .then(() => {
+        applyCompleted = true;
+      });
+
+    await Promise.resolve();
+    expect(applyCompleted).toBeFalse();
+
+    resolveFontsReady(document.fonts);
+    await bridgeApplyPromise;
+    expect(applyCompleted).toBeTrue();
+
+    let resolveFrameFontsReady!: (value: FontFaceSet) => void;
+    const frameFontsReadyPromise = new Promise<FontFaceSet>((resolve) => {
+      resolveFrameFontsReady = resolve;
+    });
+    fontsReadySpy.and.returnValue(frameFontsReadyPromise);
+
+    let frameCompleted = false;
+    const bridgeFramePromise = bridge!.waitForStableFrame().then(() => {
+      frameCompleted = true;
+    });
+
+    await Promise.resolve();
+    expect(frameCompleted).toBeFalse();
+
+    resolveFrameFontsReady(document.fonts);
+    await bridgeFramePromise;
+    expect(frameCompleted).toBeTrue();
+  });
+
+  it('should not wait for document.fonts.ready when applyAndMeasure is called directly', async () => {
+    const neverResolvingFonts = new Promise<FontFaceSet>(() => undefined);
+    spyOnProperty(document.fonts, 'ready', 'get').and.returnValue(
+      neverResolvingFonts,
+    );
+
+    const result = await component.applyAndMeasure({
+      inspectionId: 'insp-1',
+    });
+
+    expect(result.renderedCount).toBe(5);
   });
 });

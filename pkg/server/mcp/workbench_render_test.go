@@ -38,8 +38,6 @@ func TestRenderTimelines_Golden(t *testing.T) {
 		TotalMatched:    8,
 		HasMore:         false,
 		MaxAllowedNodes: maxRenderMaxNodes,
-		Width:           1600,
-		Height:          460,
 		ViewStartTime:   startTime,
 		ViewEndTime:     endTime,
 		ImageURL:        "http://127.0.0.1:8080/api/v1/mcp-assets/ABCDEF.png",
@@ -107,8 +105,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			renderer: &fakeTimelineImageRenderer{
 				result: &TimelineRenderResult{
 					PNGBytes:        fakePNG,
-					Width:           1600,
-					Height:          460,
 					RenderedCount:   8,
 					TotalMatched:    8,
 					HasMore:         false,
@@ -130,7 +126,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 							Text: strings.Join([]string{
 								"# Rendered timeline view",
 								"",
-								"Rendered 8 of 8 matched timelines (1600x460 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
+								"Rendered 8 of 8 matched timelines (2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"",
 								"- Image URL: `" + placeholderURL + "`",
 								"- Expires at: <EXPIRES_AT>",
@@ -149,7 +145,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				Request: &TimelineRenderRequest{
 					InspectionID: inspectionID,
 					MaxNodes:     defaultRenderMaxNodes,
-					Width:        defaultRenderWidth,
 				},
 				ServedPNG: fakePNG,
 			},
@@ -159,8 +154,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			renderer: &fakeTimelineImageRenderer{
 				result: &TimelineRenderResult{
 					PNGBytes:        fakePNG,
-					Width:           1200,
-					Height:          800,
 					RenderedCount:   20,
 					TotalMatched:    75,
 					HasMore:         true,
@@ -178,7 +171,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				},
 				MaxDepth:           3,
 				MaxNodes:           20,
-				Width:              1200,
 				TimezoneShiftHours: 9,
 			},
 			want: renderTestOutcome{
@@ -192,7 +184,7 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 							Text: strings.Join([]string{
 								"# Rendered timeline view",
 								"",
-								"Rendered 20 of 75 matched timelines (1200x800 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
+								"Rendered 20 of 75 matched timelines (2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to 150) to render omitted timelines.",
 								"",
 								"- Image URL: `" + placeholderURL + "`",
@@ -226,7 +218,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					ViewEndTimeMs:      &endMs,
 					MaxDepth:           3,
 					MaxNodes:           20,
-					Width:              1200,
 					TimezoneShiftHours: 9,
 				},
 				ServedPNG: fakePNG,
@@ -302,7 +293,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				Request: &TimelineRenderRequest{
 					InspectionID: inspectionID,
 					MaxNodes:     defaultRenderMaxNodes,
-					Width:        defaultRenderWidth,
 				},
 			},
 		},

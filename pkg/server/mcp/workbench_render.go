@@ -28,9 +28,6 @@ import (
 const (
 	defaultRenderMaxNodes = 50
 	maxRenderMaxNodes     = 150
-	defaultRenderWidth    = 1600
-	minRenderWidth        = 800
-	maxRenderWidth        = 3840
 )
 
 // RenderTimelinesInput defines the input parameters for the render_timelines MCP tool.
@@ -40,7 +37,6 @@ type RenderTimelinesInput struct {
 	TimelineIDs        []string         `json:"timelineIds,omitempty" jsonschema:"Optional list of timeline IDs (from search_timelines or search_logs) to render along with their ancestor hierarchy nodes."`
 	MaxDepth           int              `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
 	MaxNodes           int              `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
-	Width              int              `json:"width,omitempty" jsonschema:"Rendered image width in pixels (default 1600, min 800, max 3840)."`
 	TimezoneShiftHours float64          `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
 }
 
@@ -49,8 +45,6 @@ type renderTimelinesTemplateData struct {
 	TotalMatched    int
 	HasMore         bool
 	MaxAllowedNodes int
-	Width           int
-	Height          int
 	ViewStartTime   time.Time
 	ViewEndTime     time.Time
 	ImageURL        string
@@ -98,8 +92,6 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 		TotalMatched:    renderRes.TotalMatched,
 		HasMore:         renderRes.HasMore,
 		MaxAllowedNodes: maxRenderMaxNodes,
-		Width:           renderRes.Width,
-		Height:          renderRes.Height,
 		ViewStartTime:   time.UnixMilli(renderRes.ViewStartTimeMs).UTC(),
 		ViewEndTime:     time.UnixMilli(renderRes.ViewEndTimeMs).UTC(),
 		ImageURL:        grant.URL,
@@ -160,12 +152,6 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 	}
 	maxNodes = min(maxNodes, maxRenderMaxNodes)
 
-	width := input.Width
-	if width <= 0 {
-		width = defaultRenderWidth
-	}
-	width = max(minRenderWidth, min(width, maxRenderWidth))
-
 	req := TimelineRenderRequest{
 		InspectionID:           input.InspectionID,
 		TimelineQuery:          applied.TimelineQuery,
@@ -175,7 +161,6 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 		TimelineIDs:            timelineIDs,
 		MaxDepth:               max(0, input.MaxDepth),
 		MaxNodes:               maxNodes,
-		Width:                  width,
 		TimezoneShiftHours:     input.TimezoneShiftHours,
 	}
 
