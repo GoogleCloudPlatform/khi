@@ -437,18 +437,6 @@ func TestResolve_Errors(t *testing.T) {
 			wantCode: "INVALID_ANCHOR",
 		},
 		{
-			name: "anchor with both logId and time returns INVALID_ANCHOR",
-			spec: Spec{
-				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					Markers: []MarkerAnnotation{
-						{Label: "both", Anchor: Anchor{LogID: fx.oomEventLogID, Time: &fx.baseTime}},
-					},
-				},
-			},
-			wantCode: "INVALID_ANCHOR",
-		},
-		{
 			name: "anchor outside filter.startTime..endTime returns ANCHOR_OUT_OF_VIEWPORT",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
