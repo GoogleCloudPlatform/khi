@@ -116,6 +116,7 @@ func resolveExcerpts(
 		})
 	}
 
+	idx := wb.SearchIndex()
 	for i := range ann.LogExcerpts {
 		le := &ann.LogExcerpts[i]
 		fieldPath := fmt.Sprintf("annotations.logExcerpts[%d]", i)
@@ -147,13 +148,13 @@ func resolveExcerpts(
 
 		var tid uint32
 		if le.TimelineID != 0 {
-			if idx := wb.SearchIndex(); idx == nil || idx.TimelineMap[le.TimelineID] == nil {
+			if idx == nil || idx.TimelineMap[le.TimelineID] == nil {
 				res, _, _ := timelineNotFoundResult(inspectionID, le.TimelineID)
 				return res, nil
 			}
 			tid = le.TimelineID
-		} else {
-			tid = selectPrimaryTimelineForLog(wb.SearchIndex(), le.LogID)
+		} else if idx != nil {
+			tid = selectPrimaryTimelineForLog(idx, le.LogID)
 		}
 		if tid != 0 {
 			autoInclude.Add(tid)
@@ -165,8 +166,8 @@ func resolveExcerpts(
 		}
 
 		var segments []workbench.TimelineSegment
-		if tid != 0 && wb.SearchIndex() != nil {
-			segments, _ = wb.SearchIndex().TimelineSegments(tid)
+		if tid != 0 && idx != nil {
+			segments, _ = idx.TimelineSegments(tid)
 		}
 		title := fmt.Sprintf("%s · %s", defaultString(sliced.LogType, "log"), severityLabel)
 		subtitle := formatLineCountSubtitle(sliced.Slice.TotalLines)
