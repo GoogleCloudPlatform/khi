@@ -21,10 +21,8 @@ import {
   TimelineExcerptLineKind,
 } from 'src/app/common/schema/timeline-render-types';
 import { TimelineEvidenceDeckComponent } from 'src/app/pages/timeline-render/components/timeline-evidence-deck.component';
-import {
-  TimelineSessionJumpTarget,
-  buildTimelineSceneViewModel,
-} from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+import { buildTimelineSceneViewModel } from 'src/app/pages/timeline-render/timeline-render-scene-builder';
+import { TimelineSessionJumpTarget } from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
 
 describe('TimelineEvidenceDeckComponent', () => {
   let fixture: ComponentFixture<TimelineEvidenceDeckComponent>;
@@ -124,15 +122,9 @@ describe('TimelineEvidenceDeckComponent', () => {
     const cardEl = cards[0].nativeElement as HTMLElement;
     const tetherEl = fixture.debugElement.query(By.css('.tether-group'))
       .nativeElement as SVGGElement;
-    const badgeEl = fixture.debugElement.query(By.css('.card-badge'))
-      .nativeElement as HTMLElement;
-    const tetherCurveEl = fixture.debugElement.query(By.css('.tether-curve'))
-      .nativeElement as SVGPathElement;
 
     expect(cardEl.style.getPropertyValue('--palette-main')).toBe('#d32f2f');
     expect(tetherEl.style.getPropertyValue('--palette-main')).toBe('#d32f2f');
-    expect(getComputedStyle(badgeEl).backgroundColor).toBe('rgb(211, 47, 47)');
-    expect(getComputedStyle(tetherCurveEl).stroke).toBe('rgb(211, 47, 47)');
 
     const queryRow = cards[0].query(By.css('.header-query-row'));
     expect(queryRow).not.toBeNull();

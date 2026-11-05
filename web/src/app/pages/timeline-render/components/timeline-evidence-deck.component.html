@@ -26,10 +26,8 @@
     >
       @for (tether of deck().tethers; track tether.id) {
         <g
-          [class]="
-            'tether-group' +
-            (hoveredBadge() === tether.badge ? ' is-hovered' : '')
-          "
+          class="tether-group"
+          [class.is-hovered]="hoveredBadge() === tether.badge"
           [style.--palette-main]="tether.colors.main"
         >
           <path class="tether-curve" [attr.d]="tether.svgPath" />
@@ -43,13 +41,11 @@
       }
     </svg>
 
-    <div [class]="'cards-grid ' + deck().gridPreset">
+    <div class="cards-grid" [class]="deck().gridPreset">
       @for (card of deck().cards; track card.id) {
         <article
-          [class]="
-            'evidence-card' +
-            (hoveredBadge() === card.badge ? ' is-hovered' : '')
-          "
+          class="evidence-card"
+          [class.is-hovered]="hoveredBadge() === card.badge"
           [style.--palette-main]="card.colors.main"
           [style.--palette-on-main]="card.colors.onMain"
           [style.--palette-soft]="card.colors.soft"
@@ -120,11 +116,11 @@
                 </div>
               } @else {
                 <div
+                  class="excerpt-line"
                   [class]="
-                    'excerpt-line ' +
-                    (card.kind === TimelineExcerptKind.LOG
+                    card.kind === TimelineExcerptKind.LOG
                       ? 'line-log'
-                      : 'line-' + line.kind)
+                      : 'line-' + line.kind
                   "
                 >
                   @if (card.kind === TimelineExcerptKind.DIFF) {
