@@ -3,7 +3,7 @@
   "name": "khi",
   "description": "Agent plugins for Kubernetes History Inspector (KHI)",
   "owner": {
-    "name": "KHI Maintainers"
+    "name": "Google LLC"
   },
   "plugins": [
     {
