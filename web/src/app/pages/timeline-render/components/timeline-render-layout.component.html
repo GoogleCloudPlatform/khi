@@ -17,7 +17,7 @@
 <div
   class="render-shell"
   [class.interactive]="interactiveMode()"
-  [style.--stage-width.px]="scene().stageWidthPx"
+  [style.width.px]="interactiveMode() ? null : scene().stageWidthPx"
 >
   @if (interactiveMode()) {
     <header class="interactive-toolbar">

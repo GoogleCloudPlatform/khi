@@ -16,7 +16,7 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { TimelineRenderLayoutComponent } from 'src/app/pages/timeline-render/components/timeline-render-layout.component';
-import { buildTimelineSceneViewModel } from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+import { buildTimelineSceneViewModel } from 'src/app/pages/timeline-render/timeline-render-scene-builder';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import {

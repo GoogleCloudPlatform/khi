@@ -190,7 +190,7 @@ export class TimelineRenderLayoutComponent {
    */
   public isFrameReadyToRender(): boolean {
     const frame = this.timelineFrame();
-    return frame ? frame.readyToRender() : true;
+    return frame ? frame.readyToRender() : false;
   }
 
   /**

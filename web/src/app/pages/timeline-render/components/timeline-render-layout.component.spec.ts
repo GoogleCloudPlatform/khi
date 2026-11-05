@@ -18,7 +18,7 @@ import { Component, input, model, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TimelineRenderLayoutComponent } from 'src/app/pages/timeline-render/components/timeline-render-layout.component';
-import { buildTimelineSceneViewModel } from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+import { buildTimelineSceneViewModel } from 'src/app/pages/timeline-render/timeline-render-scene-builder';
 import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { Timeline } from 'src/app/store/domain/timeline';

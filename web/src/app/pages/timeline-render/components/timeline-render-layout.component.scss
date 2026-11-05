@@ -42,7 +42,6 @@ $error-fg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 800);
 .render-shell {
   background-color: $surface-bg;
   overflow: hidden;
-  width: var(--stage-width);
 
   &.interactive {
     background-color: $interactive-backdrop;
