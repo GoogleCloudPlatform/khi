@@ -451,7 +451,12 @@ export class McpTimelineRenderSmartComponent implements OnInit {
     if (target.logId !== undefined) {
       search.set('logId', String(target.logId));
     }
-    this.sessionUrlOpener(`/session/0?${search.toString()}`);
+    const sessionMatch =
+      typeof window !== 'undefined'
+        ? window.location.pathname.match(/\/session\/([^/]+)/)
+        : null;
+    const sessionId = sessionMatch ? sessionMatch[1] : '0';
+    this.sessionUrlOpener(`/session/${sessionId}?${search.toString()}`);
   }
 
   /**
@@ -470,7 +475,12 @@ export class McpTimelineRenderSmartComponent implements OnInit {
     if (this.lastAppliedParams?.logQuery) {
       search.set('logQuery', this.lastAppliedParams.logQuery);
     }
-    this.sessionUrlOpener(`/session/0?${search.toString()}`);
+    const sessionMatch =
+      typeof window !== 'undefined'
+        ? window.location.pathname.match(/\/session\/([^/]+)/)
+        : null;
+    const sessionId = sessionMatch ? sessionMatch[1] : '0';
+    this.sessionUrlOpener(`/session/${sessionId}?${search.toString()}`);
   }
 
   private async loadInteractiveScene(sceneId: string): Promise<void> {
@@ -483,11 +493,17 @@ export class McpTimelineRenderSmartComponent implements OnInit {
           `/api/v1/mcp-scenes/${encodeURIComponent(sceneId)}`,
         ),
       );
+      if (this.isDestroyed) {
+        return;
+      }
       await this.applyAndMeasure(sceneDoc);
       if (!this.isDestroyed) {
         await this.waitForStableFrame();
       }
     } catch (err) {
+      if (this.isDestroyed) {
+        return;
+      }
       if (err instanceof HttpErrorResponse && err.status === 410) {
         this.errorMessage.set(
           `Scene ${sceneId} has expired. Re-run render_timelines to generate a fresh scene.`,
