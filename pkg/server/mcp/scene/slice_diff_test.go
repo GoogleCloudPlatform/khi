@@ -16,7 +16,6 @@ package scene
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
@@ -24,107 +23,104 @@ import (
 )
 
 func TestSliceUnifiedDiff(t *testing.T) {
-	oldNodeManifest := strings.Join([]string{
-		"apiVersion: v1",                        // 1
-		"kind: Node",                            // 2
-		"metadata:",                             // 3
-		"  name: gke-node-1",                    // 4
-		"spec:",                                 // 5
-		"  podCIDR: 10.0.0.0/24",                // 6
-		"  providerID: gce://proj/zone/node-1",  // 7
-		"  unschedulable: false",                // 8
-		"status:",                               // 9
-		"  conditions:",                         // 10
-		"  - reason: NoDiskPressure",            // 11
-		"    status: \"False\"",                 // 12
-		"    type: DiskPressure",                // 13
-		"  - lastTransitionTime: \"09:00:00Z\"", // 14
-		"    message: sufficient memory",        // 15
-		"    reason: KubeletHasSufficientMem",   // 16
-		"    status: \"False\"",                 // 17 -> changed in hunk 0
-		"    type: MemoryPressure",              // 18
-		"  - sep01: v",                          // 19
-		"  - sep02: v",                          // 20
-		"  - sep03: v",                          // 21
-		"  - sep04: v",                          // 22
-		"  - sep05: v",                          // 23
-		"  - sep06: v",                          // 24
-		"  - sep07: v",                          // 25
-		"  - sep08: v",                          // 26
-		"  - readyHeader: node-ready",           // 27
-		"    reason: KubeletReady",              // 28 -> changed in hunk 1
-		"    status: \"True\"",                  // 29 -> changed in hunk 1
-		"    type: Ready",                       // 30
-		"  tail01: a",                           // 31
-		"  tail02: a",                           // 32
-		"  tail03: a",                           // 33
-		"  tail04: a",                           // 34
-		"  tail05: a",                           // 35
-		"  tail06: a",                           // 36
-		"  tail07: a",                           // 37
-		"  allocatable:",                        // 38
-		"    memory: 8Gi",                       // 39 -> changed in hunk 2
-	}, "\n") + "\n"
+	oldNodeManifest := `apiVersion: v1
+kind: Node
+metadata:
+  name: gke-node-1
+spec:
+  podCIDR: 10.0.0.0/24
+  providerID: gce://proj/zone/node-1
+  unschedulable: false
+status:
+  conditions:
+  - reason: NoDiskPressure
+    status: "False"
+    type: DiskPressure
+  - lastTransitionTime: "09:00:00Z"
+    message: sufficient memory
+    reason: KubeletHasSufficientMem
+    status: "False"
+    type: MemoryPressure
+  - sep01: v
+  - sep02: v
+  - sep03: v
+  - sep04: v
+  - sep05: v
+  - sep06: v
+  - sep07: v
+  - sep08: v
+  - readyHeader: node-ready
+    reason: KubeletReady
+    status: "True"
+    type: Ready
+  tail01: a
+  tail02: a
+  tail03: a
+  tail04: a
+  tail05: a
+  tail06: a
+  tail07: a
+  allocatable:
+    memory: 8Gi
+`
 
-	newNodeManifest := strings.Join([]string{
-		"apiVersion: v1",                        // 1
-		"kind: Node",                            // 2
-		"metadata:",                             // 3
-		"  name: gke-node-1",                    // 4
-		"spec:",                                 // 5
-		"  podCIDR: 10.0.0.0/24",                // 6
-		"  providerID: gce://proj/zone/node-1",  // 7
-		"  unschedulable: false",                // 8
-		"status:",                               // 9
-		"  conditions:",                         // 10
-		"  - reason: NoDiskPressure",            // 11
-		"    status: \"False\"",                 // 12
-		"    type: DiskPressure",                // 13
-		"  - lastTransitionTime: \"09:00:00Z\"", // 14
-		"    message: sufficient memory",        // 15
-		"    reason: KubeletHasSufficientMem",   // 16
-		"    status: \"True\"",                  // 17 -> changed in hunk 0
-		"    type: MemoryPressure",              // 18
-		"  - sep01: v",                          // 19
-		"  - sep02: v",                          // 20
-		"  - sep03: v",                          // 21
-		"  - sep04: v",                          // 22
-		"  - sep05: v",                          // 23
-		"  - sep06: v",                          // 24
-		"  - sep07: v",                          // 25
-		"  - sep08: v",                          // 26
-		"  - readyHeader: node-ready",           // 27
-		"    reason: KubeletNotReady",           // 28 -> changed in hunk 1
-		"    status: \"False\"",                 // 29 -> changed in hunk 1
-		"    type: Ready",                       // 30
-		"  tail01: a",                           // 31
-		"  tail02: a",                           // 32
-		"  tail03: a",                           // 33
-		"  tail04: a",                           // 34
-		"  tail05: a",                           // 35
-		"  tail06: a",                           // 36
-		"  tail07: a",                           // 37
-		"  allocatable:",                        // 38
-		"    memory: 4Gi",                       // 39 -> changed in hunk 2
-	}, "\n") + "\n"
+	newNodeManifest := `apiVersion: v1
+kind: Node
+metadata:
+  name: gke-node-1
+spec:
+  podCIDR: 10.0.0.0/24
+  providerID: gce://proj/zone/node-1
+  unschedulable: false
+status:
+  conditions:
+  - reason: NoDiskPressure
+    status: "False"
+    type: DiskPressure
+  - lastTransitionTime: "09:00:00Z"
+    message: sufficient memory
+    reason: KubeletHasSufficientMem
+    status: "True"
+    type: MemoryPressure
+  - sep01: v
+  - sep02: v
+  - sep03: v
+  - sep04: v
+  - sep05: v
+  - sep06: v
+  - sep07: v
+  - sep08: v
+  - readyHeader: node-ready
+    reason: KubeletNotReady
+    status: "False"
+    type: Ready
+  tail01: a
+  tail02: a
+  tail03: a
+  tail04: a
+  tail05: a
+  tail06: a
+  tail07: a
+  allocatable:
+    memory: 4Gi
+`
 
-	initialManifest := strings.Join([]string{
-		"apiVersion: v1",
-		"kind: Endpoints",
-		"metadata:",
-		"  name: frontend-svc",
-		"subsets:",
-		"- addresses:",
-		"  - ip: 10.0.1.5",
-		"    nodeName: gke-node-1",
-		"    ready: true",
-		"  - ip: 10.0.1.6",
-		"  targetRef:",
-		"    kind: Pod",
-		"    name: frontend-pod-2",
-		"  ports:",
-		"  - port: 80",
-	}, "\n") + "\n"
+	initialManifest := `apiVersion: v1
+kind: Endpoints
+metadata:
+  name: frontend-svc
+subsets:
+- addresses:
+  - ip: 10.0.1.5
+    nodeName: gke-node-1
+    ready: true
+  - ip: 10.0.1.6
+  targetRef:
+    kind: Pod
+    name: frontend-pod-2
+  ports:
+  - port: 80
+`
 
 	testCases := []struct {
 		name              string
@@ -252,9 +248,15 @@ func TestSliceUnifiedDiff(t *testing.T) {
 			},
 		},
 		{
-			name:    "omitted windows returns leading hunk lines up to maxLines",
-			oldText: "a: 1\nb: 2\n",
-			newText: "a: 1\nb: 3\nc: 4\nd: 5\n",
+			name: "omitted windows returns leading hunk lines up to maxLines",
+			oldText: `a: 1
+b: 2
+`,
+			newText: `a: 1
+b: 3
+c: 4
+d: 5
+`,
 			opts: DiffSliceOptions{
 				MaxLines: 3,
 			},
@@ -270,9 +272,47 @@ func TestSliceUnifiedDiff(t *testing.T) {
 			},
 		},
 		{
-			name:    "renders both unchanged and diff omitted placeholders when gap skips an entire middle hunk",
-			oldText: "a: 1\nb: 2\nc: 3\nd: 4\ne: 5\nf: 6\ng: 7\nh: 8\ni: 9\nj: 10\nk: 11\nl: 12\nm: 13\nn: 14\no: 15\np: 16\nq: 17\nr: 18\ns: 19\n",
-			newText: "a: 1_mod\nb: 2\nc: 3\nd: 4\ne: 5\nf: 6\ng: 7\nh: 8\ni: 9\nj: 10_mod\nk: 11\nl: 12\nm: 13\nn: 14\no: 15\np: 16\nq: 17\nr: 18\ns: 19_mod\n",
+			name: "renders both unchanged and diff omitted placeholders when gap skips an entire middle hunk",
+			oldText: `a: 1
+b: 2
+c: 3
+d: 4
+e: 5
+f: 6
+g: 7
+h: 8
+i: 9
+j: 10
+k: 11
+l: 12
+m: 13
+n: 14
+o: 15
+p: 16
+q: 17
+r: 18
+s: 19
+`,
+			newText: `a: 1_mod
+b: 2
+c: 3
+d: 4
+e: 5
+f: 6
+g: 7
+h: 8
+i: 9
+j: 10_mod
+k: 11
+l: 12
+m: 13
+n: 14
+o: 15
+p: 16
+q: 17
+r: 18
+s: 19_mod
+`,
 			opts: DiffSliceOptions{
 				Windows: []SliceWindow{
 					{Query: "1_mod"},
@@ -325,30 +365,28 @@ func TestSliceUnifiedDiff(t *testing.T) {
 }
 
 func TestSliceUnifiedDiff_Errors(t *testing.T) {
-	oldYAML := strings.Join([]string{
-		"apiVersion: v1",
-		"kind: Pod",
-		"metadata:",
-		"  name: untouched-pod",
-		"  l1: a",
-		"  l2: a",
-		"  l3: a",
-		"  l4: a",
-		"status:",
-		"  phase: Pending",
-	}, "\n") + "\n"
-	newYAML := strings.Join([]string{
-		"apiVersion: v1",
-		"kind: Pod",
-		"metadata:",
-		"  name: untouched-pod",
-		"  l1: a",
-		"  l2: a",
-		"  l3: a",
-		"  l4: a",
-		"status:",
-		"  phase: Running",
-	}, "\n") + "\n"
+	oldYAML := `apiVersion: v1
+kind: Pod
+metadata:
+  name: untouched-pod
+  l1: a
+  l2: a
+  l3: a
+  l4: a
+status:
+  phase: Pending
+`
+	newYAML := `apiVersion: v1
+kind: Pod
+metadata:
+  name: untouched-pod
+  l1: a
+  l2: a
+  l3: a
+  l4: a
+status:
+  phase: Running
+`
 
 	t.Run("rejects empty query", func(t *testing.T) {
 		_, err := SliceUnifiedDiff(oldYAML, newYAML, false, DiffSliceOptions{
@@ -376,7 +414,8 @@ func TestSliceUnifiedDiff_Errors(t *testing.T) {
 			WindowIndex:  0,
 			Query:        "untouched-pod",
 			TopLevelKeys: []string{"status"},
-			Preview:      "-  phase: Pending\n+  phase: Running",
+			Preview: `-  phase: Pending
++  phase: Running`,
 		}
 		if diff := cmp.Diff(want, gotErr); diff != "" {
 			t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)
