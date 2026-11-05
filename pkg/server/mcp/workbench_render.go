@@ -31,6 +31,10 @@ const (
 	defaultRenderWidth    = 1600
 	minRenderWidth        = 800
 	maxRenderWidth        = 3840
+	// renderViewPaddingRatio is the fraction of the filter time span added on both sides of the viewport so that events at the edges are not clipped.
+	renderViewPaddingRatio = 0.05
+	// minRenderViewPadding is the padding used when the filter time span is too short for renderViewPaddingRatio to produce a visible margin.
+	minRenderViewPadding = time.Second
 )
 
 // RenderTimelinesInput defines the input parameters for the render_timelines MCP tool.
@@ -42,6 +46,8 @@ type RenderTimelinesInput struct {
 	MaxNodes           int              `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
 	Width              int              `json:"width,omitempty" jsonschema:"Rendered image width in pixels (default 1600, min 800, max 3840)."`
 	TimezoneShiftHours float64          `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
+	ViewStartTime      *time.Time       `json:"viewStartTime,omitempty" jsonschema:"Optional left edge of the rendered time axis in RFC3339 format, independent of filter.startTime. Use it to show surrounding context around a narrow log filter. When omitted, filter.startTime with a small margin is used."`
+	ViewEndTime        *time.Time       `json:"viewEndTime,omitempty" jsonschema:"Optional right edge of the rendered time axis in RFC3339 format, independent of filter.endTime. When omitted, filter.endTime with a small margin is used."`
 }
 
 type renderTimelinesTemplateData struct {
@@ -68,6 +74,9 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 	if input.Filter.StartTime != nil && input.Filter.EndTime != nil && input.Filter.EndTime.Before(*input.Filter.StartTime) {
 		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "filter.endTime must not be before filter.startTime.")
 	}
+	if input.ViewStartTime != nil && input.ViewEndTime != nil && !input.ViewEndTime.After(*input.ViewStartTime) {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "viewEndTime must be after viewStartTime.")
+	}
 
 	parsedTimelineIDs, errRes, err := parseTimelineIDArguments(input.TimelineIDs)
 	if err != nil || errRes != nil {
@@ -85,6 +94,9 @@ func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.
 
 	applied := wb.ResolveFilter(input.Filter)
 	renderReq := buildTimelineRenderRequest(input, applied, parsedTimelineIDs)
+	if renderReq.ViewStartTimeMs != nil && renderReq.ViewEndTimeMs != nil && *renderReq.ViewEndTimeMs <= *renderReq.ViewStartTimeMs {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "The resolved viewport is empty: viewEndTime (or filter.endTime when omitted) must be after viewStartTime (or filter.startTime when omitted).")
+	}
 
 	renderRes, err := h.renderer.RenderTimeline(ctx, renderReq)
 	if err != nil {
@@ -180,14 +192,34 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 	}
 
 	if !applied.StartTime.IsZero() {
-		startMs := applied.StartTime.UnixMilli()
-		req.ViewStartTimeMs = &startMs
 		req.FilterStartTimeNs = strconv.FormatInt(applied.StartTime.UnixNano(), 10)
 	}
 	if !applied.EndTime.IsZero() {
-		endMs := applied.EndTime.UnixMilli()
-		req.ViewEndTimeMs = &endMs
 		req.FilterEndTimeNs = strconv.FormatInt(applied.EndTime.UnixNano(), 10)
 	}
+
+	// The viewport defaults to the filter range widened by a margin so that edge events are not clipped.
+	// Explicit viewStartTime / viewEndTime are used as-is.
+	padding := filterViewPadding(applied)
+	if input.ViewStartTime != nil {
+		req.ViewStartTimeMs = new(input.ViewStartTime.UnixMilli())
+	} else if !applied.StartTime.IsZero() {
+		req.ViewStartTimeMs = new(applied.StartTime.Add(-padding).UnixMilli())
+	}
+	if input.ViewEndTime != nil {
+		req.ViewEndTimeMs = new(input.ViewEndTime.UnixMilli())
+	} else if !applied.EndTime.IsZero() {
+		req.ViewEndTimeMs = new(applied.EndTime.Add(padding).UnixMilli())
+	}
 	return req
+}
+
+// filterViewPadding returns the margin added on each side of the filter time range for the viewport.
+// It returns 0 when either side of the filter range is open, because the span is unknown.
+func filterViewPadding(applied workbench.AppliedFilter) time.Duration {
+	if applied.StartTime.IsZero() || applied.EndTime.IsZero() {
+		return 0
+	}
+	span := applied.EndTime.Sub(applied.StartTime)
+	return max(time.Duration(float64(span)*renderViewPaddingRatio), minRenderViewPadding)
 }

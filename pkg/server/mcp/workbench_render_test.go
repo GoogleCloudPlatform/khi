@@ -82,6 +82,11 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	endTime := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
 	startMs := startTime.UnixMilli()
 	endMs := endTime.UnixMilli()
+	// The filter range spans 1h, so the viewport is padded by 5% (3min) on both sides.
+	paddedStartMs := startTime.Add(-3 * time.Minute).UnixMilli()
+	paddedEndMs := endTime.Add(3 * time.Minute).UnixMilli()
+	// lateViewStartTime is after the padded filter end, so a viewport using it as the only explicit boundary is inverted.
+	lateViewStartTime := endTime.Add(time.Hour)
 
 	_, invalidCELErr := workbench.ValidateFilter(workbench.Filter{
 		TimelineQuery: "invalid &&& syntax",
@@ -222,8 +227,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					ExcludeNoLogs:      true,
 					FilterStartTimeNs:  "1790845200000000000",
 					FilterEndTimeNs:    "1790848800000000000",
-					ViewStartTimeMs:    &startMs,
-					ViewEndTimeMs:      &endMs,
+					ViewStartTimeMs:    &paddedStartMs,
+					ViewEndTimeMs:      &paddedEndMs,
 					MaxDepth:           3,
 					MaxNodes:           20,
 					Width:              1200,
@@ -265,6 +270,33 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			},
 			want: renderTestOutcome{
 				Result: wantErrorResult("INVALID_ARGUMENT", "filter.endTime must not be before filter.startTime."),
+			},
+		},
+		{
+			name:     "viewEndTime before viewStartTime returns INVALID_ARGUMENT",
+			renderer: &fakeTimelineImageRenderer{},
+			input: RenderTimelinesInput{
+				InspectionID:  inspectionID,
+				ViewStartTime: &endTime,
+				ViewEndTime:   &startTime,
+			},
+			want: renderTestOutcome{
+				Result: wantErrorResult("INVALID_ARGUMENT", "viewEndTime must be after viewStartTime."),
+			},
+		},
+		{
+			name:     "viewStartTime after the padded filter end returns INVALID_ARGUMENT",
+			renderer: &fakeTimelineImageRenderer{},
+			input: RenderTimelinesInput{
+				InspectionID: inspectionID,
+				Filter: workbench.Filter{
+					StartTime: &startTime,
+					EndTime:   &endTime,
+				},
+				ViewStartTime: &lateViewStartTime,
+			},
+			want: renderTestOutcome{
+				Result: wantErrorResult("INVALID_ARGUMENT", "The resolved viewport is empty: viewEndTime (or filter.endTime when omitted) must be after viewStartTime (or filter.startTime when omitted)."),
 			},
 		},
 		{
@@ -377,4 +409,98 @@ func extractRenderedImageMetadata(t *testing.T, markdown string) (string, string
 	}
 	expiresAt, _, _ := strings.Cut(afterExpires, "\n")
 	return issuedURL, expiresAt
+}
+
+func TestBuildTimelineRenderRequest_Viewport(t *testing.T) {
+	startTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	endTime := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
+	viewStartTime := time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
+	viewEndTime := time.Date(2026, 10, 1, 11, 0, 0, 0, time.UTC)
+
+	type viewport struct {
+		FilterStartTimeNs string
+		FilterEndTimeNs   string
+		ViewStartTimeMs   *int64
+		ViewEndTimeMs     *int64
+	}
+
+	testCases := []struct {
+		name    string
+		input   RenderTimelinesInput
+		applied workbench.AppliedFilter
+		want    viewport
+	}{
+		{
+			name: "no time range leaves the viewport to the renderer",
+			want: viewport{},
+		},
+		{
+			name:    "filter range is padded by 5% of its span on both sides",
+			applied: workbench.AppliedFilter{StartTime: startTime, EndTime: endTime},
+			want: viewport{
+				FilterStartTimeNs: "1790845200000000000",
+				FilterEndTimeNs:   "1790848800000000000",
+				ViewStartTimeMs:   new(startTime.Add(-3 * time.Minute).UnixMilli()),
+				ViewEndTimeMs:     new(endTime.Add(3 * time.Minute).UnixMilli()),
+			},
+		},
+		{
+			name:    "zero-length filter range uses the minimum padding",
+			applied: workbench.AppliedFilter{StartTime: startTime, EndTime: startTime},
+			want: viewport{
+				FilterStartTimeNs: "1790845200000000000",
+				FilterEndTimeNs:   "1790845200000000000",
+				ViewStartTimeMs:   new(startTime.Add(-time.Second).UnixMilli()),
+				ViewEndTimeMs:     new(startTime.Add(time.Second).UnixMilli()),
+			},
+		},
+		{
+			name:    "open-ended filter range is not padded",
+			applied: workbench.AppliedFilter{StartTime: startTime},
+			want: viewport{
+				FilterStartTimeNs: "1790845200000000000",
+				ViewStartTimeMs:   new(startTime.UnixMilli()),
+			},
+		},
+		{
+			name: "explicit view range is used as-is and decoupled from the filter range",
+			input: RenderTimelinesInput{
+				ViewStartTime: &viewStartTime,
+				ViewEndTime:   &viewEndTime,
+			},
+			applied: workbench.AppliedFilter{StartTime: startTime, EndTime: endTime},
+			want: viewport{
+				FilterStartTimeNs: "1790845200000000000",
+				FilterEndTimeNs:   "1790848800000000000",
+				ViewStartTimeMs:   new(viewStartTime.UnixMilli()),
+				ViewEndTimeMs:     new(viewEndTime.UnixMilli()),
+			},
+		},
+		{
+			name:    "explicit view start falls back to the padded filter end",
+			input:   RenderTimelinesInput{ViewStartTime: &viewStartTime},
+			applied: workbench.AppliedFilter{StartTime: startTime, EndTime: endTime},
+			want: viewport{
+				FilterStartTimeNs: "1790845200000000000",
+				FilterEndTimeNs:   "1790848800000000000",
+				ViewStartTimeMs:   new(viewStartTime.UnixMilli()),
+				ViewEndTimeMs:     new(endTime.Add(3 * time.Minute).UnixMilli()),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := buildTimelineRenderRequest(tc.input, tc.applied, nil)
+			got := viewport{
+				FilterStartTimeNs: req.FilterStartTimeNs,
+				FilterEndTimeNs:   req.FilterEndTimeNs,
+				ViewStartTimeMs:   req.ViewStartTimeMs,
+				ViewEndTimeMs:     req.ViewEndTimeMs,
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("buildTimelineRenderRequest() viewport mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }

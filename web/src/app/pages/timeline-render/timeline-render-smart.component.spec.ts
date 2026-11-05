@@ -251,8 +251,8 @@ describe('TimelineRenderSmartComponent', () => {
       renderedCount: 5,
       totalMatched: 5,
       hasMore: false,
-      viewStartTimeMs: 1_000_000,
-      viewEndTimeMs: 2_000_000,
+      viewStartTimeMs: 950_000,
+      viewEndTimeMs: 2_050_000,
     });
 
     await component.applyAndMeasure({
@@ -273,8 +273,8 @@ describe('TimelineRenderSmartComponent', () => {
         totalMatched: 4,
         renderedCount: 4,
         hasMore: false,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
+        viewStartTimeMs: 950_000,
+        viewEndTimeMs: 2_050_000,
       },
     },
     {
@@ -287,8 +287,8 @@ describe('TimelineRenderSmartComponent', () => {
         totalMatched: 3,
         renderedCount: 3,
         hasMore: false,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
+        viewStartTimeMs: 950_000,
+        viewEndTimeMs: 2_050_000,
       },
     },
     {
@@ -301,8 +301,8 @@ describe('TimelineRenderSmartComponent', () => {
         totalMatched: 3,
         renderedCount: 2,
         hasMore: true,
-        viewStartTimeMs: 1_000_000,
-        viewEndTimeMs: 2_000_000,
+        viewStartTimeMs: 950_000,
+        viewEndTimeMs: 2_050_000,
       },
     },
   ];
@@ -343,6 +343,28 @@ describe('TimelineRenderSmartComponent', () => {
     }).toEqual({
       viewportLeftTimeNs: 1_200_000_000_000n,
       pixelsPerNs: 5e-9,
+    });
+  });
+
+  it('should apply the minimum padding when the fallback log range has zero length', async () => {
+    await component.applyAndMeasure({ inspectionId: 'insp-1' });
+    const loaded = inspectionDataSignal()!;
+    inspectionDataSignal.set({
+      ...loaded,
+      metadata: {
+        ...loaded.metadata,
+        header: { startTimeUnixSeconds: 1000, endTimeUnixSeconds: 1000 },
+      },
+    } as unknown as InspectionData);
+
+    const res = await component.applyAndMeasure({ inspectionId: 'insp-1' });
+
+    expect({
+      viewStartTimeMs: res.viewStartTimeMs,
+      viewEndTimeMs: res.viewEndTimeMs,
+    }).toEqual({
+      viewStartTimeMs: 999_000,
+      viewEndTimeMs: 1_001_000,
     });
   });
 
