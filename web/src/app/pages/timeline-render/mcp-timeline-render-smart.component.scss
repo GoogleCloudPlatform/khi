@@ -14,23 +14,6 @@
  * limitations under the License.
  */
 
-@use '@angular/material' as mat;
-
-$viewport-background-color: mat.m2-get-color-from-palette(
-  mat.$m2-gray-palette,
-  50
-);
-
 :host {
-  display: block;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  background-color: $viewport-background-color;
-}
-
-.mcp-timeline-render-viewport {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  display: contents;
 }

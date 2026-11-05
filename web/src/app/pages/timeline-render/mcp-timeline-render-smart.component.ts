@@ -14,26 +14,37 @@
  * limitations under the License.
  */
 
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import {
   ApplicationRef,
   Component,
   DestroyRef,
+  InjectionToken,
   OnInit,
   computed,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { lastValueFrom } from 'rxjs';
 import {
   KhiTimelineRendererBridge,
   TimelineRenderMeasureResult,
   TimelineRenderParams,
+  TimelineSceneOverlay,
 } from 'src/app/common/schema/timeline-render-types';
+import { TimelineRenderLayoutComponent } from 'src/app/pages/timeline-render/components/timeline-render-layout.component';
 import {
-  MIN_CHART_VIEWPORT_WIDTH_PX,
+  buildTimelineSceneViewModel,
+  extractTimelineRowMetrics,
+} from 'src/app/pages/timeline-render/timeline-render-scene-builder';
+import {
+  TimelineSceneViewModel,
+  TimelineSessionJumpTarget,
+} from 'src/app/pages/timeline-render/types/timeline-render-scene.viewmodel';
+import {
   MIN_INDEX_PANE_WIDTH_PX,
-  TIMELINE_GUTTER_WIDTH_PX,
-  TIMELINE_HEADER_HEIGHT_PX,
   TIMELINE_RENDER_HORIZONTAL_OVERDRAW_PX,
   TIMELINE_TEXT_WIDTH_MEASURER,
   calculateTimelineStageDimensions,
@@ -52,13 +63,11 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { TimelineView } from 'src/app/store/domain/timeline-view';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import {
-  BASE_ROW_HEIGHT,
   TimelineChartStyle,
   TimelineRulerStyle,
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model';
-import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
@@ -75,12 +84,29 @@ interface ViewportTimeRange {
   readonly viewEndTimeMs: number;
 }
 
+interface SelectedTimelinesResult {
+  readonly matched: readonly ReadonlyDomainElement<Timeline>[];
+  readonly requiredIds: ReadonlySet<number>;
+}
+
 /**
- * Smart component dedicated to headless MCP timeline screenshot rendering.
+ * Dependency injection token for opening full KHI session links in a new browser tab.
+ */
+export const TIMELINE_SESSION_URL_OPENER = new InjectionToken<
+  (url: string) => void
+>('TIMELINE_SESSION_URL_OPENER', {
+  providedIn: 'root',
+  factory: () => (url: string) => {
+    window.open(url, '_blank', 'noopener');
+  },
+});
+
+/**
+ * Smart component dedicated to MCP timeline scene rendering for both headless CDP capture and interactive viewing.
  */
 @Component({
   selector: 'khi-mcp-timeline-render-smart',
-  imports: [TimelineFrameComponent],
+  imports: [TimelineRenderLayoutComponent],
   templateUrl: './mcp-timeline-render-smart.component.html',
   styleUrls: ['./mcp-timeline-render-smart.component.scss'],
   providers: [
@@ -94,20 +120,26 @@ interface ViewportTimeRange {
 export class McpTimelineRenderSmartComponent implements OnInit {
   private static readonly DEFAULT_MAX_NODES = 50;
 
+  private readonly route = inject(ActivatedRoute);
+  private readonly http = inject(HttpClient);
   private readonly appRef = inject(ApplicationRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dataLoader = inject(InspectionDataLoaderService);
   private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly styleOverrideService = inject(StyleOverrideService);
   private readonly measureText = inject(TIMELINE_TEXT_WIDTH_MEASURER);
+  private readonly sessionUrlOpener = inject(TIMELINE_SESSION_URL_OPENER);
 
-  private readonly timelineFrame = viewChild.required<TimelineFrameComponent>(
-    TimelineFrameComponent,
-  );
+  private readonly renderLayout =
+    viewChild.required<TimelineRenderLayoutComponent>(
+      TimelineRenderLayoutComponent,
+    );
 
   private loadedInspectionId: string | null = null;
   private pendingPixelsPerNs = 1e-8;
   private pendingViewportLeftTimeNs = 0n;
+  private lastAppliedParams: TimelineRenderParams | null = null;
+  private isDestroyed = false;
 
   private readonly inspectionDataUniqueIDs = new WeakMap<
     InspectionData,
@@ -131,15 +163,19 @@ export class McpTimelineRenderSmartComponent implements OnInit {
 
   protected readonly indexPaneWidthPx = signal<number>(MIN_INDEX_PANE_WIDTH_PX);
 
-  protected readonly stageWidthPx = signal<number>(
-    MIN_INDEX_PANE_WIDTH_PX +
-      TIMELINE_GUTTER_WIDTH_PX +
-      MIN_CHART_VIEWPORT_WIDTH_PX,
-  );
+  protected readonly activeOverlay = signal<TimelineSceneOverlay | null>(null);
 
-  protected readonly stageHeightPx = signal<number>(
-    TIMELINE_HEADER_HEIGHT_PX + BASE_ROW_HEIGHT,
-  );
+  protected readonly interactiveMode = signal<boolean>(false);
+
+  protected readonly activeSceneId = signal<string>('');
+
+  protected readonly activeParentSceneId = signal<string>('');
+
+  protected readonly activeInspectionId = signal<string>('');
+
+  protected readonly errorMessage = signal<string>('');
+
+  protected readonly hoveredBadge = signal<string | null>(null);
 
   protected readonly styleStore = computed<StyleStoreLike>(() => {
     return this.styleOverrideService;
@@ -151,6 +187,23 @@ export class McpTimelineRenderSmartComponent implements OnInit {
 
   protected readonly rulerStyle = computed<TimelineRulerStyle>(() => {
     return generateDefaultRulerStyle(this.styleStore());
+  });
+
+  protected readonly sceneViewModel = computed<TimelineSceneViewModel>(() => {
+    const rows = extractTimelineRowMetrics(
+      this.renderedTimelines(),
+      this.styleStore(),
+    );
+    return buildTimelineSceneViewModel({
+      indexPaneWidthPx: this.indexPaneWidthPx(),
+      viewportLeftTimeMs: BigIntTimeUtil.NsToNumberMs(
+        this.viewportLeftTimeNs(),
+      ),
+      pixelsPerMs: this.pixelsPerNs() * 1_000_000,
+      rows,
+      overlay: this.activeOverlay(),
+      measureText: this.measureText,
+    });
   });
 
   protected readonly inspectionDataUniqueID = computed(() => {
@@ -206,12 +259,14 @@ export class McpTimelineRenderSmartComponent implements OnInit {
   });
 
   /**
-   * Registers the window.__khiCDPBridge.timelineRenderer automation bridge for MCP headless clients.
+   * Registers the CDP automation bridge and loads any sceneId query parameter for interactive viewing.
    */
   public ngOnInit(): void {
     const bridge: KhiTimelineRendererBridge = {
       applyAndMeasure: async (params) => {
         await document.fonts.ready;
+        this.interactiveMode.set(false);
+        this.errorMessage.set('');
         return this.applyAndMeasure(params);
       },
       waitForStableFrame: async () => {
@@ -224,10 +279,16 @@ export class McpTimelineRenderSmartComponent implements OnInit {
       timelineRenderer: bridge,
     };
     this.destroyRef.onDestroy(() => {
+      this.isDestroyed = true;
       if (window.__khiCDPBridge?.timelineRenderer === bridge) {
         delete window.__khiCDPBridge.timelineRenderer;
       }
     });
+
+    const sceneId = this.route.snapshot.queryParamMap.get('sceneId');
+    if (sceneId) {
+      void this.loadInteractiveScene(sceneId);
+    }
   }
 
   /**
@@ -242,8 +303,14 @@ export class McpTimelineRenderSmartComponent implements OnInit {
       throw new Error('TimelineView is not initialized.');
     }
 
+    this.lastAppliedParams = params;
+    this.activeInspectionId.set(params.inspectionId);
+    this.activeSceneId.set(params.sceneId ?? '');
+    this.activeParentSceneId.set(params.parentSceneId ?? '');
+    this.hoveredBadge.set(null);
+
     await this.applyBackendFilter(timelineView, params);
-    const matched = this.selectMatchedTimelines(
+    const selection = this.selectMatchedTimelines(
       timelineView.filteredTimelines(),
       params,
     );
@@ -252,9 +319,14 @@ export class McpTimelineRenderSmartComponent implements OnInit {
       params.maxNodes && params.maxNodes > 0
         ? params.maxNodes
         : McpTimelineRenderSmartComponent.DEFAULT_MAX_NODES;
-    const rendered = matched.slice(0, maxNodes);
+    const rendered = this.sliceTimelinesPreservingRequired(
+      selection.matched,
+      selection.requiredIds,
+      maxNodes,
+    );
     this.renderedTimelines.set(rendered);
     this.timezoneShiftHours.set(params.timezoneShiftHours ?? 0);
+    this.activeOverlay.set(params.overlay ?? null);
 
     const dimensions = calculateTimelineStageDimensions(
       rendered,
@@ -263,8 +335,6 @@ export class McpTimelineRenderSmartComponent implements OnInit {
       params.overlay,
     );
     this.indexPaneWidthPx.set(dimensions.indexPaneWidthPx);
-    this.stageWidthPx.set(dimensions.stageWidthPx);
-    this.stageHeightPx.set(dimensions.timelineFrameHeightPx);
 
     const { viewStartTimeMs, viewEndTimeMs } = this.applyHorizontalViewport(
       dimensions.chartViewportWidthPx,
@@ -272,14 +342,34 @@ export class McpTimelineRenderSmartComponent implements OnInit {
       params.viewEndTimeMs,
     );
 
+    if (this.isDestroyed) {
+      return {
+        width: dimensions.stageWidthPx,
+        height: 0,
+        renderedCount: rendered.length,
+        totalMatched: selection.matched.length,
+        hasMore: selection.matched.length > rendered.length,
+        viewStartTimeMs,
+        viewEndTimeMs,
+      };
+    }
+
     this.appRef.tick();
+
+    const vm = this.sceneViewModel();
+    const measuredDeckHeightPx = this.renderLayout().measureDeckHeightPx();
+    const deckHeightPx =
+      vm.deck.cards.length > 0
+        ? Math.max(vm.deck.estimatedHeightPx, measuredDeckHeightPx)
+        : 0;
+    const height = vm.stageHeightPx + deckHeightPx;
 
     return {
       width: dimensions.stageWidthPx,
-      height: dimensions.timelineFrameHeightPx,
+      height,
       renderedCount: rendered.length,
-      totalMatched: matched.length,
-      hasMore: matched.length > rendered.length,
+      totalMatched: selection.matched.length,
+      hasMore: selection.matched.length > rendered.length,
       viewStartTimeMs,
       viewEndTimeMs,
     };
@@ -289,31 +379,126 @@ export class McpTimelineRenderSmartComponent implements OnInit {
    * Waits for frame rendering to settle and syncs the canvas viewport state.
    */
   public async waitForStableFrame(): Promise<void> {
-    const frame = this.timelineFrame();
+    if (this.isDestroyed) {
+      return;
+    }
+    const layout = this.renderLayout();
     const maxAttempts = 200;
-    for (let i = 0; i < maxAttempts && !frame.readyToRender(); i++) {
+    for (
+      let i = 0;
+      i < maxAttempts && !this.isDestroyed && !layout.isFrameReadyToRender();
+      i++
+    ) {
       await this.nextAnimationFrame();
+    }
+    if (this.isDestroyed) {
+      return;
     }
 
     await this.nextAnimationFrame();
+    if (this.isDestroyed) {
+      return;
+    }
     this.appRef.tick();
     await this.nextAnimationFrame();
+    if (this.isDestroyed) {
+      return;
+    }
 
     this.pixelsPerNs.set(this.pendingPixelsPerNs);
     this.viewportLeftTimeNs.set(this.pendingViewportLeftTimeNs);
     this.appRef.tick();
-    frame.syncViewportAndInvalidate(
+    layout.syncViewportAndInvalidate(
       this.pendingViewportLeftTimeNs,
       this.pendingPixelsPerNs,
     );
 
     await this.nextAnimationFrame();
+    if (this.isDestroyed) {
+      return;
+    }
     this.appRef.tick();
-    frame.syncViewportAndInvalidate(
+    layout.syncViewportAndInvalidate(
       this.pendingViewportLeftTimeNs,
       this.pendingPixelsPerNs,
     );
     await this.nextAnimationFrame();
+  }
+
+  /**
+   * Updates synchronized badge hover highlighting across pins and deck cards.
+   */
+  protected onBadgeHover(badge: string | null): void {
+    this.hoveredBadge.set(badge);
+  }
+
+  /**
+   * Opens a full KHI session focused on the clicked revision or log entry.
+   */
+  protected onJumpToSession(target: TimelineSessionJumpTarget): void {
+    const inspectionId = this.activeInspectionId();
+    if (!inspectionId) {
+      return;
+    }
+    const search = new URLSearchParams();
+    search.set('inspectionId', inspectionId);
+    if (target.timelineId !== undefined) {
+      search.set('timelineId', String(target.timelineId));
+    }
+    if (target.revisionIndex !== undefined) {
+      search.set('revisionIndex', String(target.revisionIndex));
+    }
+    if (target.logId !== undefined) {
+      search.set('logId', String(target.logId));
+    }
+    this.sessionUrlOpener(`/session/0?${search.toString()}`);
+  }
+
+  /**
+   * Opens the current scene's inspection and active queries in a full KHI session.
+   */
+  protected onOpenFullSession(): void {
+    const inspectionId = this.activeInspectionId();
+    if (!inspectionId) {
+      return;
+    }
+    const search = new URLSearchParams();
+    search.set('inspectionId', inspectionId);
+    if (this.lastAppliedParams?.timelineQuery) {
+      search.set('timelineQuery', this.lastAppliedParams.timelineQuery);
+    }
+    if (this.lastAppliedParams?.logQuery) {
+      search.set('logQuery', this.lastAppliedParams.logQuery);
+    }
+    this.sessionUrlOpener(`/session/0?${search.toString()}`);
+  }
+
+  private async loadInteractiveScene(sceneId: string): Promise<void> {
+    this.interactiveMode.set(true);
+    this.activeSceneId.set(sceneId);
+    this.errorMessage.set('');
+    try {
+      const sceneDoc = await lastValueFrom(
+        this.http.get<TimelineRenderParams>(
+          `/api/v1/mcp-scenes/${encodeURIComponent(sceneId)}`,
+        ),
+      );
+      await this.applyAndMeasure(sceneDoc);
+      if (!this.isDestroyed) {
+        await this.waitForStableFrame();
+      }
+    } catch (err) {
+      if (err instanceof HttpErrorResponse && err.status === 410) {
+        this.errorMessage.set(
+          `Scene ${sceneId} has expired. Re-run render_timelines to generate a fresh scene.`,
+        );
+      } else if (err instanceof HttpErrorResponse && err.status === 404) {
+        this.errorMessage.set(`Scene ${sceneId} was not found.`);
+      } else {
+        const detail = err instanceof Error ? err.message : String(err);
+        this.errorMessage.set(`Failed to load scene ${sceneId}: ${detail}`);
+      }
+    }
   }
 
   private async ensureInspectionLoaded(inspectionId: string): Promise<void> {
@@ -365,17 +550,18 @@ export class McpTimelineRenderSmartComponent implements OnInit {
   private selectMatchedTimelines(
     candidates: readonly ReadonlyDomainElement<Timeline>[],
     params: TimelineRenderParams,
-  ): ReadonlyDomainElement<Timeline>[] {
+  ): SelectedTimelinesResult {
+    const storeTimelines =
+      this.inspectionDataStore.inspectionData()?.timelineStore.timelines ??
+      candidates;
+    const timelineById = new Map<number, ReadonlyDomainElement<Timeline>>();
+    for (const timeline of storeTimelines) {
+      timelineById.set(timeline.id, timeline);
+    }
+
     let matched = [...candidates];
     if (params.timelineIds && params.timelineIds.length > 0) {
       const allowedIds = new Set<number>();
-      const timelineById = new Map<number, ReadonlyDomainElement<Timeline>>();
-      const storeTimelines =
-        this.inspectionDataStore.inspectionData()?.timelineStore.timelines ??
-        candidates;
-      for (const timeline of storeTimelines) {
-        timelineById.set(timeline.id, timeline);
-      }
       for (const targetId of params.timelineIds) {
         allowedIds.add(targetId);
         const target = timelineById.get(targetId);
@@ -394,7 +580,56 @@ export class McpTimelineRenderSmartComponent implements OnInit {
       );
     }
 
-    return matched;
+    const requiredIds = new Set<number>();
+    const autoIncludeIds = params.overlay?.autoIncludeTimelineIds ?? [];
+    for (const targetId of autoIncludeIds) {
+      const target = timelineById.get(targetId);
+      if (target) {
+        requiredIds.add(target.id);
+        for (const node of target.path) {
+          requiredIds.add(node.id);
+        }
+      }
+    }
+
+    if (requiredIds.size > 0) {
+      const unionIds = new Set<number>(matched.map((t) => t.id));
+      for (const reqId of requiredIds) {
+        unionIds.add(reqId);
+      }
+      matched = storeTimelines.filter((timeline) => unionIds.has(timeline.id));
+    }
+
+    return { matched, requiredIds };
+  }
+
+  private sliceTimelinesPreservingRequired(
+    matched: readonly ReadonlyDomainElement<Timeline>[],
+    requiredIds: ReadonlySet<number>,
+    maxNodes: number,
+  ): ReadonlyDomainElement<Timeline>[] {
+    if (matched.length <= maxNodes || requiredIds.size === 0) {
+      return matched.slice(0, maxNodes);
+    }
+
+    let requiredCountInMatched = 0;
+    for (const timeline of matched) {
+      if (requiredIds.has(timeline.id)) {
+        requiredCountInMatched++;
+      }
+    }
+
+    let optionalBudget = Math.max(0, maxNodes - requiredCountInMatched);
+    const result: ReadonlyDomainElement<Timeline>[] = [];
+    for (const timeline of matched) {
+      if (requiredIds.has(timeline.id)) {
+        result.push(timeline);
+      } else if (optionalBudget > 0) {
+        result.push(timeline);
+        optionalBudget--;
+      }
+    }
+    return result;
   }
 
   private applyHorizontalViewport(
