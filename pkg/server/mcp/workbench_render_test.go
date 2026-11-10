@@ -16,6 +16,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,10 +26,13 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+const testServerBaseURL = "http://127.0.0.1:8080"
 
 func TestRenderTimelines_Golden(t *testing.T) {
 	startTime := time.Date(2026, 9, 24, 1, 0, 0, 0, time.UTC)
@@ -38,11 +42,13 @@ func TestRenderTimelines_Golden(t *testing.T) {
 		TotalMatched:    8,
 		HasMore:         false,
 		MaxAllowedNodes: maxRenderMaxNodes,
-		Width:           1600,
-		Height:          460,
 		ViewStartTime:   startTime,
 		ViewEndTime:     endTime,
+		OverlaySummary:  "1 marker [1], 1 deck excerpt [E1]",
+		SceneID:         "scn_abcdef1234567890",
+		ParentSceneID:   "scn_parent00000000",
 		ImageURL:        "http://127.0.0.1:8080/api/v1/mcp-assets/ABCDEF.png",
+		InteractiveURL:  "http://127.0.0.1:8080/render/mcp-timeline?sceneId=scn_abcdef1234567890",
 		ExpiresAt:       time.Date(2026, 9, 24, 2, 30, 0, 0, time.UTC),
 		Applied: workbench.AppliedFilter{
 			TimelineQuery:               `timelineType == "Pod"`,
@@ -89,12 +95,17 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	wantInvalidCELResult, _, _ := mdtemplate.CELErrorResult("filter.timelineQuery", "invalid &&& syntax", invalidCELErr)
 
 	type renderTestOutcome struct {
-		Result    *mcpsdk.CallToolResult
-		Request   *TimelineRenderRequest
-		ServedPNG []byte
+		Result                *mcpsdk.CallToolResult
+		Request               *TimelineRenderRequest
+		ServedPNG             []byte
+		ServedSceneInspection string
 	}
 
-	const placeholderURL = testAssetBaseURL + "<TOKEN>.png"
+	const (
+		placeholderSceneID        = "scn_<SCENE_TOKEN>"
+		placeholderImageURL       = testAssetBaseURL + "<TOKEN>.png"
+		placeholderInteractiveURL = testServerBaseURL + "/render/mcp-timeline?sceneId=" + placeholderSceneID
+	)
 
 	testCases := []struct {
 		name     string
@@ -103,12 +114,10 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 		want     renderTestOutcome
 	}{
 		{
-			name: "valid render_timelines returns PNG ImageContent, image URL, and Markdown TextContent",
+			name: "valid render_timelines returns PNG ImageContent, sceneId, dual URLs, and Markdown TextContent",
 			renderer: &fakeTimelineImageRenderer{
 				result: &TimelineRenderResult{
 					PNGBytes:        fakePNG,
-					Width:           1600,
-					Height:          460,
 					RenderedCount:   8,
 					TotalMatched:    8,
 					HasMore:         false,
@@ -130,15 +139,18 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 							Text: strings.Join([]string{
 								"# Rendered timeline view",
 								"",
-								"Rendered 8 of 8 matched timelines (1600x460 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
+								"Rendered 8 of 8 matched timelines (2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"",
-								"- Image URL: `" + placeholderURL + "`",
+								"- Scene ID: `" + placeholderSceneID + "`",
+								"- Image URL: `" + placeholderImageURL + "`",
+								"- Interactive URL: `" + placeholderInteractiveURL + "`",
 								"- Expires at: <EXPIRES_AT>",
 								"",
-								"Embed the image in Markdown (`![Timeline](" + placeholderURL + ")`) or download the PNG before it expires:",
+								"Pass `parentSceneId: \"" + placeholderSceneID + "\"` to `render_timelines` to refine or branch this scene, or open the Interactive URL in a browser to jump directly to pinned diffs and logs in KHI.",
+								"Embed the static PNG in Markdown (`![Timeline](" + placeholderImageURL + ")`) or download it before it expires:",
 								"",
 								"```sh",
-								"curl --fail-with-body -o timeline.png '" + placeholderURL + "'",
+								"curl --fail-with-body -o timeline.png '" + placeholderImageURL + "'",
 								"```",
 								"",
 								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{}),
@@ -149,9 +161,9 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				Request: &TimelineRenderRequest{
 					InspectionID: inspectionID,
 					MaxNodes:     defaultRenderMaxNodes,
-					Width:        defaultRenderWidth,
 				},
-				ServedPNG: fakePNG,
+				ServedPNG:             fakePNG,
+				ServedSceneInspection: inspectionID,
 			},
 		},
 		{
@@ -159,8 +171,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			renderer: &fakeTimelineImageRenderer{
 				result: &TimelineRenderResult{
 					PNGBytes:        fakePNG,
-					Width:           1200,
-					Height:          800,
 					RenderedCount:   20,
 					TotalMatched:    75,
 					HasMore:         true,
@@ -178,7 +188,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				},
 				MaxDepth:           3,
 				MaxNodes:           20,
-				Width:              1200,
 				TimezoneShiftHours: 9,
 			},
 			want: renderTestOutcome{
@@ -192,16 +201,19 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 							Text: strings.Join([]string{
 								"# Rendered timeline view",
 								"",
-								"Rendered 20 of 75 matched timelines (1200x800 px, 2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
+								"Rendered 20 of 75 matched timelines (2026-10-01T09:00:00Z to 2026-10-01T10:00:00Z).",
 								"Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to 150) to render omitted timelines.",
 								"",
-								"- Image URL: `" + placeholderURL + "`",
+								"- Scene ID: `" + placeholderSceneID + "`",
+								"- Image URL: `" + placeholderImageURL + "`",
+								"- Interactive URL: `" + placeholderInteractiveURL + "`",
 								"- Expires at: <EXPIRES_AT>",
 								"",
-								"Embed the image in Markdown (`![Timeline](" + placeholderURL + ")`) or download the PNG before it expires:",
+								"Pass `parentSceneId: \"" + placeholderSceneID + "\"` to `render_timelines` to refine or branch this scene, or open the Interactive URL in a browser to jump directly to pinned diffs and logs in KHI.",
+								"Embed the static PNG in Markdown (`![Timeline](" + placeholderImageURL + ")`) or download it before it expires:",
 								"",
 								"```sh",
-								"curl --fail-with-body -o timeline.png '" + placeholderURL + "'",
+								"curl --fail-with-body -o timeline.png '" + placeholderImageURL + "'",
 								"```",
 								"",
 								mdtemplate.FormatAppliedFilter(workbench.AppliedFilter{
@@ -226,18 +238,32 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					ViewEndTimeMs:      &endMs,
 					MaxDepth:           3,
 					MaxNodes:           20,
-					Width:              1200,
 					TimezoneShiftHours: 9,
 				},
-				ServedPNG: fakePNG,
+				ServedPNG:             fakePNG,
+				ServedSceneInspection: inspectionID,
 			},
 		},
 		{
-			name:     "missing inspectionId returns INVALID_ARGUMENT",
+			name:     "missing both inspectionId and parentSceneId returns INVALID_ARGUMENT",
 			renderer: &fakeTimelineImageRenderer{},
 			input:    RenderTimelinesInput{},
 			want: renderTestOutcome{
-				Result: wantErrorResult("INVALID_ARGUMENT", "inspectionId is required."),
+				Result: wantErrorResult("INVALID_ARGUMENT", "Specify inspectionId to create a new scene, or parentSceneId to patch an existing scene."),
+			},
+		},
+		{
+			name:     "unknown parentSceneId returns SCENE_NOT_FOUND",
+			renderer: &fakeTimelineImageRenderer{},
+			input: RenderTimelinesInput{
+				ParentSceneID: "scn_missing",
+			},
+			want: renderTestOutcome{
+				Result: wantErrorResult(
+					"SCENE_NOT_FOUND",
+					"No scene with ID `scn_missing` exists.",
+					"Create a new scene by specifying `inspectionId` and `filter`.",
+				),
 			},
 		},
 		{
@@ -302,7 +328,6 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 				Request: &TimelineRenderRequest{
 					InspectionID: inspectionID,
 					MaxNodes:     defaultRenderMaxNodes,
-					Width:        defaultRenderWidth,
 				},
 			},
 		},
@@ -311,7 +336,8 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			assetStore := NewAssetStore(testAssetBaseURL, DefaultAssetTTL)
-			handler := NewWorkbenchHandler(mgr, tc.renderer, assetStore)
+			sceneStore := scene.NewStore(scene.DefaultTTL)
+			handler := NewWorkbenchHandler(mgr, tc.renderer, assetStore, sceneStore, testServerBaseURL)
 			before := time.Now().UTC().Truncate(time.Second)
 
 			res, _, err := handler.handleRenderTimelines(context.Background(), nil, tc.input)
@@ -320,9 +346,10 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 			}
 
 			var servedPNG []byte
+			var servedSceneInspection string
 			if res != nil && !res.IsError && len(res.Content) >= 2 {
 				if textContent, ok := res.Content[1].(*mcpsdk.TextContent); ok {
-					issuedURL, expiresAtStr := extractRenderedImageMetadata(t, textContent.Text)
+					issuedSceneID, issuedImageURL, issuedInteractiveURL, expiresAtStr := extractRenderedSceneMetadata(t, textContent.Text)
 					expiresAt, parseErr := time.Parse(time.RFC3339, expiresAtStr)
 					if parseErr != nil {
 						t.Fatalf("Expires at %q failed RFC3339 parse: %v", expiresAtStr, parseErr)
@@ -330,26 +357,44 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 					if expiresAt.Before(before.Add(DefaultAssetTTL)) {
 						t.Errorf("Expires at = %v, want at least %v", expiresAt, before.Add(DefaultAssetTTL))
 					}
-
-					fileName := strings.TrimPrefix(issuedURL, testAssetBaseURL)
-					rec := httptest.NewRecorder()
-					req := httptest.NewRequest(http.MethodGet, issuedURL, nil)
-					assetStore.ServeAsset(rec, req, fileName)
-					if rec.Code != http.StatusOK {
-						t.Fatalf("GET %s returned %d, want %d", issuedURL, rec.Code, http.StatusOK)
+					wantInteractiveURL := testServerBaseURL + "/render/mcp-timeline?sceneId=" + issuedSceneID
+					if issuedInteractiveURL != wantInteractiveURL {
+						t.Errorf("Interactive URL = %q, want %q", issuedInteractiveURL, wantInteractiveURL)
 					}
-					servedPNG = rec.Body.Bytes()
 
-					normalizedText := strings.ReplaceAll(textContent.Text, issuedURL, placeholderURL)
+					fileName := strings.TrimPrefix(issuedImageURL, testAssetBaseURL)
+					assetRec := httptest.NewRecorder()
+					assetReq := httptest.NewRequest(http.MethodGet, issuedImageURL, nil)
+					assetStore.ServeAsset(assetRec, assetReq, fileName)
+					if assetRec.Code != http.StatusOK {
+						t.Fatalf("GET %s returned %d, want %d", issuedImageURL, assetRec.Code, http.StatusOK)
+					}
+					servedPNG = assetRec.Body.Bytes()
+
+					sceneRec := httptest.NewRecorder()
+					sceneReq := httptest.NewRequest(http.MethodGet, testServerBaseURL+"/api/v1/mcp-scenes/"+issuedSceneID, nil)
+					sceneStore.ServeScene(sceneRec, sceneReq, issuedSceneID)
+					if sceneRec.Code != http.StatusOK {
+						t.Fatalf("GET scene %s returned %d, want %d", issuedSceneID, sceneRec.Code, http.StatusOK)
+					}
+					var decodedDoc scene.Document
+					if err := json.Unmarshal(sceneRec.Body.Bytes(), &decodedDoc); err != nil {
+						t.Fatalf("json.Unmarshal(scene doc) failed: %v", err)
+					}
+					servedSceneInspection = decodedDoc.InspectionID
+
+					normalizedText := strings.ReplaceAll(textContent.Text, issuedSceneID, placeholderSceneID)
+					normalizedText = strings.ReplaceAll(normalizedText, issuedImageURL, placeholderImageURL)
 					normalizedText = strings.Replace(normalizedText, "- Expires at: "+expiresAtStr, "- Expires at: <EXPIRES_AT>", 1)
 					textContent.Text = normalizedText
 				}
 			}
 
 			got := renderTestOutcome{
-				Result:    res,
-				Request:   tc.renderer.gotReq,
-				ServedPNG: servedPNG,
+				Result:                res,
+				Request:               tc.renderer.gotReq,
+				ServedPNG:             servedPNG,
+				ServedSceneInspection: servedSceneInspection,
 			}
 			if diff := cmp.Diff(tc.want, got, ignoreMCPUnexported); diff != "" {
 				t.Errorf("handleRenderTimelines() outcome mismatch (-want +got):\n%s", diff)
@@ -358,25 +403,234 @@ func TestWorkbenchHandler_HandleRenderTimelines(t *testing.T) {
 	}
 }
 
-func extractRenderedImageMetadata(t *testing.T, markdown string) (string, string) {
+func extractRenderedSceneMetadata(t *testing.T, markdown string) (sceneID, imageURL, interactiveURL, expiresAt string) {
 	t.Helper()
-	const urlPrefix = "- Image URL: `"
-	_, afterURL, found := strings.Cut(markdown, urlPrefix)
-	if !found {
-		t.Fatalf("render_timelines markdown missing %q:\n%s", urlPrefix, markdown)
+
+	extractCodeField := func(prefix string) (string, string) {
+		_, after, found := strings.Cut(markdown, prefix)
+		if !found {
+			t.Fatalf("render_timelines markdown missing %q:\n%s", prefix, markdown)
+		}
+		val, rest, found := strings.Cut(after, "`")
+		if !found {
+			t.Fatalf("render_timelines markdown missing closing backtick for %q:\n%s", prefix, markdown)
+		}
+		return val, rest
 	}
-	issuedURL, rest, found := strings.Cut(afterURL, "`")
-	if !found {
-		t.Fatalf("render_timelines markdown missing closing backtick for Image URL:\n%s", markdown)
-	}
+
+	sceneID, _ = extractCodeField("- Scene ID: `")
+	imageURL, _ = extractCodeField("- Image URL: `")
+	interactiveURL, rest := extractCodeField("- Interactive URL: `")
 
 	const expiresPrefix = "\n- Expires at: "
 	_, afterExpires, found := strings.Cut(rest, expiresPrefix)
 	if !found {
 		t.Fatalf("render_timelines markdown missing %q:\n%s", expiresPrefix, markdown)
 	}
-	expiresAt, _, _ := strings.Cut(afterExpires, "\n")
-	return issuedURL, expiresAt
+	expiresAt, _, _ = strings.Cut(afterExpires, "\n")
+	return sceneID, imageURL, interactiveURL, expiresAt
+}
+
+func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testing.T) {
+	inspectionServer, inspectionID := setupRealisticTimelineTestServer(t)
+	indexMgr := workbench.NewInspectionIndexManager(inspectionServer, t.TempDir())
+	mgr := workbench.NewWorkbenchManager(inspectionServer, indexMgr, 5)
+	t.Cleanup(indexMgr.Wait)
+
+	ctx := context.Background()
+	fakePNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+	baseTime := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+
+	renderer := &fakeTimelineImageRenderer{
+		result: &TimelineRenderResult{
+			PNGBytes:        fakePNG,
+			RenderedCount:   12,
+			TotalMatched:    12,
+			HasMore:         false,
+			ViewStartTimeMs: baseTime.UnixMilli(),
+			ViewEndTimeMs:   baseTime.Add(1 * time.Hour).UnixMilli(),
+		},
+	}
+	assetStore := NewAssetStore(testAssetBaseURL, DefaultAssetTTL)
+	sceneStore := scene.NewStore(scene.DefaultTTL)
+	handler := NewWorkbenchHandler(mgr, renderer, assetStore, sceneStore, testServerBaseURL)
+
+	wb, toolRes, err := handler.acquireWorkbench(ctx, inspectionID)
+	if err != nil || toolRes != nil {
+		t.Fatalf("acquireWorkbench() failed: err=%v toolRes=%v", err, toolRes)
+	}
+
+	var nodeReadyTimelineID uint32
+	var appTimelineID uint32
+	var oomLogID uint32
+	for id, tl := range wb.SearchIndex().TimelineMap {
+		if tl != nil && tl.Name == "Ready" {
+			nodeReadyTimelineID = uint32(id)
+		}
+		if tl != nil && tl.Name == "app" {
+			page, err := wb.GetTimelineLogs(ctx, uint32(id), workbench.TimelineLogFilter{LogQuery: `severity == ERROR`})
+			if err == nil && len(page.Logs) > 0 {
+				appTimelineID = uint32(id)
+				oomLogID = page.Logs[0].LogID
+			}
+		}
+	}
+	if nodeReadyTimelineID == 0 || appTimelineID == 0 || oomLogID == 0 {
+		t.Fatalf("failed to locate fixture IDs: nodeReadyTimelineID=%d appTimelineID=%d oomLogID=%d", nodeReadyTimelineID, appTimelineID, oomLogID)
+	}
+
+	// Step 1: Create initial annotated parent scene.
+	dimUnlisted := true
+	parentRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		InspectionID: inspectionID,
+		Filter: workbench.Filter{
+			TimelineQuery: `path["namespace"] == "default"`,
+		},
+		Annotations: &scene.Annotations{
+			Palette: []scene.PaletteEntry{
+				{ID: "trigger", Color: "amber"},
+				{ID: "victim", Color: "red"},
+			},
+			RowHighlights: []scene.RowHighlight{
+				{
+					TimelineQuery: `name == "frontend-web-6d8f9b-x7k2p"`,
+					RoleLabel:     "VICTIM · Pod-1",
+					PaletteID:     "victim",
+				},
+			},
+			DimUnlistedRows: &dimUnlisted,
+			Markers: []scene.MarkerAnnotation{
+				{
+					Anchor: scene.Anchor{TimelineID: appTimelineID, LogID: oomLogID},
+					Label:  "OOMKilled container app",
+				},
+			},
+		},
+	})
+	if err != nil || parentRes.IsError {
+		t.Fatalf("Step 1 handleRenderTimelines() failed: err=%v res=%v", err, parentRes)
+	}
+	parentText := parentRes.Content[1].(*mcpsdk.TextContent).Text
+	parentSceneID, _, _, _ := extractRenderedSceneMetadata(t, parentText)
+	if !strings.Contains(parentText, "Annotations: 1 marker [1], 1 row highlight, unlisted rows dimmed.") {
+		t.Errorf("Step 1 summary missing annotation summary:\n%s", parentText)
+	}
+
+	// Step 2: Incrementally patch parentSceneId with diffExcerpts + logExcerpts.
+	childARes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			DiffExcerpts: []scene.DiffExcerpt{
+				{
+					Revision: scene.RevisionRef{
+						TimelineID:    nodeReadyTimelineID,
+						RevisionIndex: 1,
+					},
+					Windows: []scene.SliceWindow{
+						{Query: "MemoryPressure", BeforeLines: 1, AfterLines: 1},
+					},
+					Note: "Node Ready condition flipped to False",
+				},
+			},
+			LogExcerpts: []scene.LogExcerpt{
+				{
+					LogID:      oomLogID,
+					TimelineID: appTimelineID,
+					Note:       "Container OOM termination event",
+				},
+			},
+		},
+	})
+	if err != nil || childARes.IsError {
+		t.Fatalf("Step 2 handleRenderTimelines() failed: err=%v res=%v", err, childARes)
+	}
+	childAText := childARes.Content[1].(*mcpsdk.TextContent).Text
+	childASceneID, _, _, _ := extractRenderedSceneMetadata(t, childAText)
+	if !strings.Contains(childAText, "(derived from `"+parentSceneID+"`)") {
+		t.Errorf("Step 2 summary missing parent lineage:\n%s", childAText)
+	}
+	if len(renderer.gotReq.Overlay.Excerpts) != 2 {
+		t.Fatalf("Step 2 Excerpts len = %d, want 2", len(renderer.gotReq.Overlay.Excerpts))
+	}
+	if renderer.gotReq.Overlay.Excerpts[1].PaletteID != "victim" {
+		t.Errorf("Step 2 co-anchored log excerpt PaletteID = %q, want \"victim\"", renderer.gotReq.Overlay.Excerpts[1].PaletteID)
+	}
+	for _, line := range renderer.gotReq.Overlay.Excerpts[0].Lines {
+		if strings.Contains(line.Text, "managedFields") {
+			t.Errorf("Step 2 diff excerpt leaked managedFields: %q", line.Text)
+		}
+	}
+
+	// Step 3: Branch a second variant from the same parentSceneId without mutating parent or childA.
+	spanStart := baseTime.Add(24 * time.Minute)
+	spanEnd := baseTime.Add(29*time.Minute + 30*time.Second)
+	childBRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			ClearLayers: []scene.AnnotationLayer{scene.AnnotationLayerMarkers},
+			Spans: []scene.SpanAnnotation{
+				{
+					Start:     scene.Anchor{Time: &spanStart},
+					End:       scene.Anchor{Time: &spanEnd},
+					Label:     "Customer impact window",
+					Pattern:   scene.SpanPatternHatched,
+					PaletteID: "trigger",
+				},
+			},
+		},
+	})
+	if err != nil || childBRes.IsError {
+		t.Fatalf("Step 3 handleRenderTimelines() failed: err=%v res=%v", err, childBRes)
+	}
+	if len(renderer.gotReq.Overlay.Markers) != 0 || len(renderer.gotReq.Overlay.Spans) != 1 || len(renderer.gotReq.Overlay.Excerpts) != 0 {
+		t.Errorf("Step 3 branched overlay mismatch: markers=%d spans=%d excerpts=%d",
+			len(renderer.gotReq.Overlay.Markers), len(renderer.gotReq.Overlay.Spans), len(renderer.gotReq.Overlay.Excerpts))
+	}
+
+	// Confirm parent and childA remain untouched in sceneStore.
+	storedParent, err := sceneStore.Get(parentSceneID)
+	if err != nil || len(storedParent.Document.Overlay.Markers) != 1 || len(storedParent.Document.Overlay.Excerpts) != 0 {
+		t.Errorf("storedParent mutated unexpectedly: err=%v overlay=%+v", err, storedParent.Document.Overlay)
+	}
+	storedChildA, err := sceneStore.Get(childASceneID)
+	if err != nil || len(storedChildA.Document.Overlay.Excerpts) != 2 {
+		t.Errorf("storedChildA mutated unexpectedly: err=%v overlay=%+v", err, storedChildA.Document.Overlay)
+	}
+
+	// Step 4: Verify actionable error codes (SLICE_QUERY_NOT_FOUND and ANCHOR_OUT_OF_VIEWPORT).
+	errSliceRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			DiffExcerpts: []scene.DiffExcerpt{
+				{
+					Revision: scene.RevisionRef{TimelineID: nodeReadyTimelineID, RevisionIndex: 1},
+					Windows:  []scene.SliceWindow{{Query: "NonExistentFieldXYZ"}},
+				},
+			},
+		},
+	})
+	if err != nil || !errSliceRes.IsError {
+		t.Fatalf("SLICE_QUERY_NOT_FOUND check failed: err=%v res=%v", err, errSliceRes)
+	}
+	if gotErrText := errSliceRes.Content[0].(*mcpsdk.TextContent).Text; !strings.HasPrefix(gotErrText, "Error: SLICE_QUERY_NOT_FOUND") {
+		t.Errorf("expected SLICE_QUERY_NOT_FOUND, got:\n%s", gotErrText)
+	}
+
+	narrowStart := baseTime.Add(40 * time.Minute)
+	narrowEnd := baseTime.Add(50 * time.Minute)
+	errViewportRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Filter: workbench.Filter{
+			StartTime: &narrowStart,
+			EndTime:   &narrowEnd,
+		},
+	})
+	if err != nil || !errViewportRes.IsError {
+		t.Fatalf("ANCHOR_OUT_OF_VIEWPORT check failed: err=%v res=%v", err, errViewportRes)
+	}
+	if gotErrText := errViewportRes.Content[0].(*mcpsdk.TextContent).Text; !strings.HasPrefix(gotErrText, "Error: ANCHOR_OUT_OF_VIEWPORT") {
+		t.Errorf("expected ANCHOR_OUT_OF_VIEWPORT, got:\n%s", gotErrText)
+	}
 }
 
 func TestBuildTimelineRenderRequest(t *testing.T) {
@@ -385,63 +639,54 @@ func TestBuildTimelineRenderRequest(t *testing.T) {
 	startMs, endMs := int64(100123), int64(200987)
 
 	testCases := []struct {
-		name        string
-		input       RenderTimelinesInput
-		applied     workbench.AppliedFilter
-		timelineIDs []uint32
-		want        TimelineRenderRequest
+		name          string
+		spec          scene.Spec
+		applied       workbench.AppliedFilter
+		parentSceneID string
+		overlay       *scene.Overlay
+		want          TimelineRenderRequest
 	}{
 		{
-			name:  "negative maxNodes uses default",
-			input: RenderTimelinesInput{MaxNodes: -1},
-			want:  TimelineRenderRequest{MaxNodes: 50, Width: 1600},
+			name: "negative maxNodes uses default",
+			spec: scene.Spec{MaxNodes: -1},
+			want: TimelineRenderRequest{MaxNodes: 50},
 		},
 		{
 			name: "zero values use defaults",
-			want: TimelineRenderRequest{MaxNodes: 50, Width: 1600},
+			want: TimelineRenderRequest{MaxNodes: 50},
 		},
 		{
-			name:  "small positive maxNodes stays unchanged",
-			input: RenderTimelinesInput{MaxNodes: 1},
-			want:  TimelineRenderRequest{MaxNodes: 1, Width: 1600},
+			name: "small positive maxNodes stays unchanged",
+			spec: scene.Spec{MaxNodes: 1},
+			want: TimelineRenderRequest{MaxNodes: 1},
 		},
 		{
-			name:  "in range maxNodes stays unchanged",
-			input: RenderTimelinesInput{MaxNodes: 75},
-			want:  TimelineRenderRequest{MaxNodes: 75, Width: 1600},
+			name: "in range maxNodes stays unchanged",
+			spec: scene.Spec{MaxNodes: 75},
+			want: TimelineRenderRequest{MaxNodes: 75},
 		},
 		{
-			name:  "exact maxNodes cap stays unchanged",
-			input: RenderTimelinesInput{MaxNodes: 150},
-			want:  TimelineRenderRequest{MaxNodes: 150, Width: 1600},
+			name: "exact maxNodes cap stays unchanged",
+			spec: scene.Spec{MaxNodes: 150},
+			want: TimelineRenderRequest{MaxNodes: 150},
 		},
 		{
-			name:  "above maxNodes cap is capped",
-			input: RenderTimelinesInput{MaxNodes: 151},
-			want:  TimelineRenderRequest{MaxNodes: 150, Width: 1600},
+			name: "above maxNodes cap is capped",
+			spec: scene.Spec{MaxNodes: 151},
+			want: TimelineRenderRequest{MaxNodes: 150},
 		},
 		{
-			name:  "negative width uses default and negative depth becomes zero",
-			input: RenderTimelinesInput{Width: -1, MaxDepth: -1},
-			want:  TimelineRenderRequest{MaxNodes: 50, Width: 1600},
-		},
-		{
-			name:  "positive width below minimum is raised",
-			input: RenderTimelinesInput{Width: 799},
-			want:  TimelineRenderRequest{MaxNodes: 50, Width: 800},
-		},
-		{
-			name:  "width above maximum is capped",
-			input: RenderTimelinesInput{Width: 3841},
-			want:  TimelineRenderRequest{MaxNodes: 50, Width: 3840},
+			name: "negative depth becomes zero",
+			spec: scene.Spec{MaxDepth: -1},
+			want: TimelineRenderRequest{MaxNodes: 50},
 		},
 		{
 			name: "forwards request parameters and applied filters",
-			input: RenderTimelinesInput{
+			spec: scene.Spec{
 				InspectionID:       "inspection-1",
+				TimelineIDs:        []uint32{1, 2},
 				MaxNodes:           20,
 				MaxDepth:           3,
-				Width:              1200,
 				TimezoneShiftHours: 5.5,
 			},
 			applied: workbench.AppliedFilter{
@@ -452,8 +697,11 @@ func TestBuildTimelineRenderRequest(t *testing.T) {
 				StartTime:                   startTime,
 				EndTime:                     endTime,
 			},
-			timelineIDs: []uint32{1, 2},
+			parentSceneID: "parent-scene",
+			overlay:       &scene.Overlay{DimUnlistedRows: true},
 			want: TimelineRenderRequest{
+				ParentSceneID:          "parent-scene",
+				Overlay:                &scene.Overlay{DimUnlistedRows: true},
 				InspectionID:           "inspection-1",
 				TimelineQuery:          `timelineType == "Pod"`,
 				TimelineExclusionQuery: `timelineType == "Node"`,
@@ -462,7 +710,6 @@ func TestBuildTimelineRenderRequest(t *testing.T) {
 				TimelineIDs:            []uint32{1, 2},
 				MaxNodes:               20,
 				MaxDepth:               3,
-				Width:                  1200,
 				TimezoneShiftHours:     5.5,
 				ViewStartTimeMs:        &startMs,
 				ViewEndTimeMs:          &endMs,
@@ -474,7 +721,7 @@ func TestBuildTimelineRenderRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := buildTimelineRenderRequest(tc.input, tc.applied, tc.timelineIDs)
+			got := buildTimelineRenderRequest(tc.parentSceneID, tc.spec, tc.applied, tc.overlay)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("buildTimelineRenderRequest() mismatch (-want +got):\n%s", diff)
 			}

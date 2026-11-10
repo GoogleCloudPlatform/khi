@@ -22,6 +22,7 @@ import (
 
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -35,6 +36,8 @@ type WorkbenchHandler struct {
 	waitTimeout time.Duration
 	renderer    TimelineImageRenderer
 	assetStore  *AssetStore
+	sceneStore  *scene.Store
+	baseURL     string
 }
 
 var _ DomainHandler = (*WorkbenchHandler)(nil)
@@ -42,13 +45,24 @@ var _ DomainHandler = (*WorkbenchHandler)(nil)
 // NewWorkbenchHandler creates a new WorkbenchHandler.
 //
 // renderer may be nil to omit the render_timelines tool; when renderer is non-nil, assetStore must also be non-nil.
-func NewWorkbenchHandler(manager *workbench.WorkbenchManager, renderer TimelineImageRenderer, assetStore *AssetStore) *WorkbenchHandler {
+func NewWorkbenchHandler(
+	manager *workbench.WorkbenchManager,
+	renderer TimelineImageRenderer,
+	assetStore *AssetStore,
+	sceneStore *scene.Store,
+	baseURL string,
+) *WorkbenchHandler {
+	if sceneStore == nil {
+		sceneStore = scene.NewStore(scene.DefaultTTL)
+	}
 	return &WorkbenchHandler{
 		manager:     manager,
 		templates:   mdtemplate.MustParse(templateFS, "templates/*.md.tmpl"),
 		waitTimeout: defaultWorkbenchWaitTimeout,
 		renderer:    renderer,
 		assetStore:  assetStore,
+		sceneStore:  sceneStore,
+		baseURL:     strings.TrimSuffix(baseURL, "/"),
 	}
 }
 
@@ -86,13 +100,13 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{
 		Name:        "get_resource_diff",
-		Description: `Get the unified diff between a resource revision and the revision right before it. Long diffs are truncated; pass the byteOffset from the last line to read the rest.`,
+		Description: `Get the unified diff between a resource revision and the revision right before it (metadata.managedFields is omitted by default; set includeManagedFields to true to include it). Long diffs are truncated; pass the byteOffset from the last line to read the rest.`,
 	}, h.handleGetResourceDiff)
 
 	if h.renderer != nil {
 		mcpsdk.AddTool(srv, &mcpsdk.Tool{
 			Name:        "render_timelines",
-			Description: `Render resource timelines and events visually as a PNG image matching the KHI frontend timeline view, alongside a Markdown summary with a short-lived HTTP image URL and the applied filter. Select target timelines via filter (same CEL and time range syntax as search_timelines) and/or explicit timelineIds (ancestor hierarchy rows are automatically included). When filter.startTime and filter.endTime are omitted, the entire inspection duration is rendered; when specified, the chart zooms horizontally to that time window.`,
+			Description: `Render resource timelines, visual annotations (shared palette, markers, spans, rowHighlights, connectors, callouts), and a synchronized bottom-docked evidence deck (diffExcerpts and logExcerpts sliced via windows query + beforeLines/afterLines with metadata.managedFields omitted) as a PNG image. Declare reusable role colors in annotations.palette and reference them via paletteId (or omit paletteId on co-anchored items and highlighted rows to inherit colors automatically). Every call issues an immutable sceneId alongside a static PNG imageUrl and a clickable interactiveUrl that opens the same annotated scene in the KHI Web UI with jump links to full diffs and logs. Specify inspectionId with filter/timelineIds to create a new scene, or specify parentSceneId to incrementally refine filters/annotations or branch into audience-specific variants (using clearLayers or removeIds). Timelines referenced by annotations are automatically included with their ancestors.`,
 		}, h.handleRenderTimelines)
 	}
 

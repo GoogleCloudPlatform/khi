@@ -17,10 +17,13 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -28,20 +31,18 @@ import (
 const (
 	defaultRenderMaxNodes = 50
 	maxRenderMaxNodes     = 150
-	defaultRenderWidth    = 1600
-	minRenderWidth        = 800
-	maxRenderWidth        = 3840
 )
 
 // RenderTimelinesInput defines the input parameters for the render_timelines MCP tool.
 type RenderTimelinesInput struct {
-	InspectionID       string           `json:"inspectionId" jsonschema:"The target inspection ID."`
-	Filter             workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. When startTime and endTime are omitted, the entire inspection time range is rendered. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
-	TimelineIDs        []string         `json:"timelineIds,omitempty" jsonschema:"Optional list of timeline IDs (from search_timelines or search_logs) to render along with their ancestor hierarchy nodes."`
-	MaxDepth           int              `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
-	MaxNodes           int              `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
-	Width              int              `json:"width,omitempty" jsonschema:"Rendered image width in pixels (default 1600, min 800, max 3840)."`
-	TimezoneShiftHours float64          `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
+	InspectionID       string             `json:"inspectionId,omitempty" jsonschema:"The target inspection ID. Required when creating a new scene; inherited automatically when parentSceneId is specified."`
+	ParentSceneID      string             `json:"parentSceneId,omitempty" jsonschema:"Optional parent scene ID from a previous render_timelines call. Clones its inspectionId, filter, timelineIds, and annotations into a new immutable scene before applying overrides."`
+	Filter             workbench.Filter   `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. Non-empty fields override the inherited filter when parentSceneId is set. When startTime and endTime are omitted, the entire inspection time range is rendered. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
+	TimelineIDs        []string           `json:"timelineIds,omitempty" jsonschema:"Optional list of timeline IDs (from search_timelines or search_logs) to render along with their ancestor hierarchy nodes. Timelines referenced by annotations are also included automatically."`
+	MaxDepth           int                `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
+	MaxNodes           int                `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
+	TimezoneShiftHours float64            `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
+	Annotations        *scene.Annotations `json:"annotations,omitempty" jsonschema:"Optional named palette, visual overlays (markers, spans, rowHighlights, connectors, callouts), and bottom-deck evidence cards (diffExcerpts, logExcerpts), plus clearLayers and removeIds patch directives."`
 }
 
 type renderTimelinesTemplateData struct {
@@ -49,65 +50,100 @@ type renderTimelinesTemplateData struct {
 	TotalMatched    int
 	HasMore         bool
 	MaxAllowedNodes int
-	Width           int
-	Height          int
 	ViewStartTime   time.Time
 	ViewEndTime     time.Time
+	OverlaySummary  string
+	SceneID         string
+	ParentSceneID   string
 	ImageURL        string
+	InteractiveURL  string
 	ExpiresAt       time.Time
 	Applied         workbench.AppliedFilter
 }
 
 func (h *WorkbenchHandler) handleRenderTimelines(ctx context.Context, _ *mcpsdk.CallToolRequest, input RenderTimelinesInput) (*mcpsdk.CallToolResult, any, error) {
-	if input.InspectionID == "" {
-		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "inspectionId is required.")
-	}
-	if field, err := workbench.ValidateFilter(input.Filter); err != nil {
-		return mdtemplate.CELErrorResult(field, filterExpressionByField(input.Filter, field), err)
-	}
-	if input.Filter.StartTime != nil && input.Filter.EndTime != nil && input.Filter.EndTime.Before(*input.Filter.StartTime) {
-		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "filter.endTime must not be before filter.startTime.")
+	if input.ParentSceneID == "" && input.InspectionID == "" {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "Specify inspectionId to create a new scene, or parentSceneId to patch an existing scene.")
 	}
 
-	parsedTimelineIDs, errRes, err := parseTimelineIDArguments(input.TimelineIDs)
+	parsedInputIDs, errRes, err := parseTimelineIDArguments(input.TimelineIDs)
 	if err != nil || errRes != nil {
 		return errRes, nil, err
 	}
 
-	wb, errRes, err := h.acquireWorkbench(ctx, input.InspectionID)
-	if err != nil || errRes != nil {
-		return errRes, nil, err
-	}
-
-	if errRes, ok := verifyTimelinesExist(wb, input.InspectionID, input.TimelineIDs, parsedTimelineIDs); !ok {
+	mergedSpec, errRes := h.sceneStore.MergePatch(input.ParentSceneID, scene.Spec{
+		InspectionID:       input.InspectionID,
+		Filter:             input.Filter,
+		TimelineIDs:        parsedInputIDs,
+		MaxDepth:           input.MaxDepth,
+		MaxNodes:           input.MaxNodes,
+		TimezoneShiftHours: input.TimezoneShiftHours,
+		Annotations:        input.Annotations,
+	})
+	if errRes != nil {
 		return errRes, nil, nil
 	}
 
-	applied := wb.ResolveFilter(input.Filter)
-	renderReq := buildTimelineRenderRequest(input, applied, parsedTimelineIDs)
+	if field, err := workbench.ValidateFilter(mergedSpec.Filter); err != nil {
+		return mdtemplate.CELErrorResult(field, filterExpressionByField(mergedSpec.Filter, field), err)
+	}
+	if mergedSpec.Filter.StartTime != nil && mergedSpec.Filter.EndTime != nil && mergedSpec.Filter.EndTime.Before(*mergedSpec.Filter.StartTime) {
+		return mdtemplate.ErrorResult("INVALID_ARGUMENT", "filter.endTime must not be before filter.startTime.")
+	}
 
+	wb, errRes, err := h.acquireWorkbench(ctx, mergedSpec.InspectionID)
+	if err != nil || errRes != nil {
+		return errRes, nil, err
+	}
+
+	if errRes, ok := verifyParsedTimelinesExist(wb, mergedSpec.InspectionID, mergedSpec.TimelineIDs); !ok {
+		return errRes, nil, nil
+	}
+
+	applied := wb.ResolveFilter(mergedSpec.Filter)
+	overlay, errRes, err := scene.Resolve(ctx, wb, mergedSpec.InspectionID, &mergedSpec, applied)
+	if err != nil || errRes != nil {
+		return errRes, nil, err
+	}
+
+	renderReq := buildTimelineRenderRequest(input.ParentSceneID, mergedSpec, applied, overlay)
 	renderRes, err := h.renderer.RenderTimeline(ctx, renderReq)
 	if err != nil {
 		return mdtemplate.ErrorResult("RENDER_FAILED", fmt.Sprintf("Failed to render timelines: %s.", err.Error()))
 	}
 
 	grant := h.assetStore.Issue(renderRes.PNGBytes, "image/png", ".png")
+	storedScene, err := h.sceneStore.Issue(input.ParentSceneID, mergedSpec, toSceneDocument(renderReq))
+	if err != nil {
+		return mdtemplate.ErrorResult("INTERNAL_ERROR", fmt.Sprintf("Failed to issue timeline scene: %s.", err.Error()))
+	}
+
+	expiresAt := grant.ExpiresAt
+	if storedScene.ExpiresAt.Before(expiresAt) {
+		expiresAt = storedScene.ExpiresAt
+	}
+	interactiveURL := ""
+	if h.baseURL != "" {
+		interactiveURL = fmt.Sprintf("%s/render/mcp-timeline?sceneId=%s", h.baseURL, url.QueryEscape(storedScene.SceneID))
+	}
 
 	summaryText, err := h.templates.Render("render_timelines.md.tmpl", renderTimelinesTemplateData{
 		RenderedCount:   renderRes.RenderedCount,
 		TotalMatched:    renderRes.TotalMatched,
 		HasMore:         renderRes.HasMore,
 		MaxAllowedNodes: maxRenderMaxNodes,
-		Width:           renderRes.Width,
-		Height:          renderRes.Height,
 		ViewStartTime:   time.UnixMilli(renderRes.ViewStartTimeMs).UTC(),
 		ViewEndTime:     time.UnixMilli(renderRes.ViewEndTimeMs).UTC(),
+		OverlaySummary:  formatOverlaySummary(overlay),
+		SceneID:         storedScene.SceneID,
+		ParentSceneID:   storedScene.ParentSceneID,
 		ImageURL:        grant.URL,
-		ExpiresAt:       grant.ExpiresAt,
+		InteractiveURL:  interactiveURL,
+		ExpiresAt:       expiresAt,
 		Applied:         applied,
 	})
 	if err != nil {
-		return nil, nil, err
+		return mdtemplate.ErrorResult("INTERNAL_ERROR", fmt.Sprintf("Failed to render render_timelines template: %s.", err.Error()))
 	}
 
 	return &mcpsdk.CallToolResult{
@@ -139,42 +175,42 @@ func parseTimelineIDArguments(rawIDs []string) ([]uint32, *mcpsdk.CallToolResult
 	return parsed, nil, nil
 }
 
-func verifyTimelinesExist(wb *workbench.Workbench, inspectionID string, rawIDs []string, parsedIDs []uint32) (*mcpsdk.CallToolResult, bool) {
+func verifyParsedTimelinesExist(wb *workbench.Workbench, inspectionID string, parsedIDs []uint32) (*mcpsdk.CallToolResult, bool) {
 	if len(parsedIDs) == 0 {
 		return nil, true
 	}
 	idx := wb.SearchIndex()
-	for i, id := range parsedIDs {
+	for _, id := range parsedIDs {
 		if idx == nil || idx.TimelineMap[id] == nil {
-			res, _, _ := timelineNotFoundResult(inspectionID, rawIDs[i])
+			res, _, _ := timelineNotFoundResult(inspectionID, strconv.FormatUint(uint64(id), 10))
 			return res, false
 		}
 	}
 	return nil, true
 }
 
-func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.AppliedFilter, timelineIDs []uint32) TimelineRenderRequest {
+func buildTimelineRenderRequest(
+	parentSceneID string,
+	spec scene.Spec,
+	applied workbench.AppliedFilter,
+	overlay *scene.Overlay,
+) TimelineRenderRequest {
 	maxNodes := mdtemplate.NormalizePageSize(
-		input.MaxNodes, defaultRenderMaxNodes, maxRenderMaxNodes,
+		spec.MaxNodes, defaultRenderMaxNodes, maxRenderMaxNodes,
 	)
 
-	width := input.Width
-	if width <= 0 {
-		width = defaultRenderWidth
-	}
-	width = max(minRenderWidth, min(width, maxRenderWidth))
-
 	req := TimelineRenderRequest{
-		InspectionID:           input.InspectionID,
+		ParentSceneID:          parentSceneID,
+		InspectionID:           spec.InspectionID,
 		TimelineQuery:          applied.TimelineQuery,
 		TimelineExclusionQuery: applied.TimelineExclusionQuery,
 		LogQuery:               applied.LogQuery,
 		ExcludeNoLogs:          applied.ExcludeTimelinesWithoutLogs,
-		TimelineIDs:            timelineIDs,
-		MaxDepth:               max(0, input.MaxDepth),
+		TimelineIDs:            spec.TimelineIDs,
+		MaxDepth:               max(0, spec.MaxDepth),
 		MaxNodes:               maxNodes,
-		Width:                  width,
-		TimezoneShiftHours:     input.TimezoneShiftHours,
+		TimezoneShiftHours:     spec.TimezoneShiftHours,
+		Overlay:                overlay,
 	}
 
 	if !applied.StartTime.IsZero() {
@@ -188,4 +224,67 @@ func buildTimelineRenderRequest(input RenderTimelinesInput, applied workbench.Ap
 		req.FilterEndTimeNs = strconv.FormatInt(applied.EndTime.UnixNano(), 10)
 	}
 	return req
+}
+
+func toSceneDocument(req TimelineRenderRequest) scene.Document {
+	return scene.Document{
+		InspectionID:           req.InspectionID,
+		TimelineQuery:          req.TimelineQuery,
+		TimelineExclusionQuery: req.TimelineExclusionQuery,
+		LogQuery:               req.LogQuery,
+		ExcludeNoLogs:          req.ExcludeNoLogs,
+		FilterStartTimeNs:      req.FilterStartTimeNs,
+		FilterEndTimeNs:        req.FilterEndTimeNs,
+		ViewStartTimeMs:        req.ViewStartTimeMs,
+		ViewEndTimeMs:          req.ViewEndTimeMs,
+		TimelineIDs:            req.TimelineIDs,
+		MaxDepth:               req.MaxDepth,
+		MaxNodes:               req.MaxNodes,
+		TimezoneShiftHours:     req.TimezoneShiftHours,
+		Overlay:                req.Overlay,
+	}
+}
+
+func formatOverlaySummary(overlay *scene.Overlay) string {
+	if overlay == nil {
+		return ""
+	}
+	var parts []string
+	if n := len(overlay.Markers); n > 0 {
+		badges := make([]string, n)
+		for i, m := range overlay.Markers {
+			badges[i] = m.Badge
+		}
+		parts = append(parts, fmt.Sprintf("%s [%s]", pluralize(n, "marker", "markers"), strings.Join(badges, ", ")))
+	}
+	if n := len(overlay.Spans); n > 0 {
+		parts = append(parts, pluralize(n, "span", "spans"))
+	}
+	if n := len(overlay.RowHighlights); n > 0 {
+		parts = append(parts, pluralize(n, "row highlight", "row highlights"))
+	}
+	if n := len(overlay.Excerpts); n > 0 {
+		badges := make([]string, n)
+		for i, ex := range overlay.Excerpts {
+			badges[i] = ex.Badge
+		}
+		parts = append(parts, fmt.Sprintf("%s [%s]", pluralize(n, "deck excerpt", "deck excerpts"), strings.Join(badges, ", ")))
+	}
+	if n := len(overlay.Connectors); n > 0 {
+		parts = append(parts, pluralize(n, "connector", "connectors"))
+	}
+	if n := len(overlay.Callouts); n > 0 {
+		parts = append(parts, pluralize(n, "callout", "callouts"))
+	}
+	if overlay.DimUnlistedRows {
+		parts = append(parts, "unlisted rows dimmed")
+	}
+	return strings.Join(parts, ", ")
+}
+
+func pluralize(n int, singular, plural string) string {
+	if n == 1 {
+		return "1 " + singular
+	}
+	return fmt.Sprintf("%d %s", n, plural)
 }

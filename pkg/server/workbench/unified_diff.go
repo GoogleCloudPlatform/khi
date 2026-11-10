@@ -19,8 +19,8 @@ import (
 	"strings"
 )
 
-// unifiedDiffContextLines is the number of unchanged lines shown around each change, matching `diff -u`.
-const unifiedDiffContextLines = 3
+// UnifiedDiffContextLines is the number of unchanged lines shown around each change, matching `diff -u`.
+const UnifiedDiffContextLines = 3
 
 // maxMyersEditDistance bounds the Myers search so that memory stays O(maxMyersEditDistance^2).
 // Beyond this bound, the differing middle section is reported as a full replacement, which is still a valid diff.
@@ -39,27 +39,32 @@ type UnifiedDiff struct {
 	Changes LineChangeCount
 }
 
-type diffOpKind int
+// DiffOpKind classifies a single line operation in a line-based edit script.
+type DiffOpKind int
 
 const (
-	diffOpEqual diffOpKind = iota
-	diffOpDelete
-	diffOpInsert
+	// DiffOpEqual represents an unchanged line present in both inputs.
+	DiffOpEqual DiffOpKind = iota
+	// DiffOpDelete represents a line removed from the old input.
+	DiffOpDelete
+	// DiffOpInsert represents a line added in the new input.
+	DiffOpInsert
 )
 
-// diffOp is a single line of an edit script.
-// oldPos and newPos are the numbers of old and new lines consumed before this op.
-type diffOp struct {
-	kind   diffOpKind
-	line   string
-	oldPos int
-	newPos int
+// DiffOp represents a single line of an edit script.
+//
+// OldPos and NewPos are the 0-based numbers of old and new lines consumed before this operation.
+type DiffOp struct {
+	Kind   DiffOpKind
+	Line   string
+	OldPos int
+	NewPos int
 }
 
 // computeUnifiedDiff returns the line-based unified diff that transforms oldText into newText.
 func computeUnifiedDiff(oldText, newText, oldLabel, newLabel string) UnifiedDiff {
-	ops := diffLines(splitLines(oldText), splitLines(newText))
-	changes := countOps(ops)
+	ops := DiffLines(SplitLines(oldText), SplitLines(newText))
+	changes := CountDiffOps(ops)
 	if changes.Added == 0 && changes.Deleted == 0 {
 		return UnifiedDiff{}
 	}
@@ -75,33 +80,35 @@ func computeUnifiedDiff(oldText, newText, oldLabel, newLabel string) UnifiedDiff
 
 // countLineChanges returns the same change counts as computeUnifiedDiff without rendering the diff text.
 func countLineChanges(oldText, newText string) LineChangeCount {
-	return countOps(diffLines(splitLines(oldText), splitLines(newText)))
+	return CountDiffOps(DiffLines(SplitLines(oldText), SplitLines(newText)))
 }
 
-func countOps(ops []diffOp) LineChangeCount {
+// CountDiffOps totals the added and deleted line counts across ops.
+func CountDiffOps(ops []DiffOp) LineChangeCount {
 	var changes LineChangeCount
 	for _, op := range ops {
-		switch op.kind {
-		case diffOpInsert:
+		switch op.Kind {
+		case DiffOpInsert:
 			changes.Added++
-		case diffOpDelete:
+		case DiffOpDelete:
 			changes.Deleted++
 		}
 	}
 	return changes
 }
 
-// splitLines splits text into lines without their trailing newline characters.
-func splitLines(text string) []string {
+// SplitLines splits text into lines without their trailing newline characters.
+func SplitLines(text string) []string {
 	if text == "" {
 		return nil
 	}
 	return strings.Split(strings.TrimSuffix(text, "\n"), "\n")
 }
 
-// diffLines returns the edit script from a to b.
+// DiffLines returns the shortest line-based edit script from a to b.
+//
 // It strips the common prefix and suffix first because manifest revisions usually differ only in a few places.
-func diffLines(a, b []string) []diffOp {
+func DiffLines(a, b []string) []DiffOp {
 	prefix := 0
 	for prefix < len(a) && prefix < len(b) && a[prefix] == b[prefix] {
 		prefix++
@@ -111,9 +118,9 @@ func diffLines(a, b []string) []diffOp {
 		suffix++
 	}
 
-	ops := make([]diffOp, 0, len(a)+len(b)-prefix-suffix)
+	ops := make([]DiffOp, 0, len(a)+len(b)-prefix-suffix)
 	for i := 0; i < prefix; i++ {
-		ops = append(ops, diffOp{kind: diffOpEqual, line: a[i], oldPos: i, newPos: i})
+		ops = append(ops, DiffOp{Kind: DiffOpEqual, Line: a[i], OldPos: i, NewPos: i})
 	}
 
 	midA := a[prefix : len(a)-suffix]
@@ -123,34 +130,34 @@ func diffLines(a, b []string) []diffOp {
 		midOps = fullReplacementOps(midA, midB)
 	}
 	for _, op := range midOps {
-		op.oldPos += prefix
-		op.newPos += prefix
+		op.OldPos += prefix
+		op.NewPos += prefix
 		ops = append(ops, op)
 	}
 
 	for i := 0; i < suffix; i++ {
 		oldIdx := len(a) - suffix + i
 		newIdx := len(b) - suffix + i
-		ops = append(ops, diffOp{kind: diffOpEqual, line: a[oldIdx], oldPos: oldIdx, newPos: newIdx})
+		ops = append(ops, DiffOp{Kind: DiffOpEqual, Line: a[oldIdx], OldPos: oldIdx, NewPos: newIdx})
 	}
 	return ops
 }
 
 // fullReplacementOps returns an edit script that deletes every line of a and then inserts every line of b.
-func fullReplacementOps(a, b []string) []diffOp {
-	ops := make([]diffOp, 0, len(a)+len(b))
+func fullReplacementOps(a, b []string) []DiffOp {
+	ops := make([]DiffOp, 0, len(a)+len(b))
 	for i, line := range a {
-		ops = append(ops, diffOp{kind: diffOpDelete, line: line, oldPos: i, newPos: 0})
+		ops = append(ops, DiffOp{Kind: DiffOpDelete, Line: line, OldPos: i, NewPos: 0})
 	}
 	for i, line := range b {
-		ops = append(ops, diffOp{kind: diffOpInsert, line: line, oldPos: len(a), newPos: i})
+		ops = append(ops, DiffOp{Kind: DiffOpInsert, Line: line, OldPos: len(a), NewPos: i})
 	}
 	return ops
 }
 
 // myersDiff computes a shortest edit script from a to b with the Myers O(ND) algorithm.
 // It returns false when the edit distance exceeds maxD.
-func myersDiff(a, b []string, maxD int) ([]diffOp, bool) {
+func myersDiff(a, b []string, maxD int) ([]DiffOp, bool) {
 	n, m := len(a), len(b)
 	if n == 0 && m == 0 {
 		return nil, true
@@ -186,9 +193,9 @@ func myersDiff(a, b []string, maxD int) ([]diffOp, bool) {
 }
 
 // backtrackMyers reconstructs the edit script from the snapshots recorded by myersDiff.
-func backtrackMyers(a, b []string, trace [][]int) []diffOp {
+func backtrackMyers(a, b []string, trace [][]int) []DiffOp {
 	x, y := len(a), len(b)
-	var reversed []diffOp
+	var reversed []DiffOp
 	for d := len(trace) - 1; d >= 0; d-- {
 		// snapshot[k+d+1] holds v[k] for k in [-d-1, d+1].
 		snapshot := trace[d]
@@ -204,19 +211,19 @@ func backtrackMyers(a, b []string, trace [][]int) []diffOp {
 		for x > prevX && y > prevY {
 			x--
 			y--
-			reversed = append(reversed, diffOp{kind: diffOpEqual, line: a[x], oldPos: x, newPos: y})
+			reversed = append(reversed, DiffOp{Kind: DiffOpEqual, Line: a[x], OldPos: x, NewPos: y})
 		}
 		if d > 0 {
 			if x == prevX {
-				reversed = append(reversed, diffOp{kind: diffOpInsert, line: b[prevY], oldPos: prevX, newPos: prevY})
+				reversed = append(reversed, DiffOp{Kind: DiffOpInsert, Line: b[prevY], OldPos: prevX, NewPos: prevY})
 			} else {
-				reversed = append(reversed, diffOp{kind: diffOpDelete, line: a[prevX], oldPos: prevX, newPos: prevY})
+				reversed = append(reversed, DiffOp{Kind: DiffOpDelete, Line: a[prevX], OldPos: prevX, NewPos: prevY})
 			}
 		}
 		x, y = prevX, prevY
 	}
 
-	ops := make([]diffOp, len(reversed))
+	ops := make([]DiffOp, len(reversed))
 	for i, op := range reversed {
 		ops[len(reversed)-1-i] = op
 	}
@@ -224,50 +231,50 @@ func backtrackMyers(a, b []string, trace [][]int) []diffOp {
 }
 
 // writeUnifiedHunks writes `@@` hunks for ops, merging changes whose unchanged gap fits in the shared context.
-func writeUnifiedHunks(sb *strings.Builder, ops []diffOp) {
+func writeUnifiedHunks(sb *strings.Builder, ops []DiffOp) {
 	i := 0
 	for i < len(ops) {
-		if ops[i].kind == diffOpEqual {
+		if ops[i].Kind == DiffOpEqual {
 			i++
 			continue
 		}
-		start := max(0, i-unifiedDiffContextLines)
+		start := max(0, i-UnifiedDiffContextLines)
 		lastChange := i
-		for j := i + 1; j < len(ops) && j-lastChange-1 <= 2*unifiedDiffContextLines; j++ {
-			if ops[j].kind != diffOpEqual {
+		for j := i + 1; j < len(ops) && j-lastChange-1 <= 2*UnifiedDiffContextLines; j++ {
+			if ops[j].Kind != DiffOpEqual {
 				lastChange = j
 			}
 		}
-		end := min(len(ops), lastChange+unifiedDiffContextLines+1)
+		end := min(len(ops), lastChange+UnifiedDiffContextLines+1)
 		writeHunk(sb, ops[start:end])
 		i = end
 	}
 }
 
-func writeHunk(sb *strings.Builder, hunk []diffOp) {
+func writeHunk(sb *strings.Builder, hunk []DiffOp) {
 	var oldCount, newCount int
 	for _, op := range hunk {
-		if op.kind != diffOpInsert {
+		if op.Kind != DiffOpInsert {
 			oldCount++
 		}
-		if op.kind != diffOpDelete {
+		if op.Kind != DiffOpDelete {
 			newCount++
 		}
 	}
 	fmt.Fprintf(sb, "@@ -%s +%s @@\n",
-		formatHunkRange(hunk[0].oldPos, oldCount),
-		formatHunkRange(hunk[0].newPos, newCount),
+		formatHunkRange(hunk[0].OldPos, oldCount),
+		formatHunkRange(hunk[0].NewPos, newCount),
 	)
 	for _, op := range hunk {
-		switch op.kind {
-		case diffOpEqual:
+		switch op.Kind {
+		case DiffOpEqual:
 			sb.WriteString(" ")
-		case diffOpDelete:
+		case DiffOpDelete:
 			sb.WriteString("-")
-		case diffOpInsert:
+		case DiffOpInsert:
 			sb.WriteString("+")
 		}
-		sb.WriteString(op.line)
+		sb.WriteString(op.Line)
 		sb.WriteString("\n")
 	}
 }

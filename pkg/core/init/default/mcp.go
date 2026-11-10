@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	mcp "github.com/GoogleCloudPlatform/khi/pkg/server/mcp"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,10 +30,15 @@ var (
 	MCPServerKey = typedmap.NewTypedKey[*mcp.Server]("khi.google.com/init/mcp-server")
 	// MCPAssetStoreKey stores the mcp.AssetStore instance used to serve MCP-generated assets over HTTP.
 	MCPAssetStoreKey = typedmap.NewTypedKey[*mcp.AssetStore]("khi.google.com/init/mcp-asset-store")
+	// MCPSceneStoreKey stores the scene.Store instance used to serve and resolve timeline scene documents over HTTP.
+	MCPSceneStoreKey = typedmap.NewTypedKey[*scene.Store]("khi.google.com/init/mcp-scene-store")
 )
 
 // mcpAssetsPath is the route prefix of MCP-generated asset URLs under the base path.
 const mcpAssetsPath = "/api/v1/mcp-assets/"
+
+// mcpScenesPath is the route prefix of MCP-issued scene document URLs under the base path.
+const mcpScenesPath = "/api/v1/mcp-scenes/"
 
 // InitializerIDMCPServer identifies the Initializer that sets up the MCP server.
 const InitializerIDMCPServer coreinit.InitializerID = "khi.default/mcp-server"
@@ -72,6 +78,14 @@ var MCPServerInitializer = &coreinit.Initializer{
 		router.GET(mcpAssetsPath+":fileName", serveAsset)
 		router.HEAD(mcpAssetsPath+":fileName", serveAsset)
 
+		sceneStore := scene.NewStore(scene.DefaultTTL)
+		coreinit.Set(ctx, MCPSceneStoreKey, sceneStore)
+		serveScene := func(c *gin.Context) {
+			sceneStore.ServeScene(c.Writer, c.Request, c.Param("sceneId"))
+		}
+		router.GET(mcpScenesPath+":sceneId", serveScene)
+		router.HEAD(mcpScenesPath+":sceneId", serveScene)
+
 		var timelineRenderer mcp.TimelineImageRenderer
 		if browser, found := coreinit.Get(ctx, CDPBrowserKey); found && browser != nil {
 			renderer := mcp.NewChromeTimelineImageRenderer(browser, baseURL)
@@ -83,7 +97,7 @@ var MCPServerInitializer = &coreinit.Initializer{
 
 		srv := mcp.NewServer(
 			mcp.NewInspectionHandler(inspectionServer, uploadURLIssuer),
-			mcp.NewWorkbenchHandler(workbenchManager, timelineRenderer, assetStore),
+			mcp.NewWorkbenchHandler(workbenchManager, timelineRenderer, assetStore, sceneStore, baseURL),
 		)
 		coreinit.Set(ctx, MCPServerKey, srv)
 

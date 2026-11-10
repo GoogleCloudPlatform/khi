@@ -1,0 +1,171 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+@let deckVm = deck();
+@let renderedTethers = resolvedTethers();
+@let svgHeightPx = resolvedSvgHeightPx();
+@let stageWidth = stageWidthPx();
+@let activeHoveredBadge = hoveredBadge();
+@let isInteractive = interactiveMode();
+
+@if (deckVm.cards.length > 0) {
+  <div #deckRoot class="evidence-deck-root">
+    <div
+      class="tether-spacer"
+      [style.height.px]="deckVm.tetherStripHeightPx"
+    ></div>
+
+    <svg
+      class="tether-strip"
+      [attr.height]="svgHeightPx"
+      [attr.viewBox]="'0 0 ' + stageWidth + ' ' + svgHeightPx"
+      [attr.width]="stageWidth"
+    >
+      @for (tether of renderedTethers; track tether.id) {
+        <g
+          class="tether-group"
+          [class.is-hovered]="activeHoveredBadge === tether.badge"
+          [style.--palette-main]="tether.colors.main"
+        >
+          <path class="tether-curve" [attr.d]="tether.svgPath" />
+          <circle
+            class="tether-joint"
+            [attr.cx]="tether.cardAnchorX"
+            [attr.cy]="tether.jointCenterY"
+            r="3"
+          />
+        </g>
+      }
+    </svg>
+
+    <div #cardsGrid class="cards-grid" [class]="deckVm.gridPreset">
+      @for (card of deckVm.cards; track card.id) {
+        <article
+          #cardElement
+          class="evidence-card"
+          [attr.data-card-id]="card.id"
+          [class.is-hovered]="activeHoveredBadge === card.badge"
+          [style.--palette-main]="card.colors.main"
+          [style.--palette-on-main]="card.colors.onMain"
+          [style.--palette-soft]="card.colors.soft"
+          [style.--palette-surface]="card.colors.surface"
+          [style.grid-area]="card.gridArea"
+          (mouseenter)="onCardMouseEnter(card.badge)"
+          (mouseleave)="onCardMouseLeave()"
+        >
+          <header
+            class="card-header"
+            [class.has-query-row]="card.hasQueryMetadata"
+          >
+            <div class="header-top-row">
+              <span class="card-badge">{{ card.badge }}</span>
+              <span class="card-kind-tag">
+                {{ card.kind === TimelineExcerptKind.DIFF ? "DIFF" : "LOG" }}
+              </span>
+              <span class="card-resource">{{ card.resourcePath }}</span>
+              <span class="card-time">{{ card.timeLabel }}</span>
+              @if (isInteractive) {
+                <button
+                  class="jump-btn"
+                  type="button"
+                  (click)="onOpenClick(card.jumpTarget)"
+                >
+                  &#8599; {{ card.actionLabel }}
+                </button>
+              }
+            </div>
+            <div class="header-sub-row">
+              <span class="card-title">{{ card.title }}</span>
+              @if (card.subtitle) {
+                <span class="card-subtitle">{{ card.subtitle }}</span>
+              }
+            </div>
+            @if (card.hasQueryMetadata) {
+              <div class="header-query-row">
+                @if (card.logTimestamp) {
+                  <span class="query-chip"
+                    >timestamp="{{ card.logTimestamp }}"</span
+                  >
+                }
+                @if (card.insertId) {
+                  <span class="query-chip">insertId="{{ card.insertId }}"</span>
+                }
+              </div>
+            }
+          </header>
+
+          <div class="card-lines">
+            @for (line of card.lines; track line.index) {
+              @if (line.kind === TimelineExcerptLineKind.OMITTED) {
+                <div class="excerpt-line line-omitted">
+                  <span class="omitted-label">&#8942; {{ line.text }}</span>
+                </div>
+              } @else if (line.kind === TimelineExcerptLineKind.SUMMARY) {
+                <div class="excerpt-line line-summary">
+                  <span class="summary-tag">SUMMARY</span>
+                  <span class="line-code">
+                    @for (part of line.parts; track $index) {
+                      @if (part.matched) {
+                        <mark class="query-match">{{ part.text }}</mark>
+                      } @else {
+                        <span>{{ part.text }}</span>
+                      }
+                    }
+                  </span>
+                </div>
+              } @else {
+                <div
+                  class="excerpt-line"
+                  [class]="
+                    card.kind === TimelineExcerptKind.LOG
+                      ? 'line-log'
+                      : 'line-' + line.kind
+                  "
+                >
+                  @if (card.kind === TimelineExcerptKind.DIFF) {
+                    <span class="line-num old-num">{{ line.gutterOld }}</span>
+                    <span class="line-num new-num">{{ line.gutterNew }}</span>
+                    <span class="line-prefix">{{ line.prefixSymbol }}</span>
+                  } @else {
+                    <span class="line-num single-num">{{
+                      line.gutterNew
+                    }}</span>
+                  }
+                  <span class="line-code">
+                    @for (part of line.parts; track $index) {
+                      @if (part.matched) {
+                        <mark class="query-match">{{ part.text }}</mark>
+                      } @else {
+                        <span>{{ part.text }}</span>
+                      }
+                    }
+                  </span>
+                </div>
+              }
+            }
+          </div>
+
+          @if (card.note) {
+            <footer class="card-note-footer">
+              <span class="note-tag">NOTE</span>
+              <span class="note-text">{{ card.note }}</span>
+            </footer>
+          }
+        </article>
+      }
+    </div>
+  </div>
+}

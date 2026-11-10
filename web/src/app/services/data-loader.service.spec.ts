@@ -164,6 +164,7 @@ describe('InspectionDataLoaderService', () => {
       expect(mockBackendService.getInspectionData).toHaveBeenCalled();
       expect(mockInspectionDataStore.setNewInspectionData).toHaveBeenCalledWith(
         mockInspectionData,
+        'insp-1',
       );
       expect(
         mockExtensionStore.notifyLifecycleOnInspectionDataOpen,
