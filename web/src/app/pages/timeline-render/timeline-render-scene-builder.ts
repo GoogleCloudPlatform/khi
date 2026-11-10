@@ -66,6 +66,7 @@ import {
 import {
   DECK_GRID_GAP_PX,
   DECK_GRID_PADDING_PX,
+  DECK_GRID_ROW_GAP_PX,
   ExcerptDeckGridPreset,
   ExcerptDeckLayoutPlan,
   MAX_EXCERPT_DECK_CARDS,
@@ -1192,6 +1193,34 @@ export function buildCalloutViewModels(
   return result;
 }
 
+interface PreliminaryExcerptTether {
+  readonly cardId: string;
+  readonly badge: string;
+  readonly paletteId: string;
+  readonly colors: TimelineResolvedPaletteColors;
+  readonly pinX: number;
+  readonly colIndex: number;
+  readonly gridRowIndex: number;
+}
+
+/**
+ * Computes a cubic Bezier SVG path connecting a timeline drop-stem X coordinate to a deck card's top-center anchor.
+ */
+export function buildExcerptTetherSvgPath(
+  pinX: number,
+  cardAnchorX: number,
+  cardAnchorY: number,
+): string {
+  const safeAnchorY = Math.max(DECK_TETHER_STRIP_HEIGHT_PX, cardAnchorY);
+  const ctrlOffset = Math.min(28, Math.round(safeAnchorY * 0.56));
+  const ctrlY1 = ctrlOffset;
+  const ctrlY2 =
+    safeAnchorY <= DECK_TETHER_STRIP_HEIGHT_PX
+      ? Math.round(safeAnchorY * 0.44)
+      : Math.round((safeAnchorY - ctrlOffset) * 10) / 10;
+  return `M ${pinX} 0 C ${pinX} ${ctrlY1}, ${cardAnchorX} ${ctrlY2}, ${cardAnchorX} ${safeAnchorY}`;
+}
+
 /**
  * Builds synchronized bottom evidence deck cards, S-curve tethers, and timeline drop pins.
  */
@@ -1227,7 +1256,7 @@ export function buildExcerptPinsAndDeck(
   const colWidthPx = usableWidthPx / columns;
 
   const pins: ExcerptPinViewModel[] = [];
-  const tethers: ExcerptTetherViewModel[] = [];
+  const preliminaryTethers: PreliminaryExcerptTether[] = [];
   const cards: ExcerptCardViewModel[] = [];
   const cardRowHeights: number[] = [];
 
@@ -1260,23 +1289,15 @@ export function buildExcerptPinsAndDeck(
     });
 
     const colIndex = i % columns;
-    const cardAnchorX =
-      Math.round(
-        (DECK_GRID_PADDING_PX +
-          colIndex * (colWidthPx + DECK_GRID_GAP_PX) +
-          colWidthPx / 2) *
-          10,
-      ) / 10;
-    const ctrlY1 = Math.round(DECK_TETHER_STRIP_HEIGHT_PX * 0.56);
-    const ctrlY2 = Math.round(DECK_TETHER_STRIP_HEIGHT_PX * 0.44);
-    tethers.push({
-      id: `tether-${excerpt.id}`,
+    const gridRowIndex = Math.floor(i / columns);
+    preliminaryTethers.push({
+      cardId: excerpt.id,
       badge: excerpt.badge,
       paletteId: excerpt.paletteId,
       colors,
-      svgPath: `M ${pinX} 0 C ${pinX} ${ctrlY1}, ${cardAnchorX} ${ctrlY2}, ${cardAnchorX} ${DECK_TETHER_STRIP_HEIGHT_PX}`,
       pinX,
-      cardAnchorX,
+      colIndex,
+      gridRowIndex,
     });
 
     const formattedLines = excerpt.lines.map((line, lineIdx) =>
@@ -1305,7 +1326,6 @@ export function buildExcerptPinsAndDeck(
       jumpTarget,
     });
 
-    const gridRowIndex = Math.floor(i / columns);
     const cardEstimatedHeightPx = estimateExcerptCardHeightPx(
       excerpt,
       colWidthPx,
@@ -1318,13 +1338,44 @@ export function buildExcerptPinsAndDeck(
     );
   }
 
+  const rowTopYByRowIndex: number[] = [];
+  let rowCursorY = DECK_TETHER_STRIP_HEIGHT_PX;
   let cardsGridHeightPx = DECK_GRID_PADDING_PX;
   for (let r = 0; r < cardRowHeights.length; r++) {
+    rowTopYByRowIndex[r] = rowCursorY;
+    rowCursorY += cardRowHeights[r] + DECK_GRID_ROW_GAP_PX;
     cardsGridHeightPx += cardRowHeights[r];
     if (r > 0) {
-      cardsGridHeightPx += DECK_GRID_GAP_PX;
+      cardsGridHeightPx += DECK_GRID_ROW_GAP_PX;
     }
   }
+
+  const tethers: ExcerptTetherViewModel[] = preliminaryTethers.map((item) => {
+    const cardAnchorX =
+      Math.round(
+        (DECK_GRID_PADDING_PX +
+          item.colIndex * (colWidthPx + DECK_GRID_GAP_PX) +
+          colWidthPx / 2) *
+          10,
+      ) / 10;
+    const cardAnchorY =
+      Math.round(
+        (rowTopYByRowIndex[item.gridRowIndex] ?? DECK_TETHER_STRIP_HEIGHT_PX) *
+          10,
+      ) / 10;
+    return {
+      id: `tether-${item.cardId}`,
+      cardId: item.cardId,
+      badge: item.badge,
+      paletteId: item.paletteId,
+      colors: item.colors,
+      svgPath: buildExcerptTetherSvgPath(item.pinX, cardAnchorX, cardAnchorY),
+      pinX: item.pinX,
+      cardAnchorX,
+      cardAnchorY,
+      jointCenterY: Math.round((cardAnchorY - 2) * 10) / 10,
+    };
+  });
 
   return {
     pins,

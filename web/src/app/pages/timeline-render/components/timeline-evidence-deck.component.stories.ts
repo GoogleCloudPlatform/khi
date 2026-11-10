@@ -146,3 +146,153 @@ export const Default: Story = {
     hoveredBadge: null,
   },
 };
+
+const wrappedGridScene = buildTimelineSceneViewModel({
+  indexPaneWidthPx: 420,
+  viewportLeftTimeMs: 1_000_000,
+  pixelsPerMs: 0.01,
+  rows: [
+    { id: 1, heightPx: 50 },
+    { id: 2, heightPx: 50 },
+  ],
+  overlay: {
+    palette: [
+      {
+        id: 'victim',
+        main: '#d32f2f',
+        onMain: '#fafafa',
+        soft: 'rgba(211, 47, 47, 0.13)',
+        surface: '#fbeaea',
+      },
+      {
+        id: 'trigger',
+        main: '#b45309',
+        onMain: '#fafafa',
+        soft: 'rgba(180, 83, 9, 0.13)',
+        surface: '#f8eee6',
+      },
+      {
+        id: 'exporter',
+        main: '#5e35b1',
+        onMain: '#fafafa',
+        soft: 'rgba(94, 53, 177, 0.13)',
+        surface: '#efebf7',
+      },
+    ],
+    excerpts: [
+      {
+        id: 'ex-grid-1',
+        kind: TimelineExcerptKind.DIFF,
+        badge: 'E1',
+        paletteId: 'trigger',
+        timeMs: 1_012_000,
+        timeLabel: '10:00:12',
+        timelineId: 1,
+        resourcePath: 'node · gke-pool-1',
+        title: 'Patch · Resource exists',
+        subtitle: '+2 / -2 · 14 diff lines',
+        revisionIndex: 2,
+        lines: [
+          {
+            kind: TimelineExcerptLineKind.DELETED,
+            oldLineNum: 16,
+            text: '  lastHeartbeatTime: "2026-10-01T09:55:12Z"',
+          },
+          {
+            kind: TimelineExcerptLineKind.ADDED,
+            newLineNum: 16,
+            text: '  lastHeartbeatTime: "2026-10-01T10:00:12Z"',
+          },
+          {
+            kind: TimelineExcerptLineKind.CONTEXT,
+            oldLineNum: 17,
+            newLineNum: 17,
+            text: '  reason: NodeSysctlChange',
+          },
+        ],
+        note: 'Node heartbeat update before HPA conflict',
+      },
+      {
+        id: 'ex-grid-2',
+        kind: TimelineExcerptKind.DIFF,
+        badge: 'E2',
+        paletteId: 'victim',
+        timeMs: 1_025_000,
+        timeLabel: '10:00:25',
+        timelineId: 2,
+        resourcePath: 'horizontalpodautoscaler · gke-managed-cim/metrics',
+        title: 'Update · Resource exists',
+        subtitle: '+1 / -1 · 8 diff lines',
+        revisionIndex: 4,
+        lines: [
+          {
+            kind: TimelineExcerptLineKind.DELETED,
+            oldLineNum: 13,
+            text: '  resourceVersion: "1789351196414191018"',
+          },
+          {
+            kind: TimelineExcerptLineKind.ADDED,
+            newLineNum: 13,
+            text: '  resourceVersion: "1789351406375103018"',
+          },
+        ],
+        note: 'HPA resourceVersion advanced concurrently',
+      },
+      {
+        id: 'ex-grid-3',
+        kind: TimelineExcerptKind.LOG,
+        badge: 'E3',
+        paletteId: 'victim',
+        timeMs: 1_025_050,
+        timeLabel: '10:00:25',
+        timelineId: 2,
+        resourcePath: 'horizontalpodautoscaler · gke-managed-cim/metrics',
+        title: 'k8s audit · ERROR',
+        subtitle: '183 lines',
+        logId: 11601,
+        lines: [
+          {
+            kind: TimelineExcerptLineKind.SUMMARY,
+            text: 'Operation cannot be fulfilled on horizontalpodautoscalers.autoscaling "metrics": the object has been modified; please apply your changes to the latest version and try again',
+          },
+          {
+            kind: TimelineExcerptLineKind.CONTEXT,
+            newLineNum: 166,
+            text: '  code: 409',
+            parts: [{ text: '  ' }, { text: 'code: 409', matched: true }],
+          },
+        ],
+        note: 'vpa-recommender status update rejected with HTTP 409 Conflict',
+      },
+      {
+        id: 'ex-grid-4',
+        kind: TimelineExcerptKind.LOG,
+        badge: 'E4',
+        paletteId: 'exporter',
+        timeMs: 1_090_000,
+        timeLabel: '10:01:30',
+        timelineId: 2,
+        resourcePath: 'pod · kube-system/core-metrics-exporter',
+        title: 'container · ERROR',
+        subtitle: '21 lines',
+        logId: 81953,
+        lines: [
+          {
+            kind: TimelineExcerptLineKind.SUMMARY,
+            text: 'Exporting failed: rpc error: code = DeadlineExceeded desc = context deadline exceeded while flushing metric batch to Google Cloud Monitoring',
+          },
+        ],
+        note: 'Exporter RPC deadline exceeded during contention',
+      },
+    ],
+  },
+});
+
+export const WrappedTwoByTwoGrid: Story = {
+  args: {
+    deck: wrappedGridScene.deck,
+    stageWidthPx: wrappedGridScene.stageWidthPx,
+    interactiveMode: true,
+    hoveredBadge: null,
+  },
+};
