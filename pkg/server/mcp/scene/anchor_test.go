@@ -240,8 +240,16 @@ func setupAnchorFixture(t *testing.T) anchorFixture {
 					return tlCS.Flush(tlAcc, builder.LogAccumulator)
 				}
 
-				const nodeY = "apiVersion: v1\nkind: Node\nmetadata:\n  name: node-1\n"
-				const podY = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: pod-1\n"
+				const nodeY = `apiVersion: v1
+kind: Node
+metadata:
+  name: node-1
+`
+				const podY = `apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-1
+`
 				if err := recordRev(10*time.Minute, nodePath, nodeY, nodeY, k8saudit.VerbCreate, inspectioncore.SeverityInfo); err != nil {
 					return struct{}{}, err
 				}
