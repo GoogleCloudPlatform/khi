@@ -16,25 +16,23 @@ package scene
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestSliceLogBody(t *testing.T) {
-	serializedLogYAML := strings.Join([]string{
-		"insertId: abc-123",
-		"protoPayload:",
-		"  authenticationInfo:",
-		"    principalEmail: kubelet@node-1",
-		"  methodName: io.k8s.core.v1.pods.status.patch",
-		"resource:",
-		"  labels:",
-		"    pod_name: web-1",
-		`textPayload: "panic: runtime error: out of memory\ngoroutine 1 [running]:\nmain.handleRequest(0x1)\n\t/app/server.go:42\nmain.main()\n\t/app/main.go:10"`,
-		"timestamp: 2026-10-01T09:25:00Z",
-	}, "\n") + "\n"
+	const serializedLogYAML = `insertId: abc-123
+protoPayload:
+  authenticationInfo:
+    principalEmail: kubelet@node-1
+  methodName: io.k8s.core.v1.pods.status.patch
+resource:
+  labels:
+    pod_name: web-1
+textPayload: "panic: runtime error: out of memory\ngoroutine 1 [running]:\nmain.handleRequest(0x1)\n\t/app/server.go:42\nmain.main()\n\t/app/main.go:10"
+timestamp: 2026-10-01T09:25:00Z
+`
 
 	testCases := []struct {
 		name    string
@@ -114,7 +112,9 @@ func TestSliceLogBody(t *testing.T) {
 }
 
 func TestSliceLogBody_Errors(t *testing.T) {
-	const logYAML = "insertId: evt-1\nmessage: OOMKilled\n"
+	const logYAML = `insertId: evt-1
+message: OOMKilled
+`
 
 	_, err := SliceLogBody(logYAML, "Container app OOMKilled", LogSliceOptions{
 		Windows: []SliceWindow{{Query: "NoSuchField"}},

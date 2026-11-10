@@ -28,7 +28,10 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-const testLogBodyYAML = "apiVersion: v1\nkind: Event\nmessage: Container nginx was OOMKilled\n"
+const testLogBodyYAML = `apiVersion: v1
+kind: Event
+message: Container nginx was OOMKilled
+`
 
 func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 	t.Helper()
@@ -40,9 +43,14 @@ func setupTimelineLogsTestWorkbench(t *testing.T) *Workbench {
 		l.SummaryStringID = pool.InternString(fmt.Sprintf("summary-%d", l.ID)).ID()
 	}
 	// Log ID 1 is stored at index 0; Log ID 2 is stored at index 1.
-	wb.searchIndex.Logs[0].BodyStructID = internTestYAML(t, pool, "insertId: ins-log-1\nseverity: INFO\nmessage: Pod scheduled\n")
+	wb.searchIndex.Logs[0].BodyStructID = internTestYAML(t, pool, `insertId: ins-log-1
+severity: INFO
+message: Pod scheduled
+`)
 	wb.searchIndex.Logs[1].BodyStructID = internTestYAML(t, pool, testLogBodyYAML)
-	wb.searchIndex.Logs[2].BodyStructID = internTestYAML(t, pool, "insertId: 12345\nmessage: non-string insertId\n")
+	wb.searchIndex.Logs[2].BodyStructID = internTestYAML(t, pool, `insertId: 12345
+message: non-string insertId
+`)
 
 	wb.internPool = khifilev6model.NewReadonlyInternPool()
 	wb.searchIndex.InternPool = wb.internPool
