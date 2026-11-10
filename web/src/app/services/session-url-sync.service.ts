@@ -206,18 +206,27 @@ export class SessionUrlSyncService {
       return;
     }
     return new Promise<void>((resolve) => {
+      let settled = false;
+      let unregisterDestroy: (() => void) | null = null;
       const ref = effect(
         () => {
           if (!timelineView.isFiltering()) {
-            ref.destroy();
-            resolve();
+            finish();
           }
         },
         { injector: this.injector },
       );
-      this.destroyRef.onDestroy(() => {
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         ref.destroy();
+        unregisterDestroy?.();
         resolve();
+      };
+      unregisterDestroy = this.destroyRef.onDestroy(() => {
+        finish();
       });
     });
   }
