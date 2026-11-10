@@ -18,7 +18,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  afterEveryRender,
   computed,
   effect,
   input,
@@ -157,11 +156,8 @@ export class TimelineEvidenceDeckComponent {
   });
 
   constructor() {
-    afterEveryRender(() => {
-      this.syncMeasuredAnchors();
-    });
-
     effect((onCleanup) => {
+      this.currentLayoutKey();
       const gridEl = this.cardsGrid()?.nativeElement;
       const cardRefs = this.cardElements();
       if (!gridEl || typeof ResizeObserver === 'undefined') {
