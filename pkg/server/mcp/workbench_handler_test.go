@@ -16,13 +16,17 @@ package mcp
 
 import (
 	"context"
+	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/inspectionserver"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -35,6 +39,29 @@ var ignoreMCPUnexported = cmpopts.IgnoreUnexported(
 	mcpsdk.TextContent{},
 )
 
+type blockingStore struct {
+	underlying inspectioncore.Store
+	blockCh    <-chan struct{}
+}
+
+func (s *blockingStore) GetWriter() (io.WriteCloser, error) {
+	return s.underlying.GetWriter()
+}
+
+func (s *blockingStore) GetReader() (io.ReadCloser, error) {
+	<-s.blockCh
+	return s.underlying.GetReader()
+}
+
+func (s *blockingStore) GetRangeReader(start, maxLength int64) (io.ReadCloser, error) {
+	<-s.blockCh
+	return s.underlying.GetRangeReader(start, maxLength)
+}
+
+func (s *blockingStore) GetInspectionResultSizeInBytes() (int, error) {
+	return s.underlying.GetInspectionResultSizeInBytes()
+}
+
 func newTestWorkbenchManager(t *testing.T) (*workbench.WorkbenchManager, string) {
 	t.Helper()
 	server, inspectionID := inspectionserver.NewServerWithInspection(t, inspectionserver.FeatureTask())
@@ -42,6 +69,35 @@ func newTestWorkbenchManager(t *testing.T) (*workbench.WorkbenchManager, string)
 	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
 	t.Cleanup(indexMgr.Wait)
 	return mgr, inspectionID
+}
+
+func newBlockingTestWorkbenchManager(t *testing.T) (*workbench.WorkbenchManager, string, func()) {
+	t.Helper()
+	server, inspectionID := inspectionserver.NewServerWithInspection(t, inspectionserver.FeatureTask())
+	runner := server.GetInspection(inspectionID)
+	res, err := runner.Result()
+	if err != nil {
+		t.Fatalf("failed to get inspection result: %v", err)
+	}
+	blockCh := make(chan struct{})
+	store := &blockingStore{
+		underlying: res.ResultStore,
+		blockCh:    blockCh,
+	}
+	blockedInspectionID := inspectionID + "-blocked"
+	server.RegisterImportedInspection(blockedInspectionID, store, typedmap.NewTypedMap().AsReadonly())
+	indexMgr := workbench.NewInspectionIndexManager(server, t.TempDir())
+	mgr := workbench.NewWorkbenchManager(server, indexMgr, 5)
+	t.Cleanup(indexMgr.Wait)
+
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			close(blockCh)
+		})
+	}
+	t.Cleanup(release)
+	return mgr, blockedInspectionID, release
 }
 
 func closeWorkbench(t *testing.T, wb *workbench.Workbench) {
@@ -145,7 +201,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 		{
 			name: "returns WORKBENCH_LOADING when wait timeout expires and succeeds on retry",
 			run: func(t *testing.T) {
-				mgr, inspectionID := newTestWorkbenchManager(t)
+				mgr, inspectionID, release := newBlockingTestWorkbenchManager(t)
 				handler := NewWorkbenchHandler(mgr, nil, nil, nil, "")
 				handler.waitTimeout = 0
 
@@ -155,7 +211,7 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 					t.Fatalf("first acquireWorkbench() unexpected error = %v", err)
 				}
 				if gotWB != nil {
-					t.Errorf("first acquireWorkbench() gotWB = %v, want nil", gotWB)
+					t.Fatalf("first acquireWorkbench() gotWB = %v, want nil", gotWB)
 				}
 				gotText, isErr := toolResultText(t, "acquireWorkbench", toolRes)
 				if !isErr {
@@ -167,6 +223,8 @@ func TestWorkbenchHandler_AcquireWorkbench(t *testing.T) {
 				if !strings.Contains(gotText, inspectionID) {
 					t.Errorf("gotText = %q, want containing inspection ID %q", gotText, inspectionID)
 				}
+
+				release()
 
 				handler.waitTimeout = 10 * time.Second
 				retryWB, retryToolRes, err := handler.acquireWorkbench(ctx, inspectionID)
