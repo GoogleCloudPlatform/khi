@@ -16,8 +16,10 @@
 
 import {
   Component,
+  DestroyRef,
   computed,
   effect,
+  inject,
   input,
   output,
   viewChild,
@@ -38,9 +40,13 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
+const DIFF_LIST_ROW_HEIGHT_PX = 13;
+const DIFF_LIST_SCROLL_MARGIN_PX = DIFF_LIST_ROW_HEIGHT_PX * 3;
+const MAX_SCROLL_RETRY_FRAMES = 10;
+
 class DiffListScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
-    super(13, 100, 1000);
+    super(DIFF_LIST_ROW_HEIGHT_PX, 100, 1000);
   }
 }
 
@@ -184,15 +190,20 @@ export class DiffListComponent {
     if (!tl || ls.length === 0) return [];
 
     const shift = this.timezoneShift();
+    const rows: DiffListRowViewModel[] = [];
 
-    return tl.revisions.map((rev, index) => {
+    for (let index = 0; index < tl.revisions.length; index++) {
+      const rev = tl.revisions[index];
+      const log = rev.logIndex !== -1 ? (ls[rev.logIndex] ?? null) : null;
+      if (log === null) {
+        continue;
+      }
+
       let isContentChanged = true;
       if (index > 0) {
         const prevRev = tl.revisions[index - 1];
         isContentChanged = rev.structId !== prevRev.structId;
       }
-
-      const log = rev.logIndex !== -1 ? ls[rev.logIndex] : null;
 
       const verb = rev.verb;
       const bg = RendererConvertUtil.hdrColorToCSSColor([
@@ -208,11 +219,11 @@ export class DiffListComponent {
         verb.foregroundColor.a,
       ]);
 
-      return {
+      rows.push({
         revision: rev,
-        log: log,
-        index: index,
-        isContentChanged: isContentChanged,
+        log,
+        index,
+        isContentChanged,
         timeLabel: formatTimeLabel(rev.changedTime, shift),
         author: rev.principal ? parsePrincipal(rev.principal) : null,
         verbLabel: verb.label,
@@ -220,8 +231,10 @@ export class DiffListComponent {
           backgroundColor: bg,
           color: fg,
         },
-      };
-    });
+      });
+    }
+
+    return rows;
   });
 
   /**
@@ -239,36 +252,74 @@ export class DiffListComponent {
    */
   readonly moveSelection = output<'next' | 'prev'>();
 
+  private readonly destroyRef = inject(DestroyRef);
   private readonly viewPort = viewChild(CdkVirtualScrollViewport);
 
-  private disableScrollForNext = false;
+  private lastScrolledSelectionKey: string | null = null;
+  private pendingScrollRafId: number | null = null;
 
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.cancelPendingScroll();
+    });
+
     effect(() => {
+      const rows = this.rowViewModels();
       const index = this.selectedLogIndex();
       const selectedRev = this.selectedRevision();
       const timeline = this.timeline();
       const viewPort = this.viewPort();
 
-      if (this.disableScrollForNext) {
-        this.disableScrollForNext = false;
-        return;
-      }
       if (timeline === null) {
+        this.lastScrolledSelectionKey = null;
+        this.cancelPendingScroll();
         return;
       }
-      const revisionIndex =
-        selectedRev !== null && selectedRev.timelineId === timeline.id
-          ? selectedRev.index
-          : timeline.revisions.findIndex((rev) => rev.logIndex === index);
-      if (revisionIndex !== -1) {
-        viewPort?.scrollToIndex(revisionIndex, 'smooth');
+
+      const revisionIndex = this.resolveRevisionIndex(
+        timeline,
+        selectedRev,
+        index,
+      );
+      if (revisionIndex === -1) {
+        this.lastScrolledSelectionKey = null;
+        this.cancelPendingScroll();
+        return;
       }
+
+      if (rows.length === 0 || !viewPort) {
+        this.cancelPendingScroll();
+        return;
+      }
+
+      const rowArrayIndex = rows.findIndex(
+        (row) => row.index === revisionIndex,
+      );
+      if (rowArrayIndex === -1) {
+        this.lastScrolledSelectionKey = null;
+        this.cancelPendingScroll();
+        return;
+      }
+
+      const selectionKey = `${timeline.id}:${revisionIndex}`;
+      if (selectionKey === this.lastScrolledSelectionKey) {
+        return;
+      }
+
+      this.lastScrolledSelectionKey = selectionKey;
+      this.scheduleScrollToRow(viewPort, rowArrayIndex, rows.length);
     });
   }
 
   protected _selectRevision(r: ReadonlyDomainElement<Revision>) {
-    this.disableScrollForNext = true;
+    const timeline = this.timeline();
+    if (timeline !== null) {
+      const revisionIndex = r.index ?? timeline.revisions.indexOf(r);
+      if (revisionIndex !== -1) {
+        this.cancelPendingScroll();
+        this.lastScrolledSelectionKey = `${timeline.id}:${revisionIndex}`;
+      }
+    }
     this.selectRevision.emit(r);
   }
 
@@ -287,6 +338,97 @@ export class DiffListComponent {
     if (keyEvent.key === 'ArrowUp') {
       this.moveSelection.emit('prev');
       keyEvent.preventDefault();
+    }
+  }
+
+  private resolveRevisionIndex(
+    timeline: ReadonlyDomainElement<Timeline>,
+    selectedRev: ReadonlyDomainElement<Revision> | null,
+    selectedLogIndex: number,
+  ): number {
+    if (selectedRev !== null && selectedRev.timelineId === timeline.id) {
+      return selectedRev.index ?? timeline.revisions.indexOf(selectedRev);
+    }
+    return timeline.revisions.findIndex(
+      (rev) => rev.logIndex === selectedLogIndex,
+    );
+  }
+
+  private scheduleScrollToRow(
+    viewPort: CdkVirtualScrollViewport,
+    rowArrayIndex: number,
+    expectedRowCount: number,
+  ): void {
+    this.cancelPendingScroll();
+    const expectedContentHeight = expectedRowCount * DIFF_LIST_ROW_HEIGHT_PX;
+    let remainingFrames = MAX_SCROLL_RETRY_FRAMES;
+
+    // Defers scrolling until CdkVirtualScrollViewport updates its spacer height and layout metrics.
+    const attemptScroll = () => {
+      this.pendingScrollRafId = null;
+      viewPort.checkViewportSize();
+
+      const element = viewPort.elementRef.nativeElement;
+      const viewportHeight = element.clientHeight;
+      const isLayoutReady =
+        viewportHeight > 0 && element.scrollHeight >= expectedContentHeight - 1;
+      if (!isLayoutReady && remainingFrames > 0) {
+        remainingFrames--;
+        this.pendingScrollRafId = requestAnimationFrame(attemptScroll);
+        return;
+      }
+
+      const rowTop = rowArrayIndex * DIFF_LIST_ROW_HEIGHT_PX;
+      const rowBottom = rowTop + DIFF_LIST_ROW_HEIGHT_PX;
+      if (viewportHeight <= 0) {
+        viewPort.scrollToOffset(
+          Math.max(0, rowTop - DIFF_LIST_SCROLL_MARGIN_PX),
+          'smooth',
+        );
+        return;
+      }
+
+      const marginPx = Math.min(
+        DIFF_LIST_SCROLL_MARGIN_PX,
+        Math.max(0, Math.floor((viewportHeight - DIFF_LIST_ROW_HEIGHT_PX) / 2)),
+      );
+      const maxAllowedScrollTop = Math.max(
+        0,
+        expectedContentHeight - viewportHeight,
+      );
+      const minScrollTop = Math.min(
+        maxAllowedScrollTop,
+        Math.max(0, rowBottom - viewportHeight + marginPx),
+      );
+      const maxScrollTop = Math.min(
+        maxAllowedScrollTop,
+        Math.max(0, rowTop - marginPx),
+      );
+      const currentScrollTop = element.scrollTop;
+      if (
+        currentScrollTop >= minScrollTop &&
+        currentScrollTop <= maxScrollTop
+      ) {
+        return;
+      }
+
+      const centeredScrollTop = Math.min(
+        maxAllowedScrollTop,
+        Math.max(
+          0,
+          Math.round(rowTop - (viewportHeight - DIFF_LIST_ROW_HEIGHT_PX) / 2),
+        ),
+      );
+      viewPort.scrollToOffset(centeredScrollTop, 'smooth');
+    };
+
+    this.pendingScrollRafId = requestAnimationFrame(attemptScroll);
+  }
+
+  private cancelPendingScroll(): void {
+    if (this.pendingScrollRafId !== null) {
+      cancelAnimationFrame(this.pendingScrollRafId);
+      this.pendingScrollRafId = null;
     }
   }
 }

@@ -92,6 +92,16 @@ export interface TimelineHoverOverlayRequest {
   isStickyHeaderHover?: boolean;
 }
 
+interface SmoothScrollTarget {
+  readonly left?: number;
+  readonly top?: number;
+}
+
+interface SmoothScrollCancelAxes {
+  readonly left?: boolean;
+  readonly top?: boolean;
+}
+
 @Component({
   selector: 'khi-timeline-frame',
   templateUrl: './timeline-frame.component.html',
@@ -135,6 +145,10 @@ export class TimelineFrameComponent implements AfterViewInit {
    * If the selected timeline is very close to the edge of the viewport, the viewport will scroll to keep the selected timeline in the viewport.
    */
   protected readonly TIMELINE_SELECTION_MARGIN_IN_PX = 100;
+  /**
+   * Extra vertical clearance in pixels below sticky ancestor headers when scrolling to a selected timeline.
+   */
+  protected readonly STICKY_HEADER_SELECTION_PADDING_IN_PX = 24;
 
   private readonly ngZone = inject(NgZone);
   private readonly destroyRef = inject(DestroyRef);
@@ -175,6 +189,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     viewportLeftTimeNs = this.viewportLeftTimeNs(),
     pixelsPerNs = this.pixelsPerNs(),
   ): void {
+    this.cancelPendingSmoothScroll({ left: true, top: true });
+    this.horizontalScrollSourceOfTruth = 'property';
     this.viewportLeftTimeNs.set(viewportLeftTimeNs);
     this.pixelsPerNs.set(pixelsPerNs);
     const container = this.container();
@@ -1023,7 +1039,22 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   private currentScrollEventID = 0;
 
+  private isSyncingHorizontalScroll = false;
+  private lastVerticallyScrolledSelectionKey: string | null = null;
+  private pendingHorizontalSyncRafId: number | null = null;
+  private pendingSmoothScrollLeft: number | null = null;
+  private pendingSmoothScrollTop: number | null = null;
+  private pendingSmoothScrollRafId: number | null = null;
+
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      if (this.pendingHorizontalSyncRafId !== null) {
+        cancelAnimationFrame(this.pendingHorizontalSyncRafId);
+        this.pendingHorizontalSyncRafId = null;
+      }
+      this.cancelPendingSmoothScroll({ left: true, top: true });
+    });
+
     // Updates the scrollLeft property of the container element when the viewportLeftTimeNs changes.
     effect(() => {
       const calculator = this.horizontalScrollCalculator();
@@ -1045,20 +1076,36 @@ export class TimelineFrameComponent implements AfterViewInit {
       // If the element is smaller than the expected size, wait a frame to apply. If it failed on the next frame, it'll retry the next frame and so on.
       this.currentScrollEventID++;
       const scrollEventID = this.currentScrollEventID;
+      if (this.pendingHorizontalSyncRafId !== null) {
+        cancelAnimationFrame(this.pendingHorizontalSyncRafId);
+        this.pendingHorizontalSyncRafId = null;
+      }
+      this.isSyncingHorizontalScroll = true;
+      let remainingSyncAttempts = 10;
       const moveToTargetScroll = () => {
+        this.pendingHorizontalSyncRafId = null;
+        if (scrollEventID !== this.currentScrollEventID) {
+          return;
+        }
+        if (this.horizontalScrollSourceOfTruth === 'scroll') {
+          this.currentAction = 'none';
+          this.isSyncingHorizontalScroll = false;
+          return;
+        }
         container.nativeElement.scrollLeft = targetScrollLeft;
-        if (scrollEventID === this.currentScrollEventID) {
-          if (
-            Math.abs(container.nativeElement.scrollLeft - targetScrollLeft) < 1
-          ) {
-            // scroll position is matching with the target. Finish the scaling behavior.
-            this.currentAction = 'none';
-          } else {
-            // scroll position is not matching with the target. Retry on the next frame.
-            this.renderingLoopManager.registerOnceBeforeRenderHandler(
-              moveToTargetScroll,
-            );
-          }
+        if (
+          Math.abs(container.nativeElement.scrollLeft - targetScrollLeft) < 1 ||
+          remainingSyncAttempts <= 0
+        ) {
+          // scroll position is matching with the target. Finish the scaling behavior.
+          this.currentAction = 'none';
+          this.isSyncingHorizontalScroll = false;
+        } else {
+          remainingSyncAttempts--;
+          // scroll position is not matching with the target. Retry on the next frame.
+          this.pendingHorizontalSyncRafId = this.ngZone.runOutsideAngular(() =>
+            requestAnimationFrame(moveToTargetScroll),
+          );
         }
       };
       moveToTargetScroll();
@@ -1097,8 +1144,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     // Updates the viewportLeftTimeNs property when the cursorTime is updated if that is outside of the viewport.
     effect(() => {
       const rawCursorTimeNs = this.cursorTimeNs();
-      if (rawCursorTimeNs === 0n) {
-        // Do not scroll when there is no active log selection.
+      if (rawCursorTimeNs === 0n || !this.initialScaleApplied()) {
+        // Do not scroll when there is no active log selection or before initial scale is initialized.
         return;
       }
       const logMinTimeNs = untracked(this.minQueryLogTimeNs);
@@ -1108,6 +1155,9 @@ export class TimelineFrameComponent implements AfterViewInit {
       }
       const viewportLeftTimeNs = untracked(this.viewportLeftTimeNs);
       const viewportWidth = untracked(this.viewportWidth);
+      if (viewportWidth <= 0) {
+        return;
+      }
       const pixelsPerNs = untracked(this.pixelsPerNs);
       const marginNs = BigInt(
         Math.round(this.CURSOR_SCROLL_MARGIN_IN_PX / pixelsPerNs),
@@ -1130,42 +1180,87 @@ export class TimelineFrameComponent implements AfterViewInit {
         const newScrollLeft =
           Number(newVPLTN - logMinTimeNs) * pixelsPerNs +
           horizontalOverdrawInPx;
-        this.horizontalScrollSourceOfTruth = 'scroll';
-        this.container()?.nativeElement.scrollTo({
-          left: newScrollLeft,
-          behavior: 'smooth',
-        });
+        this.requestSmoothScroll({ left: newScrollLeft });
       }
     });
     effect(() => {
-      this.selectedLogIndex(); // Just for triggering the effect when the selected log index is changed.
+      const logIndex = this.selectedLogIndex();
       const logTimeline = this.selectedLogTimeline();
       const selectedTimeline = logTimeline ?? this.selectedTimeline();
       if (!selectedTimeline) {
+        this.lastVerticallyScrolledSelectionKey = null;
+        this.cancelPendingSmoothScroll({ top: true });
         return;
       }
-      const verticalCalculator = untracked(this.verticalScrollCalculator);
+
+      const selectionKey = `${selectedTimeline.id}:${logIndex}`;
+      if (selectionKey === this.lastVerticallyScrolledSelectionKey) {
+        return;
+      }
+
+      const initialScaleApplied = this.initialScaleApplied();
+      const viewportHeight = this.viewportHeight();
+      const verticalCalculator = this.verticalScrollCalculator();
+      const container = this.container();
+      if (
+        !initialScaleApplied ||
+        !container ||
+        viewportHeight <= 0 ||
+        !verticalCalculator.hasTimeline(selectedTimeline.id)
+      ) {
+        return;
+      }
+
+      this.lastVerticallyScrolledSelectionKey = selectionKey;
+
       const timelineTopOffset =
         verticalCalculator.timelineIDToTimelineTopOffset(selectedTimeline.id);
-      const viewportHeight = untracked(this.viewportHeight);
-      const minScrollTop =
-        timelineTopOffset -
-        viewportHeight +
-        this.TIMELINE_SELECTION_MARGIN_IN_PX;
-      const maxScrollTop =
-        minScrollTop +
-        viewportHeight -
-        2 * this.TIMELINE_SELECTION_MARGIN_IN_PX;
-      const container = this.container();
-      if (!container) {
-        return;
-      }
+      const timelineBottomOffset =
+        verticalCalculator.timelineIDToTimelineBottomOffset(
+          selectedTimeline.id,
+        );
+      const ancestorStickyHeight = verticalCalculator.ancestorStickyHeight(
+        selectedTimeline.id,
+      );
+      const timelineHeight = timelineBottomOffset - timelineTopOffset;
+      const minClearanceForSticky = Math.min(
+        ancestorStickyHeight,
+        Math.max(0, viewportHeight - timelineHeight),
+      );
+      const topMargin = Math.max(
+        minClearanceForSticky,
+        Math.min(
+          Math.max(
+            this.TIMELINE_SELECTION_MARGIN_IN_PX,
+            ancestorStickyHeight + this.STICKY_HEADER_SELECTION_PADDING_IN_PX,
+          ),
+          viewportHeight / 2,
+        ),
+      );
+      const bottomMargin = Math.min(
+        this.TIMELINE_SELECTION_MARGIN_IN_PX,
+        viewportHeight / 4,
+      );
+      const maxAllowedScrollTop = Math.max(
+        0,
+        verticalCalculator.totalHeight - viewportHeight,
+      );
+      const rawMaxScrollTop = timelineTopOffset - topMargin;
+      const rawMinScrollTop = Math.min(
+        rawMaxScrollTop,
+        timelineBottomOffset - viewportHeight + bottomMargin,
+      );
+      const minScrollTop = Math.min(
+        maxAllowedScrollTop,
+        Math.max(0, rawMinScrollTop),
+      );
+      const maxScrollTop = Math.min(
+        maxAllowedScrollTop,
+        Math.max(0, rawMaxScrollTop),
+      );
       const currentScrollTop = container.nativeElement.scrollTop;
       if (currentScrollTop < minScrollTop || currentScrollTop > maxScrollTop) {
-        container.nativeElement.scrollTo({
-          top: maxScrollTop,
-          behavior: 'smooth',
-        });
+        this.requestSmoothScroll({ top: maxScrollTop });
       }
     });
     effect(() => {
@@ -1174,13 +1269,12 @@ export class TimelineFrameComponent implements AfterViewInit {
       if (!container) {
         return;
       }
-      const maxScrollTop =
-        verticalCalculator.totalHeight - this.viewportHeight();
+      const maxScrollTop = Math.max(
+        0,
+        verticalCalculator.totalHeight - this.viewportHeight(),
+      );
       if (container.nativeElement.scrollTop > maxScrollTop) {
-        container.nativeElement.scrollTo({
-          top: maxScrollTop,
-          behavior: 'smooth',
-        });
+        this.requestSmoothScroll({ top: maxScrollTop });
       }
     });
   }
@@ -1207,6 +1301,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     const indexAreaRect = indexArea.getBoundingClientRect();
     const isChartArea = e.clientX > indexAreaRect.right + this.GUTTER_WIDTH;
     if (isChartArea) {
+      this.cancelPendingSmoothScroll({ left: true, top: true });
+      this.horizontalScrollSourceOfTruth = 'property';
       this.isGrabbing.set(true);
       this.lastMouseDownPosition.x = e.clientX;
       this.lastMouseDownPosition.y = e.clientY;
@@ -1348,17 +1444,25 @@ export class TimelineFrameComponent implements AfterViewInit {
         maxScrollLeft,
       );
       this.viewportScrollTop.set(container.nativeElement.scrollTop);
-      this.viewportLeftTimeNs.set(
-        horizontalScrollCalculator.scrollToViewportLeftTimeNs(
-          scrollLeft,
-          pixelsPerNs,
-        ),
+      const expectedScrollLeft = horizontalScrollCalculator.timeNsToOffsetLeft(
+        this.viewportLeftTimeNs(),
+        pixelsPerNs,
       );
+      if (Math.abs(scrollLeft - expectedScrollLeft) >= 1) {
+        this.viewportLeftTimeNs.set(
+          horizontalScrollCalculator.scrollToViewportLeftTimeNs(
+            scrollLeft,
+            pixelsPerNs,
+          ),
+        );
+      }
     });
   }
 
   onWheelForScaling(event: WheelEvent) {
     if (this.currentAction !== 'none') return;
+    this.cancelPendingSmoothScroll({ left: true, top: true });
+    this.horizontalScrollSourceOfTruth = 'property';
     this.currentAction = 'scaling';
     this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
       const container = this.container();
@@ -1408,5 +1512,99 @@ export class TimelineFrameComponent implements AfterViewInit {
       );
       this.pixelsPerNs.set(newPixelsPerNs);
     });
+  }
+
+  private cancelPendingSmoothScroll(axes: SmoothScrollCancelAxes): void {
+    if (axes.left) {
+      this.pendingSmoothScrollLeft = null;
+    }
+    if (axes.top) {
+      this.pendingSmoothScrollTop = null;
+    }
+    if (
+      this.pendingSmoothScrollLeft === null &&
+      this.pendingSmoothScrollTop === null &&
+      this.pendingSmoothScrollRafId !== null
+    ) {
+      cancelAnimationFrame(this.pendingSmoothScrollRafId);
+      this.pendingSmoothScrollRafId = null;
+    }
+  }
+
+  private requestSmoothScroll(target: SmoothScrollTarget): void {
+    if (target.left !== undefined) {
+      this.pendingSmoothScrollLeft = target.left;
+    }
+    if (target.top !== undefined) {
+      this.pendingSmoothScrollTop = target.top;
+    }
+    if (this.pendingSmoothScrollRafId !== null) {
+      cancelAnimationFrame(this.pendingSmoothScrollRafId);
+      this.pendingSmoothScrollRafId = null;
+    }
+    let remainingAttempts = 10;
+
+    // Defers by at least one animation frame so horizontal and vertical effects in the same tick coalesce.
+    const tryApplySmoothScroll = () => {
+      this.pendingSmoothScrollRafId = null;
+      const container = this.container();
+      if (!container) {
+        return;
+      }
+      const el = container.nativeElement;
+      const targetLeft = this.pendingSmoothScrollLeft;
+      const targetTop = this.pendingSmoothScrollTop;
+      const maxReachableLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+      const maxReachableTop = Math.max(0, el.scrollHeight - el.clientHeight);
+      const waitingForWidth =
+        targetLeft !== null && maxReachableLeft + 1 < targetLeft;
+      const waitingForHeight =
+        targetTop !== null && maxReachableTop + 1 < targetTop;
+
+      if (
+        (waitingForWidth ||
+          waitingForHeight ||
+          this.isSyncingHorizontalScroll) &&
+        remainingAttempts > 0
+      ) {
+        remainingAttempts--;
+        this.pendingSmoothScrollRafId = this.ngZone.runOutsideAngular(() =>
+          requestAnimationFrame(tryApplySmoothScroll),
+        );
+        return;
+      }
+
+      this.pendingSmoothScrollLeft = null;
+      this.pendingSmoothScrollTop = null;
+
+      const nextLeft =
+        targetLeft !== null
+          ? Math.max(0, Math.min(maxReachableLeft, targetLeft))
+          : undefined;
+      const nextTop =
+        targetTop !== null
+          ? Math.max(0, Math.min(maxReachableTop, targetTop))
+          : undefined;
+
+      const willMoveLeft =
+        nextLeft !== undefined && Math.abs(el.scrollLeft - nextLeft) >= 1;
+      const willMoveTop =
+        nextTop !== undefined && Math.abs(el.scrollTop - nextTop) >= 1;
+
+      if (!willMoveLeft && !willMoveTop) {
+        return;
+      }
+
+      this.horizontalScrollSourceOfTruth = 'scroll';
+      el.scrollTo({
+        ...(willMoveLeft ? { left: nextLeft } : {}),
+        ...(willMoveTop ? { top: nextTop } : {}),
+        behavior: 'smooth',
+      });
+    };
+
+    this.pendingSmoothScrollRafId = this.ngZone.runOutsideAngular(() =>
+      requestAnimationFrame(tryApplySmoothScroll),
+    );
   }
 }

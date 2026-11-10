@@ -231,6 +231,38 @@ export class VerticalScrollCalculator {
   }
 
   /**
+   * Checks whether the calculator contains a timeline with the specified ID.
+   *
+   * @param timelineID The unique identifier of the timeline.
+   * @returns True when the timeline is present in the displayed list.
+   */
+  public hasTimeline(timelineID: number): boolean {
+    return this.timelines.some((timeline) => timeline.id === timelineID);
+  }
+
+  /**
+   * Calculates the combined height of all ancestor timelines above the specified timeline.
+   *
+   * @param timelineID The unique identifier of the target timeline.
+   * @returns Total height of ancestor sticky rows in pixels, or 0 if not found.
+   */
+  public ancestorStickyHeight(timelineID: number): number {
+    const timeline = this.timelines.find((item) => item.id === timelineID);
+    if (!timeline) {
+      return 0;
+    }
+    let height = 0;
+    for (
+      let parent = timeline.parent;
+      parent !== null;
+      parent = parent.parent
+    ) {
+      height += this.resolveTimelineType(parent).height * BASE_ROW_HEIGHT;
+    }
+    return height;
+  }
+
+  /**
    * Calculates the top Y coordinate of a specific timeline identified by its ID.
    * Useful for scrolling to a specific timeline or determining its position in the full list.
    *

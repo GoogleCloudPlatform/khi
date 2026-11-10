@@ -50,6 +50,7 @@ describe('SessionUrlSyncService', () => {
   let inspectionIdSignal: WritableSignal<string | null>;
   let inspectionDataSignal: WritableSignal<InspectionData | null>;
   let timelineViewSignal: WritableSignal<TimelineView | null>;
+  let isFilteringSignal: WritableSignal<boolean>;
   let timelineQuerySignal: WritableSignal<string>;
   let logQuerySignal: WritableSignal<string>;
   let selectedTimelineSignal: WritableSignal<ReadonlyDomainElement<Timeline> | null>;
@@ -67,6 +68,7 @@ describe('SessionUrlSyncService', () => {
     inspectionIdSignal = signal<string | null>(null);
     inspectionDataSignal = signal<InspectionData | null>(null);
     timelineViewSignal = signal<TimelineView | null>(null);
+    isFilteringSignal = signal<boolean>(false);
     timelineQuerySignal = signal<string>('');
     logQuerySignal = signal<string>('');
     selectedTimelineSignal = signal<ReadonlyDomainElement<Timeline> | null>(
@@ -106,6 +108,7 @@ describe('SessionUrlSyncService', () => {
 
     fakeTimelineView = {
       expandAllTimelines: jasmine.createSpy('expandAllTimelines'),
+      isFiltering: isFilteringSignal,
       timelineQuery: timelineQuerySignal,
       logQuery: logQuerySignal,
       backendFilter: {
@@ -227,6 +230,30 @@ describe('SessionUrlSyncService', () => {
     );
     expect(mockSelectionManager.onSelectLog).toHaveBeenCalledWith(fakeLog);
     expect(currentSearch).toBe('?inspectionId=insp-1&timelineId=3&logId=42');
+  });
+
+  it('waits for timelineView filtering to complete before applying URL selection', async () => {
+    isFilteringSignal.set(true);
+    currentSearch =
+      '?inspectionId=insp-1&timelineQuery=match(%22Pod%22)&timelineId=3&logId=42';
+    const service = TestBed.inject(SessionUrlSyncService);
+
+    expect(service.openFromQueryParams()).toBeTrue();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.flushEffects();
+
+    expect(mockSelectionManager.onSelectTimeline).not.toHaveBeenCalled();
+    expect(mockSelectionManager.onSelectLog).not.toHaveBeenCalled();
+
+    isFilteringSignal.set(false);
+    TestBed.flushEffects();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.flushEffects();
+
+    expect(mockSelectionManager.onSelectTimeline).toHaveBeenCalledWith(
+      fakeTimeline,
+    );
+    expect(mockSelectionManager.onSelectLog).toHaveBeenCalledWith(fakeLog);
   });
 
   it('ignores non-decimal numeric strings in timelineId and logId query parameters', async () => {

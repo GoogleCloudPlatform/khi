@@ -22,11 +22,22 @@ $toolbar-background: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
 
 $principal-user: #e53935;
 
+:host {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+}
+
 .container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
   font-size: 10px;
+}
+
+khi-diff-list-header {
+  flex-shrink: 0;
 }
 
 mat-toolbar {
@@ -48,6 +59,7 @@ mat-toolbar {
 
 as-split {
   flex: 1;
+  min-height: 0;
 }
 
 ngx-unified-diff {

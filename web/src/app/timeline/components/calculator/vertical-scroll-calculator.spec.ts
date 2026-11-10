@@ -312,6 +312,20 @@ describe('VerticalScrollCalculator', () => {
         expect(result[1]).toBe(timelines[8]); // Namespace3
         expect(result[2]).toBe(timelines[9]); // Pod4
       });
+
+      it('should report timeline membership and ancestor sticky heights accurately', () => {
+        for (const tc of [
+          { id: 1, wantHas: true, wantAncestorStickyHeight: 0 },
+          { id: 3, wantHas: true, wantAncestorStickyHeight: 200 },
+          { id: 7, wantHas: true, wantAncestorStickyHeight: 300 },
+          { id: 999, wantHas: false, wantAncestorStickyHeight: 0 },
+        ]) {
+          expect(calculator.hasTimeline(tc.id)).toBe(tc.wantHas);
+          expect(calculator.ancestorStickyHeight(tc.id)).toBe(
+            tc.wantAncestorStickyHeight,
+          );
+        }
+      });
     });
   });
 });
