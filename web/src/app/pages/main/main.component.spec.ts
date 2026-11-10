@@ -15,6 +15,7 @@
  */
 
 import { TestBed, fakeAsync, flush } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { AppComponent } from 'src/app/pages/main/main.component';
 import { signal, Injector } from '@angular/core';
 import { create } from '@bufbuild/protobuf';
@@ -23,6 +24,7 @@ import {
   PopupFormSchema,
   PopupService,
 } from 'src/app/generated/api/v1/popup_pb';
+import { SUPPRESSED_RELEASE_NOTES_VERSION_KEY } from 'src/app/dialogs/release-notes/release-notes-smart.component';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import {
   WINDOW_CONNECTION_PROVIDER,
@@ -30,6 +32,7 @@ import {
 } from 'src/app/services/frame-connection/window-connector.service';
 import { InMemoryWindowConnectionProvider } from 'src/app/services/frame-connection/window-connection-provider.service';
 import { provideHttpClient } from '@angular/common/http';
+import { LayoutService } from 'src/app/services/layout/layout.service';
 import { POPUP_MANAGER } from 'src/app/services/popup/popup-manager';
 import { MockPopupManager } from 'src/app/services/popup/mock';
 import { DiffPageDataSourceServer } from 'src/app/services/frame-connection/frames/diff-page-datasource-server.service';
@@ -45,12 +48,42 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { PROGRESS_DIALOG_STATUS_UPDATOR } from 'src/app/services/progress/progress-interface';
 import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
 import { InspectionListItem } from 'src/app/generated/api/v1/inspection_pb';
+import {
+  SESSION_LOCATION_ADAPTER,
+  SessionLocationAdapter,
+} from 'src/app/services/session-url-sync.service';
+import {
+  SETTINGS_STORAGE,
+  SettingsStorage,
+} from 'src/app/services/settings/settings-storage';
+import { VERSION } from 'src/environments/version';
 
 describe('AppComponent', () => {
   let extensionStore: ExtensionStore;
+  let currentSearch: string;
+  let mockLocationAdapter: SessionLocationAdapter;
+  let mockLayoutService: jasmine.SpyObj<LayoutService>;
+  let mockSettingsStorage: SettingsStorage;
 
   beforeEach(async () => {
     extensionStore = new ExtensionStore();
+    currentSearch = '';
+    mockLocationAdapter = {
+      getSearch: () => currentSearch,
+      replaceSearch: (search: string) => {
+        currentSearch = search;
+      },
+    };
+    mockLayoutService = jasmine.createSpyObj<LayoutService>('LayoutService', [
+      'init',
+      'loadDefaultLayout',
+      'openMaskPane',
+    ]);
+    mockSettingsStorage = {
+      getItem: (key: string) =>
+        key === SUPPRESSED_RELEASE_NOTES_VERSION_KEY ? VERSION : null,
+      setItem: () => {},
+    };
 
     await TestBed.configureTestingModule({
       imports: [NoopAnimationsModule],
@@ -92,9 +125,28 @@ describe('AppComponent', () => {
         DiffPageDataSourceServer,
         GraphPageDataSourceServer,
         MenuManager,
+        {
+          provide: SESSION_LOCATION_ADAPTER,
+          useValue: mockLocationAdapter,
+        },
+        {
+          provide: SETTINGS_STORAGE,
+          useValue: mockSettingsStorage,
+        },
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(AppComponent, {
+        remove: { providers: [LayoutService] },
+        add: {
+          providers: [{ provide: LayoutService, useValue: mockLayoutService }],
+        },
+      })
+      .compileComponents();
     extensionStore.injector = TestBed.inject(Injector);
+  });
+
+  afterEach(() => {
+    TestBed.inject(MatDialog).closeAll();
   });
 
   it('should create the app', fakeAsync(() => {
@@ -151,6 +203,23 @@ describe('AppComponent', () => {
     popupManager.setCurrentPopup(null);
     TestBed.flushEffects();
 
+    fixture.destroy();
+    flush();
+  }));
+
+  it('should load inspection from query params on init when inspectionId is present', fakeAsync(() => {
+    currentSearch = '?inspectionId=insp-1';
+    const dataLoader = TestBed.inject(InspectionDataLoaderService);
+    spyOn(dataLoader, 'loadInspectionDataFromBackend').and.returnValue(
+      Promise.resolve(),
+    );
+
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+
+    expect(dataLoader.loadInspectionDataFromBackend).toHaveBeenCalledWith(
+      'insp-1',
+    );
     fixture.destroy();
     flush();
   }));

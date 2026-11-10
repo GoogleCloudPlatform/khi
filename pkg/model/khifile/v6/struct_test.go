@@ -532,3 +532,82 @@ func TestUnflattenNodes(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchFieldKeySegments(t *testing.T) {
+	type matchResult struct {
+		Matched int
+		OK      bool
+	}
+
+	testCases := []struct {
+		name     string
+		key      string
+		segments []string
+		want     matchResult
+	}{
+		{
+			name:     "exact single segment match",
+			key:      "insertId",
+			segments: []string{"insertId"},
+			want:     matchResult{Matched: 1, OK: true},
+		},
+		{
+			name:     "exact flattened multi-segment match",
+			key:      "metadata\x00uid",
+			segments: []string{"metadata", "uid"},
+			want:     matchResult{Matched: 2, OK: true},
+		},
+		{
+			name:     "prefix match for unflattened nested struct key",
+			key:      "metadata",
+			segments: []string{"metadata", "uid"},
+			want:     matchResult{Matched: 1, OK: true},
+		},
+		{
+			name:     "rejects key deeper than requested segments",
+			key:      "metadata\x00uid",
+			segments: []string{"metadata"},
+			want:     matchResult{Matched: 0, OK: false},
+		},
+		{
+			name:     "rejects mismatched leaf segment",
+			key:      "metadata\x00name",
+			segments: []string{"metadata", "uid"},
+			want:     matchResult{Matched: 0, OK: false},
+		},
+		{
+			name:     "rejects empty segments",
+			key:      "insertId",
+			segments: nil,
+			want:     matchResult{Matched: 0, OK: false},
+		},
+		{
+			name:     "matches empty string key segment",
+			key:      "\x00a",
+			segments: []string{"", "a"},
+			want:     matchResult{Matched: 2, OK: true},
+		},
+		{
+			name:     "rejects shorter flat key",
+			key:      "logName",
+			segments: []string{"insertId"},
+			want:     matchResult{Matched: 0, OK: false},
+		},
+		{
+			name:     "rejects longer flat key sharing prefix without separator",
+			key:      "insertIdExtra",
+			segments: []string{"insertId"},
+			want:     matchResult{Matched: 0, OK: false},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			matched, ok := matchFieldKeySegments(tc.key, tc.segments)
+			got := matchResult{Matched: matched, OK: ok}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("matchFieldKeySegments(%q, %v) mismatch (-want +got):\n%s", tc.key, tc.segments, diff)
+			}
+		})
+	}
+}

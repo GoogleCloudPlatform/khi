@@ -16,6 +16,7 @@ package defaultinit
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -26,6 +27,7 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/gin-gonic/gin"
@@ -46,10 +48,20 @@ func TestMCPServerInitializer(t *testing.T) {
 		HeadBodyByteLen int
 	}
 
+	type sceneServeResult struct {
+		GetStatus       int
+		GetContentType  string
+		GetInspectionID string
+		HeadStatus      int
+		HeadBodyByteLen int
+	}
+
 	type initOutcome struct {
 		HasMCPServer             bool
 		HasAssetStore            bool
+		HasSceneStore            bool
 		AssetServe               *assetServeResult
+		SceneServe               *sceneServeResult
 		HasRenderToolByTransport map[string]bool
 		ProbeStatuses            map[string]int
 	}
@@ -68,18 +80,27 @@ func TestMCPServerInitializer(t *testing.T) {
 			want: initOutcome{
 				HasMCPServer:  false,
 				HasAssetStore: false,
+				HasSceneStore: false,
 			},
 		},
 		{
-			name:     "mounts endpoints and asset store without render_timelines when CDPBrowserKey is absent",
+			name:     "mounts endpoints, asset store, and scene store without render_timelines when CDPBrowserKey is absent",
 			basePath: "",
 			want: initOutcome{
 				HasMCPServer:  true,
 				HasAssetStore: true,
+				HasSceneStore: true,
 				AssetServe: &assetServeResult{
 					GetStatus:       http.StatusOK,
 					GetContentType:  "image/png",
 					GetBody:         pngBytes,
+					HeadStatus:      http.StatusOK,
+					HeadBodyByteLen: 0,
+				},
+				SceneServe: &sceneServeResult{
+					GetStatus:       http.StatusOK,
+					GetContentType:  "application/json; charset=utf-8",
+					GetInspectionID: "insp-init",
 					HeadStatus:      http.StatusOK,
 					HeadBodyByteLen: 0,
 				},
@@ -96,10 +117,18 @@ func TestMCPServerInitializer(t *testing.T) {
 			want: initOutcome{
 				HasMCPServer:  true,
 				HasAssetStore: true,
+				HasSceneStore: true,
 				AssetServe: &assetServeResult{
 					GetStatus:       http.StatusOK,
 					GetContentType:  "image/png",
 					GetBody:         pngBytes,
+					HeadStatus:      http.StatusOK,
+					HeadBodyByteLen: 0,
+				},
+				SceneServe: &sceneServeResult{
+					GetStatus:       http.StatusOK,
+					GetContentType:  "application/json; charset=utf-8",
+					GetInspectionID: "insp-init",
 					HeadStatus:      http.StatusOK,
 					HeadBodyByteLen: 0,
 				},
@@ -117,14 +146,23 @@ func TestMCPServerInitializer(t *testing.T) {
 				"/mcp",
 				"/mcp/sse",
 				"/api/v1/mcp-assets/missing.png",
+				"/api/v1/mcp-scenes/scn_missing",
 			},
 			want: initOutcome{
 				HasMCPServer:  true,
 				HasAssetStore: true,
+				HasSceneStore: true,
 				AssetServe: &assetServeResult{
 					GetStatus:       http.StatusOK,
 					GetContentType:  "image/png",
 					GetBody:         pngBytes,
+					HeadStatus:      http.StatusOK,
+					HeadBodyByteLen: 0,
+				},
+				SceneServe: &sceneServeResult{
+					GetStatus:       http.StatusOK,
+					GetContentType:  "application/json; charset=utf-8",
+					GetInspectionID: "insp-init",
 					HeadStatus:      http.StatusOK,
 					HeadBodyByteLen: 0,
 				},
@@ -136,6 +174,7 @@ func TestMCPServerInitializer(t *testing.T) {
 					"/mcp":                           http.StatusNotFound,
 					"/mcp/sse":                       http.StatusNotFound,
 					"/api/v1/mcp-assets/missing.png": http.StatusNotFound,
+					"/api/v1/mcp-scenes/scn_missing": http.StatusNotFound,
 				},
 			},
 		},
@@ -184,10 +223,12 @@ func TestMCPServerInitializer(t *testing.T) {
 
 			_, hasMCPServer := coreinit.Get(ctx, MCPServerKey)
 			assetStore, hasAssetStore := coreinit.Get(ctx, MCPAssetStoreKey)
+			sceneStore, hasSceneStore := coreinit.Get(ctx, MCPSceneStoreKey)
 
 			got := initOutcome{
 				HasMCPServer:  hasMCPServer,
 				HasAssetStore: hasAssetStore,
+				HasSceneStore: hasSceneStore,
 			}
 
 			if hasAssetStore {
@@ -205,6 +246,37 @@ func TestMCPServerInitializer(t *testing.T) {
 					GetStatus:       getRec.Code,
 					GetContentType:  getRec.Header().Get("Content-Type"),
 					GetBody:         getRec.Body.Bytes(),
+					HeadStatus:      headRec.Code,
+					HeadBodyByteLen: headRec.Body.Len(),
+				}
+			}
+
+			if hasSceneStore {
+				stored, err := sceneStore.Issue("", scene.Spec{InspectionID: "insp-init"}, scene.Document{InspectionID: "insp-init"})
+				if err != nil {
+					t.Fatalf("sceneStore.Issue() failed: %v", err)
+				}
+				sceneURL := "http://127.0.0.1:8080" + tc.basePath + mcpScenesPath + stored.SceneID
+
+				getReq := httptest.NewRequest(http.MethodGet, sceneURL, nil)
+				getRec := httptest.NewRecorder()
+				ginEngine.ServeHTTP(getRec, getReq)
+
+				var decoded scene.Document
+				if getRec.Code == http.StatusOK {
+					if err := json.Unmarshal(getRec.Body.Bytes(), &decoded); err != nil {
+						t.Fatalf("json.Unmarshal(scene response) failed: %v", err)
+					}
+				}
+
+				headReq := httptest.NewRequest(http.MethodHead, sceneURL, nil)
+				headRec := httptest.NewRecorder()
+				ginEngine.ServeHTTP(headRec, headReq)
+
+				got.SceneServe = &sceneServeResult{
+					GetStatus:       getRec.Code,
+					GetContentType:  getRec.Header().Get("Content-Type"),
+					GetInspectionID: decoded.InspectionID,
 					HeadStatus:      headRec.Code,
 					HeadBodyByteLen: headRec.Body.Len(),
 				}

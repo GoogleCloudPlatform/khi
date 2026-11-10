@@ -143,6 +143,7 @@ export class TimelineFrameComponent implements AfterViewInit {
   private readonly container = viewChild<ElementRef<HTMLElement>>('container');
   private readonly indexSplitArea =
     viewChild<ElementRef<HTMLElement>>('indexSplitArea');
+  private readonly timelineRuler = viewChild(TimelineRulerComponent);
   private readonly timelineCharts = viewChildren(TimelineChartComponent);
 
   /**
@@ -153,6 +154,10 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Whether to display the split pane resizer handle icon.
    */
   readonly showResizerHandle = input<boolean>(true);
+  /**
+   * Width of the left resource index pane in CSS pixels.
+   */
+  readonly indexPaneSize = input<number>(300);
 
   /**
    * Indicates whether all child timeline charts have initialized their WebGL contexts and are ready to render.
@@ -199,6 +204,7 @@ export class TimelineFrameComponent implements AfterViewInit {
         this.currentAction = 'none';
       });
     }
+    this.timelineRuler()?.syncCanvasSize();
     for (const chart of this.timelineCharts()) {
       chart.syncCanvasSize();
       chart.invalidate = true;

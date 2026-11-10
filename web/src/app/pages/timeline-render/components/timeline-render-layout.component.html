@@ -1,0 +1,113 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+@let sceneVm = scene();
+
+<div
+  class="render-shell"
+  [class.interactive]="interactiveMode()"
+  [style.width.px]="interactiveMode() ? null : sceneVm.stageWidthPx"
+>
+  @if (interactiveMode()) {
+    <header class="interactive-toolbar">
+      <div class="toolbar-meta">
+        <span class="toolbar-brand">KHI Annotated Scene</span>
+        @if (sceneId()) {
+          <span class="meta-chip">{{ sceneId() }}</span>
+        }
+        @if (parentSceneId()) {
+          <span class="meta-chip muted">from {{ parentSceneId() }}</span>
+        }
+        @if (inspectionId()) {
+          <span class="meta-chip muted">inspection: {{ inspectionId() }}</span>
+        }
+      </div>
+      @if (inspectionId()) {
+        <button
+          class="open-khi-btn"
+          type="button"
+          (click)="onOpenFullSessionClick()"
+        >
+          &#8599; Open in Full KHI
+        </button>
+      }
+    </header>
+  }
+
+  @if (errorMessage()) {
+    <div class="scene-error-banner">
+      {{ errorMessage() }}
+    </div>
+  } @else {
+    <div class="composite-canvas" [style.width.px]="sceneVm.stageWidthPx">
+      <div
+        class="top-band-spacer"
+        [style.height.px]="sceneVm.topBandHeightPx"
+      ></div>
+
+      <div
+        class="timeline-frame-box"
+        [style.height.px]="sceneVm.timelineFrameHeightPx"
+      >
+        <khi-timeline-frame
+          [allLogs]="allLogs()"
+          [chartStyle]="chartStyle()"
+          [collapsedTimelineIds]="collapsedTimelineIds()"
+          [filteredLogIds]="filteredLogIds()"
+          [horizontalOverdrawInPx]="horizontalOverdrawInPx()"
+          [indexPaneSize]="sceneVm.indexPaneWidthPx"
+          [initialScaleApplied]="true"
+          [inspectionDataUniqueID]="inspectionDataUniqueID()"
+          [maxQueryLogTimeNs]="maxQueryLogTimeNs()"
+          [minQueryLogTimeNs]="minQueryLogTimeNs()"
+          [(pixelsPerNs)]="pixelsPerNs"
+          [rulerStyle]="rulerStyle()"
+          [showLegend]="false"
+          [showResizerHandle]="false"
+          [styleStore]="styleStore()"
+          [timelines]="timelines()"
+          [timezoneShiftHours]="timezoneShiftHours()"
+          [(viewportLeftTimeNs)]="viewportLeftTimeNs"
+        ></khi-timeline-frame>
+      </div>
+
+      @if (sceneVm.hasOverlayItems) {
+        <div class="overlay-host">
+          <khi-timeline-scene-overlay
+            [hoveredBadge]="hoveredBadge()"
+            [interactiveMode]="interactiveMode()"
+            [scene]="sceneVm"
+            (badgeHover)="onBadgeHover($event)"
+            (jumpToSession)="onJumpToSession($event)"
+          ></khi-timeline-scene-overlay>
+        </div>
+      }
+
+      <div #deckContainer class="deck-host">
+        @if (sceneVm.deck.cards.length > 0) {
+          <khi-timeline-evidence-deck
+            [deck]="sceneVm.deck"
+            [hoveredBadge]="hoveredBadge()"
+            [interactiveMode]="interactiveMode()"
+            [stageWidthPx]="sceneVm.stageWidthPx"
+            (badgeHover)="onBadgeHover($event)"
+            (jumpToSession)="onJumpToSession($event)"
+          ></khi-timeline-evidence-deck>
+        }
+      </div>
+    </div>
+  }
+</div>

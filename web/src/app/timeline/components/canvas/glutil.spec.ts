@@ -22,15 +22,16 @@ import {
 
 describe('glutil', () => {
   describe('WebGLUtil', () => {
-    let originalFetch: typeof window.fetch;
+    const fastRetryOptions = {
+      baseDelayMs: 1,
+      maxDelayMs: 5,
+    };
 
     beforeEach(() => {
-      originalFetch = window.fetch;
       WebGLUtil.clearCache();
     });
 
     afterEach(() => {
-      window.fetch = originalFetch;
       WebGLUtil.clearCache();
     });
 
@@ -44,10 +45,11 @@ describe('glutil', () => {
             }),
           ),
         );
-        window.fetch = fetchSpy;
 
-        const shaderSource =
-          await WebGLUtil.getShaderString('assets/test.glsl');
+        const shaderSource = await WebGLUtil.getShaderString(
+          'assets/test.glsl',
+          { fetchFn: fetchSpy },
+        );
 
         expect(fetchSpy).toHaveBeenCalledWith('assets/test.glsl');
         expect(shaderSource).toBe('void main() {}');
@@ -72,9 +74,10 @@ describe('glutil', () => {
                 }),
               );
             });
-          window.fetch = fetchSpy;
 
-          const result = await WebGLUtil.getShaderString('assets/test.glsl');
+          const result = await WebGLUtil.getShaderString('assets/test.glsl', {
+            fetchFn: fetchSpy,
+          });
 
           expect(fetchSpy).toHaveBeenCalledWith('assets/test.glsl');
           expect(requestedUrl).toBe(
@@ -95,12 +98,15 @@ describe('glutil', () => {
             }),
           ),
         );
-        window.fetch = fetchSpy;
 
-        const firstResult =
-          await WebGLUtil.getShaderString('assets/shared.glsl');
-        const secondResult =
-          await WebGLUtil.getShaderString('assets/shared.glsl');
+        const firstResult = await WebGLUtil.getShaderString(
+          'assets/shared.glsl',
+          { fetchFn: fetchSpy },
+        );
+        const secondResult = await WebGLUtil.getShaderString(
+          'assets/shared.glsl',
+          { fetchFn: fetchSpy },
+        );
 
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         expect(firstResult).toBe('precision highp float;');
@@ -116,11 +122,14 @@ describe('glutil', () => {
             }),
           ),
         );
-        window.fetch = fetchSpy;
 
         const [firstResult, secondResult] = await Promise.all([
-          WebGLUtil.getShaderString('assets/concurrent.glsl'),
-          WebGLUtil.getShaderString('assets/concurrent.glsl'),
+          WebGLUtil.getShaderString('assets/concurrent.glsl', {
+            fetchFn: fetchSpy,
+          }),
+          WebGLUtil.getShaderString('assets/concurrent.glsl', {
+            fetchFn: fetchSpy,
+          }),
         ]);
 
         expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -143,16 +152,18 @@ describe('glutil', () => {
             statusText: 'OK',
           });
         });
-        window.fetch = fetchSpy;
 
         await expectAsync(
-          WebGLUtil.getShaderString('assets/not-found.glsl'),
+          WebGLUtil.getShaderString('assets/not-found.glsl', {
+            fetchFn: fetchSpy,
+          }),
         ).toBeRejectedWithError(
           /Failed to load shader file at assets\/not-found.glsl: HTTP 404 Not Found/,
         );
 
         const retryResult = await WebGLUtil.getShaderString(
           'assets/not-found.glsl',
+          { fetchFn: fetchSpy },
         );
         expect(fetchSpy).toHaveBeenCalledTimes(2);
         expect(retryResult).toBe('recovered shader');
@@ -167,11 +178,14 @@ describe('glutil', () => {
             }),
           ),
         );
-        window.fetch = fetchSpy;
 
-        await WebGLUtil.getShaderString('assets/test.glsl');
+        await WebGLUtil.getShaderString('assets/test.glsl', {
+          fetchFn: fetchSpy,
+        });
         WebGLUtil.clearCache();
-        await WebGLUtil.getShaderString('assets/test.glsl');
+        await WebGLUtil.getShaderString('assets/test.glsl', {
+          fetchFn: fetchSpy,
+        });
 
         expect(fetchSpy).toHaveBeenCalledTimes(2);
       });
@@ -191,10 +205,13 @@ describe('glutil', () => {
             statusText: 'OK',
           });
         });
-        window.fetch = fetchSpy;
 
         const result = await WebGLUtil.getShaderString(
           'assets/retry-test.glsl',
+          {
+            ...fastRetryOptions,
+            fetchFn: fetchSpy,
+          },
         );
 
         expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -229,9 +246,10 @@ describe('glutil', () => {
             }),
           ),
         );
-        window.fetch = fetchSpy;
 
-        const config = await WebGLUtil.loadBMFontConfig('assets/font.json');
+        const config = await WebGLUtil.loadBMFontConfig('assets/font.json', {
+          fetchFn: fetchSpy,
+        });
         expect(fetchSpy).toHaveBeenCalledWith('assets/font.json');
         expect(config).toEqual(mockConfig);
       });
@@ -255,9 +273,10 @@ describe('glutil', () => {
                 }),
               );
             });
-          window.fetch = fetchSpy;
 
-          const config = await WebGLUtil.loadBMFontConfig('assets/font.json');
+          const config = await WebGLUtil.loadBMFontConfig('assets/font.json', {
+            fetchFn: fetchSpy,
+          });
 
           expect(fetchSpy).toHaveBeenCalledWith('assets/font.json');
           expect(requestedUrl).toBe(
@@ -278,12 +297,15 @@ describe('glutil', () => {
             }),
           ),
         );
-        window.fetch = fetchSpy;
 
-        const firstResult =
-          await WebGLUtil.loadBMFontConfig('assets/font.json');
-        const secondResult =
-          await WebGLUtil.loadBMFontConfig('assets/font.json');
+        const firstResult = await WebGLUtil.loadBMFontConfig(
+          'assets/font.json',
+          { fetchFn: fetchSpy },
+        );
+        const secondResult = await WebGLUtil.loadBMFontConfig(
+          'assets/font.json',
+          { fetchFn: fetchSpy },
+        );
 
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         expect(firstResult).toEqual(mockConfig);
@@ -305,16 +327,18 @@ describe('glutil', () => {
             statusText: 'OK',
           });
         });
-        window.fetch = fetchSpy;
 
         await expectAsync(
-          WebGLUtil.loadBMFontConfig('assets/font-error.json'),
+          WebGLUtil.loadBMFontConfig('assets/font-error.json', {
+            fetchFn: fetchSpy,
+          }),
         ).toBeRejectedWithError(
           /Failed to load BMFont config at assets\/font-error.json: HTTP 500 Internal Server Error/,
         );
 
         const retryResult = await WebGLUtil.loadBMFontConfig(
           'assets/font-error.json',
+          { fetchFn: fetchSpy },
         );
         expect(fetchSpy).toHaveBeenCalledTimes(2);
         expect(retryResult).toEqual(mockConfig);
@@ -335,10 +359,13 @@ describe('glutil', () => {
             statusText: 'OK',
           });
         });
-        window.fetch = fetchSpy;
 
         const config = await WebGLUtil.loadBMFontConfig(
           'assets/font-retry.json',
+          {
+            ...fastRetryOptions,
+            fetchFn: fetchSpy,
+          },
         );
 
         expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -394,11 +421,14 @@ describe('glutil', () => {
             statusText: 'OK',
           });
         });
-        window.fetch = fetchSpy;
 
         const texture = await WebGLUtil.loadTexture(
           gl,
           'assets/retry-image.png',
+          {
+            ...fastRetryOptions,
+            fetchFn: fetchSpy,
+          },
         );
 
         expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -426,10 +456,11 @@ describe('glutil', () => {
             statusText: 'OK',
           });
         });
-        window.fetch = fetchSpy;
 
         await expectAsync(
-          WebGLUtil.loadTexture(gl, 'assets/not-found.png'),
+          WebGLUtil.loadTexture(gl, 'assets/not-found.png', {
+            fetchFn: fetchSpy,
+          }),
         ).toBeRejectedWithError(
           /Failed to load image at assets\/not-found.png: HTTP 404 Not Found/,
         );
@@ -437,6 +468,7 @@ describe('glutil', () => {
         const retryTexture = await WebGLUtil.loadTexture(
           gl,
           'assets/not-found.png',
+          { fetchFn: fetchSpy },
         );
         expect(fetchSpy).toHaveBeenCalledTimes(2);
         expect(retryTexture).toBeTruthy();
@@ -452,11 +484,14 @@ describe('glutil', () => {
             }),
           ),
         );
-        window.fetch = fetchSpy;
 
-        await WebGLUtil.getShaderString('assets/clear-test.glsl');
+        await WebGLUtil.getShaderString('assets/clear-test.glsl', {
+          fetchFn: fetchSpy,
+        });
         WebGLUtil.clearCache();
-        await WebGLUtil.getShaderString('assets/clear-test.glsl');
+        await WebGLUtil.getShaderString('assets/clear-test.glsl', {
+          fetchFn: fetchSpy,
+        });
 
         expect(fetchSpy).toHaveBeenCalledTimes(2);
       });

@@ -72,10 +72,11 @@ type GetResourceManifestInput struct {
 
 // GetResourceDiffInput defines the input parameters for the get_resource_diff MCP tool.
 type GetResourceDiffInput struct {
-	InspectionID  string `json:"inspectionId" jsonschema:"The target inspection ID."`
-	TimelineID    string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
-	RevisionIndex int    `json:"revisionIndex" jsonschema:"The revision index from get_resource_revisions. The diff is taken against the revision right before it."`
-	ByteOffset    int    `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated diff."`
+	InspectionID         string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	TimelineID           string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	RevisionIndex        int    `json:"revisionIndex" jsonschema:"The revision index from get_resource_revisions. The diff is taken against the revision right before it."`
+	ByteOffset           int    `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated diff."`
+	IncludeManagedFields bool   `json:"includeManagedFields,omitempty" jsonschema:"Include metadata.managedFields in the computed diff. Defaults to false because managedFields is large and rarely needed."`
 }
 
 func (h *WorkbenchHandler) handleGetTimelineLogs(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetTimelineLogsInput) (*mcpsdk.CallToolResult, any, error) {
@@ -240,7 +241,7 @@ func (h *WorkbenchHandler) handleGetResourceDiff(ctx context.Context, _ *mcpsdk.
 		return errRes, nil, err
 	}
 
-	diff, err := wb.GetResourceDiff(timelineID, input.RevisionIndex, input.ByteOffset)
+	diff, err := wb.GetResourceDiff(timelineID, input.RevisionIndex, input.ByteOffset, input.IncludeManagedFields)
 	if errRes, ok := revisionLookupErrorResult(err, input.InspectionID, input.TimelineID); ok {
 		return errRes, nil, nil
 	}

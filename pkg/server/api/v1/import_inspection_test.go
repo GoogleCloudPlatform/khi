@@ -392,6 +392,7 @@ func TestImportInspectionService_AsyncIndexingIntegration(t *testing.T) {
 			var indexManager *workbench.InspectionIndexManager
 			if tc.withIndexManager {
 				indexManager = workbench.NewInspectionIndexManager(server, destDir)
+				t.Cleanup(indexManager.Wait)
 			}
 
 			serviceServer := NewImportInspectionServiceServer(manager, indexManager)

@@ -1,14 +1,20 @@
 # Rendered timeline view
 
-Rendered {{ .RenderedCount }} of {{ .TotalMatched }} matched timelines ({{ .Width }}x{{ .Height }} px, {{ time .ViewStartTime }} to {{ time .ViewEndTime }}).
+Rendered {{ .RenderedCount }} of {{ .TotalMatched }} matched timelines ({{ time .ViewStartTime }} to {{ time .ViewEndTime }}).
 {{- if .HasMore }}
 Narrow with `filter.timelineQuery`, `filter.logQuery`, `timelineIds`, or increase `maxNodes` (up to {{ .MaxAllowedNodes }}) to render omitted timelines.
 {{- end }}
+{{- if .OverlaySummary }}
+Annotations: {{ .OverlaySummary }}.
+{{- end }}
 
+- Scene ID: {{ code .SceneID }}{{ if .ParentSceneID }} (derived from {{ code .ParentSceneID }}){{ end }}
 - Image URL: {{ code .ImageURL }}
+- Interactive URL: {{ code .InteractiveURL }}
 - Expires at: {{ time .ExpiresAt }}
 
-Embed the image in Markdown ({{ code (printf "![Timeline](%s)" .ImageURL) }}) or download the PNG before it expires:
+Pass {{ code (printf "parentSceneId: %q" .SceneID) }} to `render_timelines` to refine or branch this scene, or open the Interactive URL in a browser to jump directly to pinned diffs and logs in KHI.
+Embed the static PNG in Markdown ({{ code (printf "![Timeline](%s)" .ImageURL) }}) or download it before it expires:
 
 {{ fence "sh" (printf "curl --fail-with-body -o timeline.png '%s'" .ImageURL) }}
 

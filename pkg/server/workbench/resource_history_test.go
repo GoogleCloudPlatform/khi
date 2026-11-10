@@ -549,7 +549,7 @@ func TestGetResourceDiff(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wb := setupResourceHistoryTestWorkbench(t)
-			got, err := wb.GetResourceDiff(testPodTimelineID, tc.revisionIndex, tc.byteOffset)
+			got, err := wb.GetResourceDiff(testPodTimelineID, tc.revisionIndex, tc.byteOffset, false)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetResourceDiff() err = %v, want %v", err, tc.wantErrTarget)
@@ -561,6 +561,178 @@ func TestGetResourceDiff(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("GetResourceDiff() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetResourceDiff_IncludeManagedFields(t *testing.T) {
+	const rev0Full = `apiVersion: v1
+kind: Pod
+metadata:
+  managedFields:
+  - manager: kubelet
+    time: 2026-10-01T09:00:00Z
+  name: nginx
+status:
+  phase: Pending
+`
+	const rev1Full = `apiVersion: v1
+kind: Pod
+metadata:
+  managedFields:
+  - manager: kubelet
+    time: 2026-10-01T09:05:00Z
+  name: nginx
+status:
+  phase: Running
+`
+
+	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
+	principalA := pool.InternString(testRevisionPrincipalA).ID()
+	body0 := internTestYAML(t, pool, rev0Full)
+	body1 := internTestYAML(t, pool, rev1Full)
+
+	podTimeline := &cel.TimelineData{
+		ID:           testPodTimelineID,
+		Name:         "nginx",
+		TimelineType: "Pod",
+		Revisions: []cel.RevisionInfo{
+			{LogID: 1, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Pending", ResourceBodyStructID: body0},
+			{LogID: 2, ChangedTime: testRevision1Time.UnixNano(), PrincipalStringID: principalA, Verb: "UPDATE", State: "Running", ResourceBodyStructID: body1},
+		},
+	}
+	wb := newTestIndexedWorkbench(nil, []*cel.TimelineData{podTimeline}, nil)
+	ingestTestPool(wb, pool)
+
+	wantSegments := []TimelineSegment{{Type: "Pod", Name: "nginx"}}
+	wantRev0 := ResourceRevision{Index: 0, Time: testRevision0Time, Verb: "CREATE", State: "Pending", Principal: testRevisionPrincipalA, LogID: 1, HasBody: true}
+	wantRev1 := ResourceRevision{Index: 1, Time: testRevision1Time, Verb: "UPDATE", State: "Running", Principal: testRevisionPrincipalA, LogID: 2, HasBody: true}
+	const strippedDiff = `--- revision 0
++++ revision 1
+@@ -3,4 +3,4 @@
+ metadata:
+   name: nginx
+ status:
+-  phase: Pending
++  phase: Running
+`
+	const fullDiff = `--- revision 0
++++ revision 1
+@@ -3,7 +3,7 @@
+ metadata:
+   managedFields: 
+   - manager: kubelet
+-    time: 2026-10-01T09:00:00Z
++    time: 2026-10-01T09:05:00Z
+   name: nginx
+ status:
+-  phase: Pending
++  phase: Running
+`
+
+	testCases := []struct {
+		name                 string
+		includeManagedFields bool
+		want                 *ResourceDiff
+	}{
+		{
+			name:                 "strips metadata.managedFields by default",
+			includeManagedFields: false,
+			want: &ResourceDiff{
+				TimelineID: testPodTimelineID,
+				Segments:   wantSegments,
+				Revision:   wantRev1,
+				Previous:   &wantRev0,
+				Changes:    LineChangeCount{Added: 1, Deleted: 1},
+				Diff: BodyChunk{
+					Content:    strippedDiff,
+					TotalBytes: len(strippedDiff),
+				},
+			},
+		},
+		{
+			name:                 "includes metadata.managedFields when requested",
+			includeManagedFields: true,
+			want: &ResourceDiff{
+				TimelineID: testPodTimelineID,
+				Segments:   wantSegments,
+				Revision:   wantRev1,
+				Previous:   &wantRev0,
+				Changes:    LineChangeCount{Added: 2, Deleted: 2},
+				Diff: BodyChunk{
+					Content:    fullDiff,
+					TotalBytes: len(fullDiff),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := wb.GetResourceDiff(testPodTimelineID, 1, 0, tc.includeManagedFields)
+			if err != nil {
+				t.Fatalf("GetResourceDiff() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetResourceDiff() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResolveRevisionBounds(t *testing.T) {
+	testCases := []struct {
+		name          string
+		timelineID    uint32
+		revisionIndex int
+		want          *RevisionBounds
+		wantErrTarget error
+	}{
+		{
+			name:          "middle revision returns next revision timestamp",
+			timelineID:    testPodTimelineID,
+			revisionIndex: 1,
+			want: &RevisionBounds{
+				TimelineID:       testPodTimelineID,
+				Segments:         testPodSegments,
+				Revision:         testRevision1,
+				NextRevisionTime: &testRevision2Time,
+			},
+		},
+		{
+			name:          "last revision returns nil next timestamp",
+			timelineID:    testPodTimelineID,
+			revisionIndex: 2,
+			want: &RevisionBounds{
+				TimelineID: testPodTimelineID,
+				Segments:   testPodSegments,
+				Revision:   testRevision2,
+			},
+		},
+		{
+			name:          "unknown revision index returns ErrRevisionNotFound",
+			timelineID:    testPodTimelineID,
+			revisionIndex: 99,
+			wantErrTarget: ErrRevisionNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wb := setupResourceHistoryTestWorkbench(t)
+			got, err := wb.ResolveRevisionBounds(tc.timelineID, tc.revisionIndex)
+			if tc.wantErrTarget != nil {
+				if !errors.Is(err, tc.wantErrTarget) {
+					t.Fatalf("ResolveRevisionBounds() err = %v, want %v", err, tc.wantErrTarget)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ResolveRevisionBounds() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ResolveRevisionBounds() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

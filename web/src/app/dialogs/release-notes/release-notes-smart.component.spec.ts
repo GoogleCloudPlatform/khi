@@ -78,6 +78,10 @@ describe('ReleaseNotesDialogSmartComponent', () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    fixture?.destroy();
+  });
+
   it('should create and fetch release notes from assets', () => {
     expect(component).toBeTruthy();
     const layoutEl = fixture.debugElement.query(
