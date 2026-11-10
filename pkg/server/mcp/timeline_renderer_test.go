@@ -773,10 +773,10 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 	httpServer := httptest.NewServer(ginEngine)
 	defer httpServer.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	startCtx, startCancel := context.WithTimeout(context.Background(), cdp.DefaultStartTimeout)
+	defer startCancel()
 
-	browser, err := cdp.StartBrowser(ctx)
+	browser, err := cdp.StartBrowser(startCtx)
 	if err != nil {
 		t.Fatalf("cdp.StartBrowser() failed: %v", err)
 	}
@@ -833,7 +833,9 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := renderer.RenderTimeline(ctx, tc.req)
+			renderCtx, renderCancel := context.WithTimeout(t.Context(), defaultTimelineRenderTimeout)
+			defer renderCancel()
+			res, err := renderer.RenderTimeline(renderCtx, tc.req)
 			if err != nil {
 				t.Fatalf("RenderTimeline() unexpected error = %v", err)
 			}
@@ -857,8 +859,10 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 	}
 
 	t.Run("renders overlay with markers and excerpt cards", func(t *testing.T) {
+		renderCtx, renderCancel := context.WithTimeout(t.Context(), defaultTimelineRenderTimeout)
+		defer renderCancel()
 		revIdx := 1
-		annotatedRes, err := renderer.RenderTimeline(ctx, TimelineRenderRequest{
+		annotatedRes, err := renderer.RenderTimeline(renderCtx, TimelineRenderRequest{
 			InspectionID: inspectionID,
 			MaxNodes:     50,
 			Overlay: &scene.Overlay{
