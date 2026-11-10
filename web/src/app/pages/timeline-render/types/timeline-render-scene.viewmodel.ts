@@ -349,11 +349,23 @@ export interface ExcerptCardViewModel {
 }
 
 /**
- * S-curve cubic Bezier SVG tether connecting a timeline pin drop stem to its deck card column.
+ * Measured top-center anchor coordinate of a rendered evidence deck card relative to the deck root.
+ */
+export interface ExcerptCardAnchorPoint {
+  /** Horizontal center X coordinate of the card in deck-local CSS pixels. */
+  readonly anchorX: number;
+  /** Top border Y coordinate of the card in deck-local CSS pixels. */
+  readonly anchorY: number;
+}
+
+/**
+ * S-curve cubic Bezier SVG tether connecting a timeline pin drop stem to its deck card top border.
  */
 export interface ExcerptTetherViewModel {
   /** Unique scene identifier for this tether curve. */
   readonly id: string;
+  /** Identifier of the target evidence deck card connected to this tether. */
+  readonly cardId: string;
   /** Short badge token matching the parent excerpt. */
   readonly badge: string;
   /** Palette identifier referenced by this tether. */
@@ -364,8 +376,12 @@ export interface ExcerptTetherViewModel {
   readonly svgPath: string;
   /** Stage-relative X coordinate where the tether begins below the drop stem in CSS pixels. */
   readonly pinX: number;
-  /** Stage-relative X coordinate where the tether meets the deck card column in CSS pixels. */
+  /** Stage-relative X coordinate where the tether meets the deck card top border in CSS pixels. */
   readonly cardAnchorX: number;
+  /** Deck-local Y coordinate where the tether meets the deck card top border in CSS pixels. */
+  readonly cardAnchorY: number;
+  /** Deck-local Y coordinate of the circular joint indicator rendered just above the card top border in CSS pixels. */
+  readonly jointCenterY: number;
 }
 
 /**

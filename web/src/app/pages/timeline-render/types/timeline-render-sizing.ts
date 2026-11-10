@@ -83,9 +83,14 @@ export const MAX_DECK_CARD_WIDTH_PX = 1000;
 export const DECK_GRID_PADDING_PX = 12;
 
 /**
- * Horizontal and vertical gap between adjacent cards in the evidence deck grid in CSS pixels.
+ * Horizontal gap between adjacent card columns in the evidence deck grid in CSS pixels.
  */
 export const DECK_GRID_GAP_PX = 12;
+
+/**
+ * Vertical gap between wrapped card rows in the evidence deck grid in CSS pixels so routed tethers remain clearly visible.
+ */
+export const DECK_GRID_ROW_GAP_PX = 24;
 
 /**
  * Maximum number of evidence excerpt cards rendered in the bottom deck.

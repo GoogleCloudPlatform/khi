@@ -81,15 +81,26 @@ $fallback-palette-surface: mat.m2-get-color-from-palette(
     'tethers' auto
     'cards' auto
     / 1fr;
+  position: relative;
+  width: 100%;
+}
+
+.tether-spacer {
+  grid-area: tethers;
+  pointer-events: none;
   width: 100%;
 }
 
 .tether-strip {
   display: block;
-  grid-area: tethers;
+  height: 100%;
+  left: 0;
   overflow: visible;
   pointer-events: none;
+  position: absolute;
+  top: 0;
   width: 100%;
+  z-index: 1;
 }
 
 .tether-group {
@@ -121,8 +132,10 @@ $fallback-palette-surface: mat.m2-get-color-from-palette(
   display: grid;
   grid-area: cards;
   padding: 0 12px 12px;
-  row-gap: 12px;
+  position: relative;
+  row-gap: 24px;
   width: 100%;
+  z-index: 2;
 
   &.cols-1 {
     grid-template:

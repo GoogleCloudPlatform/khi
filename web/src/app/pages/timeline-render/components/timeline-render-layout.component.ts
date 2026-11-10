@@ -59,6 +59,9 @@ export class TimelineRenderLayoutComponent {
   private readonly timelineFrame = viewChild<TimelineFrameComponent>(
     TimelineFrameComponent,
   );
+  private readonly evidenceDeck = viewChild<TimelineEvidenceDeckComponent>(
+    TimelineEvidenceDeckComponent,
+  );
   private readonly deckContainer =
     viewChild<ElementRef<HTMLElement>>('deckContainer');
 
@@ -200,6 +203,7 @@ export class TimelineRenderLayoutComponent {
     viewportLeftTimeNs: bigint,
     pixelsPerNs: number,
   ): void {
+    this.evidenceDeck()?.syncMeasuredAnchors();
     this.timelineFrame()?.syncViewportAndInvalidate(
       viewportLeftTimeNs,
       pixelsPerNs,
@@ -210,6 +214,7 @@ export class TimelineRenderLayoutComponent {
    * Measures the rendered DOM height of the bottom evidence deck container in pixels.
    */
   public measureDeckHeightPx(): number {
+    this.evidenceDeck()?.syncMeasuredAnchors();
     const el = this.deckContainer()?.nativeElement;
     if (!el) {
       return 0;

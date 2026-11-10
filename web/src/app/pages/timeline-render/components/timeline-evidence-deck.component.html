@@ -15,39 +15,49 @@
 -->
 
 @let deckVm = deck();
+@let renderedTethers = resolvedTethers();
+@let svgHeightPx = resolvedSvgHeightPx();
+@let stageWidth = stageWidthPx();
+@let activeHoveredBadge = hoveredBadge();
+@let isInteractive = interactiveMode();
 
 @if (deckVm.cards.length > 0) {
-  <div class="evidence-deck-root">
+  <div #deckRoot class="evidence-deck-root">
+    <div
+      class="tether-spacer"
+      [style.height.px]="deckVm.tetherStripHeightPx"
+    ></div>
+
     <svg
       class="tether-strip"
-      [attr.height]="deckVm.tetherStripHeightPx"
-      [attr.viewBox]="
-        '0 0 ' + stageWidthPx() + ' ' + deckVm.tetherStripHeightPx
-      "
-      [attr.width]="stageWidthPx()"
+      [attr.height]="svgHeightPx"
+      [attr.viewBox]="'0 0 ' + stageWidth + ' ' + svgHeightPx"
+      [attr.width]="stageWidth"
     >
-      @for (tether of deckVm.tethers; track tether.id) {
+      @for (tether of renderedTethers; track tether.id) {
         <g
           class="tether-group"
-          [class.is-hovered]="hoveredBadge() === tether.badge"
+          [class.is-hovered]="activeHoveredBadge === tether.badge"
           [style.--palette-main]="tether.colors.main"
         >
           <path class="tether-curve" [attr.d]="tether.svgPath" />
           <circle
             class="tether-joint"
             [attr.cx]="tether.cardAnchorX"
-            [attr.cy]="deckVm.tetherStripHeightPx - 2"
+            [attr.cy]="tether.jointCenterY"
             r="3"
           />
         </g>
       }
     </svg>
 
-    <div class="cards-grid" [class]="deckVm.gridPreset">
+    <div #cardsGrid class="cards-grid" [class]="deckVm.gridPreset">
       @for (card of deckVm.cards; track card.id) {
         <article
+          #cardElement
           class="evidence-card"
-          [class.is-hovered]="hoveredBadge() === card.badge"
+          [attr.data-card-id]="card.id"
+          [class.is-hovered]="activeHoveredBadge === card.badge"
           [style.--palette-main]="card.colors.main"
           [style.--palette-on-main]="card.colors.onMain"
           [style.--palette-soft]="card.colors.soft"
@@ -67,7 +77,7 @@
               </span>
               <span class="card-resource">{{ card.resourcePath }}</span>
               <span class="card-time">{{ card.timeLabel }}</span>
-              @if (interactiveMode()) {
+              @if (isInteractive) {
                 <button
                   class="jump-btn"
                   type="button"

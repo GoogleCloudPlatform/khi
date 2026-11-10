@@ -161,4 +161,127 @@ describe('TimelineEvidenceDeckComponent', () => {
       { timelineId: 10, revisionIndex: 2, logId: undefined },
     ]);
   });
+
+  it('routes second-row tethers behind first-row cards to the measured top border of wrapped cards', () => {
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: 300,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: [{ id: 10, heightPx: 50 }],
+      overlay: {
+        excerpts: [
+          {
+            id: 'ex-1',
+            kind: TimelineExcerptKind.DIFF,
+            badge: 'E1',
+            paletteId: 'default',
+            timeMs: 1_010_000,
+            timeLabel: '00:16:50',
+            timelineId: 10,
+            resourcePath: 'node · gke-node-1',
+            title: 'Patch · Resource exists',
+            subtitle: '+3 / -3 · 8 diff lines',
+            lines: [
+              { kind: TimelineExcerptLineKind.DELETED, text: 'a: 1' },
+              { kind: TimelineExcerptLineKind.ADDED, text: 'a: 2' },
+              { kind: TimelineExcerptLineKind.CONTEXT, text: 'b: 3' },
+              { kind: TimelineExcerptLineKind.CONTEXT, text: 'c: 4' },
+              { kind: TimelineExcerptLineKind.CONTEXT, text: 'd: 5' },
+            ],
+            note: 'Taller first-row card',
+          },
+          {
+            id: 'ex-2',
+            kind: TimelineExcerptKind.LOG,
+            badge: 'E2',
+            paletteId: 'default',
+            timeMs: 1_020_000,
+            timeLabel: '00:17:00',
+            timelineId: 10,
+            resourcePath: 'pod · default/app-0',
+            title: 'container · ERROR',
+            subtitle: '1 line',
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.SUMMARY,
+                text: 'w'.repeat(220),
+              },
+            ],
+          },
+          {
+            id: 'ex-3',
+            kind: TimelineExcerptKind.LOG,
+            badge: 'E3',
+            paletteId: 'default',
+            timeMs: 1_030_000,
+            timeLabel: '00:17:10',
+            timelineId: 10,
+            resourcePath: 'pod · default/app-0',
+            title: 'k8s-audit · ERROR',
+            subtitle: '2 lines',
+            lines: [
+              { kind: TimelineExcerptLineKind.SUMMARY, text: '409 Conflict' },
+            ],
+          },
+          {
+            id: 'ex-4',
+            kind: TimelineExcerptKind.LOG,
+            badge: 'E4',
+            paletteId: 'default',
+            timeMs: 1_040_000,
+            timeLabel: '00:17:20',
+            timelineId: 10,
+            resourcePath: 'pod · default/exporter',
+            title: 'container · ERROR',
+            subtitle: '1 line',
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.SUMMARY,
+                text: 'DeadlineExceeded',
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    fixture.componentRef.setInput('deck', vm.deck);
+    fixture.componentRef.setInput('stageWidthPx', vm.stageWidthPx);
+    fixture.detectChanges();
+    component.syncMeasuredAnchors();
+    fixture.detectChanges();
+
+    const tetherSvg = fixture.debugElement.query(By.css('svg.tether-strip'))
+      .nativeElement as SVGSVGElement;
+    const cardsGrid = fixture.debugElement.query(By.css('.cards-grid'))
+      .nativeElement as HTMLElement;
+    expect(Number(getComputedStyle(tetherSvg).zIndex)).toBeLessThan(
+      Number(getComputedStyle(cardsGrid).zIndex),
+    );
+
+    const cardElements = fixture.debugElement
+      .queryAll(By.css('.evidence-card'))
+      .map((de) => de.nativeElement as HTMLElement);
+    const joints = fixture.debugElement
+      .queryAll(By.css('circle.tether-joint'))
+      .map((de) => de.nativeElement as SVGCircleElement);
+    const curves = fixture.debugElement
+      .queryAll(By.css('path.tether-curve'))
+      .map((de) => de.nativeElement as SVGPathElement);
+
+    expect(cardElements.length).toBe(4);
+    expect(joints.length).toBe(4);
+
+    const row0TopY = cardsGrid.offsetTop + cardElements[0].offsetTop;
+    const row1TopY = cardsGrid.offsetTop + cardElements[2].offsetTop;
+    expect(row1TopY).toBeGreaterThan(
+      row0TopY + cardElements[0].offsetHeight + 10,
+    );
+
+    expect(Number(joints[0].getAttribute('cy'))).toBeCloseTo(row0TopY - 2, 1);
+    expect(Number(joints[2].getAttribute('cy'))).toBeCloseTo(row1TopY - 2, 1);
+    expect(Number(joints[3].getAttribute('cy'))).toBeCloseTo(row1TopY - 2, 1);
+    expect(curves[2].getAttribute('d') ?? '').toContain(` ${row1TopY}`);
+    expect(curves[3].getAttribute('d') ?? '').toContain(` ${row1TopY}`);
+  });
 });

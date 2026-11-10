@@ -611,6 +611,20 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.deck.gridPreset).toBe(ExcerptDeckGridPreset.GRID_3X2);
     expect(vm.deck.cards.length).toBe(6);
     expect(vm.excerptPins.length).toBe(6);
+    expect(vm.deck.tethers.slice(0, 3).map((t) => t.cardAnchorY)).toEqual([
+      32, 32, 32,
+    ]);
+    for (const secondRowTether of vm.deck.tethers.slice(3, 6)) {
+      expect(secondRowTether.cardAnchorY).toBeGreaterThan(32);
+      expect(secondRowTether.jointCenterY).toBe(
+        secondRowTether.cardAnchorY - 2,
+      );
+      expect(
+        secondRowTether.svgPath.endsWith(
+          `${secondRowTether.cardAnchorX} ${secondRowTether.cardAnchorY}`,
+        ),
+      ).toBe(true);
+    }
   });
 
   it('expands stage width horizontally for wide evidence deck cards and falls back to 2x2 when 4 columns exceed 4096px', () => {
@@ -688,6 +702,12 @@ describe('buildTimelineSceneViewModel', () => {
       chartViewportWidthPx: wantTwoByTwoWidth - 308,
     });
     expect(twoByTwoVm.stageWidthPx).toBeLessThanOrEqual(MAX_STAGE_WIDTH_PX);
+    expect(twoByTwoVm.deck.tethers[0].cardAnchorY).toBe(32);
+    expect(twoByTwoVm.deck.tethers[1].cardAnchorY).toBe(32);
+    expect(twoByTwoVm.deck.tethers[2].cardAnchorY).toBeGreaterThan(32);
+    expect(twoByTwoVm.deck.tethers[3].cardAnchorY).toBe(
+      twoByTwoVm.deck.tethers[2].cardAnchorY,
+    );
   });
 
   it('disambiguates coinciding span boundaries, slides labels into stem-free sub-intervals, and suppresses brackets on narrow spans', () => {
