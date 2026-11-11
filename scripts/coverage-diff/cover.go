@@ -17,8 +17,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"go/ast"
-	"go/parser"
 	"go/scanner"
 	"go/token"
 	"io"
@@ -351,12 +349,7 @@ func analyzeFile(
 		}
 	}
 
-	var lineStates []lineCoverageState
-	if len(blocks) == 0 {
-		lineStates = fallbackUncoveredFuncLines(src, codeLines, len(rawLines))
-	} else {
-		lineStates = mapBlocksToLines(rawLines, codeLines, blocks)
-	}
+	lineStates := mapBlocksToLines(rawLines, codeLines, blocks)
 
 	var uncoveredLines []int
 	for lineNum := 1; lineNum <= len(rawLines); lineNum++ {
@@ -580,43 +573,4 @@ func buildUncoveredSpans(relFile string, rawLines []string, ranges []LineRange, 
 		})
 	}
 	return spans
-}
-
-// fallbackUncoveredFuncLines marks substantive lines inside function and closure bodies as uncovered when no coverprofile blocks exist for a file.
-func fallbackUncoveredFuncLines(src []byte, codeLines []bool, numLines int) []lineCoverageState {
-	states := make([]lineCoverageState, numLines+1)
-	fset := token.NewFileSet()
-	fileAST, err := parser.ParseFile(fset, "", src, 0)
-	if err != nil {
-		return states
-	}
-	ast.Inspect(fileAST, func(n ast.Node) bool {
-		fnBody := funcBodyBlock(n)
-		if fnBody == nil || len(fnBody.List) == 0 {
-			return true
-		}
-		for _, stmt := range fnBody.List {
-			startLine := fset.Position(stmt.Pos()).Line
-			endLine := fset.Position(stmt.End()).Line
-			for l := startLine; l <= endLine && l <= numLines; l++ {
-				if l >= 1 && codeLines[l] {
-					states[l].executable = true
-					states[l].covered = false
-				}
-			}
-		}
-		return true
-	})
-	return states
-}
-
-func funcBodyBlock(n ast.Node) *ast.BlockStmt {
-	switch fn := n.(type) {
-	case *ast.FuncDecl:
-		return fn.Body
-	case *ast.FuncLit:
-		return fn.Body
-	default:
-		return nil
-	}
 }
