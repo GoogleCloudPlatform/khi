@@ -40,7 +40,7 @@ const (
 	MaxExcerptMaxLines = 16
 )
 
-// InvalidSliceWindowError reports an invalid SliceWindow configuration such as an empty query.
+// InvalidSliceWindowError reports an invalid SliceWindow configuration such as an empty path and query.
 type InvalidSliceWindowError struct {
 	WindowIndex int
 	Reason      string
@@ -48,21 +48,34 @@ type InvalidSliceWindowError struct {
 
 // Error formats the invalid slice window error message.
 func (e *InvalidSliceWindowError) Error() string {
+	if e.WindowIndex < 0 {
+		return fmt.Sprintf("invalid slice windows: %s", e.Reason)
+	}
 	return fmt.Sprintf("invalid slice window %d: %s", e.WindowIndex, e.Reason)
 }
 
-// SliceQueryNotFoundError reports that a SliceWindow query matched zero lines in the target diff or log.
+// SliceQueryNotFoundError reports that a JSONPath or substring query matched zero nodes or lines.
 type SliceQueryNotFoundError struct {
-	WindowIndex  int
-	Query        string
-	TopLevelKeys []string
-	Preview      string
-	Summary      string
+	WindowIndex   int
+	Path          string
+	Query         string
+	MatchedPrefix string
+	AvailableKeys []string
+	TopLevelKeys  []string
+	Preview       string
+	Summary       string
 }
 
-// Error formats the missing query match error message.
+// Error formats the missing selector or query match error message.
 func (e *SliceQueryNotFoundError) Error() string {
-	return fmt.Sprintf("slice window %d query %q matched no lines", e.WindowIndex, e.Query)
+	switch {
+	case e.Path != "" && e.Query != "":
+		return fmt.Sprintf("slice window %d query %q within path %q matched no lines", e.WindowIndex, e.Query, e.Path)
+	case e.Path != "":
+		return fmt.Sprintf("slice path %d %q matched no YAML nodes", e.WindowIndex, e.Path)
+	default:
+		return fmt.Sprintf("slice window %d query %q matched no lines", e.WindowIndex, e.Query)
+	}
 }
 
 type byteSpan struct {
@@ -77,6 +90,7 @@ type lineInterval struct {
 
 type compiledWindow struct {
 	index      int
+	path       *compiledJSONPath
 	query      string
 	before     int
 	after      int
@@ -96,10 +110,25 @@ func compileSliceWindows(windows []SliceWindow) ([]compiledWindow, error) {
 	}
 	out := make([]compiledWindow, len(windows))
 	for i, w := range windows {
-		if w.Query == "" {
+		if strings.TrimSpace(w.Path) == "" && w.Query == "" {
 			return nil, &InvalidSliceWindowError{
 				WindowIndex: i,
-				Reason:      "query must not be empty",
+				Reason:      "specify path, query, or both",
+			}
+		}
+		var compiledPath *compiledJSONPath
+		if strings.TrimSpace(w.Path) != "" {
+			steps, err := parseJSONPathSteps(w.Path, false)
+			if err != nil {
+				return nil, &InvalidSliceWindowError{
+					WindowIndex: i,
+					Reason:      fmt.Sprintf("invalid JSONPath %q: %s", w.Path, err.Error()),
+				}
+			}
+			compiledPath = &compiledJSONPath{
+				index: i,
+				raw:   w.Path,
+				steps: steps,
 			}
 		}
 		before := clampInt(w.BeforeLines, 0, MaxExcerptContextLines)
@@ -112,6 +141,7 @@ func compileSliceWindows(windows []SliceWindow) ([]compiledWindow, error) {
 
 		out[i] = compiledWindow{
 			index:      i,
+			path:       compiledPath,
 			query:      w.Query,
 			before:     before,
 			after:      after,

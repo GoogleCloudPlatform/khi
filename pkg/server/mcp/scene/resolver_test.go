@@ -271,21 +271,21 @@ func TestSliceWorkbenchIntegration(t *testing.T) {
 	fx := setupResolverFixture(t)
 
 	t.Run("SliceResourceDiff returns ErrTimelineNotFound for unknown timeline", func(t *testing.T) {
-		_, err := SliceResourceDiff(fx.wb, 999999, 0, DiffSliceOptions{})
+		_, err := SliceResourceDiff(fx.wb, 999999, 0, DiffSliceOptions{Paths: []string{"$.metadata.name"}})
 		if !errors.Is(err, workbench.ErrTimelineNotFound) {
 			t.Fatalf("SliceResourceDiff() error = %v, want %v", err, workbench.ErrTimelineNotFound)
 		}
 	})
 
 	t.Run("SliceLogDetail returns ErrLogNotFound for unknown log", func(t *testing.T) {
-		_, err := SliceLogDetail(fx.wb, 999999, LogSliceOptions{})
+		_, err := SliceLogDetail(fx.wb, 999999, LogSliceOptions{Windows: []SliceWindow{{Path: "$.message"}}})
 		if !errors.Is(err, workbench.ErrLogNotFound) {
 			t.Fatalf("SliceLogDetail() error = %v, want %v", err, workbench.ErrLogNotFound)
 		}
 	})
 
 	t.Run("SliceResourceManifest returns ErrTimelineNotFound for unknown timeline", func(t *testing.T) {
-		_, err := SliceResourceManifest(fx.wb, 999999, workbench.RevisionAtIndex(0), ManifestSliceOptions{})
+		_, err := SliceResourceManifest(fx.wb, 999999, workbench.RevisionAtIndex(0), ManifestSliceOptions{Paths: []string{"$.metadata.name"}})
 		if !errors.Is(err, workbench.ErrTimelineNotFound) {
 			t.Fatalf("SliceResourceManifest() error = %v, want %v", err, workbench.ErrTimelineNotFound)
 		}
@@ -341,7 +341,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			DiffExcerpts: []DiffExcerpt{
 				{
 					Revision:  RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
-					Windows:   []SliceWindow{{Query: "KubeletNotReady", BeforeLines: 0, AfterLines: 0}},
+					Paths:     []string{"$.status.reason"},
 					Note:      "Node transitioned to KubeletNotReady",
 					PaletteID: "trigger",
 				},
@@ -463,16 +463,23 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Title:        "Patch · Resource exists",
 				Subtitle:     "+2 / -2 · 7 diff lines",
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindDeleted, OldLineNum: 6, Text: `  ready: "True"`},
-					{Kind: ExcerptLineKindDeleted, OldLineNum: 7, Text: "  reason: KubeletReady"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: `  ready: "False"`},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 diff lines omitted"},
+					{
+						Kind:       ExcerptLineKindDeleted,
+						OldLineNum: 7,
+						Text:       "  reason: KubeletReady",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "reason: KubeletReady", Matched: true},
+						},
+					},
 					{
 						Kind:       ExcerptLineKindAdded,
 						NewLineNum: 7,
 						Text:       "  reason: KubeletNotReady",
 						Parts: []LinePart{
-							{Text: "  reason: "},
-							{Text: "KubeletNotReady", Matched: true},
+							{Text: "  "},
+							{Text: "reason: KubeletNotReady", Matched: true},
 						},
 					},
 				},
@@ -563,11 +570,20 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Title:        "Create · Resource exists",
 				Subtitle:     "+6 / -0 · 6 diff lines",
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindAdded, NewLineNum: 1, Text: "apiVersion: v1"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 2, Text: "kind: Pod"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 3, Text: "metadata:"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 3,
+						Text:       "metadata:",
+						Parts:      []LinePart{{Text: "metadata:", Matched: true}},
+					},
 					{Kind: ExcerptLineKindAdded, NewLineNum: 4, Text: "  name: web-1"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 5, Text: "status:"},
+					{
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 5,
+						Text:       "status:",
+						Parts:      []LinePart{{Text: "status:", Matched: true}},
+					},
 					{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: "  phase: Running"},
 				},
 				LogTimestamp:  "2026-10-01T09:12:00Z",
@@ -611,6 +627,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 					DiffExcerpts: []DiffExcerpt{
 						{
 							Revision: RevisionRef{TimelineID: fx.podTimelineID, RevisionIndex: 0},
+							Paths:    []string{"$.metadata", "$.status"},
 						},
 					},
 				},
@@ -708,7 +725,7 @@ func TestResolve_ManifestExcerptsAndBadgeSync(t *testing.T) {
 							RevisionIndex: &revZero,
 							Badge:         "BEFORE",
 							PaletteID:     "before",
-							Windows:       []SliceWindow{{Query: "KubeletReady", BeforeLines: 1, AfterLines: 0}},
+							Paths:         []string{"$.status.ready", "$.status.reason"},
 							Note:          "Steady Ready=True prior to incident",
 						},
 						{
@@ -716,7 +733,7 @@ func TestResolve_ManifestExcerptsAndBadgeSync(t *testing.T) {
 							Time:       &steadyPointTime,
 							Badge:      "DURING",
 							PaletteID:  "incident",
-							Windows:    []SliceWindow{{Query: "KubeletNotReady", BeforeLines: 1, AfterLines: 0}},
+							Paths:      []string{"$.status.ready", "$.status.reason"},
 							Note:       "Point-in-time state at 09:28Z",
 						},
 					},
@@ -755,14 +772,22 @@ func TestResolve_ManifestExcerptsAndBadgeSync(t *testing.T) {
 							Subtitle:     "7 lines",
 							Lines: []ExcerptLine{
 								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
-								{Kind: ExcerptLineKindContext, NewLineNum: 6, Text: `  ready: "True"`},
+								{
+									Kind:       ExcerptLineKindContext,
+									NewLineNum: 6,
+									Text:       `  ready: "True"`,
+									Parts: []LinePart{
+										{Text: "  "},
+										{Text: `ready: "True"`, Matched: true},
+									},
+								},
 								{
 									Kind:       ExcerptLineKindContext,
 									NewLineNum: 7,
 									Text:       "  reason: KubeletReady",
 									Parts: []LinePart{
-										{Text: "  reason: "},
-										{Text: "KubeletReady", Matched: true},
+										{Text: "  "},
+										{Text: "reason: KubeletReady", Matched: true},
 									},
 								},
 							},
@@ -784,14 +809,22 @@ func TestResolve_ManifestExcerptsAndBadgeSync(t *testing.T) {
 							Subtitle:     "7 lines",
 							Lines: []ExcerptLine{
 								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
-								{Kind: ExcerptLineKindContext, NewLineNum: 6, Text: `  ready: "False"`},
+								{
+									Kind:       ExcerptLineKindContext,
+									NewLineNum: 6,
+									Text:       `  ready: "False"`,
+									Parts: []LinePart{
+										{Text: "  "},
+										{Text: `ready: "False"`, Matched: true},
+									},
+								},
 								{
 									Kind:       ExcerptLineKindContext,
 									NewLineNum: 7,
 									Text:       "  reason: KubeletNotReady",
 									Parts: []LinePart{
-										{Text: "  reason: "},
-										{Text: "KubeletNotReady", Matched: true},
+										{Text: "  "},
+										{Text: "reason: KubeletNotReady", Matched: true},
 									},
 								},
 							},
@@ -839,18 +872,18 @@ func TestResolve_ManifestExcerptsAndBadgeSync(t *testing.T) {
 						{
 							TimelineID:    fx.podTimelineID,
 							RevisionIndex: &revZero,
-							Windows:       []SliceWindow{{Query: "phase: Running"}},
+							Paths:         []string{"$.status.phase"},
 						},
 						{
 							TimelineID:    fx.nodeTimelineID,
 							RevisionIndex: &revOne,
-							Windows:       []SliceWindow{{Query: "name: gke-node-1"}},
+							Paths:         []string{"$.metadata.name"},
 						},
 					},
 					DiffExcerpts: []DiffExcerpt{
 						{
 							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
-							Windows:  []SliceWindow{{Query: "KubeletNotReady"}},
+							Paths:    []string{"$.status.reason"},
 						},
 					},
 					LogExcerpts: []LogExcerpt{
@@ -963,16 +996,23 @@ func TestResolve_ManifestExcerptsAndBadgeSync(t *testing.T) {
 							Title:        "Patch · Resource exists",
 							Subtitle:     "+2 / -2 · 7 diff lines",
 							Lines: []ExcerptLine{
-								{Kind: ExcerptLineKindDeleted, OldLineNum: 6, Text: `  ready: "True"`},
-								{Kind: ExcerptLineKindDeleted, OldLineNum: 7, Text: "  reason: KubeletReady"},
-								{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: `  ready: "False"`},
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 diff lines omitted"},
+								{
+									Kind:       ExcerptLineKindDeleted,
+									OldLineNum: 7,
+									Text:       "  reason: KubeletReady",
+									Parts: []LinePart{
+										{Text: "  "},
+										{Text: "reason: KubeletReady", Matched: true},
+									},
+								},
 								{
 									Kind:       ExcerptLineKindAdded,
 									NewLineNum: 7,
 									Text:       "  reason: KubeletNotReady",
 									Parts: []LinePart{
-										{Text: "  reason: "},
-										{Text: "KubeletNotReady", Matched: true},
+										{Text: "  "},
+										{Text: "reason: KubeletNotReady", Matched: true},
 									},
 								},
 							},
@@ -1137,14 +1177,43 @@ func TestResolve_Errors(t *testing.T) {
 			wantCode: "INVALID_CEL",
 		},
 		{
-			name: "unmatched diff slice query returns SLICE_QUERY_NOT_FOUND with guidance",
+			name: "omitted diffExcerpt paths returns INVALID_ARGUMENT",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
 					DiffExcerpts: []DiffExcerpt{
 						{
 							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
-							Windows:  []SliceWindow{{Query: "NoSuchCondition"}},
+						},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "invalid JSONPath syntax in diffExcerpt returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					DiffExcerpts: []DiffExcerpt{
+						{
+							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
+							Paths:    []string{"$.status["},
+						},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "unmatched diff JSONPath returns SLICE_QUERY_NOT_FOUND with guidance",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					DiffExcerpts: []DiffExcerpt{
+						{
+							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
+							Paths:    []string{"$.status.noSuchCondition"},
 						},
 					},
 				},
@@ -1167,14 +1236,14 @@ func TestResolve_Errors(t *testing.T) {
 			wantCode: "SLICE_QUERY_NOT_FOUND",
 		},
 		{
-			name: "empty slice window query returns INVALID_ARGUMENT",
+			name: "empty slice window path and query returns INVALID_ARGUMENT",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
 					LogExcerpts: []LogExcerpt{
 						{
 							LogID:   fx.oomEventLogID,
-							Windows: []SliceWindow{{Query: ""}},
+							Windows: []SliceWindow{{}},
 						},
 					},
 				},
@@ -1223,7 +1292,19 @@ func TestResolve_Errors(t *testing.T) {
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
 					ManifestExcerpts: []ManifestExcerpt{
-						{TimelineID: fx.nodeTimelineID},
+						{TimelineID: fx.nodeTimelineID, Paths: []string{"$.status"}},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "manifestExcerpt with omitted paths returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					ManifestExcerpts: []ManifestExcerpt{
+						{TimelineID: fx.nodeTimelineID, RevisionIndex: intRef(0)},
 					},
 				},
 			},
@@ -1239,6 +1320,7 @@ func TestResolve_Errors(t *testing.T) {
 							TimelineID:    fx.nodeTimelineID,
 							RevisionIndex: intRef(0),
 							Time:          &narrowStart,
+							Paths:         []string{"$.status"},
 						},
 					},
 				},
@@ -1258,6 +1340,7 @@ func TestResolve_Errors(t *testing.T) {
 						{
 							TimelineID: fx.nodeTimelineID,
 							Time:       timeRef(fx.baseTime.Add(25 * time.Minute)),
+							Paths:      []string{"$.status"},
 						},
 					},
 				},
@@ -1277,6 +1360,7 @@ func TestResolve_Errors(t *testing.T) {
 						{
 							TimelineID:    fx.nodeTimelineID,
 							RevisionIndex: intRef(0), // active [09:10, 09:24), ended before 09:30
+							Paths:         []string{"$.status"},
 						},
 					},
 				},
@@ -1296,6 +1380,7 @@ func TestResolve_Errors(t *testing.T) {
 						{
 							TimelineID:    fx.nodeTimelineID,
 							RevisionIndex: intRef(2), // starts at 09:34 > 09:30
+							Paths:         []string{"$.status"},
 						},
 					},
 				},
@@ -1303,7 +1388,7 @@ func TestResolve_Errors(t *testing.T) {
 			wantCode: "ANCHOR_OUT_OF_VIEWPORT",
 		},
 		{
-			name: "unmatched manifest slice query returns SLICE_QUERY_NOT_FOUND",
+			name: "unmatched manifest JSONPath returns SLICE_QUERY_NOT_FOUND",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
@@ -1311,7 +1396,7 @@ func TestResolve_Errors(t *testing.T) {
 						{
 							TimelineID:    fx.nodeTimelineID,
 							RevisionIndex: intRef(0),
-							Windows:       []SliceWindow{{Query: "NoSuchManifestField"}},
+							Paths:         []string{"$.status.noSuchManifestField"},
 						},
 					},
 				},
@@ -1326,6 +1411,7 @@ func TestResolve_Errors(t *testing.T) {
 					DiffExcerpts: []DiffExcerpt{
 						{
 							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
+							Paths:    []string{"$.status"},
 							Badge:    "DUP",
 						},
 					},
@@ -1347,6 +1433,7 @@ func TestResolve_Errors(t *testing.T) {
 					DiffExcerpts: []DiffExcerpt{
 						{
 							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1}, // 09:24Z
+							Paths:    []string{"$.status"},
 							Badge:    "E4",
 						},
 					},

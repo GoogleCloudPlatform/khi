@@ -85,6 +85,48 @@ timestamp: 2026-10-01T09:25:00Z
 			},
 		},
 		{
+			name:    "combines JSONPath YAML selector with path-scoped multiline substring query",
+			yaml:    serializedLogYAML,
+			summary: "Container web-1 terminated with OOMKilled",
+			opts: LogSliceOptions{
+				IncludeSummary: boolRef(true),
+				MaxLines:       10,
+				Windows: []SliceWindow{
+					{Path: "$.protoPayload.authenticationInfo.principalEmail"},
+					{Path: "$.textPayload", Query: "handleRequest", AfterLines: 1},
+				},
+			},
+			want: &LogSliceResult{
+				TotalLines: 16,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindSummary, Text: "Container web-1 terminated with OOMKilled"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 4,
+						Text:       "    principalEmail: kubelet@node-1",
+						Parts: []LinePart{
+							{Text: "    "},
+							{Text: "principalEmail: kubelet@node-1", Matched: true},
+						},
+					},
+					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "⋮ 7 lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 12,
+						Text:       "  main.handleRequest(0x1)",
+						Parts: []LinePart{
+							{Text: "  main."},
+							{Text: "handleRequest", Matched: true},
+							{Text: "(0x1)"},
+						},
+					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 13, Text: "  \t/app/server.go:42"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+				},
+			},
+		},
+		{
 			name:    "omitted windows falls back to parser-distilled summary",
 			yaml:    serializedLogYAML,
 			summary: "Container web-1 terminated with OOMKilled",
@@ -116,20 +158,40 @@ func TestSliceLogBody_Errors(t *testing.T) {
 message: OOMKilled
 `
 
-	_, err := SliceLogBody(logYAML, "Container app OOMKilled", LogSliceOptions{
-		Windows: []SliceWindow{{Query: "NoSuchField"}},
+	t.Run("unmatched substring query returns SliceQueryNotFoundError", func(t *testing.T) {
+		_, err := SliceLogBody(logYAML, "Container app OOMKilled", LogSliceOptions{
+			Windows: []SliceWindow{{Query: "NoSuchField"}},
+		})
+		var gotErr *SliceQueryNotFoundError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceLogBody() err = %T (%v), want *SliceQueryNotFoundError", err, err)
+		}
+		want := &SliceQueryNotFoundError{
+			WindowIndex:  0,
+			Query:        "NoSuchField",
+			TopLevelKeys: []string{"insertId", "message"},
+			Summary:      "Container app OOMKilled",
+		}
+		if diff := cmp.Diff(want, gotErr); diff != "" {
+			t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)
+		}
 	})
-	var gotErr *SliceQueryNotFoundError
-	if !errors.As(err, &gotErr) {
-		t.Fatalf("SliceLogBody() err = %T (%v), want *SliceQueryNotFoundError", err, err)
-	}
-	want := &SliceQueryNotFoundError{
-		WindowIndex:  0,
-		Query:        "NoSuchField",
-		TopLevelKeys: []string{"insertId", "message"},
-		Summary:      "Container app OOMKilled",
-	}
-	if diff := cmp.Diff(want, gotErr); diff != "" {
-		t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)
-	}
+
+	t.Run("empty path and query returns InvalidSliceWindowError", func(t *testing.T) {
+		_, err := SliceLogBody(logYAML, "Container app OOMKilled", LogSliceOptions{
+			Windows: []SliceWindow{{}},
+		})
+		var gotErr *InvalidSliceWindowError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceLogBody() err = %T (%v), want *InvalidSliceWindowError", err, err)
+		}
+	})
+
+	t.Run("omitted windows with empty summary rejects implicit raw-line dump", func(t *testing.T) {
+		_, err := SliceLogBody(logYAML, "", LogSliceOptions{})
+		var gotErr *InvalidSliceWindowError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceLogBody() err = %T (%v), want *InvalidSliceWindowError", err, err)
+		}
+	})
 }

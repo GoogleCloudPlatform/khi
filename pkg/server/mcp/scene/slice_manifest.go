@@ -22,9 +22,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
-// ManifestSliceOptions configures multi-window slicing of a resource YAML manifest body.
+// ManifestSliceOptions configures JSONPath slicing of a resource YAML manifest body.
 type ManifestSliceOptions struct {
-	Windows  []SliceWindow
+	Paths    []string
 	MaxLines int
 }
 
@@ -67,32 +67,23 @@ func SliceResourceManifest(
 	}, nil
 }
 
-// SliceManifestBody slices a managedFields-stripped YAML manifest using multi-window search and context folding.
+// SliceManifestBody slices a managedFields-stripped YAML manifest using explicit JSONPath selectors and context folding.
 func SliceManifestBody(yamlBody string, opts ManifestSliceOptions) (*ManifestSliceResult, error) {
 	maxLines := normalizeMaxLines(opts.MaxLines)
-	windows, err := compileSliceWindows(opts.Windows)
+	compiledPaths, err := compileJSONPaths(opts.Paths)
 	if err != nil {
 		return nil, err
 	}
 
-	lines := workbench.SplitLines(yamlBody)
-	totalLines := len(lines)
-
-	if len(windows) == 0 {
-		if totalLines == 0 {
-			return &ManifestSliceResult{}, nil
-		}
-		keptEnd := min(totalLines, maxLines)
-		return &ManifestSliceResult{
-			TotalLines: totalLines,
-			Lines:      renderLogIntervals(lines, []lineInterval{{start: 0, end: keptEnd}}, nil, ""),
-		}, nil
+	doc, err := parseIndexedYAMLDocument(yamlBody)
+	if err != nil {
+		return nil, err
 	}
-
+	totalLines := len(doc.lines)
 	if totalLines == 0 {
 		return nil, &SliceQueryNotFoundError{
-			WindowIndex: windows[0].index,
-			Query:       windows[0].query,
+			WindowIndex: compiledPaths[0].index,
+			Path:        compiledPaths[0].raw,
 			Preview:     "(empty resource manifest)",
 		}
 	}
@@ -100,29 +91,26 @@ func SliceManifestBody(yamlBody string, opts ManifestSliceOptions) (*ManifestSli
 	matchSpansByLine := make(map[int][]byteSpan)
 	var rawIntervals []lineInterval
 
-	for _, w := range windows {
-		matchedCount := 0
-		for lineIdx, line := range lines {
-			spans := findQuerySpans(line, w)
-			if len(spans) == 0 {
-				continue
-			}
-			matchSpansByLine[lineIdx] = append(matchSpansByLine[lineIdx], spans...)
-			rawIntervals = append(rawIntervals, lineInterval{
-				start: max(0, lineIdx-w.before),
-				end:   min(totalLines, lineIdx+w.after+1),
-			})
-			matchedCount++
-			if matchedCount >= w.maxMatches {
-				break
+	for _, p := range compiledPaths {
+		selections := evalCompiledJSONPath(doc, p)
+		if len(selections) == 0 {
+			matchedPrefix, availableKeys := diagnoseUnmatchedJSONPath(p, doc)
+			return nil, &SliceQueryNotFoundError{
+				WindowIndex:   p.index,
+				Path:          p.raw,
+				MatchedPrefix: matchedPrefix,
+				AvailableKeys: availableKeys,
+				TopLevelKeys:  extractTopLevelYAMLKeys(yamlBody),
+				Preview:       buildManifestPreview(doc.lines),
 			}
 		}
-		if matchedCount == 0 {
-			return nil, &SliceQueryNotFoundError{
-				WindowIndex:  w.index,
-				Query:        w.query,
-				TopLevelKeys: extractTopLevelYAMLKeys(yamlBody),
-				Preview:      buildManifestPreview(lines),
+		for _, sel := range selections {
+			rawIntervals = append(rawIntervals, lineInterval{
+				start: sel.startLine - 1,
+				end:   sel.endLine,
+			})
+			if sel.highlightLine > 0 {
+				matchSpansByLine[sel.highlightLine-1] = append(matchSpansByLine[sel.highlightLine-1], sel.highlightSpan)
 			}
 		}
 	}
@@ -130,7 +118,7 @@ func SliceManifestBody(yamlBody string, opts ManifestSliceOptions) (*ManifestSli
 	merged := capIntervals(mergeIntervals(rawIntervals), maxLines)
 	return &ManifestSliceResult{
 		TotalLines: totalLines,
-		Lines:      renderLogIntervals(lines, merged, matchSpansByLine, ""),
+		Lines:      renderLogIntervals(doc.lines, merged, matchSpansByLine, ""),
 	}, nil
 }
 

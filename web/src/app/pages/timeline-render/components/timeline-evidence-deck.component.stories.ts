@@ -128,15 +128,22 @@ const mockScene = buildTimelineSceneViewModel({
             kind: TimelineExcerptLineKind.CONTEXT,
             newLineNum: 12,
             text: '      target:',
+            parts: [{ text: '      ' }, { text: 'target:', matched: true }],
           },
           {
             kind: TimelineExcerptLineKind.CONTEXT,
             newLineNum: 13,
             text: '        averageUtilization: 40',
-            parts: [
-              { text: '        ' },
-              { text: 'averageUtilization: 40', matched: true },
-            ],
+          },
+          {
+            kind: TimelineExcerptLineKind.CONTEXT,
+            newLineNum: 14,
+            text: '        type: Utilization',
+          },
+          {
+            kind: TimelineExcerptLineKind.OMITTED,
+            text: '⋮ 14 lines omitted',
+            omitted: 14,
           },
         ],
         note: 'Static CPU target threshold remained 40% throughout incident',

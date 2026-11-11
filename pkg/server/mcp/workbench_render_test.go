@@ -526,10 +526,8 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 						TimelineID:    nodeReadyTimelineID,
 						RevisionIndex: 1,
 					},
-					Windows: []scene.SliceWindow{
-						{Query: "MemoryPressure", BeforeLines: 1, AfterLines: 1},
-					},
-					Note: "Node Ready condition flipped to False",
+					Paths: []string{"$.spec.principal", "$.status.summary"},
+					Note:  "Node Ready condition flipped to False",
 				},
 			},
 			LogExcerpts: []scene.LogExcerpt{
@@ -597,14 +595,31 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 		t.Errorf("storedChildA mutated unexpectedly: err=%v overlay=%+v", err, storedChildA.Document.Overlay)
 	}
 
-	// Step 4: Verify actionable error codes (SLICE_QUERY_NOT_FOUND and ANCHOR_OUT_OF_VIEWPORT).
+	// Step 4: Verify actionable error codes (INVALID_ARGUMENT on omitted paths, SLICE_QUERY_NOT_FOUND, and ANCHOR_OUT_OF_VIEWPORT).
+	errOmittedPathsRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			DiffExcerpts: []scene.DiffExcerpt{
+				{
+					Revision: scene.RevisionRef{TimelineID: nodeReadyTimelineID, RevisionIndex: 1},
+				},
+			},
+		},
+	})
+	if err != nil || !errOmittedPathsRes.IsError {
+		t.Fatalf("omitted paths INVALID_ARGUMENT check failed: err=%v res=%v", err, errOmittedPathsRes)
+	}
+	if gotErrText := errOmittedPathsRes.Content[0].(*mcpsdk.TextContent).Text; !strings.HasPrefix(gotErrText, "Error: INVALID_ARGUMENT") {
+		t.Errorf("expected INVALID_ARGUMENT on omitted paths, got:\n%s", gotErrText)
+	}
+
 	errSliceRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
 		ParentSceneID: parentSceneID,
 		Annotations: &scene.Annotations{
 			DiffExcerpts: []scene.DiffExcerpt{
 				{
 					Revision: scene.RevisionRef{TimelineID: nodeReadyTimelineID, RevisionIndex: 1},
-					Windows:  []scene.SliceWindow{{Query: "NonExistentFieldXYZ"}},
+					Paths:    []string{"$.status.nonExistentFieldXYZ"},
 				},
 			},
 		},
@@ -653,6 +668,7 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 				{
 					TimelineID:    nodeReadyTimelineID,
 					RevisionIndex: &revZero,
+					Paths:         []string{"$.status.summary"},
 					Note:          "Steady node condition active entering zoomed window",
 				},
 			},
