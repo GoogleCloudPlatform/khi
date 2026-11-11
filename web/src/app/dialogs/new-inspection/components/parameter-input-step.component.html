@@ -128,6 +128,10 @@
           {{ errorFieldCount() }} /
           {{ parameterViewModel.fieldCount }}
         </p>
+      } @else if (hasCalloutError()) {
+        <p class="errmsg-parameters-error">
+          Resolve the error notices in the form before running.
+        </p>
       } @else if (pendingFieldCount() !== 0) {
         <div class="pending-parameters">
           <mat-spinner diameter="14"></mat-spinner>
@@ -136,6 +140,11 @@
             {{ pendingFieldCount() }} /
             {{ parameterViewModel.fieldCount }}
           </span>
+        </div>
+      } @else if (hasPendingCallout()) {
+        <div class="pending-parameters">
+          <mat-spinner diameter="14"></mat-spinner>
+          <span>Checking form prerequisites...</span>
         </div>
       }
       <button

@@ -149,3 +149,23 @@ export const WithWarningHint: Story = {
     },
   },
 };
+
+export const WithCalloutBanner: Story = {
+  args: {
+    parameter: {
+      ...mockGroupParameter,
+      id: 'gcp-cluster-settings-callout',
+      children: [
+        {
+          id: 'log-volume-advisory',
+          label: 'Log Volume Advisory',
+          description: 'Applies when querying wide time ranges.',
+          type: ParameterInputType.Callout,
+          hint: 'Inspecting more than 6 hours of logs may increase memory usage.',
+          hintType: ParameterHintType.Info,
+        },
+        ...mockGroupParameter.children,
+      ],
+    },
+  },
+};

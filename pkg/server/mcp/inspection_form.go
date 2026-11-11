@@ -168,6 +168,8 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 		Type:        string(base.Type),
 	}
 
+	_, isCallout := field.(inspectionmetadata.CalloutParameterFormField)
+
 	if base.Hint != "" {
 		switch base.HintType {
 		case inspectionmetadata.Error:
@@ -176,21 +178,27 @@ func toFormFieldData(field inspectionmetadata.ParameterFormField, params map[str
 			data.HintType = "Warning"
 		case inspectionmetadata.Info:
 			data.HintType = "Info"
+		case "":
+			if isCallout {
+				data.HintType = "Info"
+			}
 		}
 		if data.HintType != "" {
 			data.Hint = base.Hint
 		}
 	}
 
-	def, hasDefault := defaultValue(field)
-	if hasDefault {
-		data.Default = formatParameterValue(def)
-	}
-	if val, passed := params[base.ID]; passed {
-		data.Value = formatParameterValue(val)
-	} else if hasDefault {
-		data.Value = data.Default
-		data.IsDefaulted = true
+	if !isCallout {
+		def, hasDefault := defaultValue(field)
+		if hasDefault {
+			data.Default = formatParameterValue(def)
+		}
+		if val, passed := params[base.ID]; passed {
+			data.Value = formatParameterValue(val)
+		} else if hasDefault {
+			data.Value = data.Default
+			data.IsDefaulted = true
+		}
 	}
 
 	switch tf := field.(type) {
