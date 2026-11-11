@@ -81,7 +81,7 @@ func TestStore_IssueAndGet(t *testing.T) {
 			Markers: []ResolvedMarker{
 				{ID: "marker-1", Badge: "1", Label: "OOMKilled", Style: MarkerStylePin, PaletteID: "default", TimeMs: viewStartMs, TimeLabel: "09:00:00Z", TimelineID: 10, RevisionIndex: &revIdx},
 			},
-			Spans:         []ResolvedSpan{{ID: "span-1", Label: "Window", TimelineIDs: []uint32{5}}},
+			Spans:         []ResolvedSpan{{ID: "span-1", Label: "Window", TimelineIDs: []uint32{5}, LabelPlacement: SpanLabelPlacementAbove, HideDuration: true}},
 			RowHighlights: []ResolvedRowHighlight{{ID: "row-1", TimelineIDs: []uint32{10}}},
 			Excerpts: []ResolvedExcerptCard{
 				{ID: "ex-1", RevisionIndex: &revIdx, Lines: []ExcerptLine{{Kind: ExcerptLineKindAdded, Text: "image: v2", Parts: []LinePart{{Text: "v2", Matched: true}}}}},
@@ -122,7 +122,7 @@ func TestStore_IssueAndGet(t *testing.T) {
 				Markers: []ResolvedMarker{
 					{ID: "marker-1", Badge: "1", Label: "OOMKilled", Style: "pin", PaletteID: "default", TimeMs: wantViewStartMs, TimeLabel: "09:00:00Z", TimelineID: 10, RevisionIndex: &wantRevIdx},
 				},
-				Spans:         []ResolvedSpan{{ID: "span-1", Label: "Window", TimelineIDs: []uint32{5}}},
+				Spans:         []ResolvedSpan{{ID: "span-1", Label: "Window", TimelineIDs: []uint32{5}, LabelPlacement: SpanLabelPlacementAbove, HideDuration: true}},
 				RowHighlights: []ResolvedRowHighlight{{ID: "row-1", TimelineIDs: []uint32{10}}},
 				Excerpts: []ResolvedExcerptCard{
 					{ID: "ex-1", RevisionIndex: &wantRevIdx, Lines: []ExcerptLine{{Kind: ExcerptLineKindAdded, Text: "image: v2", Parts: []LinePart{{Text: "v2", Matched: true}}}}},
@@ -256,7 +256,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 				Annotations: &Annotations{
 					RemoveIDs: []string{"2", "E1", " trigger "},
 					Spans: []SpanAnnotation{
-						{Label: "Customer impact window", Start: Anchor{TimelineID: 1, LogID: 1}, End: Anchor{TimelineID: 1, LogID: 2}, PaletteID: "victim"},
+						{Label: "Customer impact window", Start: Anchor{TimelineID: 1, LogID: 1}, End: Anchor{TimelineID: 1, LogID: 2}, LabelPlacement: SpanLabelPlacementAbove, HideDuration: true, PaletteID: "victim"},
 					},
 				},
 			},
@@ -272,7 +272,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 					DimUnlistedRows: boolRef(true),
 					Palette:         []PaletteEntry{{ID: "victim", Color: "red"}},
 					Markers:         []MarkerAnnotation{{Badge: "ALERT", Label: "External alert fired", Anchor: Anchor{TimelineID: 1, LogID: 1}}},
-					Spans:           []SpanAnnotation{{Label: "Customer impact window", Start: Anchor{TimelineID: 1, LogID: 1}, End: Anchor{TimelineID: 1, LogID: 2}, PaletteID: "victim"}},
+					Spans:           []SpanAnnotation{{Label: "Customer impact window", Start: Anchor{TimelineID: 1, LogID: 1}, End: Anchor{TimelineID: 1, LogID: 2}, LabelPlacement: SpanLabelPlacementAbove, HideDuration: true, PaletteID: "victim"}},
 				},
 			},
 		},

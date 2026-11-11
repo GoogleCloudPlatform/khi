@@ -39,10 +39,11 @@ const (
 )
 
 var (
-	validMarkerStyles    = []MarkerStyle{MarkerStylePin, MarkerStyleReference}
-	validSpanPatterns    = []SpanPattern{SpanPatternSolid, SpanPatternHatched, SpanPatternOutline}
-	validConnectorStyles = []ConnectorStyle{ConnectorStyleCurve, ConnectorStyleStep, ConnectorStyleCaliper}
-	validCalloutSides    = []CalloutPlacement{CalloutPlacementAuto, CalloutPlacementLeft, CalloutPlacementRight, CalloutPlacementAbove, CalloutPlacementBelow}
+	validMarkerStyles        = []MarkerStyle{MarkerStylePin, MarkerStyleReference}
+	validSpanPatterns        = []SpanPattern{SpanPatternSolid, SpanPatternHatched, SpanPatternOutline}
+	validSpanLabelPlacements = []SpanLabelPlacement{SpanLabelPlacementAuto, SpanLabelPlacementAbove, SpanLabelPlacementInside}
+	validConnectorStyles     = []ConnectorStyle{ConnectorStyleCurve, ConnectorStyleStep, ConnectorStyleCaliper}
+	validCalloutSides        = []CalloutPlacement{CalloutPlacementAuto, CalloutPlacementLeft, CalloutPlacementRight, CalloutPlacementAbove, CalloutPlacementBelow}
 )
 
 // Resolve validates and resolves all annotations in spec against wb and applied, returning the frontend overlay payload.
@@ -202,6 +203,14 @@ func resolveSpans(
 			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Unsupported `%s.pattern` `%s` (use `solid`, `hatched`, or `outline`).", fieldPath, pattern))
 			return res, nil
 		}
+		labelPlacement := s.LabelPlacement
+		if labelPlacement == "" {
+			labelPlacement = SpanLabelPlacementAuto
+		}
+		if !slices.Contains(validSpanLabelPlacements, labelPlacement) {
+			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Unsupported `%s.labelPlacement` `%s` (use `auto`, `above`, or `inside`).", fieldPath, labelPlacement))
+			return res, nil
+		}
 		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, s.PaletteID)
 		if errRes != nil {
 			return errRes, nil
@@ -238,17 +247,22 @@ func resolveSpans(
 			}
 		}
 
-		duration := endPt.time.Sub(startPt.time)
-		durationLabel := formatElapsedDelta(duration, false)
+		durationLabel := ""
+		if !s.HideDuration {
+			duration := endPt.time.Sub(startPt.time)
+			durationLabel = formatElapsedDelta(duration, false)
+		}
 		overlay.Spans = append(overlay.Spans, ResolvedSpan{
-			ID:            fmt.Sprintf("span-%d", i+1),
-			Label:         s.Label,
-			StartTimeMs:   startPt.time.UnixMilli(),
-			EndTimeMs:     endPt.time.UnixMilli(),
-			DurationLabel: durationLabel,
-			TimelineIDs:   scopedIDs,
-			Pattern:       pattern,
-			PaletteID:     paletteID,
+			ID:             fmt.Sprintf("span-%d", i+1),
+			Label:          s.Label,
+			StartTimeMs:    startPt.time.UnixMilli(),
+			EndTimeMs:      endPt.time.UnixMilli(),
+			DurationLabel:  durationLabel,
+			TimelineIDs:    scopedIDs,
+			Pattern:        pattern,
+			LabelPlacement: labelPlacement,
+			HideDuration:   s.HideDuration,
+			PaletteID:      paletteID,
 		})
 	}
 	return nil, nil

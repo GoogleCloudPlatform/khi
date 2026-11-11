@@ -30,6 +30,7 @@ import {
   TimelineResolvedRowHighlight,
   TimelineResolvedSpan,
   TimelineSceneOverlay,
+  TimelineSpanLabelPlacement,
 } from 'src/app/common/schema/timeline-render-types';
 import {
   CalloutItemViewModel,
@@ -50,6 +51,7 @@ import {
   RowHighlightBuildResult,
   SceneHorizontalBounds,
   SpanBoxGeometry,
+  SpanChipHorizontalBounds,
   SpanHeaderChipLayout,
   SpanItemViewModel,
   SpanVerticalBounds,
@@ -89,6 +91,11 @@ import { clampNumber } from 'src/app/utils/math-util';
 const MARKER_LANE_STEP_PX = 30;
 const MARKER_PILL_HEIGHT_PX = 24;
 const MARKER_BAND_VERTICAL_PADDING_PX = 12;
+const SPAN_COMPACT_ROW_MAX_HEIGHT_PX = 44;
+const SPAN_CHIP_HEIGHT_PX = 19;
+const SPAN_ABOVE_CHIP_GAP_PX = 2;
+const SPAN_ABOVE_CHIP_OFFSET_PX = SPAN_CHIP_HEIGHT_PX + SPAN_ABOVE_CHIP_GAP_PX;
+const SPAN_ABOVE_CHIP_NEIGHBOR_GAP_PX = 6;
 const DECK_TETHER_STRIP_HEIGHT_PX = 32;
 const VIEWPORT_TIME_EPSILON_MS = 1e-3;
 const defaultTextWidthMeasurer = createCanvasTextWidthMeasurer();
@@ -528,6 +535,45 @@ export function findStemFreeSpanIntervals(
   return candidateIntervals;
 }
 
+interface PreparedSpanCandidate {
+  readonly index: number;
+  readonly span: TimelineResolvedSpan;
+  readonly vertical: SpanVerticalBounds;
+  readonly box: SpanBoxGeometry;
+  readonly isLabelAbove: boolean;
+  readonly aboveBandTopPx: number;
+  readonly alignedAboveLeftPx: number;
+}
+
+interface PlacedAboveSpanChip {
+  readonly aboveBandTopPx: number;
+  readonly chipStageLeftPx: number;
+}
+
+/**
+ * Resolves whether a span's header chip should be positioned above its bounding box rather than inside it.
+ */
+export function resolveSpanIsLabelAbove(
+  span: TimelineResolvedSpan,
+  vertical: SpanVerticalBounds,
+): boolean {
+  const placement = span.labelPlacement ?? TimelineSpanLabelPlacement.AUTO;
+  switch (placement) {
+    case TimelineSpanLabelPlacement.ABOVE:
+      return true;
+    case TimelineSpanLabelPlacement.INSIDE:
+      return false;
+    case TimelineSpanLabelPlacement.AUTO:
+      return (
+        vertical.isRowScoped &&
+        vertical.heightPx < SPAN_COMPACT_ROW_MAX_HEIGHT_PX &&
+        vertical.topPx >= SPAN_ABOVE_CHIP_OFFSET_PX + 2
+      );
+    default:
+      return unreachable(placement);
+  }
+}
+
 /**
  * Computes header text formatting and obstacle-avoiding chip placement for a timeline span.
  */
@@ -536,10 +582,101 @@ export function layoutSpanHeaderChip(
   box: SpanBoxGeometry,
   vertical: SpanVerticalBounds,
   verticalStems: readonly VerticalStemSegment[],
+  bounds: SpanChipHorizontalBounds,
 ): SpanHeaderChipLayout {
-  const headerText = span.durationLabel
+  const showDuration = !span.hideDuration && Boolean(span.durationLabel);
+  const headerText = showDuration
     ? `${span.label} (${span.durationLabel})`
     : span.label;
+  // Estimates horizontal chip width for 11px label typography plus border and padding.
+  const estimatedChipWidthPx = Math.round(headerText.length * 5.35 + 14);
+  const isLabelAbove = resolveSpanIsLabelAbove(span, vertical);
+
+  if (isLabelAbove) {
+    const chipStageTopPx = Math.max(
+      2,
+      vertical.topPx - SPAN_ABOVE_CHIP_OFFSET_PX,
+    );
+    const chipBottomPx = chipStageTopPx + SPAN_CHIP_HEIGHT_PX;
+    const minStageLeftPx = bounds.chartLeftPx + 2;
+    const maxStageLeftPx = Math.max(minStageLeftPx, bounds.stageWidthPx - 8);
+    const alignedStageLeftPx = clampNumber(
+      box.leftPx,
+      minStageLeftPx,
+      maxStageLeftPx,
+    );
+    const stageRightCeilingPx = Math.min(
+      bounds.stageWidthPx - 6,
+      bounds.maxAboveRightStagePx ?? bounds.stageWidthPx - 6,
+    );
+    const minLocalLeft = 0;
+    const maxLocalRight = Math.max(
+      minLocalLeft,
+      stageRightCeilingPx - alignedStageLeftPx,
+    );
+    const maxAnchorLocalLeft = Math.min(
+      maxLocalRight,
+      Math.max(16, box.widthPx - 12),
+    );
+
+    const candidateIntervals = findStemFreeSpanIntervals(
+      verticalStems,
+      alignedStageLeftPx,
+      chipStageTopPx,
+      chipBottomPx,
+      minLocalLeft,
+      maxLocalRight,
+    );
+    const anchoredCandidates = candidateIntervals.filter(
+      (seg) => seg.start <= maxAnchorLocalLeft,
+    );
+
+    let localOffsetPx =
+      anchoredCandidates.length > 0
+        ? Math.round(anchoredCandidates[0].start)
+        : minLocalLeft;
+    if (anchoredCandidates.length > 0) {
+      const fullFit = anchoredCandidates.find(
+        (seg) => seg.end - seg.start >= estimatedChipWidthPx,
+      );
+      if (fullFit) {
+        localOffsetPx = Math.round(fullFit.start);
+      } else {
+        const unclippedStarts = anchoredCandidates.filter(
+          (seg) => maxLocalRight - seg.start >= estimatedChipWidthPx,
+        );
+        if (unclippedStarts.length > 0) {
+          localOffsetPx = Math.round(
+            unclippedStarts[unclippedStarts.length - 1].start,
+          );
+        }
+      }
+    }
+
+    const chipStageLeftPx =
+      Math.round(
+        clampNumber(
+          alignedStageLeftPx + localOffsetPx,
+          minStageLeftPx,
+          maxStageLeftPx,
+        ) * 10,
+      ) / 10;
+    const labelLeftPx = Math.round((chipStageLeftPx - box.leftPx) * 10) / 10;
+    const chipMaxWidthPx = Math.max(
+      12,
+      Math.round(stageRightCeilingPx - chipStageLeftPx),
+    );
+
+    return {
+      headerText,
+      isLabelAbove: true,
+      labelLeftPx,
+      chipStageLeftPx,
+      chipStageTopPx,
+      chipMaxWidthPx,
+    };
+  }
+
   const headerBottomPx = vertical.topPx + Math.min(vertical.heightPx, 26);
   const hasLeftHeaderStem =
     box.widthPx >= 48 &&
@@ -554,8 +691,6 @@ export function layoutSpanHeaderChip(
   const minLocalLeft = hasLeftHeaderStem ? 14 : 6;
   const rightPaddingPx = box.widthPx >= 48 && box.coincidentRight ? 10 : 6;
   const maxLocalRight = Math.max(minLocalLeft, box.widthPx - rightPaddingPx);
-  // Estimates horizontal chip width for 11px label typography plus border and padding.
-  const estimatedChipWidthPx = Math.round(headerText.length * 5.35 + 14);
 
   const candidateIntervals = findStemFreeSpanIntervals(
     verticalStems,
@@ -593,6 +728,7 @@ export function layoutSpanHeaderChip(
 
   return {
     headerText,
+    isLabelAbove: false,
     labelLeftPx,
     chipStageLeftPx,
     chipStageTopPx,
@@ -615,7 +751,9 @@ export function buildSpanViewModels(
   verticalStems: readonly VerticalStemSegment[],
 ): SpanItemViewModel[] {
   const chartTopPx = topBandHeightPx + TIMELINE_HEADER_HEIGHT_PX;
-  const result: SpanItemViewModel[] = [];
+  const minStageLeftPx = chartLeftPx + 2;
+  const maxStageLeftPx = Math.max(minStageLeftPx, stageWidthPx - 8);
+  const candidates: PreparedSpanCandidate[] = [];
 
   for (const span of spans) {
     const vertical = resolveSpanVerticalBounds(
@@ -636,31 +774,105 @@ export function buildSpanViewModels(
       toStageX,
       verticalStems,
     );
+    const isLabelAbove = resolveSpanIsLabelAbove(span, vertical);
 
-    const chip = layoutSpanHeaderChip(span, box, vertical, verticalStems);
+    candidates.push({
+      index: candidates.length,
+      span,
+      vertical,
+      box,
+      isLabelAbove,
+      aboveBandTopPx: Math.max(2, vertical.topPx - SPAN_ABOVE_CHIP_OFFSET_PX),
+      alignedAboveLeftPx: clampNumber(
+        box.leftPx,
+        minStageLeftPx,
+        maxStageLeftPx,
+      ),
+    });
+  }
 
-    result.push({
-      id: span.id,
+  const chipLayouts = new Array<SpanHeaderChipLayout>(candidates.length);
+  const aboveCandidates: PreparedSpanCandidate[] = [];
+
+  for (const candidate of candidates) {
+    if (candidate.isLabelAbove) {
+      aboveCandidates.push(candidate);
+    } else {
+      chipLayouts[candidate.index] = layoutSpanHeaderChip(
+        candidate.span,
+        candidate.box,
+        candidate.vertical,
+        verticalStems,
+        { chartLeftPx, stageWidthPx },
+      );
+    }
+  }
+
+  // Resolves above-box chips from rightmost to leftmost so adjacent chips in the same vertical band never overlap.
+  aboveCandidates.sort(
+    (a, b) => a.alignedAboveLeftPx - b.alignedAboveLeftPx || a.index - b.index,
+  );
+  const placedAboveChips: PlacedAboveSpanChip[] = [];
+  for (let i = aboveCandidates.length - 1; i >= 0; i--) {
+    const curr = aboveCandidates[i];
+    let minRightNeighborLeftPx: number | undefined;
+    for (const placed of placedAboveChips) {
+      if (
+        Math.abs(placed.aboveBandTopPx - curr.aboveBandTopPx) <
+          SPAN_CHIP_HEIGHT_PX &&
+        placed.chipStageLeftPx > curr.alignedAboveLeftPx &&
+        (minRightNeighborLeftPx === undefined ||
+          placed.chipStageLeftPx < minRightNeighborLeftPx)
+      ) {
+        minRightNeighborLeftPx = placed.chipStageLeftPx;
+      }
+    }
+
+    const maxAboveRightStagePx =
+      minRightNeighborLeftPx !== undefined
+        ? minRightNeighborLeftPx - SPAN_ABOVE_CHIP_NEIGHBOR_GAP_PX
+        : undefined;
+    const chip = layoutSpanHeaderChip(
+      curr.span,
+      curr.box,
+      curr.vertical,
+      verticalStems,
+      {
+        chartLeftPx,
+        stageWidthPx,
+        maxAboveRightStagePx,
+      },
+    );
+    chipLayouts[curr.index] = chip;
+    placedAboveChips.push({
+      aboveBandTopPx: curr.aboveBandTopPx,
+      chipStageLeftPx: chip.chipStageLeftPx,
+    });
+  }
+
+  return candidates.map((candidate): SpanItemViewModel => {
+    const chip = chipLayouts[candidate.index];
+    return {
+      id: candidate.span.id,
       headerText: chip.headerText,
-      pattern: span.pattern,
-      paletteId: span.paletteId,
-      colors: resolveColors(span.paletteId),
-      isRowScoped: vertical.isRowScoped,
-      showCornerBrackets: box.showCornerBrackets,
-      coincidentLeft: box.coincidentLeft,
-      coincidentRight: box.coincidentRight,
+      pattern: candidate.span.pattern,
+      paletteId: candidate.span.paletteId,
+      colors: resolveColors(candidate.span.paletteId),
+      isRowScoped: candidate.vertical.isRowScoped,
+      isLabelAbove: chip.isLabelAbove,
+      showCornerBrackets: candidate.box.showCornerBrackets,
+      coincidentLeft: candidate.box.coincidentLeft,
+      coincidentRight: candidate.box.coincidentRight,
       labelLeftPx: chip.labelLeftPx,
       chipStageLeftPx: chip.chipStageLeftPx,
       chipStageTopPx: chip.chipStageTopPx,
       chipMaxWidthPx: chip.chipMaxWidthPx,
-      leftPx: box.leftPx,
-      topPx: vertical.topPx,
-      widthPx: box.widthPx,
-      heightPx: vertical.heightPx,
-    });
-  }
-
-  return result;
+      leftPx: candidate.box.leftPx,
+      topPx: candidate.vertical.topPx,
+      widthPx: candidate.box.widthPx,
+      heightPx: candidate.vertical.heightPx,
+    };
+  });
 }
 
 /**

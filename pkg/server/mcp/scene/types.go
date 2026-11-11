@@ -67,6 +67,18 @@ const (
 	SpanPatternOutline SpanPattern = "outline"
 )
 
+// SpanLabelPlacement defines where a time-range span's header chip is positioned relative to its bounding box.
+type SpanLabelPlacement string
+
+const (
+	// SpanLabelPlacementAuto places the label chip above compact row-scoped spans and inside tall or full-height spans.
+	SpanLabelPlacementAuto SpanLabelPlacement = "auto"
+	// SpanLabelPlacementAbove places the label chip directly above the top border of the span box.
+	SpanLabelPlacementAbove SpanLabelPlacement = "above"
+	// SpanLabelPlacementInside places the label chip inside the top edge of the span box.
+	SpanLabelPlacementInside SpanLabelPlacement = "inside"
+)
+
 // ConnectorStyle defines the routing geometry of a connector annotation.
 type ConnectorStyle string
 
@@ -180,14 +192,16 @@ type MarkerAnnotation struct {
 
 // SpanAnnotation defines a full-height or row-scoped time-range band.
 type SpanAnnotation struct {
-	Start          Anchor      `json:"start" jsonschema:"Inclusive start anchor of the interval."`
-	End            Anchor      `json:"end" jsonschema:"Inclusive end anchor of the interval."`
-	Label          string      `json:"label" jsonschema:"Concise label for the span or region box (max 80 chars)."`
-	TimelineQuery  string      `json:"timelineQuery,omitempty" jsonschema:"Optional Timeline CEL query scoping the box vertically to matching rows."`
-	TimelineIDs    []uint32    `json:"timelineIds,omitempty" jsonschema:"Optional timeline IDs scoping the box vertically. Omit both for a full-height chart span."`
-	Pattern        SpanPattern `json:"pattern,omitempty" jsonschema:"Fill style: 'solid' (default), 'hatched' (diagonal stripes + dashed border for missing logs), or 'outline'."`
-	IncludeSubtree *bool       `json:"includeSubtree,omitempty" jsonschema:"Defaults to true when scoped to specific timelines."`
-	PaletteID      string      `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits from an enclosing rowHighlight when scoped to rows, or uses built-in 'default' when omitted."`
+	Start          Anchor             `json:"start" jsonschema:"Inclusive start anchor of the interval."`
+	End            Anchor             `json:"end" jsonschema:"Inclusive end anchor of the interval."`
+	Label          string             `json:"label" jsonschema:"Concise label for the span or region box (max 80 chars)."`
+	TimelineQuery  string             `json:"timelineQuery,omitempty" jsonschema:"Optional Timeline CEL query scoping the box vertically to matching rows."`
+	TimelineIDs    []uint32           `json:"timelineIds,omitempty" jsonschema:"Optional timeline IDs scoping the box vertically. Omit both for a full-height chart span."`
+	Pattern        SpanPattern        `json:"pattern,omitempty" jsonschema:"Fill style: 'solid' (default), 'hatched' (diagonal stripes + dashed border for missing logs), or 'outline'."`
+	LabelPlacement SpanLabelPlacement `json:"labelPlacement,omitempty" jsonschema:"Header chip placement: 'auto' (default: 'above' for compact row-scoped spans and 'inside' for tall or full-height spans), 'above', or 'inside'."`
+	HideDuration   bool               `json:"hideDuration,omitempty" jsonschema:"Omits the automatic '(duration)' suffix from the span header chip when true."`
+	IncludeSubtree *bool              `json:"includeSubtree,omitempty" jsonschema:"Defaults to true when scoped to specific timelines."`
+	PaletteID      string             `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits from an enclosing rowHighlight when scoped to rows, or uses built-in 'default' when omitted."`
 }
 
 // RowHighlight highlights resource subtrees selected by Timeline CEL or explicit timeline IDs.
@@ -317,14 +331,16 @@ type ResolvedMarker struct {
 
 // ResolvedSpan represents a resolved full-height or row-scoped interval band.
 type ResolvedSpan struct {
-	ID            string      `json:"id"`
-	Label         string      `json:"label"`
-	StartTimeMs   int64       `json:"startTimeMs"`
-	EndTimeMs     int64       `json:"endTimeMs"`
-	DurationLabel string      `json:"durationLabel"`
-	TimelineIDs   []uint32    `json:"timelineIds,omitempty"`
-	Pattern       SpanPattern `json:"pattern"`
-	PaletteID     string      `json:"paletteId"`
+	ID             string             `json:"id"`
+	Label          string             `json:"label"`
+	StartTimeMs    int64              `json:"startTimeMs"`
+	EndTimeMs      int64              `json:"endTimeMs"`
+	DurationLabel  string             `json:"durationLabel"`
+	TimelineIDs    []uint32           `json:"timelineIds,omitempty"`
+	Pattern        SpanPattern        `json:"pattern"`
+	LabelPlacement SpanLabelPlacement `json:"labelPlacement,omitempty"`
+	HideDuration   bool               `json:"hideDuration,omitempty"`
+	PaletteID      string             `json:"paletteId"`
 }
 
 // ResolvedRowHighlight represents a resolved focal subtree highlight and left-gutter role badge.
