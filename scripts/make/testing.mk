@@ -59,10 +59,20 @@ coverage-web-container: build-builder ## Run frontend tests and generate coverag
 		$(BUILDER_IMAGE) \
 		make coverage-web USE_CONTAINER=false
 
+COVERAGE_BASE ?=
+COVERAGE_FULL ?= false
+
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
-	go test -cover ./... -coverprofile=./go-cover.output
+	KHI_SKIP_CLOUD_LOGGING=true go test -cover ./... -coverprofile=./go-cover.output
 	go tool cover -html=./go-cover.output -o=go-cover.html
+
+.PHONY: coverage-diff
+coverage-diff: $(GENERATE_BACKEND_DUMMY) ## Run Go differential coverage report for changed lines
+	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
+		$(MAKE) build-web; \
+	fi
+	go run ./scripts/coverage-diff $(if $(COVERAGE_BASE),--base=$(COVERAGE_BASE),) $(if $(filter true 1,$(COVERAGE_FULL)),--full,)
 
 FIXTURES_GCS_BUCKET ?= gs://khi-fixtures
 

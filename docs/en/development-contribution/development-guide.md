@@ -100,6 +100,14 @@ When you want to run backend tests without Cloud Logging, run the following code
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
+To check unit test coverage specifically on the Go lines you added or modified relative to `main` (`trunk`), run:
+
+```shell
+make coverage-diff
+```
+
+You can also specify a custom base revision (for example, `make coverage-diff COVERAGE_BASE=@-` in Jujutsu) or run across all packages (`make coverage-diff COVERAGE_FULL=true`).
+
 ### Clean up legacy generated test files
 
 If you have local working copies created before test flags were migrated to environment variables, you may find leftover untracked `zzz_testflag_test.go` files in `pkg/`.
