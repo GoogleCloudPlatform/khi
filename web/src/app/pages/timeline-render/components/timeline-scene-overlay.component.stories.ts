@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, componentWrapperDecorator } from '@storybook/angular';
 import {
   TimelineCalloutPlacement,
   TimelineConnectorStyle,
   TimelineExcerptKind,
   TimelineExcerptLineKind,
   TimelineMarkerStyle,
+  TimelineSpanLabelPlacement,
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import { TimelineSceneOverlayComponent } from 'src/app/pages/timeline-render/components/timeline-scene-overlay.component';
@@ -30,6 +31,9 @@ const meta: Meta<TimelineSceneOverlayComponent> = {
   title: 'TimelineRender/TimelineSceneOverlay',
   component: TimelineSceneOverlayComponent,
   tags: ['autodocs'],
+  parameters: {
+    layout: 'fullscreen',
+  },
 };
 
 export default meta;
@@ -153,6 +157,14 @@ const mockScene = buildTimelineSceneViewModel({
 });
 
 export const Default: Story = {
+  decorators: [
+    componentWrapperDecorator(
+      (story) => `
+      <div style="position: relative; width: ${mockScene.stageWidthPx}px; height: ${mockScene.stageHeightPx}px; background: #fafafa; border: 1px solid #e0e0e0;">
+        ${story}
+      </div>`,
+    ),
+  ],
   args: {
     scene: mockScene,
     interactiveMode: true,
@@ -168,6 +180,7 @@ const compactRowAboveSpanScene = buildTimelineSceneViewModel({
     { id: 1, heightPx: 25 },
     { id: 2, heightPx: 25 },
     { id: 3, heightPx: 50 },
+    { id: 4, heightPx: 50 },
   ],
   overlay: {
     palette: [
@@ -185,6 +198,25 @@ const compactRowAboveSpanScene = buildTimelineSceneViewModel({
         soft: 'rgba(180, 83, 9, 0.13)',
         surface: '#f8eee6',
       },
+      {
+        id: 'victim',
+        main: '#d32f2f',
+        onMain: '#fafafa',
+        soft: 'rgba(211, 47, 47, 0.13)',
+        surface: '#fbeaea',
+      },
+    ],
+    markers: [
+      {
+        id: 'm-scale-down',
+        badge: '1',
+        label: 'HPA desiredReplicas scaled down',
+        style: TimelineMarkerStyle.PIN,
+        paletteId: 'after',
+        timeMs: 1_035_000,
+        timeLabel: '01:56:00',
+        timelineId: 2,
+      },
     ],
     spans: [
       {
@@ -192,7 +224,7 @@ const compactRowAboveSpanScene = buildTimelineSceneViewModel({
         label: 'averageUtilization: 20 ~ 27%',
         startTimeMs: 1_010_000,
         endTimeMs: 1_032_000,
-        durationLabel: '',
+        durationLabel: '22s',
         timelineIds: [2],
         pattern: TimelineSpanPattern.OUTLINE,
         hideDuration: true,
@@ -202,18 +234,37 @@ const compactRowAboveSpanScene = buildTimelineSceneViewModel({
         id: 'sp-after',
         label: 'averageUtilization: 1 ~ 2%',
         startTimeMs: 1_035_000,
-        endTimeMs: 1_070_000,
-        durationLabel: '',
+        endTimeMs: 1_072_000,
+        durationLabel: '37s',
         timelineIds: [2],
         pattern: TimelineSpanPattern.SOLID,
         hideDuration: true,
         paletteId: 'after',
+      },
+      {
+        id: 'sp-tall-inside',
+        label: 'Tall subtree span (inside chip + duration)',
+        startTimeMs: 1_035_000,
+        endTimeMs: 1_085_000,
+        durationLabel: '50s',
+        timelineIds: [3, 4],
+        pattern: TimelineSpanPattern.HATCHED,
+        labelPlacement: TimelineSpanLabelPlacement.AUTO,
+        paletteId: 'victim',
       },
     ],
   },
 });
 
 export const CompactRowAboveSpanLabels: Story = {
+  decorators: [
+    componentWrapperDecorator(
+      (story) => `
+      <div style="position: relative; width: ${compactRowAboveSpanScene.stageWidthPx}px; height: ${compactRowAboveSpanScene.stageHeightPx}px; background: #fafafa; border: 1px solid #e0e0e0;">
+        ${story}
+      </div>`,
+    ),
+  ],
   args: {
     scene: compactRowAboveSpanScene,
     interactiveMode: true,
