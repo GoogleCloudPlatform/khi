@@ -128,6 +128,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -159,7 +161,15 @@ jobs:
       - name: Backend Test
         run: |
           make generate-backend
-          KHI_SKIP_CLOUD_LOGGING=true go test ./...
+          KHI_SKIP_CLOUD_LOGGING=true go test -coverprofile=go-cover.output ./...
+      - name: Report Backend Differential Coverage
+        run: |
+          go run ./scripts/coverage-diff \
+            --coverprofile=go-cover.output \
+            --vcs=git \
+            --base=HEAD^1 \
+            --target=HEAD \
+            --format=github
       - name: Backend Format and Lint Check
         run: |
           make check-format-misc

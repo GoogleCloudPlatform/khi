@@ -99,6 +99,14 @@ make test
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
+`main`（`trunk`）からの変更差分に含まれるGoコードの単体テストカバレッジ（差分カバレッジ・未カバー行）を確認するには、下記を実行してください。
+
+```shell
+make coverage-diff
+```
+
+比較元のリビジョンを指定する場合（例: Jujutsu で直前コミットと比較する `make coverage-diff COVERAGE_BASE=@-`）や、リポジトリ全体を対象に計測する場合（`make coverage-diff COVERAGE_FULL=true`）もオプションで切り替え可能です。
+
 ### 過去の自動生成テストファイルのクリーンアップ
 
 テストフラグが環境変数に移行される前の古い作業コピーがある場合、過去に自動生成された `zzz_testflag_test.go` ファイルが `pkg/` 配下に未追跡ファイルとして残る場合があります。
