@@ -145,13 +145,13 @@ describe('CalloutParameterComponent', () => {
     expect(fixture.debugElement.query(By.directive(MatIcon))).toBeNull();
   });
 
-  it('omits empty optional elements and converts newlines via breakline pipe', () => {
+  it('omits empty optional elements and preserves multiline and angle-bracket text', () => {
     fixture.componentRef.setInput('parameter', {
       id: 'multiline-callout',
       type: ParameterInputType.Callout,
       label: 'Cluster Prerequisites',
       description: '',
-      hint: 'Line one.\nLine two.',
+      hint: 'Line one.\nSpecify <cluster-name>.',
       hintType: ParameterHintType.Info,
     });
     fixture.detectChanges();
@@ -159,20 +159,26 @@ describe('CalloutParameterComponent', () => {
     expect(fixture.debugElement.query(By.css('.description'))).toBeNull();
     const messageEl = fixture.debugElement.query(By.css('.message'))
       .nativeElement as HTMLElement;
-    expect(messageEl.innerHTML).toContain('Line one.<br>Line two.');
+    expect(messageEl.textContent).toBe('Line one.\nSpecify <cluster-name>.');
+    expect(getComputedStyle(messageEl).whiteSpace).toBe('pre-line');
 
     fixture.componentRef.setInput('parameter', {
       id: 'minimal-callout',
       type: ParameterInputType.Callout,
       label: '',
-      description: 'Standalone description.',
+      description: 'Scope: <project-id>\nSecondary note.',
       hint: '',
       hintType: ParameterHintType.Info,
     });
     fixture.detectChanges();
 
     expect(fixture.debugElement.query(By.css('.title'))).toBeNull();
-    expect(fixture.debugElement.query(By.css('.description'))).toBeTruthy();
+    const descriptionEl = fixture.debugElement.query(By.css('.description'))
+      .nativeElement as HTMLElement;
+    expect(descriptionEl.textContent).toBe(
+      'Scope: <project-id>\nSecondary note.',
+    );
+    expect(getComputedStyle(descriptionEl).whiteSpace).toBe('pre-line');
     expect(fixture.debugElement.query(By.css('.message'))).toBeNull();
   });
 });

@@ -128,6 +128,7 @@ $callout-description-text: mat.m2-get-color-from-palette(
   line-height: 16px;
   margin: 2px 0 0;
   overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 
 .message {
@@ -136,6 +137,7 @@ $callout-description-text: mat.m2-get-color-from-palette(
   line-height: 18px;
   margin: 4px 0 0;
   overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 
 .title:first-child,

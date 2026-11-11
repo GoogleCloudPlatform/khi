@@ -34,10 +34,10 @@
       <p class="title">{{ param.label }}</p>
     }
     @if (param.description) {
-      <p class="description" [innerHTML]="param.description | breakline"></p>
+      <p class="description">{{ param.description }}</p>
     }
     @if (param.hint) {
-      <p class="message" [innerHTML]="param.hint | breakline"></p>
+      <p class="message">{{ param.hint }}</p>
     }
   </div>
 </div>

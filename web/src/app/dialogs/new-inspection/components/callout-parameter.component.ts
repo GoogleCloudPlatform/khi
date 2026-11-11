@@ -22,7 +22,6 @@ import {
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { BreaklinePipe } from 'src/app/common/breakline.pipe';
 import {
   CalloutParameterFormField,
   ParameterHintType,
@@ -37,12 +36,7 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
   templateUrl: './callout-parameter.component.html',
   styleUrl: './callout-parameter.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    MatIconModule,
-    MatProgressSpinnerModule,
-    KHIIconRegistrationModule,
-    BreaklinePipe,
-  ],
+  imports: [MatIconModule, MatProgressSpinnerModule, KHIIconRegistrationModule],
 })
 export class CalloutParameterComponent {
   /**
