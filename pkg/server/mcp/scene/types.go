@@ -183,16 +183,18 @@ type Annotations struct {
 	Callouts []CalloutAnnotation `json:"callouts,omitempty" jsonschema:"Compact 1-line inline callout cards pinned to a row event or revision (max 8)."`
 }
 
-// SliceWindow specifies a literal search spot and surrounding context lines to retain.
+// SliceWindow specifies a JSONPath subtree selector, a literal substring query, or both within a structured log.
 type SliceWindow struct {
-	// Query is the case-sensitive literal substring to match within the diff, manifest, or log.
-	Query string `json:"query" jsonschema:"Case-sensitive literal substring to match within the target diff, manifest, or log."`
-	// BeforeLines is the number of context lines retained before each match.
-	BeforeLines int `json:"beforeLines" jsonschema:"Number of context lines to retain before each match (0..5)."`
-	// AfterLines is the number of context lines retained after each match.
-	AfterLines int `json:"afterLines" jsonschema:"Number of context lines to retain after each match (0..5)."`
-	// MaxMatches caps the number of occurrences sliced for this window.
-	MaxMatches int `json:"maxMatches,omitempty" jsonschema:"Maximum occurrences of this query to slice within the target diff, manifest, or log (default 2, max 4)."`
+	// Path is an optional JSONPath selector within the structured log YAML.
+	Path string `json:"path,omitempty" jsonschema:"Optional JSONPath selector within the structured log YAML (e.g. '$.protoPayload.status', '$.protoPayload.authenticationInfo.principalEmail'). Specify path, query, or both (when both are set, query searches within the lines selected by path)."`
+	// Query is an optional case-sensitive literal substring to match within the log YAML or selected path.
+	Query string `json:"query,omitempty" jsonschema:"Optional case-sensitive literal substring to match within the line-expanded log YAML (or within path when path is also set), e.g. for stacktraces inside multiline textPayload."`
+	// BeforeLines is the number of context lines retained before each query match.
+	BeforeLines int `json:"beforeLines,omitempty" jsonschema:"Number of context lines to retain before each query match (0..5). Applies when query is set."`
+	// AfterLines is the number of context lines retained after each query match.
+	AfterLines int `json:"afterLines,omitempty" jsonschema:"Number of context lines to retain after each query match (0..5). Applies when query is set."`
+	// MaxMatches caps the number of query occurrences sliced within the target log.
+	MaxMatches int `json:"maxMatches,omitempty" jsonschema:"Maximum occurrences of query to slice within the target log (default 2, max 4). Applies when query is set."`
 }
 
 // RevisionRef identifies a resource revision transition by timeline ID and 0-based revision index.
@@ -203,21 +205,21 @@ type RevisionRef struct {
 	RevisionIndex int `json:"revisionIndex" jsonschema:"0-based revision index from get_resource_revisions."`
 }
 
-// DiffExcerpt slices changed hunks from a resource revision transition into a bottom deck card.
+// DiffExcerpt slices JSONPath-selected fields (changed or unchanged) from a resource revision transition into a bottom deck card.
 type DiffExcerpt struct {
 	// Revision identifies the target resource timeline and revision index.
 	Revision RevisionRef `json:"revision" jsonschema:"Target resource timelineId and 0-based revisionIndex from get_resource_revisions."`
 	// Badge is an optional short pin badge, defaulting to sequential E1..En labels.
 	Badge string `json:"badge,omitempty" jsonschema:"Optional short pin badge such as 'E1'. Defaults to 'E1'..'En' ordered by timestamp."`
-	// Windows specifies search spots within the unified diff.
-	Windows []SliceWindow `json:"windows,omitempty" jsonschema:"Search spots within the managedFields-stripped unified diff. Disjoint matches are joined with 'N lines omitted' bands."`
+	// Paths specifies required non-empty JSONPath selectors evaluated against both old and new revisions.
+	Paths []string `json:"paths" jsonschema:"Required non-empty JSONPath selectors (e.g. '$.spec.metrics[0].resource.target', '$.status.conditions[?(@.type==\"Ready\")]') evaluated against both old and new managedFields-stripped revisions. Both changed (-/+) and unchanged fields are rendered with 'N lines omitted' bands."`
 	// Note is an optional one-line summary rendered in the card footer.
 	Note string `json:"note,omitempty" jsonschema:"Optional 1-line human summary rendered in the card footer, visually separated from verbatim diff lines (max 80 chars)."`
 	// PaletteID references a named entry in Annotations.Palette.
 	PaletteID string `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits automatically from a co-anchored item or enclosing rowHighlight when omitted."`
 }
 
-// ManifestExcerpt slices static or point-in-time YAML lines from a resource manifest into a bottom deck card.
+// ManifestExcerpt slices JSONPath-selected fields from a static or point-in-time resource manifest into a bottom deck card.
 type ManifestExcerpt struct {
 	// TimelineID is the target resource timeline ID.
 	TimelineID uint32 `json:"timelineId" jsonschema:"Target resource timeline ID from search_timelines."`
@@ -227,8 +229,8 @@ type ManifestExcerpt struct {
 	Time *time.Time `json:"time,omitempty" jsonschema:"Point-in-time timestamp in RFC3339 format selecting the effective revision at that moment. Specify either revisionIndex or time."`
 	// Badge is an optional short pin badge, defaulting to sequential E1..En labels.
 	Badge string `json:"badge,omitempty" jsonschema:"Optional short pin badge such as 'E1'. Defaults to 'E1'..'En' ordered by timestamp."`
-	// Windows specifies search spots within the resource YAML manifest.
-	Windows []SliceWindow `json:"windows,omitempty" jsonschema:"Search spots within the managedFields-stripped resource YAML manifest. Disjoint matches are joined with 'N lines omitted' bands."`
+	// Paths specifies required non-empty JSONPath selectors within the resource YAML manifest.
+	Paths []string `json:"paths" jsonschema:"Required non-empty JSONPath selectors (e.g. '$.spec.metrics[0].resource.target', '$.status.currentMetrics[0].resource.current') within the managedFields-stripped resource YAML manifest. Disjoint matches are joined with 'N lines omitted' bands."`
 	// Note is an optional one-line summary rendered in the card footer.
 	Note string `json:"note,omitempty" jsonschema:"Optional 1-line human summary rendered in the card footer, visually separated from verbatim manifest lines (max 80 chars)."`
 	// PaletteID references a named entry in Annotations.Palette.
@@ -243,8 +245,8 @@ type LogExcerpt struct {
 	TimelineID uint32 `json:"timelineId,omitempty" jsonschema:"Optional timeline ID when a single log entry is linked to multiple timelines."`
 	// Badge is an optional short pin badge, defaulting to sequential E1..En labels.
 	Badge string `json:"badge,omitempty" jsonschema:"Optional short pin badge such as 'E2'. Defaults to 'E1'..'En' ordered by timestamp."`
-	// Windows specifies search spots across the expanded structured log YAML.
-	Windows []SliceWindow `json:"windows,omitempty" jsonschema:"Search spots across line-expanded structured log YAML. The parser-distilled Summary is always included."`
+	// Windows specifies optional JSONPath and/or substring search windows across structured log YAML.
+	Windows []SliceWindow `json:"windows,omitempty" jsonschema:"Optional JSONPath and/or substring search windows across structured log YAML. The parser-distilled Summary is always included."`
 	// Note is an optional one-line summary rendered in the card footer.
 	Note string `json:"note,omitempty" jsonschema:"Optional 1-line human summary rendered in the card footer, visually separated from verbatim log lines (max 80 chars)."`
 	// PaletteID references a named entry in Annotations.Palette.
@@ -688,13 +690,13 @@ func cloneAnnotations(a *Annotations) *Annotations {
 	}
 	out.DiffExcerpts = slices.Clone(a.DiffExcerpts)
 	for i := range out.DiffExcerpts {
-		out.DiffExcerpts[i].Windows = slices.Clone(out.DiffExcerpts[i].Windows)
+		out.DiffExcerpts[i].Paths = slices.Clone(out.DiffExcerpts[i].Paths)
 	}
 	out.ManifestExcerpts = slices.Clone(a.ManifestExcerpts)
 	for i := range out.ManifestExcerpts {
 		out.ManifestExcerpts[i].RevisionIndex = clonePtr(out.ManifestExcerpts[i].RevisionIndex)
 		out.ManifestExcerpts[i].Time = clonePtr(out.ManifestExcerpts[i].Time)
-		out.ManifestExcerpts[i].Windows = slices.Clone(out.ManifestExcerpts[i].Windows)
+		out.ManifestExcerpts[i].Paths = slices.Clone(out.ManifestExcerpts[i].Paths)
 	}
 	out.LogExcerpts = slices.Clone(a.LogExcerpts)
 	for i := range out.LogExcerpts {

@@ -60,53 +60,53 @@ status:
 		want *ManifestSliceResult
 	}{
 		{
-			name: "slices disjoint spec and status windows with leading, interior, and trailing omitted bands",
+			name: "slices disjoint spec and status subtrees via JSONPath with leading, interior, and trailing omitted bands",
 			yaml: hpaManifestYAML,
 			opts: ManifestSliceOptions{
 				MaxLines: 12,
-				Windows: []SliceWindow{
-					{Query: "averageUtilization: 40", BeforeLines: 1, AfterLines: 1},
-					{Query: "averageUtilization: 85", BeforeLines: 1, AfterLines: 1},
+				Paths: []string{
+					"$.spec.metrics[?(@.resource.name=='cpu')].resource.target",
+					"$.status.currentMetrics[?(@.resource.name=='cpu')].resource.current",
 				},
 			},
 			want: &ManifestSliceResult{
 				TotalLines: 29,
 				Lines: []ExcerptLine{
 					{Kind: ExcerptLineKindOmitted, Omitted: 11, Text: "⋮ 11 lines omitted"},
-					{Kind: ExcerptLineKindContext, NewLineNum: 12, Text: "      target:"},
 					{
 						Kind:       ExcerptLineKindContext,
-						NewLineNum: 13,
-						Text:       "        averageUtilization: 40",
+						NewLineNum: 12,
+						Text:       "      target:",
 						Parts: []LinePart{
-							{Text: "        "},
-							{Text: "averageUtilization: 40", Matched: true},
+							{Text: "      "},
+							{Text: "target:", Matched: true},
 						},
 					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 13, Text: "        averageUtilization: 40"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 14, Text: "        type: Utilization"},
 					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 lines omitted"},
-					{Kind: ExcerptLineKindContext, NewLineNum: 23, Text: "      current:"},
 					{
 						Kind:       ExcerptLineKindContext,
-						NewLineNum: 24,
-						Text:       "        averageUtilization: 85",
+						NewLineNum: 23,
+						Text:       "      current:",
 						Parts: []LinePart{
-							{Text: "        "},
-							{Text: "averageUtilization: 85", Matched: true},
+							{Text: "      "},
+							{Text: "current:", Matched: true},
 						},
 					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 24, Text: "        averageUtilization: 85"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 25, Text: "        averageValue: 850m"},
 					{Kind: ExcerptLineKindOmitted, Omitted: 4, Text: "⋮ 4 lines omitted"},
 				},
 			},
 		},
 		{
-			name: "merges overlapping context intervals cleanly without duplicate lines",
+			name: "merges adjacent JSONPath fields cleanly without duplicate lines",
 			yaml: hpaManifestYAML,
 			opts: ManifestSliceOptions{
-				Windows: []SliceWindow{
-					{Query: "maxReplicas: 10", BeforeLines: 0, AfterLines: 1},
-					{Query: "minReplicas: 2", BeforeLines: 1, AfterLines: 0},
+				Paths: []string{
+					"$.spec.maxReplicas",
+					"$.spec.minReplicas",
 				},
 			},
 			want: &ManifestSliceResult{
@@ -136,27 +136,28 @@ status:
 			},
 		},
 		{
-			name: "omitted windows returns leading lines up to maxLines with trailing omitted band",
+			name: "caps large selected subtree at maxLines with trailing omitted band",
 			yaml: hpaManifestYAML,
 			opts: ManifestSliceOptions{
 				MaxLines: 4,
+				Paths:    []string{"$.spec"},
 			},
 			want: &ManifestSliceResult{
 				TotalLines: 29,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindContext, NewLineNum: 1, Text: "apiVersion: autoscaling/v2"},
-					{Kind: ExcerptLineKindContext, NewLineNum: 2, Text: "kind: HorizontalPodAutoscaler"},
-					{Kind: ExcerptLineKindContext, NewLineNum: 3, Text: "metadata:"},
-					{Kind: ExcerptLineKindContext, NewLineNum: 4, Text: "  name: frontend-hpa"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 25, Text: "⋮ 25 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 6,
+						Text:       "spec:",
+						Parts:      []LinePart{{Text: "spec:", Matched: true}},
+					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 7, Text: "  maxReplicas: 10"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 8, Text: "  minReplicas: 2"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 9, Text: "  metrics:"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 20, Text: "⋮ 20 lines omitted"},
 				},
 			},
-		},
-		{
-			name: "empty manifest with no windows returns empty result",
-			yaml: "",
-			opts: ManifestSliceOptions{},
-			want: &ManifestSliceResult{},
 		},
 	}
 
@@ -185,32 +186,48 @@ status:
   phase: Running
 `
 
-	t.Run("rejects empty window query", func(t *testing.T) {
-		_, err := SliceManifestBody(podYAML, ManifestSliceOptions{
-			Windows: []SliceWindow{{Query: ""}},
-		})
-		var gotErr *InvalidSliceWindowError
+	t.Run("rejects omitted paths instead of returning implicit leading lines", func(t *testing.T) {
+		_, err := SliceManifestBody(podYAML, ManifestSliceOptions{})
+		var gotErr *InvalidJSONPathError
 		if !errors.As(err, &gotErr) {
-			t.Fatalf("SliceManifestBody() err = %T (%v), want *InvalidSliceWindowError", err, err)
+			t.Fatalf("SliceManifestBody() err = %T (%v), want *InvalidJSONPathError", err, err)
 		}
-		want := &InvalidSliceWindowError{WindowIndex: 0, Reason: "query must not be empty"}
+		want := &InvalidJSONPathError{
+			PathIndex: -1,
+			Reason:    "paths must contain at least one JSONPath selector",
+		}
 		if diff := cmp.Diff(want, gotErr); diff != "" {
-			t.Errorf("InvalidSliceWindowError mismatch (-want +got):\n%s", diff)
+			t.Errorf("InvalidJSONPathError mismatch (-want +got):\n%s", diff)
 		}
 	})
 
-	t.Run("returns SliceQueryNotFoundError with top-level keys and YAML preview", func(t *testing.T) {
+	t.Run("rejects empty manifest when path cannot match", func(t *testing.T) {
+		_, err := SliceManifestBody("", ManifestSliceOptions{
+			Paths: []string{"$.metadata.name"},
+		})
+		var gotErr *SliceQueryNotFoundError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceManifestBody() err = %T (%v), want *SliceQueryNotFoundError", err, err)
+		}
+		if gotErr.Path != "$.metadata.name" {
+			t.Errorf("gotErr.Path = %q, want \"$.metadata.name\"", gotErr.Path)
+		}
+	})
+
+	t.Run("returns SliceQueryNotFoundError with deepest matched prefix keys and YAML preview", func(t *testing.T) {
 		_, err := SliceManifestBody(podYAML, ManifestSliceOptions{
-			Windows: []SliceWindow{{Query: "nonExistentField"}},
+			Paths: []string{"$.status.nonExistentField"},
 		})
 		var gotErr *SliceQueryNotFoundError
 		if !errors.As(err, &gotErr) {
 			t.Fatalf("SliceManifestBody() err = %T (%v), want *SliceQueryNotFoundError", err, err)
 		}
 		want := &SliceQueryNotFoundError{
-			WindowIndex:  0,
-			Query:        "nonExistentField",
-			TopLevelKeys: []string{"apiVersion", "kind", "metadata", "spec", "status"},
+			WindowIndex:   0,
+			Path:          "$.status.nonExistentField",
+			MatchedPrefix: "$.status",
+			AvailableKeys: []string{"phase"},
+			TopLevelKeys:  []string{"apiVersion", "kind", "metadata", "spec", "status"},
 			Preview: `apiVersion: v1
 kind: Pod
 metadata:
