@@ -153,6 +153,140 @@ func TestProcessContainerLog(t *testing.T) {
 					HasTimestamp(time.Date(2026, 8, 20, 4, 46, 31, 353884563, time.UTC))
 			},
 		},
+		{
+			name: "cilium-agent JSON log with subsystem, error, level and pod reference",
+			input: testlog.NewMockLog(
+				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
+				},
+				k8scontainer.K8sContainerLogFieldSet{
+					Namespace:     "kube-system",
+					PodName:       "anetd-abcde",
+					ContainerName: "cilium-agent",
+					Message:       "Regeneration of endpoint failed",
+					ParsedMessage: (&logutil.FallbackRawTextLogParser{}).TryParse("Regeneration of endpoint failed"),
+				},
+				k8scontainer.CiliumAgentLogFieldSet{
+					Subsystem:    "endpoint",
+					Error:        "context deadline exceeded",
+					Severity:     inspectioncore.SeverityError,
+					PodNamespace: "default",
+					PodName:      "httpbin-0",
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("[endpoint] Regeneration of endpoint failed(error=context deadline exceeded) 【httpbin-0 (Namespace: default)】").
+					HasSeverity(inspectioncore.SeverityError).
+					HasLogType(k8scontainer.LogTypeContainer)
+			},
+		},
+		{
+			name: "cilium-agent stderr text log uses the level in the payload instead of the stream severity",
+			input: testlog.NewMockLog(
+				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityError,
+				},
+				k8scontainer.K8sContainerLogFieldSet{
+					Namespace:     "kube-system",
+					PodName:       "anetd-abcde",
+					ContainerName: "cilium-agent",
+					Message:       `time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc reasons=[pod:default/httpbin-0]`,
+					ParsedMessage: logutil.NewLogfmtTextParser().TryParse(`time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc reasons=[pod:default/httpbin-0]`),
+				},
+				k8scontainer.CiliumAgentLogFieldSet{
+					Subsystem: "sfc",
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("[sfc] Reconciling").
+					HasSeverity(inspectioncore.SeverityInfo).
+					HasLogType(k8scontainer.LogTypeContainer)
+			},
+		},
+		{
+			name: "container other than cilium-agent is not enriched",
+			input: testlog.NewMockLog(
+				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				inspectioncore.DefaultSeverityFieldSet{
+					Severity: inspectioncore.SeverityInfo,
+				},
+				k8scontainer.K8sContainerLogFieldSet{
+					Namespace:     "kube-system",
+					PodName:       "anetd-abcde",
+					ContainerName: "cni-writer",
+					Message:       "Wrote the CNI configuration",
+					ParsedMessage: (&logutil.FallbackRawTextLogParser{}).TryParse("Wrote the CNI configuration"),
+				},
+				k8scontainer.CiliumAgentLogFieldSet{
+					Subsystem:    "endpoint",
+					Severity:     inspectioncore.SeverityError,
+					PodNamespace: "default",
+					PodName:      "httpbin-0",
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("Wrote the CNI configuration").
+					HasSeverity(inspectioncore.SeverityInfo).
+					HasLogType(k8scontainer.LogTypeContainer)
+			},
+		},
+		{
+			name: "cilium-agent logrus JSON log entry",
+			input: testlog.MustLogFromYAML(`
+timestamp: "2026-01-01T00:00:00Z"
+severity: INFO
+resource:
+  type: k8s_container
+  labels:
+    cluster_name: test-cluster
+    container_name: cilium-agent
+    namespace_name: kube-system
+    pod_name: anetd-abcde
+jsonPayload:
+  ciliumEndpointName: kube-system/kube-dns-123456789a-abcde
+  endpointID: 688
+  k8sPodName: kube-system/kube-dns-123456789a-abcde
+  level: info
+  msg: Identity of endpoint changed
+  subsys: endpoint
+`),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("[endpoint] Identity of endpoint changed 【kube-dns-123456789a-abcde (Namespace: kube-system)】").
+					HasSeverity(inspectioncore.SeverityInfo).
+					HasLogType(k8scontainer.LogTypeContainer)
+			},
+		},
+		{
+			name: "cilium-agent JSON error log entry written to stdout",
+			input: testlog.MustLogFromYAML(`
+timestamp: "2026-01-01T00:00:00Z"
+severity: INFO
+resource:
+  type: k8s_container
+  labels:
+    cluster_name: test-cluster
+    container_name: cilium-agent
+    namespace_name: kube-system
+    pod_name: anetd-abcde
+jsonPayload:
+  error: "failed to list <unspecified>: the server could not find the requested resource (get ciliumpodippools.cilium.io)"
+  level: error
+  msg: k8sError
+  subsys: k8s
+`),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("[k8s] k8sError(error=failed to list <unspecified>: the server could not find the requested resource (get ciliumpodippools.cilium.io))").
+					HasSeverity(inspectioncore.SeverityError).
+					HasLogType(k8scontainer.LogTypeContainer)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -218,6 +352,58 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(expectedPath)
+			},
+		},
+		{
+			name: "cilium-agent log with a pod reference is also mapped to the referenced pod",
+			inputLog: testlog.NewMockLog(
+				k8scontainer.K8sContainerLogFieldSet{
+					Namespace:     "kube-system",
+					PodName:       "anetd-abcde",
+					ContainerName: "cilium-agent",
+					Message:       "Identity of endpoint changed",
+				},
+				k8scontainer.CiliumAgentLogFieldSet{
+					Subsystem:    "endpoint",
+					PodNamespace: "default",
+					PodName:      "httpbin-0",
+				},
+			),
+			cluster: k8scommon.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				anetdPodTimeline := k8saudit.MustK8sNamespacedResourceTimeline(ctx, k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "kube-system"), "anetd-abcde")
+				referencedPodTimeline := k8saudit.MustK8sNamespacedResourceTimeline(ctx, k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "default"), "httpbin-0")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(k8saudit.MustK8sContainerTimeline(ctx, anetdPodTimeline, "cilium-agent")).
+					HasEvent(referencedPodTimeline).
+					HasEventCount(2)
+			},
+		},
+		{
+			name: "cilium-agent log without a pod reference is mapped only to its container",
+			inputLog: testlog.NewMockLog(
+				k8scontainer.K8sContainerLogFieldSet{
+					Namespace:     "kube-system",
+					PodName:       "anetd-abcde",
+					ContainerName: "cilium-agent",
+					Message:       "Compiled new BPF template",
+				},
+				k8scontainer.CiliumAgentLogFieldSet{
+					Subsystem: "datapath-loader",
+				},
+			),
+			cluster: k8scommon.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				anetdPodTimeline := k8saudit.MustK8sNamespacedResourceTimeline(ctx, k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, "kube-system"), "anetd-abcde")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(k8saudit.MustK8sContainerTimeline(ctx, anetdPodTimeline, "cilium-agent")).
+					HasEventCount(1)
 			},
 		},
 	}
