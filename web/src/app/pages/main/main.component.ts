@@ -60,6 +60,7 @@ import {
   MenuManager,
   MenuItemType,
 } from 'src/app/services/menu/menu-manager.service';
+import { SessionUrlSyncService } from 'src/app/services/session-url-sync.service';
 
 /**
  * AppComponent serves as the main container for the application layout.
@@ -74,11 +75,14 @@ import {
     TimelineToolbarSmartComponent,
     IndexProgressSmartComponent,
   ],
-  providers: [LayoutService, MenuManager],
+  providers: [LayoutService, MenuManager, SessionUrlSyncService],
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Store for extension data. */
   private readonly extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
+
+  /** Synchronizes session selection and filters to and from URL query parameters. */
+  private readonly sessionUrlSync = inject(SessionUrlSyncService);
 
   /** Settings storage. */
   private readonly settingsStorage = inject<SettingsStorage>(SETTINGS_STORAGE);
@@ -162,7 +166,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   ngOnInit() {
     this.setupMenu();
-    if (!this.extensionStore.tryOpenDataFromURL()) {
+    if (
+      !this.sessionUrlSync.openFromQueryParams() &&
+      !this.extensionStore.tryOpenDataFromURL()
+    ) {
       openStartupDialog(this.dialog);
     }
     openReleaseNotesDialog(this.dialog, this.settingsStorage);

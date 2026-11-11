@@ -16,6 +16,7 @@
 import { provideZoneChangeDetection, NgModule } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GroupParameterComponent } from './group-parameter.component';
+import { CalloutParameterComponent } from 'src/app/dialogs/new-inspection/components/callout-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
 import {
@@ -178,5 +179,34 @@ describe('GroupParameterComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.childrenStatus()).toBe('expanded');
+  });
+
+  it('renders CalloutParameterComponent for Callout child fields', () => {
+    fixture.componentRef.setInput('parameter', {
+      id: 'group-with-callout',
+      type: ParameterInputType.Group,
+      label: 'Cluster Settings',
+      description: '',
+      hint: '',
+      collapsible: false,
+      collapsedByDefault: false,
+      hintType: ParameterHintType.None,
+      children: [
+        {
+          id: 'callout-1',
+          type: ParameterInputType.Callout,
+          label: 'Log Volume Advisory',
+          description: '',
+          hint: 'Narrow the query range for faster results.',
+          hintType: ParameterHintType.Info,
+        },
+      ],
+    } as GroupParameterFormField);
+    fixture.detectChanges();
+
+    const calloutEl = fixture.debugElement.query(
+      By.directive(CalloutParameterComponent),
+    );
+    expect(calloutEl).toBeTruthy();
   });
 });

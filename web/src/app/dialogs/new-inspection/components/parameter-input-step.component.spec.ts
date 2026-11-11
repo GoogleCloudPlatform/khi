@@ -19,6 +19,7 @@ import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import {
+  CalloutParameterFormField,
   ParameterFormValidationTiming,
   ParameterHintType,
   ParameterInputType,
@@ -286,6 +287,128 @@ describe('ParameterInputStepComponent', () => {
 
     expect(emitted).toBeTrue();
     expect(fixture.componentInstance.hasRun()).toBeTrue();
+    expect(runButton.nativeElement.disabled).toBeTrue();
+  });
+
+  it('should disable Run button and show standalone callout error notice without inflating errorFieldCount', () => {
+    const standaloneCalloutErrorVm: ParameterStepViewModel = {
+      ...mockParameterViewModel,
+      rootGroupForm: {
+        ...mockParameterViewModel.rootGroupForm,
+        children: [
+          {
+            id: 'missing-log-bucket',
+            label: 'Missing Required Log Bucket',
+            description: '',
+            type: ParameterInputType.Callout,
+            hint: 'Required log bucket was not found in the target project.',
+            hintType: ParameterHintType.Error,
+          } as CalloutParameterFormField,
+        ],
+      },
+      fieldCount: 0,
+    };
+    fixture.componentRef.setInput(
+      'parameterViewModel',
+      standaloneCalloutErrorVm,
+    );
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.errorFieldCount()).toBe(0);
+    expect(fixture.componentInstance.hasCalloutError()).toBeTrue();
+
+    const errorMessage = fixture.debugElement.query(
+      By.css('.errmsg-parameters-error'),
+    );
+    expect(errorMessage).toBeTruthy();
+    expect(errorMessage.nativeElement.textContent).toContain(
+      'Resolve the error notices in the form before running.',
+    );
+    expect(errorMessage.nativeElement.textContent).not.toContain('1 / 0');
+
+    const runButton = fixture.debugElement.query(By.css('.run-button'));
+    expect(runButton.nativeElement.disabled).toBeTrue();
+  });
+
+  it('should keep input error denominator accurate when both input field errors and error callouts exist', () => {
+    const combinedErrorVm: ParameterStepViewModel = {
+      ...mockParameterViewModel,
+      rootGroupForm: {
+        ...mockParameterViewModel.rootGroupForm,
+        children: [
+          {
+            id: 'cluster-name',
+            label: 'Cluster Name',
+            description: '',
+            type: ParameterInputType.Text,
+            hint: 'Cluster name is required.',
+            hintType: ParameterHintType.Error,
+            default: '',
+            readonly: false,
+            suggestions: [],
+            validationTiming: ParameterFormValidationTiming.Blur,
+          } as TextParameterFormField,
+          {
+            id: 'missing-log-bucket',
+            label: 'Missing Required Log Bucket',
+            description: '',
+            type: ParameterInputType.Callout,
+            hint: 'Required log bucket was not found in the target project.',
+            hintType: ParameterHintType.Error,
+          } as CalloutParameterFormField,
+        ],
+      },
+      fieldCount: 1,
+    };
+    fixture.componentRef.setInput('parameterViewModel', combinedErrorVm);
+    fixture.detectChanges();
+
+    const errorMessage = fixture.debugElement.query(
+      By.css('.errmsg-parameters-error'),
+    );
+    expect(errorMessage).toBeTruthy();
+    expect(errorMessage.nativeElement.textContent).toContain(
+      'Fix the validation errors on the input parameters: 1 / 1',
+    );
+
+    const runButton = fixture.debugElement.query(By.css('.run-button'));
+    expect(runButton.nativeElement.disabled).toBeTrue();
+  });
+
+  it('should disable Run button and show pending prerequisites message for standalone pending callout', () => {
+    const pendingCalloutVm: ParameterStepViewModel = {
+      ...mockParameterViewModel,
+      rootGroupForm: {
+        ...mockParameterViewModel.rootGroupForm,
+        children: [
+          {
+            id: 'prereq-check',
+            label: 'Cluster Prerequisites',
+            description: '',
+            type: ParameterInputType.Callout,
+            hint: 'Checking Cloud Logging read access...',
+            hintType: ParameterHintType.Info,
+            pending: true,
+          } as CalloutParameterFormField,
+        ],
+      },
+      fieldCount: 0,
+    };
+    fixture.componentRef.setInput('parameterViewModel', pendingCalloutVm);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.pendingFieldCount()).toBe(0);
+    expect(fixture.componentInstance.hasPendingCallout()).toBeTrue();
+
+    const pendingSection = fixture.debugElement.query(
+      By.css('.pending-parameters'),
+    );
+    expect(pendingSection).toBeTruthy();
+    expect(pendingSection.nativeElement.textContent).toContain(
+      'Checking form prerequisites...',
+    );
+
+    const runButton = fixture.debugElement.query(By.css('.run-button'));
     expect(runButton.nativeElement.disabled).toBeTrue();
   });
 });

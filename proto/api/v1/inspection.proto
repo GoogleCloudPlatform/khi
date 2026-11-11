@@ -279,6 +279,9 @@ message CheckboxFormField {
   bool default_value = 2;
 }
 
+// CalloutFormField configures a read-only callout banner displayed in the form without an input control.
+message CalloutFormField {}
+
 // FormField defines a single input field or group within the dynamic inspection parameter form.
 message FormField {
   // Unique identifier for the form field.
@@ -312,6 +315,9 @@ message FormField {
 
     // Checkbox toggle input field.
     CheckboxFormField checkbox = 10;
+
+    // Read-only callout banner element.
+    CalloutFormField callout = 12;
   }
 
   // Indicates whether the form field is currently being processed or validated asynchronously.
@@ -350,7 +356,6 @@ message InspectionQuery {
   // Predefined estimation preset category if exact count estimation is unfeasible.
   EstimatedCountPreset estimated_count_preset = 7;
 }
-
 
 // InspectionLog contains diagnostic or operational logs captured during inspection.
 message InspectionLog {

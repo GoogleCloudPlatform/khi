@@ -1,0 +1,510 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$deck-surface-bg: mat.m2-get-color-from-palette(mat.$m2-blue-gray-palette, 50);
+$deck-border-top: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$card-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$card-border: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$card-header-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$card-shadow: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900),
+  0.08
+);
+$card-shadow-hover: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900),
+  0.18
+);
+$text-primary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$text-secondary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$gutter-text: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
+$gutter-border: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+
+$diff-added-bg: mat.m2-get-color-from-palette(mat.$m2-green-palette, 50);
+$diff-added-fg: mat.m2-get-color-from-palette(mat.$m2-green-palette, 900);
+$diff-deleted-bg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$diff-deleted-fg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 900);
+$omitted-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$omitted-fg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$summary-bg: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
+$summary-fg: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 800);
+$match-highlight-bg: mat.m2-get-color-from-palette(mat.$m2-amber-palette, 200);
+$match-highlight-border: mat.m2-get-color-from-palette(
+  mat.$m2-amber-palette,
+  600
+);
+$note-bg: mat.m2-get-color-from-palette(mat.$m2-blue-gray-palette, 50);
+
+$fallback-palette-main: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  700
+);
+$fallback-palette-on-main: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  50
+);
+$fallback-palette-surface: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  50
+);
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.evidence-deck-root {
+  --palette-main: #{$fallback-palette-main};
+  --palette-on-main: #{$fallback-palette-on-main};
+  --palette-surface: #{$fallback-palette-surface};
+
+  background-color: $deck-surface-bg;
+  border-top: 1px solid $deck-border-top;
+  box-sizing: border-box;
+  display: grid;
+  font-family: Roboto, sans-serif;
+  grid-template:
+    'tethers' auto
+    'cards' auto
+    / 1fr;
+  position: relative;
+  width: 100%;
+}
+
+.tether-spacer {
+  grid-area: tethers;
+  pointer-events: none;
+  width: 100%;
+}
+
+.tether-strip {
+  display: block;
+  height: 100%;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  z-index: 1;
+}
+
+.tether-group {
+  &.is-hovered {
+    .tether-curve {
+      opacity: 1;
+      stroke-dasharray: none;
+      stroke-width: 2.6;
+    }
+  }
+}
+
+.tether-curve {
+  fill: none;
+  opacity: 0.78;
+  stroke: var(--palette-main);
+  stroke-dasharray: 4 3;
+  stroke-width: 1.75;
+}
+
+.tether-joint {
+  fill: var(--palette-main);
+}
+
+.cards-grid {
+  align-items: start;
+  box-sizing: border-box;
+  column-gap: 12px;
+  display: grid;
+  grid-area: cards;
+  padding: 0 12px 12px;
+  position: relative;
+  row-gap: 24px;
+  width: 100%;
+  z-index: 2;
+
+  &.cols-1 {
+    grid-template:
+      'card-0' auto
+      / 1fr;
+  }
+
+  &.cols-2 {
+    grid-template:
+      'card-0 card-1' auto
+      / 1fr 1fr;
+  }
+
+  &.cols-3 {
+    grid-template:
+      'card-0 card-1 card-2' auto
+      / 1fr 1fr 1fr;
+  }
+
+  &.cols-4 {
+    grid-template:
+      'card-0 card-1 card-2 card-3' auto
+      / 1fr 1fr 1fr 1fr;
+  }
+
+  &.grid-2x2 {
+    grid-template:
+      'card-0 card-1' auto
+      'card-2 card-3' auto
+      / 1fr 1fr;
+  }
+
+  &.grid-3x2 {
+    grid-template:
+      'card-0 card-1 card-2' auto
+      'card-3 card-4 card-5' auto
+      / 1fr 1fr 1fr;
+  }
+}
+
+.evidence-card {
+  background-color: $card-bg;
+  border: 1px solid $card-border;
+  border-radius: 8px;
+  border-top: 3px solid var(--palette-main);
+  box-shadow: 0 1px 4px $card-shadow;
+  box-sizing: border-box;
+  display: grid;
+  grid-template:
+    'header' auto
+    'lines' auto
+    'footer' auto
+    / 1fr;
+  min-width: 0;
+  overflow: hidden;
+
+  &.is-hovered {
+    border-color: var(--palette-main);
+    box-shadow: 0 3px 10px $card-shadow-hover;
+  }
+}
+
+.card-header {
+  background-color: $card-header-bg;
+  border-bottom: 1px solid $gutter-border;
+  display: grid;
+  grid-area: header;
+  grid-template:
+    'top' auto
+    'sub' auto
+    / 1fr;
+  padding: 6px 10px;
+  row-gap: 3px;
+
+  &.has-query-row {
+    grid-template:
+      'top' auto
+      'sub' auto
+      'query' auto
+      / 1fr;
+  }
+}
+
+.header-top-row {
+  align-items: center;
+  column-gap: 6px;
+  display: grid;
+  grid-area: top;
+  grid-template:
+    'badge kind resource time jump' auto
+    / auto auto 1fr auto auto;
+  min-width: 0;
+}
+
+.card-badge {
+  background-color: var(--palette-main);
+  border-radius: 9px;
+  color: var(--palette-on-main);
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  grid-area: badge;
+  line-height: 16px;
+  padding: 0 6px;
+}
+
+.card-kind-tag {
+  background-color: var(--palette-surface);
+  border: 1px solid var(--palette-main);
+  border-radius: 4px;
+  color: var(--palette-main);
+  font-size: 9px;
+  font-weight: 700;
+  grid-area: kind;
+  letter-spacing: 0.04em;
+  line-height: 14px;
+  padding: 0 4px;
+}
+
+.card-resource {
+  color: $text-primary;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  grid-area: resource;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-time {
+  color: $text-secondary;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  grid-area: time;
+  white-space: nowrap;
+}
+
+.jump-btn {
+  background-color: $card-bg;
+  border: 1px solid var(--palette-main);
+  border-radius: 4px;
+  color: var(--palette-main);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  grid-area: jump;
+  line-height: 16px;
+  padding: 1px 6px;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: var(--palette-surface);
+  }
+}
+
+.header-sub-row {
+  align-items: center;
+  column-gap: 8px;
+  display: grid;
+  font-size: 10.5px;
+  grid-area: sub;
+  grid-template:
+    'title subtitle' auto
+    / 1fr auto;
+  min-width: 0;
+}
+
+.card-title {
+  color: $text-secondary;
+  font-weight: 500;
+  grid-area: title;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-subtitle {
+  color: $gutter-text;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  grid-area: subtitle;
+  white-space: nowrap;
+}
+
+.header-query-row {
+  border-top: 1px dashed $gutter-border;
+  grid-area: query;
+  line-height: 15px;
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.query-chip {
+  color: $text-primary;
+  display: inline-block;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  line-height: 14px;
+  margin-right: 8px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  user-select: text;
+  word-break: break-all;
+
+  &:last-child {
+    margin-right: 0;
+  }
+}
+
+.card-lines {
+  display: grid;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11px;
+  grid-area: lines;
+  grid-auto-rows: auto;
+  line-height: 17px;
+  min-width: 0;
+}
+
+.excerpt-line {
+  align-items: start;
+  box-sizing: border-box;
+  column-gap: 6px;
+  display: grid;
+  min-width: 0;
+  padding: 1px 8px 1px 6px;
+
+  &.line-context {
+    color: $text-primary;
+    grid-template:
+      'old new prefix code' auto
+      / 28px 28px 10px 1fr;
+  }
+
+  &.line-added {
+    background-color: $diff-added-bg;
+    color: $diff-added-fg;
+    grid-template:
+      'old new prefix code' auto
+      / 28px 28px 10px 1fr;
+  }
+
+  &.line-deleted {
+    background-color: $diff-deleted-bg;
+    color: $diff-deleted-fg;
+    grid-template:
+      'old new prefix code' auto
+      / 28px 28px 10px 1fr;
+  }
+
+  &.line-log {
+    color: $text-primary;
+    grid-template:
+      'num code' auto
+      / 28px 1fr;
+  }
+
+  &.line-summary {
+    background-color: $summary-bg;
+    border-bottom: 1px solid $gutter-border;
+    color: $summary-fg;
+    grid-template:
+      'tag code' auto
+      / auto 1fr;
+    padding: 3px 8px;
+  }
+
+  &.line-omitted {
+    background-color: $omitted-bg;
+    border-bottom: 1px dashed $gutter-border;
+    border-top: 1px dashed $gutter-border;
+    color: $omitted-fg;
+    font-size: 10px;
+    grid-template:
+      'omitted' auto
+      / 1fr;
+    justify-items: center;
+    padding: 2px 8px;
+  }
+}
+
+.line-num {
+  border-right: 1px solid $gutter-border;
+  color: $gutter-text;
+  font-size: 10px;
+  padding-right: 4px;
+  text-align: right;
+  user-select: none;
+
+  &.old-num {
+    grid-area: old;
+  }
+
+  &.new-num {
+    grid-area: new;
+  }
+
+  &.single-num {
+    grid-area: num;
+  }
+}
+
+.line-prefix {
+  font-weight: 700;
+  grid-area: prefix;
+  text-align: center;
+  user-select: none;
+}
+
+.summary-tag {
+  background-color: $card-bg;
+  border: 1px solid $summary-fg;
+  border-radius: 3px;
+  color: $summary-fg;
+  font-family: Roboto, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  grid-area: tag;
+  line-height: 14px;
+  padding: 0 4px;
+}
+
+.omitted-label {
+  grid-area: omitted;
+}
+
+.line-code {
+  grid-area: code;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.query-match {
+  background-color: $match-highlight-bg;
+  border-bottom: 1px solid $match-highlight-border;
+  border-radius: 2px;
+  color: inherit;
+  font-weight: 700;
+  padding: 0 1px;
+}
+
+.card-note-footer {
+  align-items: center;
+  background-color: $note-bg;
+  border-top: 1px solid $gutter-border;
+  column-gap: 6px;
+  display: grid;
+  font-size: 11px;
+  grid-area: footer;
+  grid-template:
+    'tag text' auto
+    / auto 1fr;
+  padding: 5px 10px;
+}
+
+.note-tag {
+  color: $text-secondary;
+  font-size: 9px;
+  font-weight: 700;
+  grid-area: tag;
+  letter-spacing: 0.04em;
+}
+
+.note-text {
+  color: $text-primary;
+  grid-area: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

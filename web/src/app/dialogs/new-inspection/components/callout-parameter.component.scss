@@ -1,0 +1,147 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$callout-info-bg: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 50);
+$callout-info-border: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 200);
+$callout-info-accent: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 800);
+
+$callout-warning-bg: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 50);
+$callout-warning-border: mat.m2-get-color-from-palette(
+  mat.$m2-orange-palette,
+  200
+);
+$callout-warning-accent: mat.m2-get-color-from-palette(
+  mat.$m2-orange-palette,
+  900
+);
+
+$callout-error-bg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$callout-error-border: mat.m2-get-color-from-palette(mat.$m2-red-palette, 200);
+$callout-error-accent: mat.m2-get-color-from-palette(mat.$m2-red-palette, 800);
+
+$callout-body-text: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$callout-description-text: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  700
+);
+
+:host {
+  display: block;
+}
+
+.callout-card {
+  align-items: start;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  display: grid;
+  gap: 10px;
+  grid-template:
+    'icon content' auto
+    / auto 1fr;
+  margin: 4px 10px 4px 20px;
+  padding: 10px 12px;
+
+  &.info {
+    background-color: $callout-info-bg;
+    border-color: $callout-info-border;
+
+    .icon-area mat-icon,
+    .title {
+      color: $callout-info-accent;
+    }
+  }
+
+  &.warning {
+    background-color: $callout-warning-bg;
+    border-color: $callout-warning-border;
+
+    .icon-area mat-icon,
+    .title {
+      color: $callout-warning-accent;
+    }
+  }
+
+  &.error {
+    background-color: $callout-error-bg;
+    border-color: $callout-error-border;
+
+    .icon-area mat-icon,
+    .title {
+      color: $callout-error-accent;
+    }
+  }
+}
+
+.icon-area {
+  align-items: center;
+  display: grid;
+  grid-area: icon;
+  grid-template:
+    'glyph' auto
+    / auto;
+  padding-top: 1px;
+
+  mat-icon {
+    font-size: 20px;
+    grid-area: glyph;
+    height: 20px;
+    width: 20px;
+  }
+
+  mat-spinner {
+    grid-area: glyph;
+    margin: 2px;
+  }
+}
+
+.content-area {
+  grid-area: content;
+  min-width: 0;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.description {
+  color: $callout-description-text;
+  font-size: 12px;
+  line-height: 16px;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.message {
+  color: $callout-body-text;
+  font-size: 13px;
+  line-height: 18px;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.title:first-child,
+.description:first-child,
+.message:first-child {
+  margin-top: 0;
+}

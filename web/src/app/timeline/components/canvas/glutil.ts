@@ -15,7 +15,10 @@
  */
 
 import { BMFontConfig } from 'src/app/store/domain/style';
-import { fetchWithRetry } from 'src/app/services/api/retry-util';
+import {
+  FetchRetryOptions,
+  fetchWithRetry,
+} from 'src/app/services/api/retry-util';
 import { WebGLContextLostException } from './glcontextmanager';
 
 /**
@@ -36,6 +39,7 @@ export class WebGLUtil {
    * @param vertexShaderPath Path to the vertex shader file.
    * @param fragmentShaderPath Path to the fragment shader file.
    * @param glslIncludeReplaceFilePaths Map of tokens to file paths for GLSL inclusion/replacement.
+   * @param retryOptions Optional fetch and retry settings forwarded to shader source requests.
    * @returns A promise that resolves to the linked WebGLProgram.
    */
   public static async compileAndLinkShaders(
@@ -43,13 +47,14 @@ export class WebGLUtil {
     vertexShaderPath: string,
     fragmentShaderPath: string,
     glslIncludeReplaceFilePaths: GLSLIncludeReplace = {},
+    retryOptions?: FetchRetryOptions,
   ): Promise<WebGLProgram> {
     const includes: GLSLIncludeReplace = {};
     for (const [key, value] of Object.entries(glslIncludeReplaceFilePaths)) {
-      includes[key] = await this.getShaderString(value);
+      includes[key] = await this.getShaderString(value, retryOptions);
     }
-    let vss = await this.getShaderString(vertexShaderPath);
-    let fss = await this.getShaderString(fragmentShaderPath);
+    let vss = await this.getShaderString(vertexShaderPath, retryOptions);
+    let fss = await this.getShaderString(fragmentShaderPath, retryOptions);
 
     for (const [key, value] of Object.entries(includes)) {
       vss = vss.replaceAll(key, value);
@@ -80,14 +85,16 @@ export class WebGLUtil {
    *
    * @param gl The WebGL2 rendering context.
    * @param texturePath Path to the image file.
+   * @param retryOptions Optional fetch and retry settings forwarded to the image request.
    * @returns A promise that resolves to the created WebGLTexture.
    * @throws WebGLContextLostException if texture creation fails.
    */
   public static async loadTexture(
     gl: WebGL2RenderingContext,
     texturePath: string,
+    retryOptions?: FetchRetryOptions,
   ): Promise<WebGLTexture> {
-    const image = await this.loadImage(texturePath);
+    const image = await this.loadImage(texturePath, retryOptions);
     const texture = gl.createTexture();
     if (texture === null)
       throw new WebGLContextLostException('Failed to create texture');
@@ -133,15 +140,19 @@ export class WebGLUtil {
    * Caches results so multiple requests for the same path reuse the in-flight or completed fetch.
    *
    * @param path Path to the BMFont JSON file.
+   * @param retryOptions Optional fetch and retry settings forwarded to the BMFont config request.
    * @returns A promise that resolves to the BMFontConfig.
    */
-  public static async loadBMFontConfig(path: string): Promise<BMFontConfig> {
+  public static async loadBMFontConfig(
+    path: string,
+    retryOptions?: FetchRetryOptions,
+  ): Promise<BMFontConfig> {
     const cached = this.bmFontConfigCache.get(path);
     if (cached) {
       return cached;
     }
     const fetchPromise = (async () => {
-      const result = await fetchWithRetry(path);
+      const result = await fetchWithRetry(path, retryOptions);
       if (!result.ok) {
         throw new Error(
           `Failed to load BMFont config at ${path}: HTTP ${result.status} ${result.statusText}`,
@@ -184,13 +195,16 @@ export class WebGLUtil {
     gl.uniformBlockBinding(program, uniformBlockIndex, uniformBlockBinding);
   }
 
-  private static async loadImage(imagePath: string): Promise<HTMLImageElement> {
+  private static async loadImage(
+    imagePath: string,
+    retryOptions?: FetchRetryOptions,
+  ): Promise<HTMLImageElement> {
     const cached = this.imageCache.get(imagePath);
     if (cached) {
       return cached;
     }
     const loadPromise = (async () => {
-      const result = await fetchWithRetry(imagePath);
+      const result = await fetchWithRetry(imagePath, retryOptions);
       if (!result.ok) {
         throw new Error(
           `Failed to load image at ${imagePath}: HTTP ${result.status} ${result.statusText}`,
@@ -239,15 +253,19 @@ export class WebGLUtil {
    * Caches results so multiple requests for the same path reuse the in-flight or completed fetch.
    *
    * @param path The URL path to the shader source file.
+   * @param retryOptions Optional fetch and retry settings forwarded to the shader source request.
    * @returns A promise resolving to the shader source code string.
    */
-  public static async getShaderString(path: string): Promise<string> {
+  public static async getShaderString(
+    path: string,
+    retryOptions?: FetchRetryOptions,
+  ): Promise<string> {
     const cached = this.shaderCache.get(path);
     if (cached) {
       return cached;
     }
     const fetchPromise = (async () => {
-      const result = await fetchWithRetry(path);
+      const result = await fetchWithRetry(path, retryOptions);
       if (!result.ok) {
         throw new Error(
           `Failed to load shader file at ${path}: HTTP ${result.status} ${result.statusText}`,

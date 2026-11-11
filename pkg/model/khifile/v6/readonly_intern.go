@@ -27,6 +27,7 @@ type ReadonlyPool interface {
 	ResolveStringFromID(id uint32) string
 	ResolveFieldSetFromID(id uint32) []uint32
 	ResolveStructFromID(id uint32) *pb.InternedStruct
+	ResolveStructStringField(structID uint32, fieldPath ...string) (string, bool)
 }
 
 // ReadonlyInternPool provides read-only, memory-optimized access to interned strings, field path sets, and structs.
@@ -40,7 +41,10 @@ type ReadonlyInternPool struct {
 	flatStructs   *FlatStructStore
 }
 
-var _ ReadonlyPool = (*ReadonlyInternPool)(nil)
+var (
+	_ ReadonlyPool = (*ReadonlyInternPool)(nil)
+	_ flatSpanPool = (*ReadonlyInternPool)(nil)
+)
 
 // NewReadonlyInternPool instantiates an empty ReadonlyInternPool.
 func NewReadonlyInternPool() *ReadonlyInternPool {
@@ -134,6 +138,22 @@ func (p *ReadonlyInternPool) ResolveFieldSetFromID(id uint32) []uint32 {
 // ResolveStructFromID resolves an interned struct by its ID, reconstructing its Protobuf representation.
 func (p *ReadonlyInternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
 	return p.flatStructs.ResolveStruct(id)
+}
+
+// ResolveStructStringField resolves the string value at fieldPath in structID without materializing the struct AST.
+//
+// Returns ("", false) when structID or fieldPath is missing, or when the target field does not hold a string value.
+func (p *ReadonlyInternPool) ResolveStructStringField(structID uint32, fieldPath ...string) (string, bool) {
+	return resolveStructStringField(p, structID, fieldPath)
+}
+
+// resolveFlatStructSpan locates the FlatStructStore span for structID in this pool.
+func (p *ReadonlyInternPool) resolveFlatStructSpan(structID uint32) (flatStructSpan, bool) {
+	fieldSetID, offset, count, ok := p.flatStructs.GetValueSpan(structID)
+	if !ok {
+		return flatStructSpan{}, false
+	}
+	return flatStructSpan{pool: p, store: p.flatStructs, fieldSetID: fieldSetID, offset: offset, count: count}, true
 }
 
 // FlatStructStore returns the underlying FlatStructStore.

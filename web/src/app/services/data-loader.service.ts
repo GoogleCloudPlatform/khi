@@ -211,7 +211,7 @@ export class InspectionDataLoaderService {
           'Failed to initialize or attach to the workbench session on the backend.',
         );
       }
-      this.inspectionDataStore.setNewInspectionData(parsedData);
+      this.inspectionDataStore.setNewInspectionData(parsedData, inspectionID);
       this.extension.notifyLifecycleOnInspectionDataOpen(
         parsedData,
         rawInspectionData,

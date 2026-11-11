@@ -428,6 +428,10 @@ describe('TimelineFrameComponent - time range selection', () => {
 
   it('should update viewport models and invalidate all child charts in syncViewportAndInvalidate', () => {
     const charts = queryCharts();
+    const ruler = frameFixture.debugElement.query(
+      By.directive(TimelineRulerComponent),
+    ).componentInstance as TimelineRulerComponent;
+    const rulerSyncSpy = spyOn(ruler, 'syncCanvasSize').and.callThrough();
     charts.forEach((chart) => {
       chart.invalidate = false;
     });
@@ -437,10 +441,12 @@ describe('TimelineFrameComponent - time range selection', () => {
     expect({
       viewportLeftTimeNs: frameComponent.viewportLeftTimeNs(),
       pixelsPerNs: frameComponent.pixelsPerNs(),
+      rulerSynced: rulerSyncSpy.calls.count(),
       invalidated: charts.map((chart) => chart.invalidate),
     }).toEqual({
       viewportLeftTimeNs: 2_000_000_000n,
       pixelsPerNs: 2e-6,
+      rulerSynced: 1,
       invalidated: charts.map(() => true),
     });
   });

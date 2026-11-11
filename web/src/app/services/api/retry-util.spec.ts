@@ -216,16 +216,6 @@ describe('retry-util', () => {
   });
 
   describe('fetchWithRetry', () => {
-    let originalFetch: typeof window.fetch;
-
-    beforeEach(() => {
-      originalFetch = window.fetch;
-    });
-
-    afterEach(() => {
-      window.fetch = originalFetch;
-    });
-
     const testRetryOptions = {
       maxRetries: 3,
       baseDelayMs: 1,
@@ -238,12 +228,11 @@ describe('retry-util', () => {
         statusText: 'OK',
       });
       const fetchSpy = jasmine.createSpy('fetch').and.resolveTo(mockResponse);
-      window.fetch = fetchSpy;
 
-      const response = await fetchWithRetry(
-        'https://example.com',
-        testRetryOptions,
-      );
+      const response = await fetchWithRetry('https://example.com', {
+        ...testRetryOptions,
+        fetchFn: fetchSpy,
+      });
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(response).toBe(mockResponse);
@@ -274,12 +263,11 @@ describe('retry-util', () => {
         }
         return okResponse;
       });
-      window.fetch = fetchSpy;
 
-      const response = await fetchWithRetry(
-        'https://example.com',
-        testRetryOptions,
-      );
+      const response = await fetchWithRetry('https://example.com', {
+        ...testRetryOptions,
+        fetchFn: fetchSpy,
+      });
 
       expect(fetchSpy).toHaveBeenCalledTimes(4);
       expect(response).toBe(okResponse);
@@ -291,12 +279,11 @@ describe('retry-util', () => {
         statusText: 'Bad Gateway',
       });
       const fetchSpy = jasmine.createSpy('fetch').and.resolveTo(response502);
-      window.fetch = fetchSpy;
 
-      const response = await fetchWithRetry(
-        'https://example.com',
-        testRetryOptions,
-      );
+      const response = await fetchWithRetry('https://example.com', {
+        ...testRetryOptions,
+        fetchFn: fetchSpy,
+      });
 
       // Initial call + 3 retries = 4 calls
       expect(fetchSpy).toHaveBeenCalledTimes(4);
@@ -309,12 +296,11 @@ describe('retry-util', () => {
         statusText: 'Not Found',
       });
       const fetchSpy = jasmine.createSpy('fetch').and.resolveTo(response404);
-      window.fetch = fetchSpy;
 
-      const response = await fetchWithRetry(
-        'https://example.com',
-        testRetryOptions,
-      );
+      const response = await fetchWithRetry('https://example.com', {
+        ...testRetryOptions,
+        fetchFn: fetchSpy,
+      });
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(response).toBe(response404);
@@ -330,12 +316,11 @@ describe('retry-util', () => {
         }
         return okResponse;
       });
-      window.fetch = fetchSpy;
 
-      const response = await fetchWithRetry(
-        'https://example.com',
-        testRetryOptions,
-      );
+      const response = await fetchWithRetry('https://example.com', {
+        ...testRetryOptions,
+        fetchFn: fetchSpy,
+      });
 
       expect(fetchSpy).toHaveBeenCalledTimes(3);
       expect(response).toBe(okResponse);
@@ -344,10 +329,12 @@ describe('retry-util', () => {
     it('throws the network TypeError after exhausting maxRetries', async () => {
       const networkError = new TypeError('Failed to fetch');
       const fetchSpy = jasmine.createSpy('fetch').and.rejectWith(networkError);
-      window.fetch = fetchSpy;
 
       await expectAsync(
-        fetchWithRetry('https://example.com', testRetryOptions),
+        fetchWithRetry('https://example.com', {
+          ...testRetryOptions,
+          fetchFn: fetchSpy,
+        }),
       ).toBeRejectedWith(networkError);
 
       // Initial call + 3 retries = 4 calls
@@ -364,13 +351,13 @@ describe('retry-util', () => {
           statusText: 'Bad Gateway',
         });
       });
-      window.fetch = fetchSpy;
 
       const retryPromise = fetchWithRetry('https://example.com', {
         maxRetries: 3,
         baseDelayMs: 1000,
         maxDelayMs: 2000,
         init: { signal: controller.signal },
+        fetchFn: fetchSpy,
       });
 
       // Abort shortly after the first failure triggers backoff delay
@@ -393,7 +380,6 @@ describe('retry-util', () => {
           statusText: 'Bad Gateway',
         });
       });
-      window.fetch = fetchSpy;
 
       const request = new Request('https://example.com', {
         signal: controller.signal,
@@ -403,6 +389,7 @@ describe('retry-util', () => {
         maxRetries: 3,
         baseDelayMs: 1000,
         maxDelayMs: 2000,
+        fetchFn: fetchSpy,
       });
 
       setTimeout(() => controller.abort(), 20);

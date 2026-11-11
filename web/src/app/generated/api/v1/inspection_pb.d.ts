@@ -575,6 +575,19 @@ export declare type CheckboxFormField = Message<'api.v1.CheckboxFormField'> & {
 export declare const CheckboxFormFieldSchema: GenMessage<CheckboxFormField>;
 
 /**
+ * CalloutFormField configures a read-only callout banner displayed in the form without an input control.
+ *
+ * @generated from message api.v1.CalloutFormField
+ */
+export declare type CalloutFormField = Message<'api.v1.CalloutFormField'> & {};
+
+/**
+ * Describes the message api.v1.CalloutFormField.
+ * Use `create(CalloutFormFieldSchema)` to create a new message.
+ */
+export declare const CalloutFormFieldSchema: GenMessage<CalloutFormField>;
+
+/**
  * FormField defines a single input field or group within the dynamic inspection parameter form.
  *
  * @generated from message api.v1.FormField
@@ -665,6 +678,15 @@ export declare type FormField = Message<'api.v1.FormField'> & {
          */
         value: CheckboxFormField;
         case: 'checkbox';
+      }
+    | {
+        /**
+         * Read-only callout banner element.
+         *
+         * @generated from field: api.v1.CalloutFormField callout = 12;
+         */
+        value: CalloutFormField;
+        case: 'callout';
       }
     | { case: undefined; value?: undefined };
 

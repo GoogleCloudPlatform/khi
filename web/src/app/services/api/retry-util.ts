@@ -164,6 +164,14 @@ export function delayWithSignal(
 }
 
 /**
+ * Function signature for executing an HTTP fetch request in {@link fetchWithRetry}.
+ */
+export type FetchFn = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
+
+/**
  * Configuration options for {@link fetchWithRetry}.
  */
 export interface FetchRetryOptions {
@@ -178,6 +186,9 @@ export interface FetchRetryOptions {
 
   /** Maximum backoff delay in milliseconds. Defaults to DEFAULT_RETRY_MAX_DELAY_MS (3000). */
   readonly maxDelayMs?: number;
+
+  /** Custom fetch implementation used to execute HTTP requests. Defaults to globalThis.fetch. */
+  readonly fetchFn?: FetchFn;
 }
 
 /**
@@ -208,13 +219,20 @@ export async function fetchWithRetry(
   const signal =
     options?.init?.signal ??
     (input instanceof Request ? input.signal : undefined);
+  const fetchFn: FetchFn =
+    options?.fetchFn ??
+    ((reqInput: RequestInfo | URL, reqInit?: RequestInit) =>
+      reqInit !== undefined
+        ? globalThis.fetch(reqInput, reqInit)
+        : globalThis.fetch(reqInput));
 
   let retryCount = 0;
   while (true) {
     try {
-      const response = options?.init
-        ? await fetch(input, options.init)
-        : await fetch(input);
+      const response =
+        options?.init !== undefined
+          ? await fetchFn(input, options.init)
+          : await fetchFn(input);
 
       if (signal?.aborted) {
         throw new CancellationError('The operation was aborted.');

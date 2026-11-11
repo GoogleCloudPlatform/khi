@@ -24,31 +24,32 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 )
 
-// TimelineRenderRequest holds the parameters passed to the frontend /render/timeline page.
+// TimelineRenderRequest holds the parameters passed to the frontend /render/mcp-timeline page.
 type TimelineRenderRequest struct {
-	InspectionID           string   `json:"inspectionId"`
-	TimelineQuery          string   `json:"timelineQuery,omitempty"`
-	TimelineExclusionQuery string   `json:"timelineExclusionQuery,omitempty"`
-	LogQuery               string   `json:"logQuery,omitempty"`
-	ExcludeNoLogs          bool     `json:"excludeNoLogs,omitempty"`
-	FilterStartTimeNs      string   `json:"filterStartTimeNs,omitempty"`
-	FilterEndTimeNs        string   `json:"filterEndTimeNs,omitempty"`
-	ViewStartTimeMs        *int64   `json:"viewStartTimeMs,omitempty"`
-	ViewEndTimeMs          *int64   `json:"viewEndTimeMs,omitempty"`
-	TimelineIDs            []uint32 `json:"timelineIds,omitempty"`
-	MaxDepth               int      `json:"maxDepth,omitempty"`
-	MaxNodes               int      `json:"maxNodes,omitempty"`
-	Width                  int      `json:"width,omitempty"`
-	TimezoneShiftHours     float64  `json:"timezoneShiftHours,omitempty"`
+	SceneID                string         `json:"sceneId,omitempty"`
+	ParentSceneID          string         `json:"parentSceneId,omitempty"`
+	InspectionID           string         `json:"inspectionId"`
+	TimelineQuery          string         `json:"timelineQuery,omitempty"`
+	TimelineExclusionQuery string         `json:"timelineExclusionQuery,omitempty"`
+	LogQuery               string         `json:"logQuery,omitempty"`
+	ExcludeNoLogs          bool           `json:"excludeNoLogs,omitempty"`
+	FilterStartTimeNs      string         `json:"filterStartTimeNs,omitempty"`
+	FilterEndTimeNs        string         `json:"filterEndTimeNs,omitempty"`
+	ViewStartTimeMs        *int64         `json:"viewStartTimeMs,omitempty"`
+	ViewEndTimeMs          *int64         `json:"viewEndTimeMs,omitempty"`
+	TimelineIDs            []uint32       `json:"timelineIds,omitempty"`
+	MaxDepth               int            `json:"maxDepth,omitempty"`
+	MaxNodes               int            `json:"maxNodes,omitempty"`
+	TimezoneShiftHours     float64        `json:"timezoneShiftHours,omitempty"`
+	Overlay                *scene.Overlay `json:"overlay,omitempty"`
 }
 
 // TimelineRenderResult holds the captured PNG image and measurement metadata.
 type TimelineRenderResult struct {
 	PNGBytes        []byte
-	Width           int
-	Height          int
 	RenderedCount   int
 	TotalMatched    int
 	HasMore         bool
@@ -91,7 +92,23 @@ func NewChromeTimelineImageRenderer(browser *cdp.Browser, baseURL string) *Chrom
 	}
 }
 
-const defaultTimelineRenderTimeout = 30 * time.Second
+const (
+	defaultTimelineRenderTimeout      = 30 * time.Second
+	defaultTimelineDeviceScaleFactor  = 2
+	fallbackTimelineDeviceScaleFactor = 1
+	// maxTimelinePhysicalDimension caps the rendered backing store dimension so SwiftShader
+	// WebGL2 and Chromium Canvas2D stay safely within an 8192px texture and renderbuffer limit.
+	maxTimelinePhysicalDimension = 8192
+)
+
+// timelineDeviceScaleFactor returns Retina 2x scale when the physical dimensions fit within
+// WebGL backing store limits, and falls back to 1x for oversized layouts.
+func timelineDeviceScaleFactor(width, height int) int {
+	if max(width, height)*defaultTimelineDeviceScaleFactor > maxTimelinePhysicalDimension {
+		return fallbackTimelineDeviceScaleFactor
+	}
+	return defaultTimelineDeviceScaleFactor
+}
 
 // RenderTimeline applies the requested timeline parameters and captures a PNG screenshot.
 func (r *ChromeTimelineImageRenderer) RenderTimeline(ctx context.Context, req TimelineRenderRequest) (*TimelineRenderResult, error) {
@@ -147,7 +164,7 @@ func (r *ChromeTimelineImageRenderer) ensurePageReadyLocked(ctx context.Context)
 }
 
 func (r *ChromeTimelineImageRenderer) navigateToRenderPageLocked(ctx context.Context) error {
-	renderURL := r.baseURL + "/render/timeline"
+	renderURL := r.baseURL + "/render/mcp-timeline"
 	if err := r.client.Navigate(ctx, renderURL); err != nil {
 		return fmt.Errorf("failed to navigate to %s: %w", renderURL, err)
 	}
@@ -163,11 +180,11 @@ func (r *ChromeTimelineImageRenderer) navigateToRenderPageLocked(ctx context.Con
 		}
 		var transportErr *cdp.TransportError
 		if errors.As(err, &transportErr) {
-			return fmt.Errorf("CDP connection failed while waiting for /render/timeline bridge initialization: %w", err)
+			return fmt.Errorf("CDP connection failed while waiting for /render/mcp-timeline bridge initialization: %w", err)
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for /render/timeline bridge initialization: %w", ctx.Err())
+			return fmt.Errorf("timed out waiting for /render/mcp-timeline bridge initialization: %w", ctx.Err())
 		case <-ticker.C:
 		}
 	}
@@ -185,7 +202,8 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 		return nil, fmt.Errorf("failed to apply timeline render parameters: %w", err)
 	}
 
-	if err := r.client.SetViewportSize(ctx, measure.Width, measure.Height); err != nil {
+	scaleFactor := timelineDeviceScaleFactor(measure.Width, measure.Height)
+	if err := r.client.SetViewportSize(ctx, measure.Width, measure.Height, float64(scaleFactor)); err != nil {
 		return nil, fmt.Errorf("failed to set viewport dimensions: %w", err)
 	}
 
@@ -200,8 +218,6 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 
 	return &TimelineRenderResult{
 		PNGBytes:        pngBytes,
-		Width:           measure.Width,
-		Height:          measure.Height,
 		RenderedCount:   measure.RenderedCount,
 		TotalMatched:    measure.TotalMatched,
 		HasMore:         measure.HasMore,
