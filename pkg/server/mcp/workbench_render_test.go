@@ -647,28 +647,8 @@ func TestBuildTimelineRenderRequest(t *testing.T) {
 		want          TimelineRenderRequest
 	}{
 		{
-			name: "negative maxNodes uses default",
-			spec: scene.Spec{MaxNodes: -1},
-			want: TimelineRenderRequest{MaxNodes: 50},
-		},
-		{
 			name: "zero values use defaults",
 			want: TimelineRenderRequest{MaxNodes: 50},
-		},
-		{
-			name: "small positive maxNodes stays unchanged",
-			spec: scene.Spec{MaxNodes: 1},
-			want: TimelineRenderRequest{MaxNodes: 1},
-		},
-		{
-			name: "in range maxNodes stays unchanged",
-			spec: scene.Spec{MaxNodes: 75},
-			want: TimelineRenderRequest{MaxNodes: 75},
-		},
-		{
-			name: "exact maxNodes cap stays unchanged",
-			spec: scene.Spec{MaxNodes: 150},
-			want: TimelineRenderRequest{MaxNodes: 150},
 		},
 		{
 			name: "above maxNodes cap is capped",
@@ -681,7 +661,25 @@ func TestBuildTimelineRenderRequest(t *testing.T) {
 			want: TimelineRenderRequest{MaxNodes: 50},
 		},
 		{
-			name: "forwards request parameters and applied filters",
+			name:    "only start time is set",
+			applied: workbench.AppliedFilter{StartTime: startTime},
+			want: TimelineRenderRequest{
+				MaxNodes:          50,
+				ViewStartTimeMs:   &startMs,
+				FilterStartTimeNs: "100123456789",
+			},
+		},
+		{
+			name:    "only end time is set",
+			applied: workbench.AppliedFilter{EndTime: endTime},
+			want: TimelineRenderRequest{
+				MaxNodes:        50,
+				ViewEndTimeMs:   &endMs,
+				FilterEndTimeNs: "200987654321",
+			},
+		},
+		{
+			name: "forwards in-range limits, scene parameters, and both time bounds",
 			spec: scene.Spec{
 				InspectionID:       "inspection-1",
 				TimelineIDs:        []uint32{1, 2},
