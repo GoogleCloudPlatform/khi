@@ -20,6 +20,7 @@ import {
   effect,
   input,
   output,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -38,9 +39,11 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
+const DIFF_LIST_ROW_HEIGHT_PX = 13;
+
 class DiffListScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
-    super(13, 100, 1000);
+    super(DIFF_LIST_ROW_HEIGHT_PX, 100, 1000);
   }
 }
 
@@ -61,7 +64,6 @@ export interface ResourceOperatorPrincipal {
 
 export interface DiffListRowViewModel {
   revision: ReadonlyDomainElement<Revision>;
-  log: ReadonlyDomainElement<Log> | null;
   index: number;
   isContentChanged: boolean;
   timeLabel: string;
@@ -184,15 +186,19 @@ export class DiffListComponent {
     if (!tl || ls.length === 0) return [];
 
     const shift = this.timezoneShift();
+    const rows: DiffListRowViewModel[] = [];
 
-    return tl.revisions.map((rev, index) => {
+    for (let index = 0; index < tl.revisions.length; index++) {
+      const rev = tl.revisions[index];
+      if (rev.logIndex === -1 || !ls[rev.logIndex]) {
+        continue;
+      }
+
       let isContentChanged = true;
       if (index > 0) {
         const prevRev = tl.revisions[index - 1];
         isContentChanged = rev.structId !== prevRev.structId;
       }
-
-      const log = rev.logIndex !== -1 ? ls[rev.logIndex] : null;
 
       const verb = rev.verb;
       const bg = RendererConvertUtil.hdrColorToCSSColor([
@@ -208,11 +214,10 @@ export class DiffListComponent {
         verb.foregroundColor.a,
       ]);
 
-      return {
+      rows.push({
         revision: rev,
-        log: log,
-        index: index,
-        isContentChanged: isContentChanged,
+        index,
+        isContentChanged,
         timeLabel: formatTimeLabel(rev.changedTime, shift),
         author: rev.principal ? parsePrincipal(rev.principal) : null,
         verbLabel: verb.label,
@@ -220,8 +225,10 @@ export class DiffListComponent {
           backgroundColor: bg,
           color: fg,
         },
-      };
-    });
+      });
+    }
+
+    return rows;
   });
 
   /**
@@ -244,31 +251,52 @@ export class DiffListComponent {
   private disableScrollForNext = false;
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const index = this.selectedLogIndex();
       const selectedRev = this.selectedRevision();
       const timeline = this.timeline();
+      const logs = this.logs();
       const viewPort = this.viewPort();
 
       if (this.disableScrollForNext) {
         this.disableScrollForNext = false;
         return;
       }
-      if (timeline === null) {
+      if (timeline === null || logs.length === 0 || !viewPort) {
         return;
       }
       const revisionIndex =
         selectedRev !== null && selectedRev.timelineId === timeline.id
           ? selectedRev.index
           : timeline.revisions.findIndex((rev) => rev.logIndex === index);
-      if (revisionIndex !== -1) {
-        viewPort?.scrollToIndex(revisionIndex, 'smooth');
+      const rowIndex = untracked(this.rowViewModels).findIndex(
+        (row) => row.index === revisionIndex,
+      );
+      if (rowIndex === -1) {
+        return;
       }
+      const rafId = requestAnimationFrame(() => {
+        viewPort.checkViewportSize();
+        const rowTop = rowIndex * DIFF_LIST_ROW_HEIGHT_PX;
+        const rowBottom = rowTop + DIFF_LIST_ROW_HEIGHT_PX;
+        const scrollTop = viewPort.measureScrollOffset();
+        const viewportSize = viewPort.getViewportSize();
+        if (
+          viewportSize <= 0 ||
+          rowTop < scrollTop ||
+          rowBottom > scrollTop + viewportSize
+        ) {
+          viewPort.scrollToIndex(rowIndex, 'smooth');
+        }
+      });
+      onCleanup(() => cancelAnimationFrame(rafId));
     });
   }
 
   protected _selectRevision(r: ReadonlyDomainElement<Revision>) {
-    this.disableScrollForNext = true;
+    if (this.selectedRevision() !== r) {
+      this.disableScrollForNext = true;
+    }
     this.selectRevision.emit(r);
   }
 

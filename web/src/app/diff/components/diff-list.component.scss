@@ -34,19 +34,21 @@ $unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
 :host {
   display: block;
   height: 100%;
+  overflow: hidden;
 }
 
 .revision-list-wrap {
   width: 100%;
   height: 100%;
   display: flex;
+  overflow: hidden;
 
   cdk-virtual-scroll-viewport {
     flex: 1;
+    height: 100%;
   }
 
   .revision-list {
-    height: 100%;
     margin: 0;
     display: grid;
     grid-template-columns: auto auto auto auto 1fr;
@@ -58,6 +60,9 @@ $unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
+  height: 13px;
+  line-height: 12px;
+  box-sizing: border-box;
   cursor: pointer;
   border-bottom: 0.5px solid $row-border-color;
   position: relative;
@@ -160,7 +165,7 @@ $unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
       padding: 0 4px;
       font-size: 10px;
       font-weight: bold;
-      line-height: normal;
+      line-height: 12px;
     }
   }
 }

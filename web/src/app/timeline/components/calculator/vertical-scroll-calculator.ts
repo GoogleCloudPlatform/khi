@@ -55,6 +55,11 @@ export class VerticalScrollCalculator {
   private readonly accumulatedHeights: number[];
 
   /**
+   * Maps each timeline ID to its index in {@link timelines} for O(1) offset lookups.
+   */
+  private readonly timelineIdToIndex = new Map<number, number>();
+
+  /**
    * The maximum height of a timeline.
    */
   private maxTimelineHeight: number = 0;
@@ -74,6 +79,7 @@ export class VerticalScrollCalculator {
     for (let i = 0; i < this.timelines.length; i++) {
       this.accumulatedHeights[i] = height;
       const timeline = this.timelines[i];
+      this.timelineIdToIndex.set(timeline.id, i);
       const timelineType = this.resolveTimelineType(timeline);
       const timelineHeight = timelineType.height * BASE_ROW_HEIGHT;
       height += timelineHeight;
@@ -213,14 +219,12 @@ export class VerticalScrollCalculator {
    * Calculates the bottom Y coordinate of a specific timeline identified by its ID.
    * Useful for scrolling to a specific timeline or determining its position in the full list.
    *
-   * @param timelineID The unique identifier of the timeline
+   * @param timelineID The unique identifier of the timeline.
    * @returns The bottom Y coordinate of the timeline (px), or 0 if not found.
    */
   timelineIDToTimelineBottomOffset(timelineID: number): number {
-    const timelineIndex = this.timelines.findIndex(
-      (timeline) => timeline.id === timelineID,
-    );
-    if (timelineIndex === -1) {
+    const timelineIndex = this.timelineIdToIndex.get(timelineID);
+    if (timelineIndex === undefined) {
       return 0;
     }
     const timelineType = this.resolveTimelineType(
@@ -231,17 +235,35 @@ export class VerticalScrollCalculator {
   }
 
   /**
+   * Calculates the combined height of all ancestor sticky rows above the given timeline.
+   *
+   * @param timeline The target timeline element.
+   * @returns Total height of ancestor sticky rows in pixels.
+   */
+  public ancestorStickyHeight(
+    timeline: ReadonlyDomainElement<Timeline>,
+  ): number {
+    let height = 0;
+    for (
+      let parent = timeline.parent;
+      parent !== null;
+      parent = parent.parent
+    ) {
+      height += this.resolveTimelineType(parent).height * BASE_ROW_HEIGHT;
+    }
+    return height;
+  }
+
+  /**
    * Calculates the top Y coordinate of a specific timeline identified by its ID.
    * Useful for scrolling to a specific timeline or determining its position in the full list.
    *
-   * @param timelineID The unique identifier of the timeline
+   * @param timelineID The unique identifier of the timeline.
    * @returns The top Y coordinate of the timeline (px), or 0 if not found.
    */
   timelineIDToTimelineTopOffset(timelineID: number): number {
-    const timelineIndex = this.timelines.findIndex(
-      (timeline) => timeline.id === timelineID,
-    );
-    if (timelineIndex === -1) {
+    const timelineIndex = this.timelineIdToIndex.get(timelineID);
+    if (timelineIndex === undefined) {
       return 0;
     }
     return this.accumulatedHeights[timelineIndex];
@@ -250,15 +272,15 @@ export class VerticalScrollCalculator {
   private calculateStickyHeaderHeightFrom(
     timeline: ReadonlyDomainElement<Timeline>,
   ): number {
-    let result = 0;
-    for (
-      let t = timeline.childrenCount === 0 ? timeline.parent : timeline; // If the timeline is a leaf node, the sticky header should start from the parent.
-      t !== null;
-      t = t.parent
-    ) {
-      result += this.resolveTimelineType(t).height * BASE_ROW_HEIGHT;
+    const ancestorHeight = this.ancestorStickyHeight(timeline);
+    if (timeline.childrenCount === 0) {
+      // Leaf timelines are not pinned as sticky headers; only their ancestors are.
+      return ancestorHeight;
     }
-    return result;
+    return (
+      ancestorHeight +
+      this.resolveTimelineType(timeline).height * BASE_ROW_HEIGHT
+    );
   }
 
   /**
