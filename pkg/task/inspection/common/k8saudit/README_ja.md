@@ -123,6 +123,6 @@ graph TD
 
 - **`nonSuccessLogLogToTimelineMapperTask`**: 非成功操作のログをタイムライン上にエラーイベントとして記録します。
 - **`resourceRevisionLogToTimelineMapperTask`**: 各リソースのステータスやマニフェスト差分を持つリビジョンをタイムライン上に記録します。
-- **`resourceOwnerReferenceTimelineMapperTask`**: リソース間の Owner Reference を追跡して関連を付与します。
+- **`resourceOwnerReferenceTimelineMapperTask`**: リソース間の Owner Reference を追跡して関連を付与します。Cilium エージェントは Pod と同じ名前で `CiliumEndpoint` を作成し、その Pod を Owner に設定するため、監査ログにマニフェストが記録されていない場合でも、`CiliumEndpoint` を同じ Namespace・同じ名前の Pod に紐付けます。
 - **`endpointResourceLogToTimelineMapperTask` / `podPhaseLogToTimelineMapperTask` / `containerLogToTimelineMapperTask` / `conditionLogToTimelineMapperTask`**: それぞれ Endpoint リソース、Pod Phase 遷移、コンテナ状態遷移、リソース Condition 履歴を解析・タイムラインへ記録します。
 - **`namespaceRequestLogToTimelineMapperTask`**: Namespace 全体に対するリクエストのイベントをタイムラインへ記録します。
