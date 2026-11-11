@@ -15,6 +15,7 @@
 package inspectionmetadata
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -135,6 +136,27 @@ func TestGetParameterFormFieldBase(t *testing.T) {
 			},
 		},
 		{
+			name: "callout field",
+			input: CalloutParameterFormField{
+				ParameterFormFieldBase: ParameterFormFieldBase{
+					ID:          "callout-1",
+					Label:       "Cluster Prerequisites",
+					Description: "Verify permissions before starting.",
+					Type:        Callout,
+					HintType:    Warning,
+					Hint:        "API Quota Warning: ensure sufficient Cloud Logging read quota.",
+				},
+			},
+			want: ParameterFormFieldBase{
+				ID:          "callout-1",
+				Label:       "Cluster Prerequisites",
+				Description: "Verify permissions before starting.",
+				Type:        Callout,
+				HintType:    Warning,
+				Hint:        "API Quota Warning: ensure sufficient Cloud Logging read quota.",
+			},
+		},
+		{
 			name:  "unknown field",
 			input: struct{}{},
 			want:  ParameterFormFieldBase{},
@@ -248,6 +270,100 @@ func TestUpdateGroupChildTextFieldDefault(t *testing.T) {
 			got := fs.DangerouslyGetField("group-1")
 			if diff := cmp.Diff(tc.wantGroup, got); diff != "" {
 				t.Errorf("UpdateGroupChildTextFieldDefault() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCalloutParameterFormField_SerializationAndSorting(t *testing.T) {
+	testCases := []struct {
+		name       string
+		fields     []ParameterFormField
+		wantFields []ParameterFormField
+		wantJSON   map[string]any
+	}{
+		{
+			name: "sorts callout field by priority and serializes base fields",
+			fields: []ParameterFormField{
+				TextParameterFormField{
+					ParameterFormFieldBase: ParameterFormFieldBase{
+						ID:       "cluster-name",
+						Priority: 10,
+						Type:     Text,
+						Label:    "Cluster Name",
+					},
+				},
+				CalloutParameterFormField{
+					ParameterFormFieldBase: ParameterFormFieldBase{
+						ID:          "log-volume-advisory",
+						Priority:    20,
+						Type:        Callout,
+						Label:       "Log Volume Advisory",
+						Description: "Applies to wide inspection windows.",
+						HintType:    Info,
+						Hint:        "Inspecting more than 3 hours of logs may increase memory usage.",
+						Pending:     true,
+					},
+				},
+			},
+			wantFields: []ParameterFormField{
+				CalloutParameterFormField{
+					ParameterFormFieldBase: ParameterFormFieldBase{
+						ID:          "log-volume-advisory",
+						Priority:    20,
+						Type:        Callout,
+						Label:       "Log Volume Advisory",
+						Description: "Applies to wide inspection windows.",
+						HintType:    Info,
+						Hint:        "Inspecting more than 3 hours of logs may increase memory usage.",
+						Pending:     true,
+					},
+				},
+				TextParameterFormField{
+					ParameterFormFieldBase: ParameterFormFieldBase{
+						ID:       "cluster-name",
+						Priority: 10,
+						Type:     Text,
+						Label:    "Cluster Name",
+					},
+				},
+			},
+			wantJSON: map[string]any{
+				"id":          "log-volume-advisory",
+				"type":        "callout",
+				"label":       "Log Volume Advisory",
+				"description": "Applies to wide inspection windows.",
+				"hintType":    "info",
+				"hint":        "Inspecting more than 3 hours of logs may increase memory usage.",
+				"pending":     true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := NewFormFieldSetMetadata()
+			for _, f := range tc.fields {
+				if err := fs.SetField(f); err != nil {
+					t.Fatalf("SetField() unexpected error: %v", err)
+				}
+			}
+
+			gotFields := fs.Fields()
+			if diff := cmp.Diff(tc.wantFields, gotFields); diff != "" {
+				t.Errorf("Fields() mismatch (-want +got):\n%s", diff)
+			}
+
+			rawBytes, err := json.Marshal(gotFields[0])
+			if err != nil {
+				t.Fatalf("json.Marshal() unexpected error: %v", err)
+			}
+			var gotJSON map[string]any
+			if err := json.Unmarshal(rawBytes, &gotJSON); err != nil {
+				t.Fatalf("json.Unmarshal() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantJSON, gotJSON); diff != "" {
+				t.Errorf("serialized CalloutParameterFormField mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

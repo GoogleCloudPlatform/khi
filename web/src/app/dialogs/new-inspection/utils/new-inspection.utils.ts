@@ -158,6 +158,46 @@ export function computeTotalEstimatedLogs(
   };
 }
 
+type LeafParameterFormField = Exclude<
+  ParameterFormField,
+  GroupParameterFormField
+>;
+
+function isInputField(field: LeafParameterFormField): boolean {
+  return field.type !== ParameterInputType.Callout;
+}
+
+function someLeafField(
+  fields: readonly ParameterFormField[],
+  predicate: (field: LeafParameterFormField) => boolean,
+): boolean {
+  for (const field of fields) {
+    if (field.type === ParameterInputType.Group) {
+      if (someLeafField(field.children, predicate)) {
+        return true;
+      }
+    } else if (predicate(field)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function countLeafFields(
+  fields: readonly ParameterFormField[],
+  predicate: (field: LeafParameterFormField) => boolean,
+): number {
+  let count = 0;
+  for (const field of fields) {
+    if (field.type === ParameterInputType.Group) {
+      count += countLeafFields(field.children, predicate);
+    } else if (predicate(field)) {
+      count++;
+    }
+  }
+  return count;
+}
+
 /**
  * Recursively checks if any parameter field in the form has an error hint.
  *
@@ -165,16 +205,10 @@ export function computeTotalEstimatedLogs(
  * @returns True if at least one field has an error hint.
  */
 export function hasFormErrors(fields: readonly ParameterFormField[]): boolean {
-  for (const field of fields) {
-    if (field.type === ParameterInputType.Group) {
-      if (hasFormErrors(field.children)) {
-        return true;
-      }
-    } else if (field.hintType === ParameterHintType.Error) {
-      return true;
-    }
-  }
-  return false;
+  return someLeafField(
+    fields,
+    (field) => field.hintType === ParameterHintType.Error,
+  );
 }
 
 /**
@@ -220,84 +254,106 @@ export function flattenDefaultValues(
       case ParameterInputType.Group:
         Object.assign(result, flattenDefaultValues(parameter.children));
         break;
-      default:
+      case ParameterInputType.File:
+      case ParameterInputType.Callout:
         break;
+      default: {
+        const exhaustiveCheck: never = parameter;
+        void exhaustiveCheck;
+        break;
+      }
     }
   }
   return result;
 }
 
 /**
- * Counts form fields currently showing an active error hint.
+ * Counts input form fields currently showing an active error hint.
  *
- * Suppresses error count when the field is pending or validating.
+ * Excludes read-only callout banners and suppresses error count when the field is pending or validating.
  *
  * @param parameters The list of parameter form fields to evaluate.
  * @param isValidating A callback returning true if the field is currently being validated.
- * @returns The number of fields with active error hints.
+ * @returns The number of input fields with active error hints.
  */
 export function countErrorFields(
   parameters: readonly ParameterFormField[],
   isValidating: (id: string) => boolean,
 ): number {
-  let result = 0;
-  for (const parameter of parameters) {
-    if (parameter.type === ParameterInputType.Group) {
-      result += countErrorFields(parameter.children, isValidating);
-    } else {
-      const isClientValidating = isValidating(parameter.id);
-      const isPending = !!parameter.pending || isClientValidating;
-      if (parameter.hintType === ParameterHintType.Error && !isPending) {
-        result++;
-      }
+  return countLeafFields(parameters, (field) => {
+    if (!isInputField(field)) {
+      return false;
     }
-  }
-  return result;
+    const isPending = !!field.pending || isValidating(field.id);
+    return field.hintType === ParameterHintType.Error && !isPending;
+  });
 }
 
 /**
- * Counts form fields currently in a pending or validating state.
+ * Counts input form fields currently in a pending or validating state.
+ *
+ * Excludes read-only callout banners.
  *
  * @param parameters The list of parameter form fields to evaluate.
  * @param isValidating A callback returning true if the field is currently being validated.
- * @returns The number of fields currently pending.
+ * @returns The number of input fields currently pending.
  */
 export function countPendingFields(
   parameters: readonly ParameterFormField[],
   isValidating: (id: string) => boolean,
 ): number {
-  let result = 0;
-  for (const parameter of parameters) {
-    if (parameter.type === ParameterInputType.Group) {
-      result += countPendingFields(parameter.children, isValidating);
-    } else {
-      const isClientValidating = isValidating(parameter.id);
-      if (parameter.pending || isClientValidating) {
-        result++;
-      }
-    }
-  }
-  return result;
+  return countLeafFields(
+    parameters,
+    (field) =>
+      isInputField(field) && (!!field.pending || isValidating(field.id)),
+  );
 }
 
 /**
- * Counts all non-group input fields within the parameter list.
+ * Checks whether any read-only callout banner in the form has an active error severity.
+ *
+ * Suppresses error status while the callout itself is pending.
  *
  * @param parameters The list of parameter form fields to evaluate.
- * @returns The total number of non-group fields.
+ * @returns True if at least one non-pending callout banner has an error severity.
+ */
+export function hasCalloutErrors(
+  parameters: readonly ParameterFormField[],
+): boolean {
+  return someLeafField(
+    parameters,
+    (field) =>
+      field.type === ParameterInputType.Callout &&
+      field.hintType === ParameterHintType.Error &&
+      !field.pending,
+  );
+}
+
+/**
+ * Checks whether any read-only callout banner in the form is currently pending.
+ *
+ * @param parameters The list of parameter form fields to evaluate.
+ * @returns True if at least one callout banner is pending.
+ */
+export function hasPendingCallouts(
+  parameters: readonly ParameterFormField[],
+): boolean {
+  return someLeafField(
+    parameters,
+    (field) => field.type === ParameterInputType.Callout && !!field.pending,
+  );
+}
+
+/**
+ * Counts all user-configurable input fields within the parameter list, excluding groups and read-only callouts.
+ *
+ * @param parameters The list of parameter form fields to evaluate.
+ * @returns The total number of user input fields.
  */
 export function countAllFields(
   parameters: readonly ParameterFormField[],
 ): number {
-  let result = 0;
-  for (const parameter of parameters) {
-    if (parameter.type === ParameterInputType.Group) {
-      result += countAllFields(parameter.children);
-    } else {
-      result++;
-    }
-  }
-  return result;
+  return countLeafFields(parameters, isInputField);
 }
 
 /**

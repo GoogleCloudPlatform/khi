@@ -910,3 +910,140 @@ func TestConvertParametersToMap_Checkbox(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertFormFields_Callout(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input []inspectionmetadata.ParameterFormField
+		want  []*apiv1.FormField
+	}{
+		{
+			name: "converts info, warning, and error callout form fields",
+			input: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.CalloutParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:          "log-volume-advisory",
+						Type:        inspectionmetadata.Callout,
+						Label:       "Log Volume Advisory",
+						Description: "Applies when querying long durations.",
+						Hint:        "Queries spanning over 6 hours may take longer to complete.",
+						HintType:    inspectionmetadata.Info,
+						Priority:    10,
+					},
+				},
+				inspectionmetadata.CalloutParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:          "api-quota-warning",
+						Type:        inspectionmetadata.Callout,
+						Label:       "API Quota Warning",
+						Description: "",
+						Hint:        "Cloud Logging read quota is below recommended threshold.",
+						HintType:    inspectionmetadata.Warning,
+						Pending:     true,
+					},
+				},
+				inspectionmetadata.CalloutParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:       "default-severity-callout",
+						Type:     inspectionmetadata.Callout,
+						Label:    "Cluster Prerequisites",
+						Hint:     "Audit log queries use UTC timestamps.",
+						HintType: "",
+					},
+				},
+				inspectionmetadata.GroupParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:       "cluster-prereqs",
+						Type:     inspectionmetadata.Group,
+						Label:    "Cluster Prerequisites",
+						HintType: inspectionmetadata.None,
+					},
+					Collapsible:        true,
+					CollapsedByDefault: false,
+					Children: []inspectionmetadata.ParameterFormField{
+						inspectionmetadata.CalloutParameterFormField{
+							ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+								ID:       "missing-log-bucket",
+								Type:     inspectionmetadata.Callout,
+								Label:    "Missing Required Log Bucket",
+								Hint:     "Required log bucket was not found in the target project.",
+								HintType: inspectionmetadata.Error,
+							},
+						},
+					},
+				},
+			},
+			want: []*apiv1.FormField{
+				{
+					Id:          proto.String("log-volume-advisory"),
+					Label:       proto.String("Log Volume Advisory"),
+					Description: proto.String("Applies when querying long durations."),
+					Hint:        proto.String("Queries spanning over 6 hours may take longer to complete."),
+					HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_INFO.Enum(),
+					Pending:     proto.Bool(false),
+					Kind: &apiv1.FormField_Callout{
+						Callout: &apiv1.CalloutFormField{},
+					},
+				},
+				{
+					Id:          proto.String("api-quota-warning"),
+					Label:       proto.String("API Quota Warning"),
+					Description: proto.String(""),
+					Hint:        proto.String("Cloud Logging read quota is below recommended threshold."),
+					HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_WARNING.Enum(),
+					Pending:     proto.Bool(true),
+					Kind: &apiv1.FormField_Callout{
+						Callout: &apiv1.CalloutFormField{},
+					},
+				},
+				{
+					Id:          proto.String("default-severity-callout"),
+					Label:       proto.String("Cluster Prerequisites"),
+					Description: proto.String(""),
+					Hint:        proto.String("Audit log queries use UTC timestamps."),
+					HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_INFO.Enum(),
+					Pending:     proto.Bool(false),
+					Kind: &apiv1.FormField_Callout{
+						Callout: &apiv1.CalloutFormField{},
+					},
+				},
+				{
+					Id:          proto.String("cluster-prereqs"),
+					Label:       proto.String("Cluster Prerequisites"),
+					Description: proto.String(""),
+					Hint:        proto.String(""),
+					HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_NONE.Enum(),
+					Pending:     proto.Bool(false),
+					Kind: &apiv1.FormField_Group{
+						Group: &apiv1.GroupFormField{
+							Collapsible:        proto.Bool(true),
+							CollapsedByDefault: proto.Bool(false),
+							Children: []*apiv1.FormField{
+								{
+									Id:          proto.String("missing-log-bucket"),
+									Label:       proto.String("Missing Required Log Bucket"),
+									Description: proto.String(""),
+									Hint:        proto.String("Required log bucket was not found in the target project."),
+									HintType:    apiv1.ParameterHintType_PARAMETER_HINT_TYPE_ERROR.Enum(),
+									Pending:     proto.Bool(false),
+									Kind: &apiv1.FormField_Callout{
+										Callout: &apiv1.CalloutFormField{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := convertFormFields(tc.input)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("convertFormFields() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

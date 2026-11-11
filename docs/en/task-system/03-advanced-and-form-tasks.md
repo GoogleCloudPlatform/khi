@@ -235,12 +235,13 @@ To allow users to enter or select parameters (such as project IDs, locations, cl
 
 ### 4.1 Types of Form Definition Functions
 
-Choose from the following 4 form definition functions depending on the input format:
+Choose from the following 5 form definition functions depending on the form element:
 
 - **`formtask.DefineTextForm(...)`**: Defines form tasks for string or text input (supporting autocomplete, type conversion, and regular expression validation).
 - **`formtask.DefineSetForm(...)`**: Defines form tasks that let users select single or multiple values from options, such as dropdowns or checklists.
 - **`formtask.DefineCheckboxForm(...)`**: Defines form tasks for boolean checkbox toggles.
 - **`formtask.DefineFileForm(...)`**: Defines form tasks that accept log file uploads or file path selections from the user's local environment.
+- **`formtask.DefineCalloutForm(...)`**: Defines read-only callout banners (`Info`, `Warning`, or `Error`) to display prerequisite notices or advisories without an input control.
 
 ### 4.2 Building Rich Input Forms and Autocomplete Integrations
 
@@ -305,6 +306,33 @@ var ClusterIdentityTask = inspectiontaskbase.DefineInspectionTask(
                 Location:    locationInput.Get(ctx),
                 ClusterName: clusterNameInput.Get(ctx),
             }, nil
+        }
+    },
+)
+```
+
+### 4.4 Displaying Read-Only Callout Banners (`DefineCalloutForm`)
+
+To display a read-only prerequisite notice, quota warning, or blocking error banner in the parameter form without rendering an input control, use `formtask.DefineCalloutForm`:
+
+- Returning an empty message or `inspectionmetadata.None` omits the banner from the form.
+- Returning `inspectionmetadata.Error` disables the Run button in the UI and fails execution in `TaskModeRun` until resolved.
+
+```go
+var LogVolumeAdvisoryTask = formtask.DefineCalloutForm(
+    LogVolumeAdvisoryTaskID,
+    1000,
+    "Log Volume Advisory",
+    "Checks the selected query duration.",
+    func(b *coretask.Binder) formtask.CalloutFormSpec {
+        duration := coretask.Use(b, InputDurationTaskID.Ref())
+        return formtask.CalloutFormSpec{
+            Callout: func(ctx context.Context) (string, inspectionmetadata.ParameterHintType, error) {
+                if duration.Get(ctx) > 6*time.Hour {
+                    return "Wide time ranges increase Cloud Logging scan volume and memory usage.", inspectionmetadata.Warning, nil
+                }
+                return "", inspectionmetadata.None, nil
+            },
         }
     },
 )

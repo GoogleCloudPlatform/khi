@@ -33,6 +33,8 @@ import {
 import {
   countErrorFields,
   countPendingFields,
+  hasCalloutErrors,
+  hasPendingCallouts,
 } from 'src/app/dialogs/new-inspection/utils/new-inspection.utils';
 
 /**
@@ -103,13 +105,33 @@ export class ParameterInputStepComponent {
   });
 
   /**
+   * Indicates whether any read-only callout banner currently reports an active error.
+   */
+  readonly hasCalloutError = computed(() => {
+    const vm = this.parameterViewModel();
+    if (!vm) return false;
+    return hasCalloutErrors(vm.rootGroupForm.children);
+  });
+
+  /**
+   * Indicates whether any read-only callout banner is currently resolving asynchronously.
+   */
+  readonly hasPendingCallout = computed(() => {
+    const vm = this.parameterViewModel();
+    if (!vm) return false;
+    return hasPendingCallouts(vm.rootGroupForm.children);
+  });
+
+  /**
    * Indicates whether the run inspection button should be disabled.
    */
   readonly isRunButtonDisabled = computed(
     () =>
       this.hasRun() ||
       this.errorFieldCount() !== 0 ||
-      this.pendingFieldCount() !== 0,
+      this.hasCalloutError() ||
+      this.pendingFieldCount() !== 0 ||
+      this.hasPendingCallout(),
   );
 
   /**

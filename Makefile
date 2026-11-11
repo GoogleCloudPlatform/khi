@@ -36,7 +36,7 @@ clean: ## Clean build artifacts and generated files
 	@echo "Cleaning frontend artifacts..."
 	rm -rf ./pkg/server/dist web/.angular web/coverage
 	@echo "Cleaning test and coverage reports..."
-	rm -rf go-cover.html go-cover.output result.json
+	rm -rf go-cover.html go-cover.output go-cover-diff.output result.json
 	@echo "Cleaning intermediate generated files..."
 	rm -rf pkg/generated
 	rm -rf web/angular.json web/src/environments/version.*.ts

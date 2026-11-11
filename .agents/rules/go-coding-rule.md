@@ -11,7 +11,7 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 1. **Build Verification**: Before running tests or submitting changes, you must always verify that your code compiles successfully.
    - Run `make build-go` to ensure there are no compilation errors across the backend.
-2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. But make sure you run `make test-go` before asking the user to verify.
+2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. Run `make coverage-diff` to inspect differential test coverage and ensure substantive newly added or modified logic blocks are covered by unit tests. Make sure you run `make test-go` before asking the user to verify.
 3. **Formatting and Linting**:
    - Run `make format-go` to ensure standard Go formatting.
    - Run `make lint-go` if applicable, and ensure no new linting errors are introduced.

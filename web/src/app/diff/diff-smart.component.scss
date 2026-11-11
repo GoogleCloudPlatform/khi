@@ -26,6 +26,7 @@ $principal-user: #e53935;
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
   font-size: 10px;
 }
 
@@ -48,6 +49,7 @@ mat-toolbar {
 
 as-split {
   flex: 1;
+  min-height: 0;
 }
 
 ngx-unified-diff {

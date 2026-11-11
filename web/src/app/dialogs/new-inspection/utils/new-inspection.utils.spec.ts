@@ -21,6 +21,7 @@ import {
   InspectionType,
 } from 'src/app/common/schema/api-types';
 import {
+  CalloutParameterFormField,
   CheckboxParameterFormField,
   FileParameterFormField,
   GroupParameterFormField,
@@ -45,8 +46,10 @@ import {
   countErrorFields,
   countPendingFields,
   flattenDefaultValues,
+  hasCalloutErrors,
   hasDryRunErrors,
   hasFormErrors,
+  hasPendingCallouts,
 } from 'src/app/dialogs/new-inspection/utils/new-inspection.utils';
 
 describe('new-inspection.utils', () => {
@@ -935,6 +938,124 @@ describe('new-inspection.utils', () => {
       ];
 
       expect(countAllFields(fields)).toBe(2);
+    });
+
+    it('should exclude Callout fields from field count while counting input fields', () => {
+      const fields: ParameterFormField[] = [
+        {
+          id: 'callout-1',
+          type: ParameterInputType.Callout,
+          label: 'Log Volume Advisory',
+          description: '',
+          hint: 'Wide query windows increase memory consumption.',
+          hintType: ParameterHintType.Info,
+        } as CalloutParameterFormField,
+        {
+          id: 'field1',
+          type: ParameterInputType.Text,
+          label: 'Field 1',
+          description: '',
+          hint: '',
+          hintType: ParameterHintType.None,
+          default: '',
+          readonly: false,
+          suggestions: [],
+          validationTiming: ParameterFormValidationTiming.Blur,
+        } as TextParameterFormField,
+        {
+          id: 'group1',
+          type: ParameterInputType.Group,
+          label: 'Group 1',
+          description: '',
+          hint: '',
+          hintType: ParameterHintType.None,
+          collapsible: false,
+          collapsedByDefault: false,
+          children: [
+            {
+              id: 'callout-2',
+              type: ParameterInputType.Callout,
+              label: 'Missing Required Log Bucket',
+              description: '',
+              hint: 'Required log bucket is unavailable.',
+              hintType: ParameterHintType.Error,
+            } as CalloutParameterFormField,
+          ],
+        } as GroupParameterFormField,
+      ];
+
+      expect(countAllFields(fields)).toBe(1);
+    });
+  });
+
+  describe('callout error and pending helpers', () => {
+    it('excludes Callout fields from countErrorFields and countPendingFields', () => {
+      const fields: ParameterFormField[] = [
+        {
+          id: 'callout-error',
+          type: ParameterInputType.Callout,
+          label: 'Missing Required Log Bucket',
+          description: '',
+          hint: 'Required log bucket is unavailable.',
+          hintType: ParameterHintType.Error,
+        } as CalloutParameterFormField,
+        {
+          id: 'callout-pending',
+          type: ParameterInputType.Callout,
+          label: 'Cluster Prerequisites',
+          description: '',
+          hint: 'Checking IAM permissions...',
+          hintType: ParameterHintType.Info,
+          pending: true,
+        } as CalloutParameterFormField,
+      ];
+
+      expect(countErrorFields(fields, () => false)).toBe(0);
+      expect(countPendingFields(fields, () => false)).toBe(0);
+      expect(hasFormErrors(fields)).toBeTrue();
+      expect(flattenDefaultValues(fields)).toEqual({});
+    });
+
+    it('detects active non-pending error callouts via hasCalloutErrors', () => {
+      const activeErrorCallout: ParameterFormField[] = [
+        {
+          id: 'group1',
+          type: ParameterInputType.Group,
+          label: 'Cluster Prerequisites',
+          description: '',
+          hint: '',
+          hintType: ParameterHintType.None,
+          collapsible: false,
+          collapsedByDefault: false,
+          children: [
+            {
+              id: 'callout-error',
+              type: ParameterInputType.Callout,
+              label: 'Missing Required Log Bucket',
+              description: '',
+              hint: 'Required log bucket is unavailable.',
+              hintType: ParameterHintType.Error,
+            } as CalloutParameterFormField,
+          ],
+        } as GroupParameterFormField,
+      ];
+
+      const pendingErrorCallout: ParameterFormField[] = [
+        {
+          id: 'callout-error-pending',
+          type: ParameterInputType.Callout,
+          label: 'Missing Required Log Bucket',
+          description: '',
+          hint: 'Re-checking log bucket...',
+          hintType: ParameterHintType.Error,
+          pending: true,
+        } as CalloutParameterFormField,
+      ];
+
+      expect(hasCalloutErrors(activeErrorCallout)).toBeTrue();
+      expect(hasCalloutErrors(pendingErrorCallout)).toBeFalse();
+      expect(hasPendingCallouts(pendingErrorCallout)).toBeTrue();
+      expect(hasPendingCallouts(activeErrorCallout)).toBeFalse();
     });
   });
 
