@@ -159,3 +159,64 @@ export const Default: Story = {
     hoveredBadge: null,
   },
 };
+
+const compactRowAboveSpanScene = buildTimelineSceneViewModel({
+  indexPaneWidthPx: 420,
+  viewportLeftTimeMs: 1_000_000,
+  pixelsPerMs: 0.01,
+  rows: [
+    { id: 1, heightPx: 25 },
+    { id: 2, heightPx: 25 },
+    { id: 3, heightPx: 50 },
+  ],
+  overlay: {
+    palette: [
+      {
+        id: 'before',
+        main: '#1976d2',
+        onMain: '#fafafa',
+        soft: 'rgba(25, 118, 210, 0.13)',
+        surface: '#e8f1fb',
+      },
+      {
+        id: 'after',
+        main: '#b45309',
+        onMain: '#fafafa',
+        soft: 'rgba(180, 83, 9, 0.13)',
+        surface: '#f8eee6',
+      },
+    ],
+    spans: [
+      {
+        id: 'sp-before',
+        label: 'averageUtilization: 20 ~ 27%',
+        startTimeMs: 1_010_000,
+        endTimeMs: 1_032_000,
+        durationLabel: '',
+        timelineIds: [2],
+        pattern: TimelineSpanPattern.OUTLINE,
+        hideDuration: true,
+        paletteId: 'before',
+      },
+      {
+        id: 'sp-after',
+        label: 'averageUtilization: 1 ~ 2%',
+        startTimeMs: 1_035_000,
+        endTimeMs: 1_070_000,
+        durationLabel: '',
+        timelineIds: [2],
+        pattern: TimelineSpanPattern.SOLID,
+        hideDuration: true,
+        paletteId: 'after',
+      },
+    ],
+  },
+});
+
+export const CompactRowAboveSpanLabels: Story = {
+  args: {
+    scene: compactRowAboveSpanScene,
+    interactiveMode: true,
+    hoveredBadge: null,
+  },
+};
