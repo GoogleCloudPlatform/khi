@@ -43,6 +43,10 @@ var resourceOwnerReferenceTimelineMapperTask = k8saudit.DefineManifestLogToTimel
 			nonNamespacedOwnerTypes: map[string]struct{}{
 				"core/v1#node": {},
 			},
+			podOwnedTypesByName: map[string]struct{}{
+				// The Cilium agent creates a CiliumEndpoint with the same namespace and name as its Pod and sets the Pod as the owner.
+				"cilium.io#ciliumendpoint": {},
+			},
 		}
 	},
 )
@@ -53,6 +57,9 @@ type resourceOwnerReferenceTimelineMapperTaskSetting struct {
 
 	// nonNamespacedOwnerTypes is the set of owner types that are not namespaced.
 	nonNamespacedOwnerTypes map[string]struct{}
+	// podOwnedTypesByName is the set of resource types ("<API group>#<kind>") whose resources are owned by the Pod with the same namespace and name.
+	// It links these resources to their Pods even when audit logs do not record their manifests, which is common for custom resources.
+	podOwnedTypesByName map[string]struct{}
 }
 
 // ResolveRelatedGroupSets implements k8saudit.ManifestLogToTimelineMapper.
@@ -75,14 +82,6 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ResolveRelatedGroupSet
 func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
-	bodyReader, ok := event.GetLastBodyReader("target")
-	if !ok || bodyReader == nil {
-		return cs, struct{}{}, nil
-	}
-	ownerReferencesReaders, err := bodyReader.GetReader(pathOwnerReferences)
-	if err != nil {
-		return cs, struct{}{}, nil
-	}
 	k8sFieldSet, err := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	if err != nil {
 		return cs, struct{}{}, err
@@ -92,6 +91,26 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	}
 
 	aliasPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
+
+	if r.isOwnedByPodWithSameName(event.ResourceIdentity) {
+		podPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, &k8saudit.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  event.ResourceIdentity.Namespace,
+			Name:       event.ResourceIdentity.Name,
+		})
+		// This path equals the path derived from the Pod in the ownerReferences of the manifest, so both aliases point to the same timeline.
+		cs.AddAlias(k8saudit.MustOwnedResourceTimeline(ctx, podPath, ownedResourceTimelineName(event.ResourceIdentity)), aliasPath)
+	}
+
+	bodyReader, ok := event.GetLastBodyReader("target")
+	if !ok || bodyReader == nil {
+		return cs, struct{}{}, nil
+	}
+	ownerReferencesReaders, err := bodyReader.GetReader(pathOwnerReferences)
+	if err != nil {
+		return cs, struct{}{}, nil
+	}
 
 	for _, ownerReferenceReader := range ownerReferencesReaders.Children() {
 		kind, err := ownerReferenceReader.ReadString(pathOwnerKind)
@@ -123,10 +142,24 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 		}
 		ownerPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, ownerIdentity)
 
-		ownLabel := fmt.Sprintf("%s[kind:%s]", event.ResourceIdentity.Name, event.ResourceIdentity.Kind)
-		targetPath := k8saudit.MustOwnedResourceTimeline(ctx, ownerPath, ownLabel)
+		targetPath := k8saudit.MustOwnedResourceTimeline(ctx, ownerPath, ownedResourceTimelineName(event.ResourceIdentity))
 
 		cs.AddAlias(targetPath, aliasPath)
 	}
 	return cs, struct{}{}, nil
+}
+
+// isOwnedByPodWithSameName reports whether the resource is of a type owned by the Pod with the same namespace and name.
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) isOwnedByPodWithSameName(identity *k8saudit.ResourceIdentity) bool {
+	if identity.Type() != k8saudit.Resource || identity.Namespace == "" || identity.Namespace == k8saudit.ClusterScopeNamespace {
+		return false
+	}
+	group, _, _ := strings.Cut(identity.APIVersion, "/")
+	_, found := r.podOwnedTypesByName[fmt.Sprintf("%s#%s", group, identity.Kind)]
+	return found
+}
+
+// ownedResourceTimelineName returns the name of the timeline showing an owned resource under the timeline of its owner.
+func ownedResourceTimelineName(identity *k8saudit.ResourceIdentity) string {
+	return fmt.Sprintf("%s[kind:%s]", identity.Name, identity.Kind)
 }
