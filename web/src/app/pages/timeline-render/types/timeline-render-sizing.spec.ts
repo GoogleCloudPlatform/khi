@@ -34,6 +34,8 @@ import {
   TimelineStageDimensions,
   calculateTimelineStageDimensions,
   createCanvasTextWidthMeasurer,
+  getExcerptActionLabel,
+  getExcerptKindLabel,
   planExcerptDeckLayout,
 } from 'src/app/pages/timeline-render/types/timeline-render-sizing';
 import { TimelineType } from 'src/app/store/domain/style';
@@ -373,6 +375,38 @@ describe('timeline-render-sizing', () => {
       expect(got.requiredDeckWidthPx).toBeLessThanOrEqual(MAX_STAGE_WIDTH_PX);
     });
   }
+
+  it('should return matching kind tags and interactive action labels for DIFF, MANIFEST, and LOG excerpts', () => {
+    expect({
+      diffKind: getExcerptKindLabel(TimelineExcerptKind.DIFF),
+      manifestKind: getExcerptKindLabel(TimelineExcerptKind.MANIFEST),
+      logKind: getExcerptKindLabel(TimelineExcerptKind.LOG),
+      diffAction: getExcerptActionLabel(TimelineExcerptKind.DIFF),
+      manifestAction: getExcerptActionLabel(TimelineExcerptKind.MANIFEST),
+      logAction: getExcerptActionLabel(TimelineExcerptKind.LOG),
+    }).toEqual({
+      diffKind: 'DIFF',
+      manifestKind: 'MANIFEST',
+      logKind: 'LOG',
+      diffAction: 'Open Diff',
+      manifestAction: 'Open Manifest',
+      logAction: 'Open Log',
+    });
+
+    const manifestPlan = planExcerptDeckLayout(
+      [
+        makeExcerptCard(
+          'm1',
+          TimelineExcerptKind.MANIFEST,
+          'averageUtilization: 40',
+        ),
+      ],
+      fixedCharWidthMeasurer,
+    );
+    expect(manifestPlan.preset).toBe(ExcerptDeckGridPreset.COLS_1);
+    expect(manifestPlan.columns).toBe(1);
+    expect(manifestPlan.requiredDeckWidthPx).toBeGreaterThan(0);
+  });
 
   it('should measure monotonic widths with createCanvasTextWidthMeasurer', () => {
     const measure = createCanvasTextWidthMeasurer();

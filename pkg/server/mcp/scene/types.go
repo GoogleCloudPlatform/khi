@@ -37,6 +37,8 @@ const (
 	AnnotationLayerRowHighlights AnnotationLayer = "rowHighlights"
 	// AnnotationLayerDiffExcerpts clears resource diff excerpt cards on a parent scene.
 	AnnotationLayerDiffExcerpts AnnotationLayer = "diffExcerpts"
+	// AnnotationLayerManifestExcerpts clears resource manifest excerpt cards on a parent scene.
+	AnnotationLayerManifestExcerpts AnnotationLayer = "manifestExcerpts"
 	// AnnotationLayerLogExcerpts clears structured log excerpt cards on a parent scene.
 	AnnotationLayerLogExcerpts AnnotationLayer = "logExcerpts"
 	// AnnotationLayerConnectors clears connector annotations on a parent scene.
@@ -105,12 +107,14 @@ const (
 	RevisionEdgeEnd RevisionEdge = "end"
 )
 
-// ExcerptKind classifies an evidence deck card as a resource diff or structured log excerpt.
+// ExcerptKind classifies an evidence deck card as a resource diff, resource manifest, or structured log excerpt.
 type ExcerptKind string
 
 const (
 	// ExcerptKindDiff identifies a resource manifest diff excerpt card.
 	ExcerptKindDiff ExcerptKind = "diff"
+	// ExcerptKindManifest identifies a static or point-in-time resource manifest excerpt card.
+	ExcerptKindManifest ExcerptKind = "manifest"
 	// ExcerptKindLog identifies a structured log excerpt card.
 	ExcerptKindLog ExcerptKind = "log"
 )
@@ -123,25 +127,26 @@ type PaletteEntry struct {
 
 // Annotations groups declarative visual overlays and patch directives for a rendered timeline scene.
 type Annotations struct {
-	ClearLayers     []AnnotationLayer     `json:"clearLayers,omitempty" jsonschema:"Optional layer names to clear from parentSceneId before adding items: 'palette', 'markers', 'spans', 'rowHighlights', 'diffExcerpts', 'logExcerpts', 'connectors', 'callouts', or 'all'."`
-	RemoveIDs       []string              `json:"removeIds,omitempty" jsonschema:"Optional badges, labels, or palette entry IDs (e.g. 'E2', 'ALERT', 'trigger') to remove from parentSceneId."`
-	Palette         []PaletteEntry        `json:"palette,omitempty" jsonschema:"Named color definitions shared across markers, spans, rowHighlights, connectors, callouts, and evidence deck cards via paletteId (max 16)."`
-	Markers         []MarkerAnnotation    `json:"markers,omitempty" jsonschema:"Vertical indicator lines with auto-staggered callout pills in the top annotation band (max 12)."`
-	Spans           []SpanAnnotation      `json:"spans,omitempty" jsonschema:"Time-range bands across the full chart or scoped via timelineQuery/timelineIds, including hatched missing-log gaps (max 6)."`
-	RowHighlights   []RowHighlight        `json:"rowHighlights,omitempty" jsonschema:"Highlights focal resource subtrees via timelineQuery or timelineIds with left-gutter role badges."`
-	DimUnlistedRows *bool                 `json:"dimUnlistedRows,omitempty" jsonschema:"Softly dims background rows outside rowHighlights when true."`
-	DiffExcerpts    []DiffExcerpt         `json:"diffExcerpts,omitempty" jsonschema:"Resource YAML diff cards anchored to a revision and rendered in the bottom evidence deck (max 6 total excerpts)."`
-	LogExcerpts     []LogExcerpt          `json:"logExcerpts,omitempty" jsonschema:"Structured log excerpt cards anchored to a logId and rendered in the bottom evidence deck (max 6 total excerpts)."`
-	Connectors      []ConnectorAnnotation `json:"connectors,omitempty" jsonschema:"Directed causal arrows across rows or horizontal delta-time calipers between two anchors (max 8)."`
-	Callouts        []CalloutAnnotation   `json:"callouts,omitempty" jsonschema:"Compact 1-line inline callout cards pinned to a row event or revision (max 8)."`
+	ClearLayers      []AnnotationLayer     `json:"clearLayers,omitempty" jsonschema:"Optional layer names to clear from parentSceneId before adding items: 'palette', 'markers', 'spans', 'rowHighlights', 'diffExcerpts', 'manifestExcerpts', 'logExcerpts', 'connectors', 'callouts', or 'all'."`
+	RemoveIDs        []string              `json:"removeIds,omitempty" jsonschema:"Optional badges, labels, or palette entry IDs (e.g. 'E2', 'ALERT', 'trigger') to remove from parentSceneId."`
+	Palette          []PaletteEntry        `json:"palette,omitempty" jsonschema:"Named color definitions shared across markers, spans, rowHighlights, connectors, callouts, and evidence deck cards via paletteId (max 16)."`
+	Markers          []MarkerAnnotation    `json:"markers,omitempty" jsonschema:"Vertical indicator lines with auto-staggered callout pills in the top annotation band (max 12)."`
+	Spans            []SpanAnnotation      `json:"spans,omitempty" jsonschema:"Time-range bands across the full chart or scoped via timelineQuery/timelineIds, including hatched missing-log gaps (max 6)."`
+	RowHighlights    []RowHighlight        `json:"rowHighlights,omitempty" jsonschema:"Highlights focal resource subtrees via timelineQuery or timelineIds with left-gutter role badges."`
+	DimUnlistedRows  *bool                 `json:"dimUnlistedRows,omitempty" jsonschema:"Softly dims background rows outside rowHighlights when true."`
+	DiffExcerpts     []DiffExcerpt         `json:"diffExcerpts,omitempty" jsonschema:"Resource YAML diff cards anchored to a revision and rendered in the bottom evidence deck (max 6 total excerpts)."`
+	ManifestExcerpts []ManifestExcerpt     `json:"manifestExcerpts,omitempty" jsonschema:"Resource YAML manifest cards anchored to a revisionIndex or point-in-time timestamp and rendered in the bottom evidence deck (max 6 total excerpts)."`
+	LogExcerpts      []LogExcerpt          `json:"logExcerpts,omitempty" jsonschema:"Structured log excerpt cards anchored to a logId and rendered in the bottom evidence deck (max 6 total excerpts)."`
+	Connectors       []ConnectorAnnotation `json:"connectors,omitempty" jsonschema:"Directed causal arrows across rows or horizontal delta-time calipers between two anchors (max 8)."`
+	Callouts         []CalloutAnnotation   `json:"callouts,omitempty" jsonschema:"Compact 1-line inline callout cards pinned to a row event or revision (max 8)."`
 }
 
 // SliceWindow specifies a literal search spot and surrounding context lines to retain.
 type SliceWindow struct {
-	Query       string `json:"query" jsonschema:"Case-sensitive literal substring to match within the target diff or log."`
+	Query       string `json:"query" jsonschema:"Case-sensitive literal substring to match within the target diff, manifest, or log."`
 	BeforeLines int    `json:"beforeLines" jsonschema:"Number of context lines to retain before each match (0..5)."`
 	AfterLines  int    `json:"afterLines" jsonschema:"Number of context lines to retain after each match (0..5)."`
-	MaxMatches  int    `json:"maxMatches,omitempty" jsonschema:"Maximum occurrences of this query to slice within the target diff or log (default 2, max 4)."`
+	MaxMatches  int    `json:"maxMatches,omitempty" jsonschema:"Maximum occurrences of this query to slice within the target diff, manifest, or log (default 2, max 4)."`
 }
 
 // RevisionRef identifies a resource revision transition by timeline ID and 0-based revision index.
@@ -157,6 +162,17 @@ type DiffExcerpt struct {
 	Windows   []SliceWindow `json:"windows,omitempty" jsonschema:"Search spots within the managedFields-stripped unified diff. Disjoint matches are joined with 'N lines omitted' bands."`
 	Note      string        `json:"note,omitempty" jsonschema:"Optional 1-line human summary rendered in the card footer, visually separated from verbatim diff lines (max 80 chars)."`
 	PaletteID string        `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits automatically from a co-anchored item or enclosing rowHighlight when omitted."`
+}
+
+// ManifestExcerpt slices static or point-in-time YAML lines from a resource manifest into a bottom deck card.
+type ManifestExcerpt struct {
+	TimelineID    uint32        `json:"timelineId" jsonschema:"Target resource timeline ID from search_timelines."`
+	RevisionIndex *int          `json:"revisionIndex,omitempty" jsonschema:"0-based revision index from get_resource_revisions. Specify either revisionIndex or time."`
+	Time          *time.Time    `json:"time,omitempty" jsonschema:"Point-in-time timestamp in RFC3339 format selecting the effective revision at that moment. Specify either revisionIndex or time."`
+	Badge         string        `json:"badge,omitempty" jsonschema:"Optional short pin badge such as 'E1'. Defaults to 'E1'..'En' ordered by timestamp."`
+	Windows       []SliceWindow `json:"windows,omitempty" jsonschema:"Search spots within the managedFields-stripped resource YAML manifest. Disjoint matches are joined with 'N lines omitted' bands."`
+	Note          string        `json:"note,omitempty" jsonschema:"Optional 1-line human summary rendered in the card footer, visually separated from verbatim manifest lines (max 80 chars)."`
+	PaletteID     string        `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits automatically from a co-anchored item or enclosing rowHighlight when omitted."`
 }
 
 // LogExcerpt slices structured YAML or multiline payload lines from a log entry into a bottom deck card.
@@ -414,6 +430,7 @@ func isAnnotationsEmpty(a *Annotations) bool {
 		len(a.RowHighlights) == 0 &&
 		a.DimUnlistedRows == nil &&
 		len(a.DiffExcerpts) == 0 &&
+		len(a.ManifestExcerpts) == 0 &&
 		len(a.LogExcerpts) == 0 &&
 		len(a.Connectors) == 0 &&
 		len(a.Callouts) == 0
@@ -478,6 +495,12 @@ func cloneAnnotations(a *Annotations) *Annotations {
 	out.DiffExcerpts = slices.Clone(a.DiffExcerpts)
 	for i := range out.DiffExcerpts {
 		out.DiffExcerpts[i].Windows = slices.Clone(out.DiffExcerpts[i].Windows)
+	}
+	out.ManifestExcerpts = slices.Clone(a.ManifestExcerpts)
+	for i := range out.ManifestExcerpts {
+		out.ManifestExcerpts[i].RevisionIndex = clonePtr(out.ManifestExcerpts[i].RevisionIndex)
+		out.ManifestExcerpts[i].Time = clonePtr(out.ManifestExcerpts[i].Time)
+		out.ManifestExcerpts[i].Windows = slices.Clone(out.ManifestExcerpts[i].Windows)
 	}
 	out.LogExcerpts = slices.Clone(a.LogExcerpts)
 	for i := range out.LogExcerpts {

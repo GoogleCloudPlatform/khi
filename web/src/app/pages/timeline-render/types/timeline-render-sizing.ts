@@ -15,6 +15,7 @@
  */
 
 import { InjectionToken } from '@angular/core';
+import { unreachable } from 'src/app/common/misc-util';
 import {
   TimelineExcerptKind,
   TimelineResolvedExcerptCard,
@@ -332,10 +333,35 @@ export function calculateIndexPaneWidthPx(
 }
 
 /**
- * Returns the interactive jump button label for a diff or log evidence deck card.
+ * Returns the uppercase kind pill text for an evidence deck card.
+ */
+export function getExcerptKindLabel(kind: TimelineExcerptKind): string {
+  switch (kind) {
+    case TimelineExcerptKind.DIFF:
+      return 'DIFF';
+    case TimelineExcerptKind.MANIFEST:
+      return 'MANIFEST';
+    case TimelineExcerptKind.LOG:
+      return 'LOG';
+    default:
+      return unreachable(kind);
+  }
+}
+
+/**
+ * Returns the interactive jump button label for a diff, manifest, or log evidence deck card.
  */
 export function getExcerptActionLabel(kind: TimelineExcerptKind): string {
-  return kind === TimelineExcerptKind.DIFF ? 'Open Diff' : 'Open Log';
+  switch (kind) {
+    case TimelineExcerptKind.DIFF:
+      return 'Open Diff';
+    case TimelineExcerptKind.MANIFEST:
+      return 'Open Manifest';
+    case TimelineExcerptKind.LOG:
+      return 'Open Log';
+    default:
+      return unreachable(kind);
+  }
 }
 
 /**
@@ -346,7 +372,7 @@ export function measureExcerptCardUnclampedWidthPx(
   measureText: TextWidthMeasurer,
 ): number {
   const isDiff = card.kind === TimelineExcerptKind.DIFF;
-  const kindTag = isDiff ? 'DIFF' : 'LOG';
+  const kindTag = getExcerptKindLabel(card.kind);
   const actionLabel = getExcerptActionLabel(card.kind);
 
   const headerTopRowWidthPx =

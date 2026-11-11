@@ -582,7 +582,58 @@ describe('buildTimelineSceneViewModel', () => {
       'Open Diff',
       'Open Log',
     ]);
+    expect(vm.deck.cards.map((c) => c.kindLabel)).toEqual(['DIFF', 'LOG']);
     expect(vm.estimatedTotalHeightPx).toBeGreaterThan(vm.stageHeightPx);
+  });
+
+  it('builds manifest excerpt cards with MANIFEST kindLabel, Open Manifest actionLabel, and 1-based YAML line numbers', () => {
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: sampleRows,
+      overlay: {
+        excerpts: [
+          {
+            id: 'ex-manifest',
+            kind: TimelineExcerptKind.MANIFEST,
+            badge: 'SPEC',
+            paletteId: 'default',
+            timeMs: 1_020_000,
+            timeLabel: '00:17:00',
+            timelineId: 20,
+            resourcePath: 'horizontalpodautoscaler · default/frontend-hpa',
+            title: 'Manifest · Resource exists',
+            subtitle: '29 lines',
+            revisionIndex: 0,
+            logId: 7,
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.CONTEXT,
+                newLineNum: 13,
+                text: '        averageUtilization: 40',
+                parts: [
+                  { text: '        ' },
+                  { text: 'averageUtilization: 40', matched: true },
+                ],
+              },
+            ],
+            note: 'Static target utilization threshold',
+          },
+        ],
+      },
+    });
+
+    expect(vm.deck.cards.length).toBe(1);
+    expect(vm.deck.cards[0].kind).toBe(TimelineExcerptKind.MANIFEST);
+    expect(vm.deck.cards[0].kindLabel).toBe('MANIFEST');
+    expect(vm.deck.cards[0].actionLabel).toBe('Open Manifest');
+    expect(vm.deck.cards[0].lines[0].gutterNew).toBe('13');
+    expect(vm.deck.cards[0].jumpTarget).toEqual({
+      timelineId: 20,
+      revisionIndex: 0,
+      logId: 7,
+    });
   });
 
   it('caps deck cards at 6 under the 3x2 grid preset', () => {

@@ -45,6 +45,10 @@ func timeRef(t time.Time) *time.Time {
 	return &t
 }
 
+func intRef(v int) *int {
+	return &v
+}
+
 func wantErrorResult(code string, bullets ...string) *mcpsdk.CallToolResult {
 	res, _, _ := mdtemplate.ErrorResult(code, bullets...)
 	return res
@@ -215,6 +219,9 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			DiffExcerpts: []DiffExcerpt{
 				{Badge: "E1", Revision: RevisionRef{TimelineID: 5, RevisionIndex: 1}, Note: "Node condition transition", PaletteID: "trigger"},
 			},
+			ManifestExcerpts: []ManifestExcerpt{
+				{Badge: "SPEC", TimelineID: 5, Time: timeRef(tStart), Note: "Baseline manifest", PaletteID: "trigger"},
+			},
 		},
 	}
 	parentScene, err := store.Issue("", parentSpec, Document{InspectionID: "insp-oom"})
@@ -254,7 +261,8 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			patch: Spec{
 				Filter: workbench.Filter{EndTime: timeRef(tZoomEnd)},
 				Annotations: &Annotations{
-					RemoveIDs: []string{"2", "E1", " trigger "},
+					ClearLayers: []AnnotationLayer{AnnotationLayerManifestExcerpts},
+					RemoveIDs:   []string{"2", "E1", " trigger "},
 					Spans: []SpanAnnotation{
 						{Label: "Customer impact window", Start: Anchor{TimelineID: 1, LogID: 1}, End: Anchor{TimelineID: 1, LogID: 2}, PaletteID: "victim"},
 					},
@@ -283,11 +291,13 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			patch: Spec{
 				MaxDepth: 3,
 				Annotations: &Annotations{
+					RemoveIDs: []string{"SPEC"},
 					Palette: []PaletteEntry{
 						{ID: " trigger ", Color: "teal"},
 						{ID: "recovery", Color: "green"},
 					},
-					LogExcerpts: []LogExcerpt{{Badge: "E2", LogID: 20, Note: "Container exitCode=137", PaletteID: "victim"}},
+					ManifestExcerpts: []ManifestExcerpt{{Badge: "AFTER", TimelineID: 5, Time: timeRef(tEnd), Note: "Updated manifest", PaletteID: "recovery"}},
+					LogExcerpts:      []LogExcerpt{{Badge: "E2", LogID: 20, Note: "Container exitCode=137", PaletteID: "victim"}},
 				},
 			},
 			wantSpec: Spec{
@@ -312,6 +322,9 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 					},
 					DiffExcerpts: []DiffExcerpt{
 						{Badge: "E1", Revision: RevisionRef{TimelineID: 5, RevisionIndex: 1}, Note: "Node condition transition", PaletteID: "trigger"},
+					},
+					ManifestExcerpts: []ManifestExcerpt{
+						{Badge: "AFTER", TimelineID: 5, Time: timeRef(tEnd), Note: "Updated manifest", PaletteID: "recovery"},
 					},
 					LogExcerpts: []LogExcerpt{
 						{Badge: "E2", LogID: 20, Note: "Container exitCode=137", PaletteID: "victim"},
@@ -373,7 +386,7 @@ func TestStore_MergePatchAndZeroCostBranching(t *testing.T) {
 			wantErrResult: wantErrorResult(
 				"INVALID_ARGUMENT",
 				"Unknown annotation layer `unknownLayer` in `annotations.clearLayers`.",
-				"Supported layers: `palette`, `markers`, `spans`, `rowHighlights`, `diffExcerpts`, `logExcerpts`, `connectors`, `callouts`, `all`.",
+				"Supported layers: `palette`, `markers`, `spans`, `rowHighlights`, `diffExcerpts`, `manifestExcerpts`, `logExcerpts`, `connectors`, `callouts`, `all`.",
 			),
 		},
 	}

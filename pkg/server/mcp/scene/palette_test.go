@@ -305,6 +305,14 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 					Windows:  []SliceWindow{{Query: "image:", BeforeLines: 1, AfterLines: 2}},
 				},
 			},
+			ManifestExcerpts: []ManifestExcerpt{
+				{
+					TimelineID:    10,
+					RevisionIndex: &revIdx,
+					Time:          &start,
+					Windows:       []SliceWindow{{Query: "replicas:", BeforeLines: 1, AfterLines: 1}},
+				},
+			},
 		},
 	}
 
@@ -315,6 +323,9 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 	*cloned.Annotations.DimUnlistedRows = false
 	*cloned.Annotations.Markers[0].Anchor.RevisionIndex = 99
 	cloned.Annotations.DiffExcerpts[0].Windows[0].BeforeLines = 5
+	*cloned.Annotations.ManifestExcerpts[0].RevisionIndex = 77
+	*cloned.Annotations.ManifestExcerpts[0].Time = start.Add(5 * time.Minute)
+	cloned.Annotations.ManifestExcerpts[0].Windows[0].AfterLines = 4
 
 	if orig.TimelineIDs[0] != 10 {
 		t.Errorf("orig.TimelineIDs[0] mutated to %d, want 10", orig.TimelineIDs[0])
@@ -333,5 +344,14 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 	}
 	if orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines != 1 {
 		t.Errorf("orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines mutated to %d, want 1", orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines)
+	}
+	if *orig.Annotations.ManifestExcerpts[0].RevisionIndex != 2 {
+		t.Errorf("orig.Annotations.ManifestExcerpts[0].RevisionIndex mutated to %d, want 2", *orig.Annotations.ManifestExcerpts[0].RevisionIndex)
+	}
+	if !orig.Annotations.ManifestExcerpts[0].Time.Equal(start) {
+		t.Errorf("orig.Annotations.ManifestExcerpts[0].Time mutated to %v, want %v", *orig.Annotations.ManifestExcerpts[0].Time, start)
+	}
+	if orig.Annotations.ManifestExcerpts[0].Windows[0].AfterLines != 1 {
+		t.Errorf("orig.Annotations.ManifestExcerpts[0].Windows[0].AfterLines mutated to %d, want 1", orig.Annotations.ManifestExcerpts[0].Windows[0].AfterLines)
 	}
 }

@@ -283,6 +283,13 @@ func TestSliceWorkbenchIntegration(t *testing.T) {
 			t.Fatalf("SliceLogDetail() error = %v, want %v", err, workbench.ErrLogNotFound)
 		}
 	})
+
+	t.Run("SliceResourceManifest returns ErrTimelineNotFound for unknown timeline", func(t *testing.T) {
+		_, err := SliceResourceManifest(fx.wb, 999999, workbench.RevisionAtIndex(0), ManifestSliceOptions{})
+		if !errors.Is(err, workbench.ErrTimelineNotFound) {
+			t.Fatalf("SliceResourceManifest() error = %v, want %v", err, workbench.ErrTimelineNotFound)
+		}
+	})
 }
 
 func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
@@ -414,7 +421,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			},
 			{
 				ID:         "marker-2",
-				Badge:      "1",
+				Badge:      "E2",
 				Label:      "Container OOMKilled",
 				Style:      MarkerStylePin,
 				PaletteID:  "victim",
@@ -644,6 +651,425 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 	}
 }
 
+func TestResolve_ManifestExcerptsAndBadgeSync(t *testing.T) {
+	fx := setupResolverFixture(t)
+	ctx := context.Background()
+
+	nodeRev0Bounds, err := fx.wb.ResolveRevisionBounds(fx.nodeTimelineID, 0)
+	if err != nil {
+		t.Fatalf("ResolveRevisionBounds(node, 0) error = %v", err)
+	}
+	nodeRev1Bounds, err := fx.wb.ResolveRevisionBounds(fx.nodeTimelineID, 1)
+	if err != nil {
+		t.Fatalf("ResolveRevisionBounds(node, 1) error = %v", err)
+	}
+	podRev0Bounds, err := fx.wb.ResolveRevisionBounds(fx.podTimelineID, 0)
+	if err != nil {
+		t.Fatalf("ResolveRevisionBounds(pod, 0) error = %v", err)
+	}
+
+	revZero := 0
+	revOne := 1
+	zoomStart := fx.baseTime.Add(20 * time.Minute)
+	zoomEnd := fx.baseTime.Add(40 * time.Minute)
+	steadyPointTime := fx.baseTime.Add(28 * time.Minute)
+	earlyRefTime := fx.baseTime.Add(21 * time.Minute)
+	lateRefTime := fx.baseTime.Add(36 * time.Minute)
+
+	type badgeSyncOutcome struct {
+		Overlay        *Overlay
+		MarkerBadges   []string
+		DiffBadges     []string
+		ManifestBadges []string
+		LogBadges      []string
+	}
+
+	testCases := []struct {
+		name string
+		spec Spec
+		want badgeSyncOutcome
+	}{
+		{
+			name: "clamps revisionIndex manifest excerpt active across viewStart and anchors time-queried manifest excerpt at exact point",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Filter: workbench.Filter{
+					StartTime: &zoomStart,
+					EndTime:   &zoomEnd,
+				},
+				Annotations: &Annotations{
+					Palette: []PaletteEntry{
+						{ID: "before", Color: "slate"},
+						{ID: "incident", Color: "amber"},
+					},
+					ManifestExcerpts: []ManifestExcerpt{
+						{
+							TimelineID:    fx.nodeTimelineID,
+							RevisionIndex: &revZero,
+							Badge:         "BEFORE",
+							PaletteID:     "before",
+							Windows:       []SliceWindow{{Query: "KubeletReady", BeforeLines: 1, AfterLines: 0}},
+							Note:          "Steady Ready=True prior to incident",
+						},
+						{
+							TimelineID: fx.nodeTimelineID,
+							Time:       &steadyPointTime,
+							Badge:      "DURING",
+							PaletteID:  "incident",
+							Windows:    []SliceWindow{{Query: "KubeletNotReady", BeforeLines: 1, AfterLines: 0}},
+							Note:       "Point-in-time state at 09:28Z",
+						},
+					},
+				},
+			},
+			want: badgeSyncOutcome{
+				Overlay: &Overlay{
+					AutoIncludeTimelineIDs: []uint32{fx.nodeTimelineID},
+					Palette: []ResolvedPaletteColors{
+						{
+							ID:      "before",
+							Main:    "#546e7a",
+							OnMain:  "#fafafa",
+							Soft:    "rgba(84, 110, 122, 0.13)",
+							Surface: "#eef1f2",
+						},
+						{
+							ID:      "incident",
+							Main:    "#b45309",
+							OnMain:  "#fafafa",
+							Soft:    "rgba(180, 83, 9, 0.13)",
+							Surface: "#f8eee6",
+						},
+					},
+					Excerpts: []ResolvedExcerptCard{
+						{
+							ID:           "excerpt-1",
+							Kind:         ExcerptKindManifest,
+							Badge:        "BEFORE",
+							PaletteID:    "before",
+							TimeMs:       zoomStart.UnixMilli(),
+							TimeLabel:    "09:20:00Z",
+							TimelineID:   fx.nodeTimelineID,
+							ResourcePath: "node · gke-node-1",
+							Title:        "Manifest · Resource exists",
+							Subtitle:     "7 lines",
+							Lines: []ExcerptLine{
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+								{Kind: ExcerptLineKindContext, NewLineNum: 6, Text: `  ready: "True"`},
+								{
+									Kind:       ExcerptLineKindContext,
+									NewLineNum: 7,
+									Text:       "  reason: KubeletReady",
+									Parts: []LinePart{
+										{Text: "  reason: "},
+										{Text: "KubeletReady", Matched: true},
+									},
+								},
+							},
+							Note:          "Steady Ready=True prior to incident",
+							LogTimestamp:  "2026-10-01T09:10:00Z",
+							LogID:         nodeRev0Bounds.Revision.LogID,
+							RevisionIndex: &revZero,
+						},
+						{
+							ID:           "excerpt-2",
+							Kind:         ExcerptKindManifest,
+							Badge:        "DURING",
+							PaletteID:    "incident",
+							TimeMs:       steadyPointTime.UnixMilli(),
+							TimeLabel:    "09:28:00Z",
+							TimelineID:   fx.nodeTimelineID,
+							ResourcePath: "node · gke-node-1",
+							Title:        "Manifest · Resource exists",
+							Subtitle:     "7 lines",
+							Lines: []ExcerptLine{
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+								{Kind: ExcerptLineKindContext, NewLineNum: 6, Text: `  ready: "False"`},
+								{
+									Kind:       ExcerptLineKindContext,
+									NewLineNum: 7,
+									Text:       "  reason: KubeletNotReady",
+									Parts: []LinePart{
+										{Text: "  reason: "},
+										{Text: "KubeletNotReady", Matched: true},
+									},
+								},
+							},
+							Note:          "Point-in-time state at 09:28Z",
+							LogTimestamp:  "2026-10-01T09:24:00Z",
+							LogID:         nodeRev1Bounds.Revision.LogID,
+							RevisionIndex: &revOne,
+						},
+					},
+				},
+				ManifestBadges: []string{"BEFORE", "DURING"},
+			},
+		},
+		{
+			name: "synchronizes co-anchored badges in both directions, numbers unanchored markers chronologically, and orders tied diff before manifest before log",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					Markers: []MarkerAnnotation{
+						// Input index 0 is latest (09:36Z) -> receives chronological badge "2".
+						{
+							Anchor: Anchor{Time: &lateRefTime},
+							Label:  "Post-incident check",
+							Style:  MarkerStyleReference,
+						},
+						// Input index 1 is co-anchored with node rev 1 diff/manifest (09:24Z) -> inherits "E2".
+						{
+							Anchor: Anchor{TimelineID: fx.nodeTimelineID, RevisionIndex: &revOne},
+							Label:  "Node NotReady transition",
+						},
+						// Input index 2 has explicit badge "OOM" at 09:25Z -> co-anchored LogExcerpt inherits "OOM".
+						{
+							Anchor: Anchor{LogID: fx.oomEventLogID},
+							Label:  "App OOMKilled",
+							Badge:  "OOM",
+						},
+						// Input index 3 is earliest (09:21Z) -> receives chronological badge "1".
+						{
+							Anchor: Anchor{Time: &earlyRefTime},
+							Label:  "Traffic surge started",
+							Style:  MarkerStyleReference,
+						},
+					},
+					ManifestExcerpts: []ManifestExcerpt{
+						{
+							TimelineID:    fx.podTimelineID,
+							RevisionIndex: &revZero,
+							Windows:       []SliceWindow{{Query: "phase: Running"}},
+						},
+						{
+							TimelineID:    fx.nodeTimelineID,
+							RevisionIndex: &revOne,
+							Windows:       []SliceWindow{{Query: "name: gke-node-1"}},
+						},
+					},
+					DiffExcerpts: []DiffExcerpt{
+						{
+							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
+							Windows:  []SliceWindow{{Query: "KubeletNotReady"}},
+						},
+					},
+					LogExcerpts: []LogExcerpt{
+						{
+							LogID: fx.oomEventLogID,
+						},
+					},
+				},
+			},
+			want: badgeSyncOutcome{
+				Overlay: &Overlay{
+					AutoIncludeTimelineIDs: []uint32{fx.nodeTimelineID, fx.podTimelineID, fx.appTimelineID},
+					Palette: []ResolvedPaletteColors{
+						{
+							ID:      "default",
+							Main:    "#1976d2",
+							OnMain:  "#fafafa",
+							Soft:    "rgba(25, 118, 210, 0.13)",
+							Surface: "#e8f1fb",
+						},
+						{
+							ID:      "default-reference",
+							Main:    "#5e35b1",
+							OnMain:  "#fafafa",
+							Soft:    "rgba(94, 53, 177, 0.13)",
+							Surface: "#efebf7",
+						},
+					},
+					Markers: []ResolvedMarker{
+						{
+							ID:        "marker-1",
+							Badge:     "1",
+							Label:     "Traffic surge started",
+							Style:     MarkerStyleReference,
+							PaletteID: "default-reference",
+							TimeMs:    earlyRefTime.UnixMilli(),
+							TimeLabel: "09:21:00Z",
+						},
+						{
+							ID:            "marker-2",
+							Badge:         "E2",
+							Label:         "Node NotReady transition",
+							Style:         MarkerStylePin,
+							PaletteID:     "default",
+							TimeMs:        fx.baseTime.Add(24 * time.Minute).UnixMilli(),
+							TimeLabel:     "09:24:00Z",
+							TimelineID:    fx.nodeTimelineID,
+							LogID:         nodeRev1Bounds.Revision.LogID,
+							RevisionIndex: &revOne,
+						},
+						{
+							ID:         "marker-3",
+							Badge:      "OOM",
+							Label:      "App OOMKilled",
+							Style:      MarkerStylePin,
+							PaletteID:  "default",
+							TimeMs:     fx.baseTime.Add(25 * time.Minute).UnixMilli(),
+							TimeLabel:  "09:25:00Z",
+							TimelineID: fx.appTimelineID,
+							LogID:      fx.oomEventLogID,
+						},
+						{
+							ID:        "marker-4",
+							Badge:     "2",
+							Label:     "Post-incident check",
+							Style:     MarkerStyleReference,
+							PaletteID: "default-reference",
+							TimeMs:    lateRefTime.UnixMilli(),
+							TimeLabel: "09:36:00Z",
+						},
+					},
+					Excerpts: []ResolvedExcerptCard{
+						{
+							ID:           "excerpt-1",
+							Kind:         ExcerptKindManifest,
+							Badge:        "E1",
+							PaletteID:    "default",
+							TimeMs:       fx.baseTime.Add(12 * time.Minute).UnixMilli(),
+							TimeLabel:    "09:12:00Z",
+							TimelineID:   fx.podTimelineID,
+							ResourcePath: "pod · default/web-1",
+							Title:        "Manifest · Resource exists",
+							Subtitle:     "6 lines",
+							Lines: []ExcerptLine{
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+								{
+									Kind:       ExcerptLineKindContext,
+									NewLineNum: 6,
+									Text:       "  phase: Running",
+									Parts: []LinePart{
+										{Text: "  "},
+										{Text: "phase: Running", Matched: true},
+									},
+								},
+							},
+							LogTimestamp:  "2026-10-01T09:12:00Z",
+							InsertID:      "audit-pod-web-1",
+							LogID:         podRev0Bounds.Revision.LogID,
+							RevisionIndex: &revZero,
+						},
+						{
+							ID:           "excerpt-2",
+							Kind:         ExcerptKindDiff,
+							Badge:        "E2",
+							PaletteID:    "default",
+							TimeMs:       fx.baseTime.Add(24 * time.Minute).UnixMilli(),
+							TimeLabel:    "09:24:00Z",
+							TimelineID:   fx.nodeTimelineID,
+							ResourcePath: "node · gke-node-1",
+							Title:        "Patch · Resource exists",
+							Subtitle:     "+2 / -2 · 7 diff lines",
+							Lines: []ExcerptLine{
+								{Kind: ExcerptLineKindDeleted, OldLineNum: 6, Text: `  ready: "True"`},
+								{Kind: ExcerptLineKindDeleted, OldLineNum: 7, Text: "  reason: KubeletReady"},
+								{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: `  ready: "False"`},
+								{
+									Kind:       ExcerptLineKindAdded,
+									NewLineNum: 7,
+									Text:       "  reason: KubeletNotReady",
+									Parts: []LinePart{
+										{Text: "  reason: "},
+										{Text: "KubeletNotReady", Matched: true},
+									},
+								},
+							},
+							LogTimestamp:  "2026-10-01T09:24:00Z",
+							LogID:         nodeRev1Bounds.Revision.LogID,
+							RevisionIndex: &revOne,
+						},
+						{
+							ID:           "excerpt-3",
+							Kind:         ExcerptKindManifest,
+							Badge:        "E3",
+							PaletteID:    "default",
+							TimeMs:       fx.baseTime.Add(24 * time.Minute).UnixMilli(),
+							TimeLabel:    "09:24:00Z",
+							TimelineID:   fx.nodeTimelineID,
+							ResourcePath: "node · gke-node-1",
+							Title:        "Manifest · Resource exists",
+							Subtitle:     "7 lines",
+							Lines: []ExcerptLine{
+								{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+								{
+									Kind:       ExcerptLineKindContext,
+									NewLineNum: 4,
+									Text:       "  name: gke-node-1",
+									Parts: []LinePart{
+										{Text: "  "},
+										{Text: "name: gke-node-1", Matched: true},
+									},
+								},
+								{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+							},
+							LogTimestamp:  "2026-10-01T09:24:00Z",
+							LogID:         nodeRev1Bounds.Revision.LogID,
+							RevisionIndex: &revOne,
+						},
+						{
+							ID:           "excerpt-4",
+							Kind:         ExcerptKindLog,
+							Badge:        "OOM",
+							PaletteID:    "default",
+							TimeMs:       fx.baseTime.Add(25 * time.Minute).UnixMilli(),
+							TimeLabel:    "09:25:00Z",
+							TimelineID:   fx.appTimelineID,
+							ResourcePath: "web-1/app · container",
+							Title:        "k8s event · ERROR",
+							Subtitle:     "4 lines",
+							Lines: []ExcerptLine{
+								{Kind: ExcerptLineKindSummary, Text: "Container app OOMKilled"},
+							},
+							LogTimestamp: "2026-10-01T09:25:00Z",
+							InsertID:     "evt-oom",
+							LogID:        fx.oomEventLogID,
+						},
+					},
+				},
+				// Back-filled on spec.Annotations in input slice order.
+				MarkerBadges:   []string{"2", "E2", "OOM", "1"},
+				DiffBadges:     []string{"E2"},
+				ManifestBadges: []string{"E1", "E3"},
+				LogBadges:      []string{"OOM"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			specCopy := tc.spec.Clone()
+			applied := fx.wb.ResolveFilter(specCopy.Filter)
+			gotOverlay, errRes, err := Resolve(ctx, fx.wb, fx.inspectionID, &specCopy, applied)
+			if err != nil {
+				t.Fatalf("Resolve() unexpected error = %v", err)
+			}
+			if errRes != nil {
+				t.Fatalf("Resolve() unexpected tool error = %+v", errRes)
+			}
+			got := badgeSyncOutcome{Overlay: gotOverlay}
+			if specCopy.Annotations != nil {
+				for _, m := range specCopy.Annotations.Markers {
+					got.MarkerBadges = append(got.MarkerBadges, m.Badge)
+				}
+				for _, d := range specCopy.Annotations.DiffExcerpts {
+					got.DiffBadges = append(got.DiffBadges, d.Badge)
+				}
+				for _, me := range specCopy.Annotations.ManifestExcerpts {
+					got.ManifestBadges = append(got.ManifestBadges, me.Badge)
+				}
+				for _, l := range specCopy.Annotations.LogExcerpts {
+					got.LogBadges = append(got.LogBadges, l.Badge)
+				}
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Resolve() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestResolve_Errors(t *testing.T) {
 	fx := setupResolverFixture(t)
 	ctx := context.Background()
@@ -775,6 +1201,161 @@ func TestResolve_Errors(t *testing.T) {
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
 					LogExcerpts: make([]LogExcerpt, 7),
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "exceeding total excerpt card cap across diff, manifest, and log excerpts returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					DiffExcerpts:     make([]DiffExcerpt, 2),
+					ManifestExcerpts: make([]ManifestExcerpt, 3),
+					LogExcerpts:      make([]LogExcerpt, 2),
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "manifestExcerpt with neither revisionIndex nor time returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					ManifestExcerpts: []ManifestExcerpt{
+						{TimelineID: fx.nodeTimelineID},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "manifestExcerpt with both revisionIndex and time returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					ManifestExcerpts: []ManifestExcerpt{
+						{
+							TimelineID:    fx.nodeTimelineID,
+							RevisionIndex: intRef(0),
+							Time:          &narrowStart,
+						},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "manifestExcerpt time outside viewport returns ANCHOR_OUT_OF_VIEWPORT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Filter: workbench.Filter{
+					StartTime: &narrowStart,
+					EndTime:   &narrowEnd,
+				},
+				Annotations: &Annotations{
+					ManifestExcerpts: []ManifestExcerpt{
+						{
+							TimelineID: fx.nodeTimelineID,
+							Time:       timeRef(fx.baseTime.Add(25 * time.Minute)),
+						},
+					},
+				},
+			},
+			wantCode: "ANCHOR_OUT_OF_VIEWPORT",
+		},
+		{
+			name: "manifestExcerpt revisionIndex whose active interval ended before viewStart returns ANCHOR_OUT_OF_VIEWPORT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Filter: workbench.Filter{
+					StartTime: &narrowStart,
+					EndTime:   &narrowEnd,
+				},
+				Annotations: &Annotations{
+					ManifestExcerpts: []ManifestExcerpt{
+						{
+							TimelineID:    fx.nodeTimelineID,
+							RevisionIndex: intRef(0), // active [09:10, 09:24), ended before 09:30
+						},
+					},
+				},
+			},
+			wantCode: "ANCHOR_OUT_OF_VIEWPORT",
+		},
+		{
+			name: "manifestExcerpt revisionIndex starting after viewEnd returns ANCHOR_OUT_OF_VIEWPORT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Filter: workbench.Filter{
+					StartTime: timeRef(fx.baseTime.Add(15 * time.Minute)),
+					EndTime:   timeRef(fx.baseTime.Add(30 * time.Minute)),
+				},
+				Annotations: &Annotations{
+					ManifestExcerpts: []ManifestExcerpt{
+						{
+							TimelineID:    fx.nodeTimelineID,
+							RevisionIndex: intRef(2), // starts at 09:34 > 09:30
+						},
+					},
+				},
+			},
+			wantCode: "ANCHOR_OUT_OF_VIEWPORT",
+		},
+		{
+			name: "unmatched manifest slice query returns SLICE_QUERY_NOT_FOUND",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					ManifestExcerpts: []ManifestExcerpt{
+						{
+							TimelineID:    fx.nodeTimelineID,
+							RevisionIndex: intRef(0),
+							Windows:       []SliceWindow{{Query: "NoSuchManifestField"}},
+						},
+					},
+				},
+			},
+			wantCode: "SLICE_QUERY_NOT_FOUND",
+		},
+		{
+			name: "duplicate manual excerpt badges return INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					DiffExcerpts: []DiffExcerpt{
+						{
+							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
+							Badge:    "DUP",
+						},
+					},
+					LogExcerpts: []LogExcerpt{
+						{
+							LogID: fx.oomEventLogID,
+							Badge: "DUP",
+						},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name: "out-of-order manual E<n> excerpt badges reversing chronological order return INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					DiffExcerpts: []DiffExcerpt{
+						{
+							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1}, // 09:24Z
+							Badge:    "E4",
+						},
+					},
+					LogExcerpts: []LogExcerpt{
+						{
+							LogID: fx.oomEventLogID, // 09:25Z
+							Badge: "E1",
+						},
+					},
 				},
 			},
 			wantCode: "INVALID_ARGUMENT",

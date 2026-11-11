@@ -95,6 +95,15 @@ type ResourceManifest struct {
 	Body       BodyChunk
 }
 
+// RawResourceManifest contains the selected revision, optional next revision timestamp, and its untruncated manifest YAML.
+type RawResourceManifest struct {
+	TimelineID       uint32
+	Segments         []TimelineSegment
+	Revision         ResourceRevision
+	NextRevisionTime *time.Time
+	YAMLBody         string
+}
+
 // ResourceDiff contains the unified diff between a revision and its previous revision.
 type ResourceDiff struct {
 	TimelineID uint32
@@ -172,9 +181,9 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 	return result, nil
 }
 
-// GetResourceManifest returns the manifest YAML of the selected revision, sliced from byteOffset.
+// GetRawResourceManifest returns the untruncated manifest YAML and active interval bounds of the selected revision.
 // When includeManagedFields is false, metadata.managedFields is omitted from the manifest.
-func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset int, includeManagedFields bool) (*ResourceManifest, error) {
+func (w *Workbench) GetRawResourceManifest(timelineID uint32, selector RevisionSelector, includeManagedFields bool) (*RawResourceManifest, error) {
 	index, _, err := w.readyIndex()
 	if err != nil {
 		return nil, err
@@ -197,11 +206,32 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 	if !includeManagedFields {
 		body = stripManagedFields(body)
 	}
+	var nextTime *time.Time
+	if revIdx+1 < len(tl.Revisions) && tl.Revisions[revIdx+1].ChangedTime > 0 {
+		t := time.Unix(0, tl.Revisions[revIdx+1].ChangedTime).UTC()
+		nextTime = &t
+	}
+	return &RawResourceManifest{
+		TimelineID:       timelineID,
+		Segments:         segments,
+		Revision:         toResourceRevision(index, tl.Revisions, revIdx, hasBody),
+		NextRevisionTime: nextTime,
+		YAMLBody:         body,
+	}, nil
+}
+
+// GetResourceManifest returns the manifest YAML of the selected revision, sliced from byteOffset.
+// When includeManagedFields is false, metadata.managedFields is omitted from the manifest.
+func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset int, includeManagedFields bool) (*ResourceManifest, error) {
+	raw, err := w.GetRawResourceManifest(timelineID, selector, includeManagedFields)
+	if err != nil {
+		return nil, err
+	}
 	return &ResourceManifest{
-		TimelineID: timelineID,
-		Segments:   segments,
-		Revision:   toResourceRevision(index, tl.Revisions, revIdx, hasBody),
-		Body:       truncateBody(body, byteOffset, bodyByteLimit),
+		TimelineID: raw.TimelineID,
+		Segments:   raw.Segments,
+		Revision:   raw.Revision,
+		Body:       truncateBody(raw.YAMLBody, byteOffset, bodyByteLimit),
 	}, nil
 }
 
