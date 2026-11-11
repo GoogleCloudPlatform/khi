@@ -17,11 +17,13 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 const defaultDiffCoverProfile = "go-cover-diff.output"
@@ -84,6 +86,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 		plan := PlanTestExecution(repoRoot, changedFiles, cfg.full)
 		if !plan.Skip {
 			profilePath = filepath.Join(repoRoot, defaultDiffCoverProfile)
+			if err := os.Remove(profilePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("failed to remove stale coverprofile %s: %w", profilePath, err)
+			}
 			if err := RunGoTestCoverage(ctx, repoRoot, plan, profilePath, stderr); err != nil {
 				return err
 			}
@@ -91,13 +96,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	}
 
 	if profilePath != "" {
-		f, err := os.Open(profilePath)
-		if err != nil {
-			return fmt.Errorf("failed to open coverprofile %s: %w", profilePath, err)
-		}
-		defer f.Close()
-
-		blocksByFile, err = ParseCoverProfile(f, modulePath)
+		blocksByFile, err = loadCoverProfileIfPresent(profilePath, modulePath)
 		if err != nil {
 			return err
 		}
@@ -179,22 +178,26 @@ func resolveRepoRoot(explicit string) (string, error) {
 	}
 }
 
+func loadCoverProfileIfPresent(profilePath string, modulePath string) (map[string][]CoverBlock, error) {
+	f, err := os.Open(profilePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return make(map[string][]CoverBlock), nil
+		}
+		return nil, fmt.Errorf("failed to open coverprofile %s: %w", profilePath, err)
+	}
+	defer f.Close()
+
+	return ParseCoverProfile(f, modulePath)
+}
+
 func sortedFileKeys(m map[string]map[int]struct{}) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
-	return sortedStrings(keys)
-}
-
-func sortedStrings(in []string) []string {
-	out := append([]string(nil), in...)
-	for i := 1; i < len(out); i++ {
-		for j := i; j > 0 && out[j] < out[j-1]; j-- {
-			out[j], out[j-1] = out[j-1], out[j]
-		}
-	}
-	return out
+	slices.Sort(keys)
+	return keys
 }
 
 func appendFile(path string, data []byte) error {

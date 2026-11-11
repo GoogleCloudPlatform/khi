@@ -171,13 +171,69 @@ func Process(v int) (string, error) {
 				HasOverallCoverage: false,
 			},
 		},
+		{
+			name: "package without coverprofile blocks marks function body lines uncovered",
+			changedLines: map[string]map[int]struct{}{
+				"pkg/notests/logic.go": {
+					4: {}, // Struct field declaration (non-executable).
+					8: {}, // Function statement (executable, uncovered).
+					9: {}, // Function return (executable, uncovered).
+				},
+			},
+			includeOverall: false,
+			want: &CoverageReport{
+				BaseLabel:            "trunk()",
+				PatchExecutableLines: 2,
+				PatchCoveredLines:    0,
+				HasOverallCoverage:   false,
+				Files: []FileCoverageReport{
+					{
+						File:                   "pkg/notests/logic.go",
+						ChangedExecutableLines: 2,
+						ChangedCoveredLines:    0,
+						UncoveredRanges: []LineRange{
+							{StartLine: 8, EndLine: 9},
+						},
+						UncoveredSpans: []UncoveredSpan{
+							{
+								File:            "pkg/notests/logic.go",
+								StartLine:       8,
+								EndLine:         9,
+								ExecutableLines: 2,
+								Lines: []SourceLine{
+									{Number: 7, Text: "func Compute(x int) int {"},
+									{Number: 8, Text: "\ty := x * 2"},
+									{Number: 9, Text: "\treturn y"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
+	noTestsSrc := `package notests
+
+type Options struct {
+	Limit int
+}
+
+func Compute(x int) int {
+	y := x * 2
+	return y
+}
+`
+
 	readSource := func(relPath string) ([]byte, error) {
-		if relPath == "pkg/sample/sample.go" {
+		switch relPath {
+		case "pkg/sample/sample.go":
 			return []byte(sampleSrc), nil
+		case "pkg/notests/logic.go":
+			return []byte(noTestsSrc), nil
+		default:
+			return nil, os.ErrNotExist
 		}
-		return nil, os.ErrNotExist
 	}
 
 	for _, tc := range testCases {
