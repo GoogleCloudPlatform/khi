@@ -34,6 +34,8 @@ const (
 	AnnotationLayerRowHighlights AnnotationLayer = "rowHighlights"
 	// AnnotationLayerDiffExcerpts clears resource diff excerpt cards on a parent scene.
 	AnnotationLayerDiffExcerpts AnnotationLayer = "diffExcerpts"
+	// AnnotationLayerManifestExcerpts clears resource manifest excerpt cards on a parent scene.
+	AnnotationLayerManifestExcerpts AnnotationLayer = "manifestExcerpts"
 	// AnnotationLayerLogExcerpts clears structured log excerpt cards on a parent scene.
 	AnnotationLayerLogExcerpts AnnotationLayer = "logExcerpts"
 	// AnnotationLayerConnectors clears connector annotations on a parent scene.
@@ -99,6 +101,8 @@ const (
 const (
 	// ExcerptKindDiff identifies a resource manifest diff excerpt card.
 	ExcerptKindDiff ExcerptKind = "diff"
+	// ExcerptKindManifest identifies a static or point-in-time resource manifest excerpt card.
+	ExcerptKindManifest ExcerptKind = "manifest"
 	// ExcerptKindLog identifies a structured log excerpt card.
 	ExcerptKindLog ExcerptKind = "log"
 )
@@ -137,10 +141,10 @@ type CalloutPlacement string
 // RevisionEdge selects either the start or end timestamp of a resource revision interval.
 type RevisionEdge string
 
-// ExcerptKind classifies an evidence deck card as a resource diff or structured log excerpt.
+// ExcerptKind classifies an evidence deck card as a resource diff, resource manifest, or structured log excerpt.
 type ExcerptKind string
 
-// ExcerptLineKind classifies a rendered row inside a diff or log excerpt card.
+// ExcerptLineKind classifies a rendered row inside a diff, manifest, or log excerpt card.
 type ExcerptLineKind string
 
 // PaletteEntry binds a reusable semantic role identifier to a curated preset name or #RRGGBB hex color.
@@ -154,7 +158,7 @@ type PaletteEntry struct {
 // Annotations groups declarative visual overlays and patch directives for a rendered timeline scene.
 type Annotations struct {
 	// ClearLayers lists annotation layers to clear from the parent scene before applying additions.
-	ClearLayers []AnnotationLayer `json:"clearLayers,omitempty" jsonschema:"Optional layer names to clear from parentSceneId before adding items: 'palette', 'markers', 'spans', 'rowHighlights', 'diffExcerpts', 'logExcerpts', 'connectors', 'callouts', or 'all'."`
+	ClearLayers []AnnotationLayer `json:"clearLayers,omitempty" jsonschema:"Optional layer names to clear from parentSceneId before adding items: 'palette', 'markers', 'spans', 'rowHighlights', 'diffExcerpts', 'manifestExcerpts', 'logExcerpts', 'connectors', 'callouts', or 'all'."`
 	// RemoveIDs lists badges, labels, or palette entry IDs to remove from the parent scene.
 	RemoveIDs []string `json:"removeIds,omitempty" jsonschema:"Optional badges, labels, or palette entry IDs (e.g. 'E2', 'ALERT', 'trigger') to remove from parentSceneId."`
 	// Palette defines named colors shared across annotations and evidence deck cards.
@@ -169,6 +173,8 @@ type Annotations struct {
 	DimUnlistedRows *bool `json:"dimUnlistedRows,omitempty" jsonschema:"Softly dims background rows outside rowHighlights when true."`
 	// DiffExcerpts defines resource YAML diff cards in the bottom evidence deck.
 	DiffExcerpts []DiffExcerpt `json:"diffExcerpts,omitempty" jsonschema:"Resource YAML diff cards anchored to a revision and rendered in the bottom evidence deck (max 6 total excerpts)."`
+	// ManifestExcerpts defines static or point-in-time resource YAML manifest cards in the bottom evidence deck.
+	ManifestExcerpts []ManifestExcerpt `json:"manifestExcerpts,omitempty" jsonschema:"Resource YAML manifest cards anchored to a revisionIndex or point-in-time timestamp and rendered in the bottom evidence deck (max 6 total excerpts)."`
 	// LogExcerpts defines structured log excerpt cards in the bottom evidence deck.
 	LogExcerpts []LogExcerpt `json:"logExcerpts,omitempty" jsonschema:"Structured log excerpt cards anchored to a logId and rendered in the bottom evidence deck (max 6 total excerpts)."`
 	// Connectors defines directed causal arrows or duration calipers between two anchors.
@@ -179,14 +185,14 @@ type Annotations struct {
 
 // SliceWindow specifies a literal search spot and surrounding context lines to retain.
 type SliceWindow struct {
-	// Query is the case-sensitive literal substring to match within the diff or log.
-	Query string `json:"query" jsonschema:"Case-sensitive literal substring to match within the target diff or log."`
+	// Query is the case-sensitive literal substring to match within the diff, manifest, or log.
+	Query string `json:"query" jsonschema:"Case-sensitive literal substring to match within the target diff, manifest, or log."`
 	// BeforeLines is the number of context lines retained before each match.
 	BeforeLines int `json:"beforeLines" jsonschema:"Number of context lines to retain before each match (0..5)."`
 	// AfterLines is the number of context lines retained after each match.
 	AfterLines int `json:"afterLines" jsonschema:"Number of context lines to retain after each match (0..5)."`
 	// MaxMatches caps the number of occurrences sliced for this window.
-	MaxMatches int `json:"maxMatches,omitempty" jsonschema:"Maximum occurrences of this query to slice within the target diff or log (default 2, max 4)."`
+	MaxMatches int `json:"maxMatches,omitempty" jsonschema:"Maximum occurrences of this query to slice within the target diff, manifest, or log (default 2, max 4)."`
 }
 
 // RevisionRef identifies a resource revision transition by timeline ID and 0-based revision index.
@@ -207,6 +213,24 @@ type DiffExcerpt struct {
 	Windows []SliceWindow `json:"windows,omitempty" jsonschema:"Search spots within the managedFields-stripped unified diff. Disjoint matches are joined with 'N lines omitted' bands."`
 	// Note is an optional one-line summary rendered in the card footer.
 	Note string `json:"note,omitempty" jsonschema:"Optional 1-line human summary rendered in the card footer, visually separated from verbatim diff lines (max 80 chars)."`
+	// PaletteID references a named entry in Annotations.Palette.
+	PaletteID string `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits automatically from a co-anchored item or enclosing rowHighlight when omitted."`
+}
+
+// ManifestExcerpt slices static or point-in-time YAML lines from a resource manifest into a bottom deck card.
+type ManifestExcerpt struct {
+	// TimelineID is the target resource timeline ID.
+	TimelineID uint32 `json:"timelineId" jsonschema:"Target resource timeline ID from search_timelines."`
+	// RevisionIndex selects the 0-based revision index on TimelineID.
+	RevisionIndex *int `json:"revisionIndex,omitempty" jsonschema:"0-based revision index from get_resource_revisions. Specify either revisionIndex or time."`
+	// Time selects the effective revision at a point-in-time RFC3339 timestamp.
+	Time *time.Time `json:"time,omitempty" jsonschema:"Point-in-time timestamp in RFC3339 format selecting the effective revision at that moment. Specify either revisionIndex or time."`
+	// Badge is an optional short pin badge, defaulting to sequential E1..En labels.
+	Badge string `json:"badge,omitempty" jsonschema:"Optional short pin badge such as 'E1'. Defaults to 'E1'..'En' ordered by timestamp."`
+	// Windows specifies search spots within the resource YAML manifest.
+	Windows []SliceWindow `json:"windows,omitempty" jsonschema:"Search spots within the managedFields-stripped resource YAML manifest. Disjoint matches are joined with 'N lines omitted' bands."`
+	// Note is an optional one-line summary rendered in the card footer.
+	Note string `json:"note,omitempty" jsonschema:"Optional 1-line human summary rendered in the card footer, visually separated from verbatim manifest lines (max 80 chars)."`
 	// PaletteID references a named entry in Annotations.Palette.
 	PaletteID string `json:"paletteId,omitempty" jsonschema:"Optional palette entry ID from annotations.palette. Inherits automatically from a co-anchored item or enclosing rowHighlight when omitted."`
 }
@@ -600,6 +624,7 @@ func isAnnotationsEmpty(a *Annotations) bool {
 		len(a.RowHighlights) == 0 &&
 		a.DimUnlistedRows == nil &&
 		len(a.DiffExcerpts) == 0 &&
+		len(a.ManifestExcerpts) == 0 &&
 		len(a.LogExcerpts) == 0 &&
 		len(a.Connectors) == 0 &&
 		len(a.Callouts) == 0
@@ -664,6 +689,12 @@ func cloneAnnotations(a *Annotations) *Annotations {
 	out.DiffExcerpts = slices.Clone(a.DiffExcerpts)
 	for i := range out.DiffExcerpts {
 		out.DiffExcerpts[i].Windows = slices.Clone(out.DiffExcerpts[i].Windows)
+	}
+	out.ManifestExcerpts = slices.Clone(a.ManifestExcerpts)
+	for i := range out.ManifestExcerpts {
+		out.ManifestExcerpts[i].RevisionIndex = clonePtr(out.ManifestExcerpts[i].RevisionIndex)
+		out.ManifestExcerpts[i].Time = clonePtr(out.ManifestExcerpts[i].Time)
+		out.ManifestExcerpts[i].Windows = slices.Clone(out.ManifestExcerpts[i].Windows)
 	}
 	out.LogExcerpts = slices.Clone(a.LogExcerpts)
 	for i := range out.LogExcerpts {
