@@ -199,6 +199,106 @@ func TestSlashSplittedPodNameToNamespaceAndName(t *testing.T) {
 	}
 }
 
+func TestIsCiliumCNILog(t *testing.T) {
+	logfmtParser := logutil.NewLogfmtTextParser()
+
+	testCases := []struct {
+		desc    string
+		message *logutil.ParseStructuredLogResult
+		want    bool
+	}{
+		{
+			desc:    "cilium-cni log with the pod fields",
+			message: logfmtParser.TryParse(`level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni k8sNamespace=kube-system k8sPodName=test-pod`),
+			want:    true,
+		},
+		{
+			desc:    "cilium-cni log with empty pod fields",
+			message: logfmtParser.TryParse(`level=info msg="Fast start health check grace period active." subsys=cilium-cni k8sNamespace="" k8sPodName=""`),
+			want:    true,
+		},
+		{
+			desc:    "log of another subsystem",
+			message: logfmtParser.TryParse(`level=info msg="Create endpoint request" subsys=daemon`),
+			want:    false,
+		},
+		{
+			desc:    "containerd log without the subsystem",
+			message: logfmtParser.TryParse(`level=info msg="starting containerd"`),
+			want:    false,
+		},
+		{
+			desc:    "nil message",
+			message: nil,
+			want:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := isCiliumCNILog(tc.message); got != tc.want {
+				t.Errorf("isCiliumCNILog() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFindCiliumCNIPodReference(t *testing.T) {
+	type podReference struct {
+		Namespace string
+		Name      string
+		Found     bool
+	}
+	logfmtParser := logutil.NewLogfmtTextParser()
+
+	testCases := []struct {
+		desc    string
+		message *logutil.ParseStructuredLogResult
+		want    podReference
+	}{
+		{
+			desc:    "cilium-cni log with the pod fields",
+			message: logfmtParser.TryParse(`time=2026-01-01T00:00:00.000000000Z level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 interface=eth0 k8sNamespace=kube-system k8sPodName=test-pod error="[DELETE /endpoint][404] deleteEndpointNotFound"`),
+			want:    podReference{Namespace: "kube-system", Name: "test-pod", Found: true},
+		},
+		{
+			desc:    "log of another subsystem with the pod fields",
+			message: logfmtParser.TryParse(`level=info msg="Create endpoint request" subsys=daemon k8sNamespace=kube-system k8sPodName=test-pod`),
+			want:    podReference{},
+		},
+		{
+			desc:    "cilium-cni log without the pod name",
+			message: logfmtParser.TryParse(`level=info msg="Releasing IP" subsys=cilium-cni k8sNamespace=kube-system`),
+			want:    podReference{},
+		},
+		{
+			desc:    "cilium-cni log with empty pod fields",
+			message: logfmtParser.TryParse(`level=info msg="Fast start health check grace period active." subsys=cilium-cni k8sNamespace="" k8sPodName=""`),
+			want:    podReference{},
+		},
+		{
+			desc:    "containerd log without the subsystem",
+			message: logfmtParser.TryParse(`level=info msg="starting containerd"`),
+			want:    podReference{},
+		},
+		{
+			desc:    "nil message",
+			message: nil,
+			want:    podReference{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			namespace, name, found := findCiliumCNIPodReference(tc.message)
+			got := podReference{Namespace: namespace, Name: name, Found: found}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("findCiliumCNIPodReference() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestToReadablePodSandboxName(t *testing.T) {
 	got := toReadablePodSandboxName("ns1", "pod1")
 	want := "【pod1 (Namespace: ns1)】"

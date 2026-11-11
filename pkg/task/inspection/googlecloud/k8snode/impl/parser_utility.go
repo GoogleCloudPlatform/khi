@@ -194,6 +194,33 @@ func slashSplittedPodNameToNamespaceAndName(name string) (string, string, error)
 	return "", "", fmt.Errorf("invalid pod name format %q: %w", name, khierrors.ErrInvalidInput)
 }
 
+// isCiliumCNILog reports whether a containerd log is written by the cilium-cni plugin.
+// containerd writes the logs of the CNI plugin binary of GKE Dataplane V2 into its own log in logfmt with the subsys field.
+func isCiliumCNILog(message *logutil.ParseStructuredLogResult) bool {
+	if message == nil {
+		return false
+	}
+	subsystem, err := message.StringField("subsys")
+	return err == nil && subsystem == "cilium-cni"
+}
+
+// findCiliumCNIPodReference returns the namespace and the name of the Pod that a log of the cilium-cni plugin refers to.
+// The plugin writes the Pod in the k8sNamespace and k8sPodName fields, and leaves them empty for the logs not related to any Pod.
+func findCiliumCNIPodReference(message *logutil.ParseStructuredLogResult) (namespace string, name string, found bool) {
+	if !isCiliumCNILog(message) {
+		return "", "", false
+	}
+	namespace, err := message.StringField("k8sNamespace")
+	if err != nil || namespace == "" {
+		return "", "", false
+	}
+	name, err = message.StringField("k8sPodName")
+	if err != nil || name == "" {
+		return "", "", false
+	}
+	return namespace, name, true
+}
+
 // toReadablePodSandboxName formats a pod sandbox's namespace and name into a human-readable string.
 func toReadablePodSandboxName(namespace string, name string) string {
 	return fmt.Sprintf("【%s (Namespace: %s)】", name, namespace)
