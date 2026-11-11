@@ -16,12 +16,11 @@
 
 import {
   Component,
-  DestroyRef,
   computed,
   effect,
-  inject,
   input,
   output,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -41,8 +40,6 @@ import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertu
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 const DIFF_LIST_ROW_HEIGHT_PX = 13;
-const DIFF_LIST_SCROLL_MARGIN_PX = DIFF_LIST_ROW_HEIGHT_PX * 3;
-const MAX_SCROLL_RETRY_FRAMES = 10;
 
 class DiffListScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
@@ -67,7 +64,6 @@ export interface ResourceOperatorPrincipal {
 
 export interface DiffListRowViewModel {
   revision: ReadonlyDomainElement<Revision>;
-  log: ReadonlyDomainElement<Log> | null;
   index: number;
   isContentChanged: boolean;
   timeLabel: string;
@@ -194,8 +190,7 @@ export class DiffListComponent {
 
     for (let index = 0; index < tl.revisions.length; index++) {
       const rev = tl.revisions[index];
-      const log = rev.logIndex !== -1 ? (ls[rev.logIndex] ?? null) : null;
-      if (log === null) {
+      if (rev.logIndex === -1 || !ls[rev.logIndex]) {
         continue;
       }
 
@@ -221,7 +216,6 @@ export class DiffListComponent {
 
       rows.push({
         revision: rev,
-        log,
         index,
         isContentChanged,
         timeLabel: formatTimeLabel(rev.changedTime, shift),
@@ -252,73 +246,56 @@ export class DiffListComponent {
    */
   readonly moveSelection = output<'next' | 'prev'>();
 
-  private readonly destroyRef = inject(DestroyRef);
   private readonly viewPort = viewChild(CdkVirtualScrollViewport);
 
-  private lastScrolledSelectionKey: string | null = null;
-  private pendingScrollRafId: number | null = null;
+  private disableScrollForNext = false;
 
   constructor() {
-    this.destroyRef.onDestroy(() => {
-      this.cancelPendingScroll();
-    });
-
-    effect(() => {
-      const rows = this.rowViewModels();
+    effect((onCleanup) => {
       const index = this.selectedLogIndex();
       const selectedRev = this.selectedRevision();
       const timeline = this.timeline();
+      const logs = this.logs();
       const viewPort = this.viewPort();
 
-      if (timeline === null) {
-        this.lastScrolledSelectionKey = null;
-        this.cancelPendingScroll();
+      if (this.disableScrollForNext) {
+        this.disableScrollForNext = false;
         return;
       }
-
-      const revisionIndex = this.resolveRevisionIndex(
-        timeline,
-        selectedRev,
-        index,
-      );
-      if (revisionIndex === -1) {
-        this.lastScrolledSelectionKey = null;
-        this.cancelPendingScroll();
+      if (timeline === null || logs.length === 0 || !viewPort) {
         return;
       }
-
-      if (rows.length === 0 || !viewPort) {
-        this.cancelPendingScroll();
-        return;
-      }
-
-      const rowArrayIndex = rows.findIndex(
+      const revisionIndex =
+        selectedRev !== null && selectedRev.timelineId === timeline.id
+          ? selectedRev.index
+          : timeline.revisions.findIndex((rev) => rev.logIndex === index);
+      const rowIndex = untracked(this.rowViewModels).findIndex(
         (row) => row.index === revisionIndex,
       );
-      if (rowArrayIndex === -1) {
-        this.lastScrolledSelectionKey = null;
-        this.cancelPendingScroll();
+      if (rowIndex === -1) {
         return;
       }
-
-      const selectionKey = `${timeline.id}:${revisionIndex}`;
-      if (selectionKey === this.lastScrolledSelectionKey) {
-        return;
-      }
-
-      this.lastScrolledSelectionKey = selectionKey;
-      this.scheduleScrollToRow(viewPort, rowArrayIndex, rows.length);
+      const rafId = requestAnimationFrame(() => {
+        viewPort.checkViewportSize();
+        const rowTop = rowIndex * DIFF_LIST_ROW_HEIGHT_PX;
+        const rowBottom = rowTop + DIFF_LIST_ROW_HEIGHT_PX;
+        const scrollTop = viewPort.measureScrollOffset();
+        const viewportSize = viewPort.getViewportSize();
+        if (
+          viewportSize <= 0 ||
+          rowTop < scrollTop ||
+          rowBottom > scrollTop + viewportSize
+        ) {
+          viewPort.scrollToIndex(rowIndex, 'smooth');
+        }
+      });
+      onCleanup(() => cancelAnimationFrame(rafId));
     });
   }
 
   protected _selectRevision(r: ReadonlyDomainElement<Revision>) {
-    const timeline = this.timeline();
-    if (timeline !== null) {
-      const revisionIndex = r.index ?? timeline.revisions.indexOf(r);
-      if (revisionIndex !== -1) {
-        this.cancelPendingScroll();
-        this.lastScrolledSelectionKey = `${timeline.id}:${revisionIndex}`;
-      }
+    if (this.selectedRevision() !== r) {
+      this.disableScrollForNext = true;
     }
     this.selectRevision.emit(r);
   }
@@ -338,97 +315,6 @@ export class DiffListComponent {
     if (keyEvent.key === 'ArrowUp') {
       this.moveSelection.emit('prev');
       keyEvent.preventDefault();
-    }
-  }
-
-  private resolveRevisionIndex(
-    timeline: ReadonlyDomainElement<Timeline>,
-    selectedRev: ReadonlyDomainElement<Revision> | null,
-    selectedLogIndex: number,
-  ): number {
-    if (selectedRev !== null && selectedRev.timelineId === timeline.id) {
-      return selectedRev.index ?? timeline.revisions.indexOf(selectedRev);
-    }
-    return timeline.revisions.findIndex(
-      (rev) => rev.logIndex === selectedLogIndex,
-    );
-  }
-
-  private scheduleScrollToRow(
-    viewPort: CdkVirtualScrollViewport,
-    rowArrayIndex: number,
-    expectedRowCount: number,
-  ): void {
-    this.cancelPendingScroll();
-    const expectedContentHeight = expectedRowCount * DIFF_LIST_ROW_HEIGHT_PX;
-    let remainingFrames = MAX_SCROLL_RETRY_FRAMES;
-
-    // Defers scrolling until CdkVirtualScrollViewport updates its spacer height and layout metrics.
-    const attemptScroll = () => {
-      this.pendingScrollRafId = null;
-      viewPort.checkViewportSize();
-
-      const element = viewPort.elementRef.nativeElement;
-      const viewportHeight = element.clientHeight;
-      const isLayoutReady =
-        viewportHeight > 0 && element.scrollHeight >= expectedContentHeight - 1;
-      if (!isLayoutReady && remainingFrames > 0) {
-        remainingFrames--;
-        this.pendingScrollRafId = requestAnimationFrame(attemptScroll);
-        return;
-      }
-
-      const rowTop = rowArrayIndex * DIFF_LIST_ROW_HEIGHT_PX;
-      const rowBottom = rowTop + DIFF_LIST_ROW_HEIGHT_PX;
-      if (viewportHeight <= 0) {
-        viewPort.scrollToOffset(
-          Math.max(0, rowTop - DIFF_LIST_SCROLL_MARGIN_PX),
-          'smooth',
-        );
-        return;
-      }
-
-      const marginPx = Math.min(
-        DIFF_LIST_SCROLL_MARGIN_PX,
-        Math.max(0, Math.floor((viewportHeight - DIFF_LIST_ROW_HEIGHT_PX) / 2)),
-      );
-      const maxAllowedScrollTop = Math.max(
-        0,
-        expectedContentHeight - viewportHeight,
-      );
-      const minScrollTop = Math.min(
-        maxAllowedScrollTop,
-        Math.max(0, rowBottom - viewportHeight + marginPx),
-      );
-      const maxScrollTop = Math.min(
-        maxAllowedScrollTop,
-        Math.max(0, rowTop - marginPx),
-      );
-      const currentScrollTop = element.scrollTop;
-      if (
-        currentScrollTop >= minScrollTop &&
-        currentScrollTop <= maxScrollTop
-      ) {
-        return;
-      }
-
-      const centeredScrollTop = Math.min(
-        maxAllowedScrollTop,
-        Math.max(
-          0,
-          Math.round(rowTop - (viewportHeight - DIFF_LIST_ROW_HEIGHT_PX) / 2),
-        ),
-      );
-      viewPort.scrollToOffset(centeredScrollTop, 'smooth');
-    };
-
-    this.pendingScrollRafId = requestAnimationFrame(attemptScroll);
-  }
-
-  private cancelPendingScroll(): void {
-    if (this.pendingScrollRafId !== null) {
-      cancelAnimationFrame(this.pendingScrollRafId);
-      this.pendingScrollRafId = null;
     }
   }
 }

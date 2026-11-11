@@ -313,18 +313,40 @@ describe('VerticalScrollCalculator', () => {
         expect(result[2]).toBe(timelines[9]); // Pod4
       });
 
-      it('should report timeline membership and ancestor sticky heights accurately', () => {
+      it('should calculate ancestor sticky heights and timeline offsets accurately', () => {
         for (const tc of [
-          { id: 1, wantHas: true, wantAncestorStickyHeight: 0 },
-          { id: 3, wantHas: true, wantAncestorStickyHeight: 200 },
-          { id: 7, wantHas: true, wantAncestorStickyHeight: 300 },
-          { id: 999, wantHas: false, wantAncestorStickyHeight: 0 },
+          {
+            index: 0,
+            wantAncestorStickyHeight: 0,
+            wantTop: 0,
+            wantBottom: 100,
+          },
+          {
+            index: 2,
+            wantAncestorStickyHeight: 200,
+            wantTop: 200,
+            wantBottom: 300,
+          },
+          {
+            index: 6,
+            wantAncestorStickyHeight: 300,
+            wantTop: 600,
+            wantBottom: 650,
+          },
         ]) {
-          expect(calculator.hasTimeline(tc.id)).toBe(tc.wantHas);
-          expect(calculator.ancestorStickyHeight(tc.id)).toBe(
+          const tl = timelines[tc.index];
+          expect(calculator.ancestorStickyHeight(tl)).toBe(
             tc.wantAncestorStickyHeight,
           );
+          expect(calculator.timelineIDToTimelineTopOffset(tl.id)).toBe(
+            tc.wantTop,
+          );
+          expect(calculator.timelineIDToTimelineBottomOffset(tl.id)).toBe(
+            tc.wantBottom,
+          );
         }
+        expect(calculator.timelineIDToTimelineTopOffset(999)).toBe(0);
+        expect(calculator.timelineIDToTimelineBottomOffset(999)).toBe(0);
       });
     });
   });

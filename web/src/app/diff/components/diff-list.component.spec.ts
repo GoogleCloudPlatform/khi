@@ -62,19 +62,6 @@ function createMockData(rowCount: number): {
   return { timeline, logs };
 }
 
-function waitAnimationFrames(count: number): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const step = (remaining: number) => {
-      if (remaining <= 0) {
-        resolve();
-        return;
-      }
-      requestAnimationFrame(() => step(remaining - 1));
-    };
-    step(count);
-  });
-}
-
 describe('DiffListComponent', () => {
   let fixture: ComponentFixture<DiffListComponent>;
   let component: DiffListComponent;
@@ -95,10 +82,11 @@ describe('DiffListComponent', () => {
     fixture.componentRef.setInput('selectedRevision', null);
     fixture.componentRef.setInput('highlightedLogIndices', new Set<number>());
     fixture.componentRef.setInput('timezoneShift', 0);
-    fixture.detectChanges();
+    fixture.autoDetectChanges();
+    await fixture.whenStable();
   });
 
-  it('keeps virtual scroll viewport mounted and centers initial URL selection inside viewport', async () => {
+  it('keeps virtual scroll viewport mounted and scrolls initial URL selection into view', async () => {
     const viewportDebug = fixture.debugElement.query(
       By.directive(CdkVirtualScrollViewport),
     );
@@ -120,14 +108,13 @@ describe('DiffListComponent', () => {
     fixture.componentRef.setInput('selectedRevision', timeline.revisions[25]);
     fixture.detectChanges();
 
-    await waitAnimationFrames(4);
-    fixture.detectChanges();
-    await waitAnimationFrames(4);
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
     fixture.detectChanges();
 
-    // rowTop = 25 * 13 = 325, viewportHeight = 100 -> centeredScrollTop = round(325 - (100 - 13) / 2) = 282.
+    // rowIndex = 25, rowHeight = 13 -> scrollToIndex(25) calls scrollToOffset(325, 'smooth').
     expect(scrollSpy).toHaveBeenCalledTimes(1);
-    expect(scrollSpy).toHaveBeenCalledWith(282, 'smooth');
+    expect(scrollSpy).toHaveBeenCalledWith(325, 'smooth');
     expect(scrollHeightAtCall).toBeGreaterThanOrEqual(40 * 13 - 1);
 
     const viewportRect =
@@ -138,15 +125,15 @@ describe('DiffListComponent', () => {
     expect(selectedRowEl).not.toBeNull();
     const rowRect = selectedRowEl!.getBoundingClientRect();
     expect(rowRect.height).toBeCloseTo(13, 0);
-    expect(rowRect.top).toBeGreaterThanOrEqual(viewportRect.top + 30);
-    expect(rowRect.bottom).toBeLessThanOrEqual(viewportRect.bottom - 30);
+    expect(rowRect.top).toBeGreaterThanOrEqual(viewportRect.top - 1);
+    expect(rowRect.bottom).toBeLessThanOrEqual(viewportRect.bottom + 1);
   });
 
   it('does not overshoot first visible revision when timeline starts with an inferred logIndex -1 revision', async () => {
     const viewport = fixture.debugElement
       .query(By.directive(CdkVirtualScrollViewport))
       .injector.get(CdkVirtualScrollViewport);
-    const scrollSpy = spyOn(viewport, 'scrollToOffset');
+    const scrollSpy = spyOn(viewport, 'scrollToIndex');
 
     const { timeline, logs } = createMockData(20);
     const inferredRev = {
@@ -176,7 +163,7 @@ describe('DiffListComponent', () => {
       timelineWithInferred.revisions[1],
     );
     fixture.detectChanges();
-    await waitAnimationFrames(6);
+    await new Promise(requestAnimationFrame);
 
     expect(scrollSpy).not.toHaveBeenCalled();
     expect(component.rowViewModels().length).toBe(20);
@@ -187,23 +174,22 @@ describe('DiffListComponent', () => {
     const viewport = fixture.debugElement
       .query(By.directive(CdkVirtualScrollViewport))
       .injector.get(CdkVirtualScrollViewport);
-    const scrollSpy = spyOn(viewport, 'scrollToOffset');
+    const scrollSpy = spyOn(viewport, 'scrollToIndex');
 
     const { timeline, logs } = createMockData(30);
     fixture.componentRef.setInput('timeline', timeline);
     fixture.componentRef.setInput('selectedLogIndex', 20);
     fixture.componentRef.setInput('selectedRevision', timeline.revisions[20]);
     fixture.detectChanges();
-    await waitAnimationFrames(2);
+    await new Promise(requestAnimationFrame);
     expect(scrollSpy).not.toHaveBeenCalled();
 
     fixture.componentRef.setInput('logs', logs);
     fixture.detectChanges();
-    await waitAnimationFrames(6);
+    await new Promise(requestAnimationFrame);
 
-    // rowTop = 20 * 13 = 260, viewportHeight = 100 -> centeredScrollTop = round(260 - (100 - 13) / 2) = 217.
     expect(scrollSpy).toHaveBeenCalledTimes(1);
-    expect(scrollSpy).toHaveBeenCalledWith(217, 'smooth');
+    expect(scrollSpy).toHaveBeenCalledWith(20, 'smooth');
   });
 
   it('suppresses scroll on direct row click without blocking subsequent external navigation', async () => {
@@ -215,16 +201,16 @@ describe('DiffListComponent', () => {
     fixture.componentRef.setInput('timeline', timeline);
     fixture.componentRef.setInput('logs', logs);
     fixture.detectChanges();
-    await waitAnimationFrames(4);
+    await new Promise(requestAnimationFrame);
 
-    const scrollSpy = spyOn(viewport, 'scrollToOffset');
+    const scrollSpy = spyOn(viewport, 'scrollToIndex');
 
     // Direct row click inside DiffListComponent should not auto-scroll.
     component['_selectRevision'](timeline.revisions[10]);
     fixture.componentRef.setInput('selectedLogIndex', 10);
     fixture.componentRef.setInput('selectedRevision', timeline.revisions[10]);
     fixture.detectChanges();
-    await waitAnimationFrames(4);
+    await new Promise(requestAnimationFrame);
     expect(scrollSpy).not.toHaveBeenCalled();
 
     // Clicking the already-selected row again must not suppress a later external selection change.
@@ -234,17 +220,16 @@ describe('DiffListComponent', () => {
     fixture.componentRef.setInput('selectedLogIndex', 18);
     fixture.componentRef.setInput('selectedRevision', timeline.revisions[18]);
     fixture.detectChanges();
-    await waitAnimationFrames(6);
+    await new Promise(requestAnimationFrame);
 
-    // rowTop = 18 * 13 = 234, viewportHeight = 100 -> centeredScrollTop = round(234 - (100 - 13) / 2) = 191.
     expect(scrollSpy).toHaveBeenCalledTimes(1);
-    expect(scrollSpy).toHaveBeenCalledWith(191, 'smooth');
+    expect(scrollSpy).toHaveBeenCalledWith(18, 'smooth');
 
     // Unrelated timezoneShift updates should not re-trigger scroll.
     scrollSpy.calls.reset();
     fixture.componentRef.setInput('timezoneShift', 9);
     fixture.detectChanges();
-    await waitAnimationFrames(4);
+    await new Promise(requestAnimationFrame);
     expect(scrollSpy).not.toHaveBeenCalled();
   });
 });

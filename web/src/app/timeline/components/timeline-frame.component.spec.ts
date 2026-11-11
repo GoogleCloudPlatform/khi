@@ -545,19 +545,6 @@ describe('TimelineFrameComponent - time range selection', () => {
     ).not.toBeNull();
   });
 
-  function waitAnimationFrames(count: number): Promise<void> {
-    return new Promise<void>((resolve) => {
-      const step = (remaining: number) => {
-        if (remaining <= 0) {
-          resolve();
-          return;
-        }
-        requestAnimationFrame(() => step(remaining - 1));
-      };
-      step(count);
-    });
-  }
-
   it('should scroll vertically to selected timeline once viewport and initial scale are ready, accounting for sticky ancestors', async () => {
     const containerEl = frameFixture.nativeElement.querySelector(
       '.virtual-scroll-container',
@@ -584,7 +571,7 @@ describe('TimelineFrameComponent - time range selection', () => {
       3: TimelineHighlightType.Selected,
     });
     frameFixture.detectChanges();
-    await waitAnimationFrames(2);
+    await new Promise(requestAnimationFrame);
     expect(scrollToSpy).not.toHaveBeenCalled();
 
     // Timelines, viewport dimensions, and initial scale become ready.
@@ -592,13 +579,12 @@ describe('TimelineFrameComponent - time range selection', () => {
     frameFixture.componentRef.setInput('initialScaleApplied', true);
     frameComponent['viewportHeight'].set(400);
     frameComponent['containerWidth'].set(1000);
-    frameComponent['isSyncingHorizontalScroll'] = false;
     frameFixture.detectChanges();
-    await waitAnimationFrames(3);
+    await new Promise(requestAnimationFrame);
 
     // Each MockTimeline has height 24 * BASE_ROW_HEIGHT (25) = 600px.
     // targetTimeline (index 2) topOffset = 1200px, ancestorStickyHeight = 1200px,
-    // topMargin = min(max(100, 1224), 400 / 2) = 200px -> target top = 1000px.
+    // topMargin = min(1300, 400 / 2) = 200px -> target top = 1000px.
     expect(scrollToSpy).toHaveBeenCalledTimes(1);
     const firstArgs = scrollToSpy.calls.mostRecent()
       .args[0] as unknown as ScrollToOptions;
@@ -611,7 +597,7 @@ describe('TimelineFrameComponent - time range selection', () => {
     scrollToSpy.calls.reset();
     frameComponent['viewportHeight'].set(420);
     frameFixture.detectChanges();
-    await waitAnimationFrames(2);
+    await new Promise(requestAnimationFrame);
     expect(scrollToSpy).not.toHaveBeenCalled();
   });
 
@@ -637,7 +623,7 @@ describe('TimelineFrameComponent - time range selection', () => {
     frameComponent['containerWidth'].set(1000);
     frameComponent['indexAreaWidthPixels'].set(300);
     frameFixture.detectChanges();
-    await waitAnimationFrames(3);
+    await new Promise(requestAnimationFrame);
 
     const scrollToSpy = spyOn(containerEl, 'scrollTo');
 
@@ -647,7 +633,7 @@ describe('TimelineFrameComponent - time range selection', () => {
     });
     frameFixture.componentRef.setInput('cursorTimeNs', 5_000_000_000n);
     frameFixture.detectChanges();
-    await waitAnimationFrames(3);
+    await new Promise(requestAnimationFrame);
 
     expect(scrollToSpy).toHaveBeenCalledTimes(1);
     const args = scrollToSpy.calls.mostRecent()

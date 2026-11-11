@@ -131,6 +131,9 @@ export class SessionUrlSyncService {
   ): Promise<void> {
     try {
       await this.dataLoader.loadInspectionDataFromBackend(inspectionId);
+      if (this.destroyRef.destroyed) {
+        return;
+      }
       const data = this.dataStore.inspectionData();
       if (!data) {
         return;
@@ -151,6 +154,9 @@ export class SessionUrlSyncService {
           });
         }
         await this.waitForFilteringComplete(timelineView);
+        if (this.destroyRef.destroyed) {
+          return;
+        }
       }
 
       const timelineId = parseNonNegativeInt(params.get('timelineId'));
@@ -202,32 +208,24 @@ export class SessionUrlSyncService {
     timelineView: TimelineView,
   ): Promise<void> {
     await Promise.resolve();
-    if (!timelineView.isFiltering()) {
+    if (this.destroyRef.destroyed || !timelineView.isFiltering()) {
       return;
     }
     return new Promise<void>((resolve) => {
-      let settled = false;
-      let unregisterDestroy: (() => void) | null = null;
+      const cleanup = () => {
+        ref.destroy();
+        unregisterDestroy();
+        resolve();
+      };
       const ref = effect(
         () => {
           if (!timelineView.isFiltering()) {
-            finish();
+            cleanup();
           }
         },
         { injector: this.injector },
       );
-      const finish = () => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        ref.destroy();
-        unregisterDestroy?.();
-        resolve();
-      };
-      unregisterDestroy = this.destroyRef.onDestroy(() => {
-        finish();
-      });
+      const unregisterDestroy = this.destroyRef.onDestroy(cleanup);
     });
   }
 }
