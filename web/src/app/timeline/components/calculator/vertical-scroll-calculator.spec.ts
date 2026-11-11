@@ -312,6 +312,42 @@ describe('VerticalScrollCalculator', () => {
         expect(result[1]).toBe(timelines[8]); // Namespace3
         expect(result[2]).toBe(timelines[9]); // Pod4
       });
+
+      it('should calculate ancestor sticky heights and timeline offsets accurately', () => {
+        for (const tc of [
+          {
+            index: 0,
+            wantAncestorStickyHeight: 0,
+            wantTop: 0,
+            wantBottom: 100,
+          },
+          {
+            index: 2,
+            wantAncestorStickyHeight: 200,
+            wantTop: 200,
+            wantBottom: 300,
+          },
+          {
+            index: 6,
+            wantAncestorStickyHeight: 300,
+            wantTop: 600,
+            wantBottom: 650,
+          },
+        ]) {
+          const tl = timelines[tc.index];
+          expect(calculator.ancestorStickyHeight(tl)).toBe(
+            tc.wantAncestorStickyHeight,
+          );
+          expect(calculator.timelineIDToTimelineTopOffset(tl.id)).toBe(
+            tc.wantTop,
+          );
+          expect(calculator.timelineIDToTimelineBottomOffset(tl.id)).toBe(
+            tc.wantBottom,
+          );
+        }
+        expect(calculator.timelineIDToTimelineTopOffset(999)).toBe(0);
+        expect(calculator.timelineIDToTimelineBottomOffset(999)).toBe(0);
+      });
     });
   });
 });

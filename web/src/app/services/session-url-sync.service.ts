@@ -15,8 +15,10 @@
  */
 
 import {
+  DestroyRef,
   Injectable,
   InjectionToken,
+  Injector,
   effect,
   inject,
   signal,
@@ -26,6 +28,7 @@ import { InspectionDataStore } from 'src/app/services/inspection-data-store.serv
 import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { ViewStateService } from 'src/app/services/view-state.service';
 import { Timeline } from 'src/app/store/domain/timeline';
+import { TimelineView } from 'src/app/store/domain/timeline-view';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 /**
@@ -59,6 +62,8 @@ export const SESSION_LOCATION_ADAPTER =
  */
 @Injectable()
 export class SessionUrlSyncService {
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly dataLoader = inject(InspectionDataLoaderService);
   private readonly dataStore = inject(InspectionDataStore);
   private readonly selectionManager = inject(SelectionManager);
@@ -126,6 +131,9 @@ export class SessionUrlSyncService {
   ): Promise<void> {
     try {
       await this.dataLoader.loadInspectionDataFromBackend(inspectionId);
+      if (this.destroyRef.destroyed) {
+        return;
+      }
       const data = this.dataStore.inspectionData();
       if (!data) {
         return;
@@ -144,6 +152,10 @@ export class SessionUrlSyncService {
             timelineQuery,
             logQuery,
           });
+        }
+        await this.waitForFilteringComplete(timelineView);
+        if (this.destroyRef.destroyed) {
+          return;
         }
       }
 
@@ -190,6 +202,31 @@ export class SessionUrlSyncService {
     } finally {
       this.isRestoringFromUrl.set(false);
     }
+  }
+
+  private async waitForFilteringComplete(
+    timelineView: TimelineView,
+  ): Promise<void> {
+    await Promise.resolve();
+    if (this.destroyRef.destroyed || !timelineView.isFiltering()) {
+      return;
+    }
+    return new Promise<void>((resolve) => {
+      const cleanup = () => {
+        ref.destroy();
+        unregisterDestroy();
+        resolve();
+      };
+      const ref = effect(
+        () => {
+          if (!timelineView.isFiltering()) {
+            cleanup();
+          }
+        },
+        { injector: this.injector },
+      );
+      const unregisterDestroy = this.destroyRef.onDestroy(cleanup);
+    });
   }
 }
 

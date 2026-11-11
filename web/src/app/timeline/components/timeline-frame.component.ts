@@ -175,6 +175,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     viewportLeftTimeNs = this.viewportLeftTimeNs(),
     pixelsPerNs = this.pixelsPerNs(),
   ): void {
+    this.pendingSmoothScroll = null;
+    this.horizontalScrollSourceOfTruth = 'property';
     this.viewportLeftTimeNs.set(viewportLeftTimeNs);
     this.pixelsPerNs.set(pixelsPerNs);
     const container = this.container();
@@ -1022,6 +1024,13 @@ export class TimelineFrameComponent implements AfterViewInit {
    * This is the current event ID to let the even handler to know if the handler is obsolete.
    */
   private currentScrollEventID = 0;
+  private pendingSmoothScroll: ScrollToOptions | null = null;
+  private readonly isViewportReady = computed(
+    () =>
+      this.initialScaleApplied() &&
+      this.viewportHeight() > 0 &&
+      this.viewportWidth() > 0,
+  );
 
   constructor() {
     // Updates the scrollLeft property of the container element when the viewportLeftTimeNs changes.
@@ -1046,19 +1055,24 @@ export class TimelineFrameComponent implements AfterViewInit {
       this.currentScrollEventID++;
       const scrollEventID = this.currentScrollEventID;
       const moveToTargetScroll = () => {
+        if (scrollEventID !== this.currentScrollEventID) {
+          return;
+        }
+        if (this.horizontalScrollSourceOfTruth === 'scroll') {
+          this.currentAction = 'none';
+          return;
+        }
         container.nativeElement.scrollLeft = targetScrollLeft;
-        if (scrollEventID === this.currentScrollEventID) {
-          if (
-            Math.abs(container.nativeElement.scrollLeft - targetScrollLeft) < 1
-          ) {
-            // scroll position is matching with the target. Finish the scaling behavior.
-            this.currentAction = 'none';
-          } else {
-            // scroll position is not matching with the target. Retry on the next frame.
-            this.renderingLoopManager.registerOnceBeforeRenderHandler(
-              moveToTargetScroll,
-            );
-          }
+        if (
+          Math.abs(container.nativeElement.scrollLeft - targetScrollLeft) < 1
+        ) {
+          // scroll position is matching with the target. Finish the scaling behavior.
+          this.currentAction = 'none';
+        } else {
+          // scroll position is not matching with the target. Retry on the next frame.
+          this.renderingLoopManager.registerOnceBeforeRenderHandler(
+            moveToTargetScroll,
+          );
         }
       };
       moveToTargetScroll();
@@ -1097,8 +1111,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     // Updates the viewportLeftTimeNs property when the cursorTime is updated if that is outside of the viewport.
     effect(() => {
       const rawCursorTimeNs = this.cursorTimeNs();
-      if (rawCursorTimeNs === 0n) {
-        // Do not scroll when there is no active log selection.
+      if (rawCursorTimeNs === 0n || !this.isViewportReady()) {
+        // Do not scroll when there is no active log selection or before initial layout and scale are ready.
         return;
       }
       const logMinTimeNs = untracked(this.minQueryLogTimeNs);
@@ -1130,42 +1144,55 @@ export class TimelineFrameComponent implements AfterViewInit {
         const newScrollLeft =
           Number(newVPLTN - logMinTimeNs) * pixelsPerNs +
           horizontalOverdrawInPx;
-        this.horizontalScrollSourceOfTruth = 'scroll';
-        this.container()?.nativeElement.scrollTo({
-          left: newScrollLeft,
-          behavior: 'smooth',
-        });
+        this.scrollSmoothly({ left: newScrollLeft });
       }
     });
     effect(() => {
-      this.selectedLogIndex(); // Just for triggering the effect when the selected log index is changed.
+      this.selectedLogIndex(); // Trigger effect when the selected log index changes on the same timeline.
       const logTimeline = this.selectedLogTimeline();
       const selectedTimeline = logTimeline ?? this.selectedTimeline();
-      if (!selectedTimeline) {
+      if (!selectedTimeline || !this.isViewportReady()) {
         return;
       }
+
       const verticalCalculator = untracked(this.verticalScrollCalculator);
-      const timelineTopOffset =
-        verticalCalculator.timelineIDToTimelineTopOffset(selectedTimeline.id);
       const viewportHeight = untracked(this.viewportHeight);
-      const minScrollTop =
-        timelineTopOffset -
-        viewportHeight +
-        this.TIMELINE_SELECTION_MARGIN_IN_PX;
-      const maxScrollTop =
-        minScrollTop +
-        viewportHeight -
-        2 * this.TIMELINE_SELECTION_MARGIN_IN_PX;
       const container = this.container();
       if (!container) {
         return;
       }
+
+      const timelineTopOffset =
+        verticalCalculator.timelineIDToTimelineTopOffset(selectedTimeline.id);
+      const timelineBottomOffset =
+        verticalCalculator.timelineIDToTimelineBottomOffset(
+          selectedTimeline.id,
+        );
+      const ancestorStickyHeight =
+        verticalCalculator.ancestorStickyHeight(selectedTimeline);
+      const topMargin = Math.min(
+        ancestorStickyHeight + this.TIMELINE_SELECTION_MARGIN_IN_PX,
+        viewportHeight / 2,
+      );
+      const bottomMargin = Math.min(
+        this.TIMELINE_SELECTION_MARGIN_IN_PX,
+        viewportHeight / 2,
+      );
+      const maxAllowedScrollTop = Math.max(
+        0,
+        verticalCalculator.totalHeight - viewportHeight,
+      );
+      const maxScrollTop = Math.min(
+        maxAllowedScrollTop,
+        Math.max(0, timelineTopOffset - topMargin),
+      );
+      const minScrollTop = Math.min(
+        maxScrollTop,
+        Math.max(0, timelineBottomOffset - viewportHeight + bottomMargin),
+      );
       const currentScrollTop = container.nativeElement.scrollTop;
       if (currentScrollTop < minScrollTop || currentScrollTop > maxScrollTop) {
-        container.nativeElement.scrollTo({
-          top: maxScrollTop,
-          behavior: 'smooth',
-        });
+        this.scrollSmoothly({ top: maxScrollTop });
       }
     });
     effect(() => {
@@ -1174,13 +1201,14 @@ export class TimelineFrameComponent implements AfterViewInit {
       if (!container) {
         return;
       }
-      const maxScrollTop =
-        verticalCalculator.totalHeight - this.viewportHeight();
-      if (container.nativeElement.scrollTop > maxScrollTop) {
-        container.nativeElement.scrollTo({
-          top: maxScrollTop,
-          behavior: 'smooth',
-        });
+      const maxScrollTop = Math.max(
+        0,
+        verticalCalculator.totalHeight - this.viewportHeight(),
+      );
+      const currentOrPendingTop =
+        this.pendingSmoothScroll?.top ?? container.nativeElement.scrollTop;
+      if (currentOrPendingTop > maxScrollTop) {
+        this.scrollSmoothly({ top: maxScrollTop });
       }
     });
   }
@@ -1207,6 +1235,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     const indexAreaRect = indexArea.getBoundingClientRect();
     const isChartArea = e.clientX > indexAreaRect.right + this.GUTTER_WIDTH;
     if (isChartArea) {
+      this.pendingSmoothScroll = null;
+      this.horizontalScrollSourceOfTruth = 'property';
       this.isGrabbing.set(true);
       this.lastMouseDownPosition.x = e.clientX;
       this.lastMouseDownPosition.y = e.clientY;
@@ -1348,17 +1378,25 @@ export class TimelineFrameComponent implements AfterViewInit {
         maxScrollLeft,
       );
       this.viewportScrollTop.set(container.nativeElement.scrollTop);
-      this.viewportLeftTimeNs.set(
-        horizontalScrollCalculator.scrollToViewportLeftTimeNs(
-          scrollLeft,
-          pixelsPerNs,
-        ),
+      const expectedScrollLeft = horizontalScrollCalculator.timeNsToOffsetLeft(
+        this.viewportLeftTimeNs(),
+        pixelsPerNs,
       );
+      if (Math.abs(scrollLeft - expectedScrollLeft) >= 1) {
+        this.viewportLeftTimeNs.set(
+          horizontalScrollCalculator.scrollToViewportLeftTimeNs(
+            scrollLeft,
+            pixelsPerNs,
+          ),
+        );
+      }
     });
   }
 
   onWheelForScaling(event: WheelEvent) {
     if (this.currentAction !== 'none') return;
+    this.pendingSmoothScroll = null;
+    this.horizontalScrollSourceOfTruth = 'property';
     this.currentAction = 'scaling';
     this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
       const container = this.container();
@@ -1407,6 +1445,57 @@ export class TimelineFrameComponent implements AfterViewInit {
         calculator.scrollToViewportLeftTimeNs(newScrollLeft, newPixelsPerNs),
       );
       this.pixelsPerNs.set(newPixelsPerNs);
+    });
+  }
+
+  // Coalesces horizontal and vertical smooth scrolls from effects in the same tick onto the next render frame.
+  private scrollSmoothly(options: ScrollToOptions): void {
+    const isScheduled = this.pendingSmoothScroll !== null;
+    if (options.left !== undefined) {
+      this.horizontalScrollSourceOfTruth = 'scroll';
+    }
+    this.pendingSmoothScroll = {
+      ...this.pendingSmoothScroll,
+      ...options,
+      behavior: 'smooth',
+    };
+    if (isScheduled) {
+      return;
+    }
+    this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
+      const pending = this.pendingSmoothScroll;
+      this.pendingSmoothScroll = null;
+      const el = this.container()?.nativeElement;
+      if (!pending || !el) {
+        return;
+      }
+      if (
+        pending.left === undefined &&
+        this.horizontalScrollSourceOfTruth === 'property'
+      ) {
+        const targetScrollLeft =
+          this.horizontalScrollCalculator().timeNsToOffsetLeft(
+            this.viewportLeftTimeNs(),
+            this.pixelsPerNs(),
+          );
+        el.scrollLeft = targetScrollLeft;
+        if (Math.abs(el.scrollLeft - targetScrollLeft) < 1) {
+          this.currentScrollEventID++;
+          this.currentAction = 'none';
+        }
+      } else if (
+        pending.left !== undefined &&
+        el.scrollWidth > el.clientWidth
+      ) {
+        const clampedLeft = Math.max(
+          0,
+          Math.min(el.scrollWidth - el.clientWidth, pending.left),
+        );
+        if (Math.abs(el.scrollLeft - clampedLeft) < 1) {
+          this.horizontalScrollSourceOfTruth = 'property';
+        }
+      }
+      el.scrollTo(pending);
     });
   }
 }

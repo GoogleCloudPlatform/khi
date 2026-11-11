@@ -36,6 +36,7 @@ import {
   FileParameterFormField,
   SetParameterFormField,
   CheckboxParameterFormField,
+  CalloutParameterFormField,
 } from 'src/app/common/schema/form-types';
 import { EstimatedCountPreset } from 'src/app/common/schema/metadata-types';
 import {
@@ -285,6 +286,35 @@ describe('inspection-converter', () => {
       expect(converted.readonly).toBeFalse();
       expect(converted.default).toBeTrue();
       expect(converted.hintType).toBe(ParameterHintType.Info);
+    });
+
+    it('converts callout field', () => {
+      const field = create(FormFieldSchema, {
+        id: 'callout-1',
+        label: 'Cluster Prerequisites',
+        description: 'Ensure audit log sinks are active.',
+        hint: 'API Quota Warning: concurrent queries may hit rate limits.',
+        hintType: ProtoParameterHintType.WARNING,
+        pending: true,
+        kind: {
+          case: 'callout',
+          value: {},
+        },
+      });
+
+      const converted = convertProtoFormFieldToParameterFormField(
+        field,
+      ) as CalloutParameterFormField;
+      expect(converted).not.toBeNull();
+      expect(converted.id).toBe('callout-1');
+      expect(converted.type).toBe(ParameterInputType.Callout);
+      expect(converted.label).toBe('Cluster Prerequisites');
+      expect(converted.description).toBe('Ensure audit log sinks are active.');
+      expect(converted.hint).toBe(
+        'API Quota Warning: concurrent queries may hit rate limits.',
+      );
+      expect(converted.hintType).toBe(ParameterHintType.Warning);
+      expect(converted.pending).toBeTrue();
     });
 
     it('propagates pending: true to parameter form field', () => {

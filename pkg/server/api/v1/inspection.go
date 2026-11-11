@@ -618,6 +618,13 @@ func convertFormFields(fields []inspectionmetadata.ParameterFormField) []*apiv1.
 					DefaultValue: proto.Bool(v.Default),
 				},
 			}
+		case inspectionmetadata.CalloutParameterFormField:
+			if base.HintType == "" && base.Hint != "" {
+				f.HintType = apiv1.ParameterHintType_PARAMETER_HINT_TYPE_INFO.Enum()
+			}
+			f.Kind = &apiv1.FormField_Callout{
+				Callout: &apiv1.CalloutFormField{},
+			}
 		}
 		res = append(res, f)
 	}

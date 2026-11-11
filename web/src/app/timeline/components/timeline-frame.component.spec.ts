@@ -57,9 +57,14 @@ const mockTimelineType: TimelineType = {
 
 class MockTimeline extends Timeline {
   private mockEvents: Event[] = [];
+  private mockParent: ReadonlyDomainElement<Timeline> | null = null;
 
-  constructor(id: number) {
+  constructor(
+    id: number,
+    parent: ReadonlyDomainElement<Timeline> | null = null,
+  ) {
     super(id, null as unknown as TimelineStore);
+    this.mockParent = parent;
   }
 
   public setEvents(events: Event[]): void {
@@ -87,7 +92,7 @@ class MockTimeline extends Timeline {
   }
 
   override get parent(): ReadonlyDomainElement<Timeline> | null {
-    return null;
+    return this.mockParent;
   }
 
   override get childrenCount(): number {
@@ -538,5 +543,103 @@ describe('TimelineFrameComponent - time range selection', () => {
         '.secondary-cursor-vertical-line-body',
       ),
     ).not.toBeNull();
+  });
+
+  it('should scroll vertically to selected timeline once viewport and initial scale are ready, accounting for sticky ancestors', async () => {
+    const containerEl = frameFixture.nativeElement.querySelector(
+      '.virtual-scroll-container',
+    ) as HTMLElement;
+    containerEl.style.height = '460px';
+    containerEl.style.width = '1000px';
+
+    const rootTimeline = new MockTimeline(1);
+    const namespaceTimeline = new MockTimeline(2, rootTimeline);
+    const targetTimeline = new MockTimeline(3, namespaceTimeline);
+    const timelines: MockTimeline[] = [
+      rootTimeline,
+      namespaceTimeline,
+      targetTimeline,
+    ];
+    for (let id = 4; id <= 10; id++) {
+      timelines.push(new MockTimeline(id));
+    }
+
+    const scrollToSpy = spyOn(containerEl, 'scrollTo');
+
+    // Selection arrives before timelines, viewport dimensions, and initialScaleApplied are ready.
+    frameFixture.componentRef.setInput('timelineHighlights', {
+      3: TimelineHighlightType.Selected,
+    });
+    frameFixture.detectChanges();
+    await new Promise(requestAnimationFrame);
+    expect(scrollToSpy).not.toHaveBeenCalled();
+
+    // Timelines, viewport dimensions, and initial scale become ready.
+    frameFixture.componentRef.setInput('timelines', timelines);
+    frameFixture.componentRef.setInput('initialScaleApplied', true);
+    frameComponent['viewportHeight'].set(400);
+    frameComponent['containerWidth'].set(1000);
+    frameFixture.detectChanges();
+    await new Promise(requestAnimationFrame);
+
+    // Each MockTimeline has height 24 * BASE_ROW_HEIGHT (25) = 600px.
+    // targetTimeline (index 2) topOffset = 1200px, ancestorStickyHeight = 1200px,
+    // topMargin = min(1300, 400 / 2) = 200px -> target top = 1000px.
+    expect(scrollToSpy).toHaveBeenCalledTimes(1);
+    const firstArgs = scrollToSpy.calls.mostRecent()
+      .args[0] as unknown as ScrollToOptions;
+    expect(firstArgs).toEqual({
+      top: 1000,
+      behavior: 'smooth',
+    });
+
+    // Subsequent viewport height changes for the same selection must not snap scroll back.
+    scrollToSpy.calls.reset();
+    frameComponent['viewportHeight'].set(420);
+    frameFixture.detectChanges();
+    await new Promise(requestAnimationFrame);
+    expect(scrollToSpy).not.toHaveBeenCalled();
+  });
+
+  it('should coalesce horizontal cursor and vertical timeline auto-scroll into a single scrollTo call', async () => {
+    const containerEl = frameFixture.nativeElement.querySelector(
+      '.virtual-scroll-container',
+    ) as HTMLElement;
+    containerEl.style.height = '460px';
+    containerEl.style.width = '1000px';
+
+    const timelines: MockTimeline[] = [];
+    for (let id = 1; id <= 6; id++) {
+      timelines.push(new MockTimeline(id));
+    }
+
+    frameFixture.componentRef.setInput('minQueryLogTimeNs', 1_000_000_000n);
+    frameFixture.componentRef.setInput('maxQueryLogTimeNs', 10_000_000_000n);
+    frameFixture.componentRef.setInput('viewportLeftTimeNs', 1_000_000_000n);
+    frameFixture.componentRef.setInput('pixelsPerNs', 1e-6);
+    frameFixture.componentRef.setInput('timelines', timelines);
+    frameFixture.componentRef.setInput('initialScaleApplied', true);
+    frameComponent['viewportHeight'].set(400);
+    frameComponent['containerWidth'].set(1000);
+    frameComponent['indexAreaWidthPixels'].set(300);
+    frameFixture.detectChanges();
+    await new Promise(requestAnimationFrame);
+
+    const scrollToSpy = spyOn(containerEl, 'scrollTo');
+
+    // Select timeline 4 (topOffset = 1800) and move cursor outside current horizontal viewport (5s -> 4000px).
+    frameFixture.componentRef.setInput('timelineHighlights', {
+      4: TimelineHighlightType.Selected,
+    });
+    frameFixture.componentRef.setInput('cursorTimeNs', 5_000_000_000n);
+    frameFixture.detectChanges();
+    await new Promise(requestAnimationFrame);
+
+    expect(scrollToSpy).toHaveBeenCalledTimes(1);
+    const args = scrollToSpy.calls.mostRecent()
+      .args[0] as unknown as ScrollToOptions;
+    expect(args.behavior).toBe('smooth');
+    expect(args.top).toBe(1700);
+    expect(args.left).toBeGreaterThan(0);
   });
 });
