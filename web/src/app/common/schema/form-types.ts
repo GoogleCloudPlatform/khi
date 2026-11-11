@@ -23,6 +23,7 @@ export enum ParameterInputType {
   File = 'file',
   Set = 'set',
   Checkbox = 'checkbox',
+  Callout = 'callout',
 }
 
 /**
@@ -223,9 +224,17 @@ export interface CheckboxParameterFormField extends ParameterFormFieldBase {
   readonly default: boolean;
 }
 
+/**
+ * Read-only callout banner parameter specific data.
+ */
+export interface CalloutParameterFormField extends ParameterFormFieldBase {
+  readonly type: ParameterInputType.Callout;
+}
+
 export type ParameterFormField =
   | GroupParameterFormField
   | TextParameterFormField
   | FileParameterFormField
   | SetParameterFormField
-  | CheckboxParameterFormField;
+  | CheckboxParameterFormField
+  | CalloutParameterFormField;

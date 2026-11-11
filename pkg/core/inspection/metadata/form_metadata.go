@@ -38,6 +38,8 @@ const (
 	Set ParameterInputType = "set"
 	// Checkbox is a type of ParameterInputType. This represents the checkbox type input field.
 	Checkbox ParameterInputType = "checkbox"
+	// Callout represents a read-only callout banner field without user input.
+	Callout ParameterInputType = "callout"
 )
 
 // ParameterHintType represents the types of hint message shown at the bottom of parameter forms.
@@ -159,6 +161,11 @@ type CheckboxParameterFormField struct {
 	Default bool `json:"default"`
 }
 
+// CalloutParameterFormField represents a read-only callout banner displayed in the parameter form.
+type CalloutParameterFormField struct {
+	ParameterFormFieldBase
+}
+
 // FormFieldSetMetadata is a metadata type used in frontend to generate the form fields.
 type FormFieldSetMetadata struct {
 	fieldsLock sync.RWMutex
@@ -275,6 +282,8 @@ func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldB
 	case FileParameterFormField:
 		return v.ParameterFormFieldBase
 	case CheckboxParameterFormField:
+		return v.ParameterFormFieldBase
+	case CalloutParameterFormField:
 		return v.ParameterFormFieldBase
 	default:
 		return ParameterFormFieldBase{}

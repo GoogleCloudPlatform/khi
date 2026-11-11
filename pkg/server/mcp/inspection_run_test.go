@@ -669,6 +669,103 @@ func TestGroupFormFields(t *testing.T) {
 				Warnings: 1,
 			},
 		},
+		{
+			name: "callout fields render info, warning, and error notices without accepting values",
+			fields: []inspectionmetadata.ParameterFormField{
+				inspectionmetadata.CalloutParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:          "logVolumeAdvisory",
+						Label:       "Log Volume Advisory",
+						Description: "Applies to wide query windows.",
+						Type:        inspectionmetadata.Callout,
+						HintType:    inspectionmetadata.Info,
+						Hint:        "Inspecting more than 6 hours of logs increases memory usage.",
+					},
+				},
+				inspectionmetadata.CalloutParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:       "apiQuotaWarning",
+						Label:    "API Quota Warning",
+						Type:     inspectionmetadata.Callout,
+						HintType: inspectionmetadata.Warning,
+						Hint:     "Cloud Logging read quota is below recommended threshold.",
+					},
+				},
+				inspectionmetadata.CalloutParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:       "defaultSeverityNotice",
+						Label:    "Timezone Notice",
+						Type:     inspectionmetadata.Callout,
+						HintType: "",
+						Hint:     "All timestamps are evaluated in UTC.",
+					},
+				},
+				inspectionmetadata.GroupParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:    "prerequisites",
+						Label: "Cluster Prerequisites",
+						Type:  inspectionmetadata.Group,
+					},
+					Children: []inspectionmetadata.ParameterFormField{
+						inspectionmetadata.CalloutParameterFormField{
+							ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+								ID:       "missingLogBucket",
+								Label:    "Missing Required Log Bucket",
+								Type:     inspectionmetadata.Callout,
+								HintType: inspectionmetadata.Error,
+								Hint:     "Required log bucket was not found in the target project.",
+							},
+						},
+					},
+				},
+			},
+			params: map[string]any{"logVolumeAdvisory": "ignored-value"},
+			want: groupResult{
+				Groups: []formGroupData{
+					{
+						Title: "General",
+						Fields: []formFieldData{
+							{
+								ID:          "logVolumeAdvisory",
+								Label:       "Log Volume Advisory",
+								Description: "Applies to wide query windows.",
+								Type:        "callout",
+								HintType:    "Info",
+								Hint:        "Inspecting more than 6 hours of logs increases memory usage.",
+							},
+							{
+								ID:       "apiQuotaWarning",
+								Label:    "API Quota Warning",
+								Type:     "callout",
+								HintType: "Warning",
+								Hint:     "Cloud Logging read quota is below recommended threshold.",
+							},
+							{
+								ID:       "defaultSeverityNotice",
+								Label:    "Timezone Notice",
+								Type:     "callout",
+								HintType: "Info",
+								Hint:     "All timestamps are evaluated in UTC.",
+							},
+						},
+					},
+					{
+						Title: "Cluster Prerequisites",
+						Fields: []formFieldData{
+							{
+								ID:       "missingLogBucket",
+								Label:    "Missing Required Log Bucket",
+								Type:     "callout",
+								HintType: "Error",
+								Hint:     "Required log bucket was not found in the target project.",
+							},
+						},
+					},
+				},
+				Errors:   1,
+				Warnings: 1,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -737,6 +834,14 @@ func TestWithDefaults(t *testing.T) {
 				},
 				inspectionmetadata.SetParameterFormField{
 					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{ID: "namespaces", Type: inspectionmetadata.Set},
+				},
+				inspectionmetadata.CalloutParameterFormField{
+					ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+						ID:       "logVolumeAdvisory",
+						Type:     inspectionmetadata.Callout,
+						HintType: inspectionmetadata.Info,
+						Hint:     "Read-only notice.",
+					},
 				},
 			},
 			want: map[string]any{},
@@ -969,7 +1074,7 @@ func TestInspectionTools_DryRunInspection(t *testing.T) {
 	want := fmt.Sprintf("# Dry run of `%s`\n\n"+
 		"Errors: 0, warnings: 0. Ready to run with the values below. Call `run_inspection` with the parameters to start the inspection.\n\n"+
 		"## Fields\n\n"+
-		"Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.\n\n"+
+		"Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`. Callout fields are read-only notices and accept no parameter value.\n\n"+
 		"### General\n\n"+
 		"#### `khi.google.com/inspection/input/inspection-name`\n- Label: Inspection name\n- Description: The display name of this inspection.\n- Type: text\n"+
 		"- Value: `Google Kubernetes Engine`\n- Default: `Google Kubernetes Engine`\n\n"+

@@ -7,7 +7,7 @@ These fields use default values because you did not specify them. Pass them expl
 
 ## Fields
 
-Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`.
+Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. Upload files for file fields with `request_file_upload`. Callout fields are read-only notices and accept no parameter value.
 
 ### General
 

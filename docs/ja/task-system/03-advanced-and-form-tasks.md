@@ -235,12 +235,13 @@ KHI の「New Inspection」ダイアログで、プロジェクト ID、ロケ�
 
 ### 4.1 フォーム定義関数の種類
 
-入力形式に応じて、以下の 4 種類の定義関数を使い分けます:
+要素の形式に応じて、以下の 5 種類の定義関数を使い分けます:
 
 - **`formtask.DefineTextForm(...)`**: オートコンプリート、型変換、および正規表現バリデーションに対応した、文字列やテキスト入力用のフォームタスクを定義します。
 - **`formtask.DefineSetForm(...)`**: ドロップダウンやチェックリストなど、選択肢から単一または複数の値を選択させるフォームタスクを定義します。
 - **`formtask.DefineCheckboxForm(...)`**: 真偽値のチェックボックストグル用のフォームタスクを定義します。
 - **`formtask.DefineFileForm(...)`**: ユーザーのローカル環境からのログファイルアップロードやファイルパス選択を受け取るフォームタスクを定義します。
+- **`formtask.DefineCalloutForm(...)`**: 入力コントロールを持たない読み取り専用のコールアウトバナー (`Info`、`Warning`、`Error`) を定義し、前提条件や注意事項をフォーム上に表示します。
 
 ### 4.2 リッチな入力フォームの構築とオートコンプリート連携
 
@@ -305,6 +306,33 @@ var ClusterIdentityTask = inspectiontaskbase.DefineInspectionTask(
                 Location:    locationInput.Get(ctx),
                 ClusterName: clusterNameInput.Get(ctx),
             }, nil
+        }
+    },
+)
+```
+
+### 4.4 読み取り専用コールアウトバナーの表示 (`DefineCalloutForm`)
+
+入力コントロールを描画せず、前提条件の案内・クォータ警告・実行ブロックエラーなどの読み取り専用バナーをパラメータフォーム内に表示するには、`formtask.DefineCalloutForm` を使用します:
+
+- 空文字列または `inspectionmetadata.None` を返した場合、バナーはフォームに表示されません。
+- `inspectionmetadata.Error` を返した場合、UI の Run ボタンが無効化され、解消されるまで `TaskModeRun` での実行もエラーとなります。
+
+```go
+var LogVolumeAdvisoryTask = formtask.DefineCalloutForm(
+    LogVolumeAdvisoryTaskID,
+    1000,
+    "Log Volume Advisory",
+    "Checks the selected query duration.",
+    func(b *coretask.Binder) formtask.CalloutFormSpec {
+        duration := coretask.Use(b, InputDurationTaskID.Ref())
+        return formtask.CalloutFormSpec{
+            Callout: func(ctx context.Context) (string, inspectionmetadata.ParameterHintType, error) {
+                if duration.Get(ctx) > 6*time.Hour {
+                    return "Wide time ranges increase Cloud Logging scan volume and memory usage.", inspectionmetadata.Warning, nil
+                }
+                return "", inspectionmetadata.None, nil
+            },
         }
     },
 )

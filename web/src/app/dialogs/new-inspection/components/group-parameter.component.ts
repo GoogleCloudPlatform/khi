@@ -34,6 +34,7 @@ import { TextParameterComponent } from 'src/app/dialogs/new-inspection/component
 import { FileParameterComponent } from 'src/app/dialogs/new-inspection/components/file-parameter.component';
 import { SetParameterComponent } from 'src/app/dialogs/new-inspection/components/set-parameter.component';
 import { CheckboxParameterComponent } from 'src/app/dialogs/new-inspection/components/checkbox-parameter.component';
+import { CalloutParameterComponent } from 'src/app/dialogs/new-inspection/components/callout-parameter.component';
 import { ParameterHeaderComponent } from 'src/app/dialogs/new-inspection/components/parameter-header.component';
 import { ParameterHintComponent } from 'src/app/dialogs/new-inspection/components/parameter-hint.component';
 
@@ -53,6 +54,7 @@ import { ParameterHintComponent } from 'src/app/dialogs/new-inspection/component
     FileParameterComponent,
     SetParameterComponent,
     CheckboxParameterComponent,
+    CalloutParameterComponent,
     ParameterHeaderComponent,
     ParameterHintComponent,
   ],

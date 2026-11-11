@@ -41,6 +41,7 @@ import {
   FileParameterFormField,
   SetParameterFormField,
   CheckboxParameterFormField,
+  CalloutParameterFormField,
   ParameterInputType,
   ParameterHintType,
   ParameterFormValidationTiming,
@@ -257,6 +258,18 @@ export function convertProtoFormFieldToParameterFormField(
         default: cf.defaultValue,
       };
       return checkboxResult;
+    }
+    case 'callout': {
+      const calloutResult: CalloutParameterFormField = {
+        id: commonId,
+        type: ParameterInputType.Callout,
+        label: commonLabel,
+        description: commonDesc,
+        hint: commonHint,
+        hintType: commonHintType,
+        pending: commonPending,
+      };
+      return calloutResult;
     }
     default:
       return null;
