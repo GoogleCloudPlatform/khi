@@ -51,19 +51,18 @@ func TestPlanTestExecution(t *testing.T) {
 			},
 		},
 		{
-			name: "targeted mode includes companion impl package when feature contract changes",
+			name: "targeted mode runs only packages containing changed production files",
 			changedFiles: []string{
 				"pkg/common/set/set.go",
 				"pkg/task/inspection/sample/extractor.go",
+				"pkg/generated/ignored.go",
 			},
 			full: false,
 			want: TestPlan{
 				Packages: []string{
 					"./pkg/common/set",
 					"./pkg/task/inspection/sample",
-					"./pkg/task/inspection/sample/impl",
 				},
-				CoverPkg: "./pkg/common/set,./pkg/task/inspection/sample",
 			},
 		},
 	}

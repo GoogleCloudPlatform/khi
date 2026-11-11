@@ -27,11 +27,10 @@ import (
 	"strings"
 )
 
-// TestPlan describes which Go packages to execute and instrument for differential coverage.
+// TestPlan describes which Go packages to execute for differential coverage.
 type TestPlan struct {
 	Skip     bool
 	Packages []string
-	CoverPkg string
 }
 
 // PlanTestExecution builds a minimal or full Go test execution plan from changed production Go files.
@@ -45,9 +44,7 @@ func PlanTestExecution(repoRoot string, changedFiles []string, full bool) TestPl
 		return TestPlan{Skip: true}
 	}
 
-	coverSet := make(map[string]struct{})
-	testSet := make(map[string]struct{})
-
+	pkgSet := make(map[string]struct{})
 	for _, relFile := range changedFiles {
 		cleanFile := strings.TrimPrefix(filepath.ToSlash(relFile), "./")
 		if !IsTargetProductionGoFile(cleanFile) {
@@ -63,30 +60,15 @@ func PlanTestExecution(repoRoot string, changedFiles []string, full bool) TestPl
 		if relDir == "." {
 			pkgSpec = "."
 		}
-		coverSet[pkgSpec] = struct{}{}
-		testSet[pkgSpec] = struct{}{}
-
-		// In KHI, <feature> contract packages often have tests in their companion <feature>/impl subpackage.
-		implAbsDir := filepath.Join(absDir, "impl")
-		if hasGoFiles(implAbsDir) {
-			implSpec := pkgSpec + "/impl"
-			if pkgSpec == "." {
-				implSpec = "./impl"
-			}
-			testSet[implSpec] = struct{}{}
-		}
+		pkgSet[pkgSpec] = struct{}{}
 	}
 
-	if len(testSet) == 0 {
+	if len(pkgSet) == 0 {
 		return TestPlan{Skip: true}
 	}
 
-	coverPkgs := sortedKeys(coverSet)
-	testPkgs := sortedKeys(testSet)
-
 	return TestPlan{
-		Packages: testPkgs,
-		CoverPkg: strings.Join(coverPkgs, ","),
+		Packages: sortedKeys(pkgSet),
 	}
 }
 
@@ -96,11 +78,8 @@ func RunGoTestCoverage(ctx context.Context, repoRoot string, plan TestPlan, prof
 		return nil
 	}
 
-	args := []string{"test"}
-	if plan.CoverPkg != "" {
-		args = append(args, "-coverpkg="+plan.CoverPkg)
-	}
-	args = append(args, "-coverprofile="+profileOut)
+	args := make([]string, 0, 2+len(plan.Packages))
+	args = append(args, "test", "-coverprofile="+profileOut)
 	args = append(args, plan.Packages...)
 
 	cmd := exec.CommandContext(ctx, "go", args...)
