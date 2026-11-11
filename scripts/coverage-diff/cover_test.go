@@ -23,56 +23,41 @@ import (
 )
 
 func TestParseCoverProfile(t *testing.T) {
-	testCases := []struct {
-		name       string
-		modulePath string
-		profile    string
-		want       map[string][]CoverBlock
-	}{
-		{
-			name:       "merges duplicate blocks and excludes generated and testutil files",
-			modulePath: "github.com/GoogleCloudPlatform/khi",
-			profile: `mode: set
+	profile := `mode: set
 github.com/GoogleCloudPlatform/khi/pkg/foo/bar.go:10.15,14.2 2 0
 github.com/GoogleCloudPlatform/khi/pkg/foo/bar.go:10.15,14.2 2 1
 github.com/GoogleCloudPlatform/khi/pkg/foo/bar.go:5.12,8.2 1 0
 github.com/GoogleCloudPlatform/khi/pkg/generated/gen.go:1.1,5.2 3 1
 github.com/GoogleCloudPlatform/khi/pkg/testutil/helper.go:1.1,5.2 2 1
 github.com/GoogleCloudPlatform/khi/pkg/foo/zzz_codegen.go:1.1,5.2 2 1
-`,
-			want: map[string][]CoverBlock{
-				"pkg/foo/bar.go": {
-					{
-						StartLine:     5,
-						StartCol:      12,
-						EndLine:       8,
-						EndCol:        2,
-						NumStatements: 1,
-						Count:         0,
-					},
-					{
-						StartLine:     10,
-						StartCol:      15,
-						EndLine:       14,
-						EndCol:        2,
-						NumStatements: 2,
-						Count:         1,
-					},
-				},
+`
+	want := map[string][]CoverBlock{
+		"pkg/foo/bar.go": {
+			{
+				StartLine:     5,
+				StartCol:      12,
+				EndLine:       8,
+				EndCol:        2,
+				NumStatements: 1,
+				Count:         0,
+			},
+			{
+				StartLine:     10,
+				StartCol:      15,
+				EndLine:       14,
+				EndCol:        2,
+				NumStatements: 2,
+				Count:         1,
 			},
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := ParseCoverProfile(strings.NewReader(tc.profile), tc.modulePath)
-			if err != nil {
-				t.Fatalf("ParseCoverProfile() unexpected error: %v", err)
-			}
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("ParseCoverProfile() mismatch (-want +got):\n%s", diff)
-			}
-		})
+	got, err := ParseCoverProfile(strings.NewReader(profile), "github.com/GoogleCloudPlatform/khi")
+	if err != nil {
+		t.Fatalf("ParseCoverProfile() unexpected error: %v", err)
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ParseCoverProfile() mismatch (-want +got):\n%s", diff)
 	}
 }
 

@@ -91,7 +91,7 @@ func TestParseUnifiedDiff(t *testing.T) {
 		want map[string]map[int]struct{}
 	}{
 		{
-			name: "zero context additions modifications andpure deletions",
+			name: "zero context additions modifications and pure deletions",
 			diff: `diff --git a/pkg/foo/bar.go b/pkg/foo/bar.go
 index 1111111..2222222 100644
 --- a/pkg/foo/bar.go
