@@ -125,7 +125,7 @@ These tasks generate the timeline events and revisions for the resources.
 
 - **`nonSuccessLogLogToTimelineMapperTask`**: Generates events for failed operations, marking them as errors in the timeline.
 - **`resourceRevisionLogToTimelineMapperTask`**: Generates the main resource revisions, showing the state of the resource body over time. It handles standard CRUD operations.
-- **`resourceOwnerReferenceTimelineMapperTask`**: Adds owner reference information to the timeline, allowing KHI to link resources (e.g., Pod to ReplicaSet).
+- **`resourceOwnerReferenceTimelineMapperTask`**: Adds owner reference information to the timeline, allowing KHI to link resources (e.g., Pod to ReplicaSet). It also links a `CiliumEndpoint` to the Pod with the same namespace and name even when audit logs do not record its manifest, because the Cilium agent always creates the `CiliumEndpoint` of a Pod with the same name and sets the Pod as the owner.
 - **`endpointResourceLogToTimelineMapperTask`**: Specifically tracks `Endpoint` and `EndpointSlice` resources, generating revisions that show the status of individual endpoints (ready, terminating, etc.).
 - **`podPhaseLogToTimelineMapperTask`**: Tracks the phase of Pods (Pending, Running, Succeeded, Failed) and their node assignment.
 - **`containerLogToTimelineMapperTask`**: Tracks the status of containers within Pods (Waiting, Running, Terminated) and their state details (reason, exit code).

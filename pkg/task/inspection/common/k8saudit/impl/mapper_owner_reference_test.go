@@ -305,3 +305,207 @@ metadata:
 		})
 	}
 }
+
+// TestResourceOwnerReferenceTimelineMapperTask_ProcessLog_PodOwnedByName verifies that resources owned by the Pod with the same name are linked to the Pod without their manifests.
+func TestResourceOwnerReferenceTimelineMapperTask_ProcessLog_PodOwnedByName(t *testing.T) {
+	task := &resourceOwnerReferenceTimelineMapperTaskSetting{
+		nonNamespacedOwnerTypes: map[string]struct{}{
+			"core/v1#node": {},
+		},
+		podOwnedTypesByName: map[string]struct{}{
+			"cilium.io#ciliumendpoint": {},
+		},
+	}
+
+	ciliumEndpoint := &k8saudit.ResourceIdentity{
+		APIVersion: "cilium.io/v2",
+		Kind:       "ciliumendpoint",
+		Namespace:  "default",
+		Name:       "nginx",
+	}
+	configMap := &k8saudit.ResourceIdentity{
+		APIVersion: "core/v1",
+		Kind:       "configmap",
+		Namespace:  "default",
+		Name:       "nginx",
+	}
+	podPath := func(ctx context.Context) *khifilev6.TimelinePath {
+		return MustResolveTimelinePath(ctx, "k8s", &k8saudit.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		})
+	}
+
+	parseYAML := func(yamlStr string) *structured.NodeReader {
+		if yamlStr == "" {
+			return nil
+		}
+		node, err := structured.FromYAML(yamlStr)
+		if err != nil {
+			t.Fatalf("failed to parse YAML: %v", err)
+		}
+		return structured.NewNodeReader(node)
+	}
+
+	tests := []struct {
+		name     string
+		target   *k8saudit.ResourceIdentity
+		yaml     string
+		isDryRun bool
+		assert   func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context)
+	}{
+		{
+			name:   "CiliumEndpoint without manifest is linked to the Pod with the same name",
+			target: ciliumEndpoint,
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context) {
+				ownedPath := k8saudit.MustOwnedResourceTimeline(ctx, podPath(ctx), "nginx[kind:ciliumendpoint]")
+				targetPath := MustResolveTimelinePath(ctx, "k8s", ciliumEndpoint)
+
+				testchangeset.AssertTimeline(t, cs).
+					HasAlias(ownedPath, targetPath)
+			},
+		},
+		{
+			name:   "CiliumEndpoint owned by the Pod in its manifest is linked to the same alias",
+			target: ciliumEndpoint,
+			yaml: `
+metadata:
+  name: nginx
+  namespace: default
+  ownerReferences:
+  - apiVersion: v1
+    kind: Pod
+    name: nginx
+    uid: uid-1
+`,
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context) {
+				ownedPath := k8saudit.MustOwnedResourceTimeline(ctx, podPath(ctx), "nginx[kind:ciliumendpoint]")
+				targetPath := MustResolveTimelinePath(ctx, "k8s", ciliumEndpoint)
+
+				testchangeset.AssertTimeline(t, cs).
+					HasAlias(ownedPath, targetPath)
+				if got := len(cs.Aliases); got != 1 {
+					t.Errorf("len(cs.Aliases) = %d, want 1", got)
+				}
+			},
+		},
+		{
+			name:   "resource of another type without manifest is not linked to the Pod",
+			target: configMap,
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context) {
+				ownedPath := k8saudit.MustOwnedResourceTimeline(ctx, podPath(ctx), "nginx[kind:configmap]")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasNoAlias(ownedPath)
+			},
+		},
+		{
+			name:     "dry run request for CiliumEndpoint is not linked",
+			target:   ciliumEndpoint,
+			isDryRun: true,
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context) {
+				ownedPath := k8saudit.MustOwnedResourceTimeline(ctx, podPath(ctx), "nginx[kind:ciliumendpoint]")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasNoAlias(ownedPath)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			builder := khifilev6.NewTestBuilder(id.NewGenerator())
+			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
+
+			logObj := testlog.NewMockLog(
+				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				k8saudit.K8sAuditLogFieldSet{
+					Principal:    "system:node:test-node",
+					APIVersion:   tc.target.APIVersion,
+					ResourceName: tc.target.Name,
+					Namespace:    tc.target.Namespace,
+					ClusterName:  "k8s",
+					Verb:         k8saudit.VerbCreate,
+					IsDryRun:     tc.isDryRun,
+				},
+			)
+
+			groupSet := k8saudit.RelatedGroupSet{
+				Roles: map[string]*k8saudit.ResourceManifestLogGroup{
+					"target": {
+						Resource: tc.target,
+						Logs: []*k8saudit.ResourceManifestLog{
+							{Log: logObj, ResourceBodyReader: parseYAML(tc.yaml)},
+						},
+					},
+				},
+			}
+
+			event := k8saudit.MultiGroupLogEvent{
+				Log:              logObj,
+				GroupRole:        "target",
+				ResourceIdentity: tc.target,
+				EventType:        k8saudit.ChangeEventTypeCreation,
+				GroupSet:         groupSet,
+			}
+
+			cs, _, err := task.ProcessLog(ctx, event, struct{}{})
+			if err != nil {
+				t.Fatalf("ProcessLog() failed: %v", err)
+			}
+
+			tc.assert(t, cs, ctx)
+		})
+	}
+}
+
+// TestIsOwnedByPodWithSameName verifies that only namespaced resources of the declared types are treated as owned by the Pod with the same name.
+func TestIsOwnedByPodWithSameName(t *testing.T) {
+	task := &resourceOwnerReferenceTimelineMapperTaskSetting{
+		podOwnedTypesByName: map[string]struct{}{
+			"cilium.io#ciliumendpoint": {},
+		},
+	}
+
+	testCases := []struct {
+		desc     string
+		identity *k8saudit.ResourceIdentity
+		want     bool
+	}{
+		{
+			desc:     "namespaced CiliumEndpoint",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Namespace: "default", Name: "nginx"},
+			want:     true,
+		},
+		{
+			desc:     "resource of a type not declared",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "core/v1", Kind: "configmap", Namespace: "default", Name: "nginx"},
+			want:     false,
+		},
+		{
+			desc:     "CiliumEndpoint in the cluster scope",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Namespace: k8saudit.ClusterScopeNamespace, Name: "nginx"},
+			want:     false,
+		},
+		{
+			desc:     "CiliumEndpoint without a namespace",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Name: "nginx"},
+			want:     false,
+		},
+		{
+			desc:     "subresource of a CiliumEndpoint",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Namespace: "default", Name: "nginx", SubresourceName: "status"},
+			want:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := task.isOwnedByPodWithSameName(tc.identity); got != tc.want {
+				t.Errorf("isOwnedByPodWithSameName() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
