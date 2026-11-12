@@ -15,6 +15,7 @@
 package scene
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -71,7 +72,8 @@ func Resolve(
 		DimUnlistedRows: ann.DimUnlistedRows != nil && *ann.DimUnlistedRows,
 	}
 
-	if errRes, err := resolveMarkers(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
+	pendingMarkers, errRes, err := resolveMarkerAnchors(wb, inspectionID, spec, applied, paletteReg, autoInclude)
+	if err != nil || errRes != nil {
 		return nil, errRes, err
 	}
 	if errRes, err := resolveSpans(ctx, wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
@@ -80,9 +82,10 @@ func Resolve(
 	if errRes, err := resolveRowHighlights(ctx, wb, inspectionID, spec, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
-	if errRes, err := resolveExcerpts(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
+	if errRes, err := resolveExcerpts(wb, inspectionID, spec, applied, paletteReg, autoInclude, pendingMarkers, overlay); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
+	finalizeMarkers(ann, pendingMarkers, overlay)
 	if errRes, err := resolveConnectors(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
@@ -98,33 +101,32 @@ func Resolve(
 	return overlay, nil, nil
 }
 
-func resolveMarkers(
+type pendingMarker struct {
+	itemIndex     int
+	explicitBadge bool
+	marker        ResolvedMarker
+}
+
+func resolveMarkerAnchors(
 	wb *workbench.Workbench,
 	inspectionID string,
 	spec *Spec,
 	applied workbench.AppliedFilter,
 	paletteReg *paletteRegistry,
 	autoInclude *roaring.Bitmap,
-	overlay *Overlay,
-) (*mcpsdk.CallToolResult, error) {
+) ([]pendingMarker, *mcpsdk.CallToolResult, error) {
 	ann := spec.Annotations
-	usedBadges := make(map[string]bool, len(ann.Markers))
-	for _, m := range ann.Markers {
-		if m.Badge != "" {
-			usedBadges[m.Badge] = true
-		}
-	}
-	nextSeq := 1
+	pending := make([]pendingMarker, 0, len(ann.Markers))
 	for i := range ann.Markers {
 		m := &ann.Markers[i]
 		fieldPath := fmt.Sprintf("annotations.markers[%d]", i)
 		if strings.TrimSpace(m.Label) == "" {
 			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.label` is required.", fieldPath))
-			return res, nil
+			return nil, res, nil
 		}
 		if utf8.RuneCountInString(m.Label) > maxAnnotationRunes {
 			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.label` exceeds maximum length of %d characters.", fieldPath, maxAnnotationRunes))
-			return res, nil
+			return nil, res, nil
 		}
 		style := m.Style
 		if style == "" {
@@ -132,44 +134,89 @@ func resolveMarkers(
 		}
 		if !slices.Contains(validMarkerStyles, style) {
 			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Unsupported `%s.style` `%s` (use `pin` or `reference`).", fieldPath, style))
-			return res, nil
+			return nil, res, nil
 		}
 		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, m.PaletteID)
 		if errRes != nil {
-			return errRes, nil
+			return nil, errRes, nil
 		}
 
 		pt, errRes, err := resolveAnchor(wb, inspectionID, applied, spec.Filter, fieldPath+".anchor", m.Anchor)
 		if err != nil || errRes != nil {
-			return errRes, err
+			return nil, errRes, err
 		}
 		if pt.timelineID != 0 {
 			autoInclude.Add(pt.timelineID)
 		}
-		badge := m.Badge
-		if badge == "" {
+		timeLabel := formatShiftedClock(pt.time, spec.TimezoneShiftHours)
+		pending = append(pending, pendingMarker{
+			itemIndex:     i,
+			explicitBadge: m.Badge != "",
+			marker: ResolvedMarker{
+				Badge:         m.Badge,
+				Label:         m.Label,
+				Style:         style,
+				PaletteID:     paletteID,
+				TimeMs:        pt.time.UnixMilli(),
+				TimeLabel:     timeLabel,
+				TimelineID:    pt.timelineID,
+				LogID:         pt.logID,
+				RevisionIndex: pt.revisionIndex,
+			},
+		})
+	}
+	return pending, nil, nil
+}
+
+func finalizeMarkers(ann *Annotations, pending []pendingMarker, overlay *Overlay) {
+	if len(pending) == 0 {
+		return
+	}
+	usedBadges := make(map[string]bool, len(pending)+len(overlay.Excerpts))
+	for i := range pending {
+		if pending[i].explicitBadge {
+			usedBadges[pending[i].marker.Badge] = true
+		}
+	}
+
+	// Inherit co-anchored excerpt badges onto markers that omitted badge so top and bottom pins match.
+	for i := range pending {
+		if pending[i].explicitBadge {
+			continue
+		}
+		for _, ex := range overlay.Excerpts {
+			if isSameMarkerExcerptAnchor(pending[i].marker, ex) {
+				pending[i].marker.Badge = ex.Badge
+				ann.Markers[pending[i].itemIndex].Badge = ex.Badge
+				usedBadges[ex.Badge] = true
+				break
+			}
+		}
+	}
+
+	// Sort markers chronologically so auto-assigned 1..N badges read left-to-right across the top band.
+	slices.SortFunc(pending, func(a, b pendingMarker) int {
+		if c := cmp.Compare(a.marker.TimeMs, b.marker.TimeMs); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.itemIndex, b.itemIndex)
+	})
+
+	nextSeq := 1
+	for idx := range pending {
+		pm := &pending[idx]
+		if pm.marker.Badge == "" {
 			for usedBadges[strconv.Itoa(nextSeq)] {
 				nextSeq++
 			}
-			badge = strconv.Itoa(nextSeq)
+			badge := strconv.Itoa(nextSeq)
 			usedBadges[badge] = true
-			m.Badge = badge
+			pm.marker.Badge = badge
+			ann.Markers[pm.itemIndex].Badge = badge
 		}
-		timeLabel := formatShiftedClock(pt.time, spec.TimezoneShiftHours)
-		overlay.Markers = append(overlay.Markers, ResolvedMarker{
-			ID:            fmt.Sprintf("marker-%d", i+1),
-			Badge:         badge,
-			Label:         m.Label,
-			Style:         style,
-			PaletteID:     paletteID,
-			TimeMs:        pt.time.UnixMilli(),
-			TimeLabel:     timeLabel,
-			TimelineID:    pt.timelineID,
-			LogID:         pt.logID,
-			RevisionIndex: pt.revisionIndex,
-		})
+		pm.marker.ID = fmt.Sprintf("marker-%d", idx+1)
+		overlay.Markers = append(overlay.Markers, pm.marker)
 	}
-	return nil, nil
 }
 
 func resolveSpans(
@@ -427,8 +474,8 @@ func validateAnnotationCounts(ann *Annotations) *mcpsdk.CallToolResult {
 		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`annotations.spans` exceeds maximum of %d items (got %d).", maxSceneSpans, len(ann.Spans)))
 		return res
 	}
-	if totalExcerpts := len(ann.DiffExcerpts) + len(ann.LogExcerpts); totalExcerpts > maxSceneExcerpts {
-		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Total `diffExcerpts` + `logExcerpts` exceeds maximum of %d cards (got %d).", maxSceneExcerpts, totalExcerpts))
+	if totalExcerpts := len(ann.DiffExcerpts) + len(ann.ManifestExcerpts) + len(ann.LogExcerpts); totalExcerpts > maxSceneExcerpts {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Total `diffExcerpts` + `manifestExcerpts` + `logExcerpts` exceeds maximum of %d cards (got %d).", maxSceneExcerpts, totalExcerpts))
 		return res
 	}
 	if len(ann.Connectors) > maxSceneConnectors {

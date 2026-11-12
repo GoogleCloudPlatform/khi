@@ -264,6 +264,8 @@ func applyClearLayers(out *Annotations, layers []AnnotationLayer) *mcpsdk.CallTo
 			out.RowHighlights = nil
 		case AnnotationLayerDiffExcerpts:
 			out.DiffExcerpts = nil
+		case AnnotationLayerManifestExcerpts:
+			out.ManifestExcerpts = nil
 		case AnnotationLayerLogExcerpts:
 			out.LogExcerpts = nil
 		case AnnotationLayerConnectors:
@@ -274,7 +276,7 @@ func applyClearLayers(out *Annotations, layers []AnnotationLayer) *mcpsdk.CallTo
 			res, _, _ := mdtemplate.ErrorResult(
 				"INVALID_ARGUMENT",
 				fmt.Sprintf("Unknown annotation layer `%s` in `annotations.clearLayers`.", layer),
-				"Supported layers: `palette`, `markers`, `spans`, `rowHighlights`, `diffExcerpts`, `logExcerpts`, `connectors`, `callouts`, `all`.",
+				"Supported layers: `palette`, `markers`, `spans`, `rowHighlights`, `diffExcerpts`, `manifestExcerpts`, `logExcerpts`, `connectors`, `callouts`, `all`.",
 			)
 			return res
 		}
@@ -347,6 +349,9 @@ func mergeAnnotations(base, patch *Annotations) (*Annotations, *mcpsdk.CallToolR
 		out.DiffExcerpts = deleteNilIfEmpty(out.DiffExcerpts, func(de DiffExcerpt) bool {
 			return removeSet[de.Badge]
 		})
+		out.ManifestExcerpts = deleteNilIfEmpty(out.ManifestExcerpts, func(me ManifestExcerpt) bool {
+			return removeSet[me.Badge]
+		})
 		out.LogExcerpts = deleteNilIfEmpty(out.LogExcerpts, func(le LogExcerpt) bool {
 			return removeSet[le.Badge]
 		})
@@ -378,6 +383,7 @@ func mergeAnnotations(base, patch *Annotations) (*Annotations, *mcpsdk.CallToolR
 	out.Spans = append(out.Spans, patchCopy.Spans...)
 	out.RowHighlights = append(out.RowHighlights, patchCopy.RowHighlights...)
 	out.DiffExcerpts = append(out.DiffExcerpts, patchCopy.DiffExcerpts...)
+	out.ManifestExcerpts = append(out.ManifestExcerpts, patchCopy.ManifestExcerpts...)
 	out.LogExcerpts = append(out.LogExcerpts, patchCopy.LogExcerpts...)
 	out.Connectors = append(out.Connectors, patchCopy.Connectors...)
 	out.Callouts = append(out.Callouts, patchCopy.Callouts...)

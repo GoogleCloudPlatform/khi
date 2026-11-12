@@ -88,6 +88,7 @@ export enum TimelineCalloutPlacement {
  */
 export enum TimelineExcerptKind {
   DIFF = 'diff',
+  MANIFEST = 'manifest',
   LOG = 'log',
 }
 

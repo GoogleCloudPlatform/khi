@@ -318,8 +318,10 @@ export interface ExcerptCardViewModel {
   readonly gridArea: string;
   /** Short badge token rendered on the card header matching its timeline pin. */
   readonly badge: string;
-  /** Evidence kind distinguishing resource manifest diffs from raw log excerpts. */
+  /** Evidence kind distinguishing resource manifest diffs, static manifests, and raw log excerpts. */
   readonly kind: TimelineExcerptKind;
+  /** Uppercase kind tag label ('DIFF', 'MANIFEST', or 'LOG') displayed on the card header. */
+  readonly kindLabel: string;
   /** Palette identifier referenced by this card. */
   readonly paletteId: string;
   /** Resolved semantic card border, header, and badge colors. */

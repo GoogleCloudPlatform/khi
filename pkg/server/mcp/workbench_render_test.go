@@ -526,10 +526,8 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 						TimelineID:    nodeReadyTimelineID,
 						RevisionIndex: 1,
 					},
-					Windows: []scene.SliceWindow{
-						{Query: "MemoryPressure", BeforeLines: 1, AfterLines: 1},
-					},
-					Note: "Node Ready condition flipped to False",
+					Paths: []string{"$.spec.principal", "$.status.summary"},
+					Note:  "Node Ready condition flipped to False",
 				},
 			},
 			LogExcerpts: []scene.LogExcerpt{
@@ -597,14 +595,31 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 		t.Errorf("storedChildA mutated unexpectedly: err=%v overlay=%+v", err, storedChildA.Document.Overlay)
 	}
 
-	// Step 4: Verify actionable error codes (SLICE_QUERY_NOT_FOUND and ANCHOR_OUT_OF_VIEWPORT).
+	// Step 4: Verify actionable error codes (INVALID_ARGUMENT on omitted paths, SLICE_QUERY_NOT_FOUND, and ANCHOR_OUT_OF_VIEWPORT).
+	errOmittedPathsRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		ParentSceneID: parentSceneID,
+		Annotations: &scene.Annotations{
+			DiffExcerpts: []scene.DiffExcerpt{
+				{
+					Revision: scene.RevisionRef{TimelineID: nodeReadyTimelineID, RevisionIndex: 1},
+				},
+			},
+		},
+	})
+	if err != nil || !errOmittedPathsRes.IsError {
+		t.Fatalf("omitted paths INVALID_ARGUMENT check failed: err=%v res=%v", err, errOmittedPathsRes)
+	}
+	if gotErrText := errOmittedPathsRes.Content[0].(*mcpsdk.TextContent).Text; !strings.HasPrefix(gotErrText, "Error: INVALID_ARGUMENT") {
+		t.Errorf("expected INVALID_ARGUMENT on omitted paths, got:\n%s", gotErrText)
+	}
+
 	errSliceRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
 		ParentSceneID: parentSceneID,
 		Annotations: &scene.Annotations{
 			DiffExcerpts: []scene.DiffExcerpt{
 				{
 					Revision: scene.RevisionRef{TimelineID: nodeReadyTimelineID, RevisionIndex: 1},
-					Windows:  []scene.SliceWindow{{Query: "NonExistentFieldXYZ"}},
+					Paths:    []string{"$.status.nonExistentFieldXYZ"},
 				},
 			},
 		},
@@ -630,5 +645,53 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 	}
 	if gotErrText := errViewportRes.Content[0].(*mcpsdk.TextContent).Text; !strings.HasPrefix(gotErrText, "Error: ANCHOR_OUT_OF_VIEWPORT") {
 		t.Errorf("expected ANCHOR_OUT_OF_VIEWPORT, got:\n%s", gotErrText)
+	}
+
+	// Step 5: Verify manifestExcerpts and co-anchor marker/excerpt badge synchronization.
+	revZero := 0
+	zoomStart := baseTime.Add(20 * time.Minute)
+	zoomEnd := baseTime.Add(35 * time.Minute)
+	manifestRes, _, err := handler.handleRenderTimelines(ctx, nil, RenderTimelinesInput{
+		InspectionID: inspectionID,
+		Filter: workbench.Filter{
+			StartTime: &zoomStart,
+			EndTime:   &zoomEnd,
+		},
+		Annotations: &scene.Annotations{
+			Markers: []scene.MarkerAnnotation{
+				{
+					Anchor: scene.Anchor{TimelineID: appTimelineID, LogID: oomLogID},
+					Label:  "App OOM event",
+				},
+			},
+			ManifestExcerpts: []scene.ManifestExcerpt{
+				{
+					TimelineID:    nodeReadyTimelineID,
+					RevisionIndex: &revZero,
+					Paths:         []string{"$.status.summary"},
+					Note:          "Steady node condition active entering zoomed window",
+				},
+			},
+			LogExcerpts: []scene.LogExcerpt{
+				{
+					LogID:      oomLogID,
+					TimelineID: appTimelineID,
+					Note:       "OOM event log card",
+				},
+			},
+		},
+	})
+	if err != nil || manifestRes.IsError {
+		t.Fatalf("Step 5 handleRenderTimelines() failed: err=%v res=%v", err, manifestRes)
+	}
+	manifestText := manifestRes.Content[1].(*mcpsdk.TextContent).Text
+	if !strings.Contains(manifestText, "Annotations: 1 marker [E2], 2 deck excerpts [E1, E2].") {
+		t.Errorf("Step 5 summary missing synchronized co-anchor badge:\n%s", manifestText)
+	}
+	if renderer.gotReq.Overlay.Excerpts[0].Kind != scene.ExcerptKindManifest {
+		t.Errorf("Step 5 Excerpts[0].Kind = %q, want %q", renderer.gotReq.Overlay.Excerpts[0].Kind, scene.ExcerptKindManifest)
+	}
+	if renderer.gotReq.Overlay.Excerpts[0].TimeMs != zoomStart.UnixMilli() {
+		t.Errorf("Step 5 clamped manifest TimeMs = %d, want %d", renderer.gotReq.Overlay.Excerpts[0].TimeMs, zoomStart.UnixMilli())
 	}
 }

@@ -48,6 +48,9 @@ $match-highlight-border: mat.m2-get-color-from-palette(
   600
 );
 $note-bg: mat.m2-get-color-from-palette(mat.$m2-blue-gray-palette, 50);
+$manifest-tag-bg: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 50);
+$manifest-tag-border: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 700);
+$manifest-tag-fg: mat.m2-get-color-from-palette(mat.$m2-teal-palette, 900);
 
 $fallback-palette-main: mat.m2-get-color-from-palette(
   mat.$m2-blue-palette,
@@ -253,6 +256,12 @@ $fallback-palette-surface: mat.m2-get-color-from-palette(
   letter-spacing: 0.04em;
   line-height: 14px;
   padding: 0 4px;
+
+  &.kind-manifest {
+    background-color: $manifest-tag-bg;
+    border-color: $manifest-tag-border;
+    color: $manifest-tag-fg;
+  }
 }
 
 .card-resource {
@@ -387,7 +396,8 @@ $fallback-palette-surface: mat.m2-get-color-from-palette(
       / 28px 28px 10px 1fr;
   }
 
-  &.line-log {
+  &.line-log,
+  &.line-manifest {
     color: $text-primary;
     grid-template:
       'num code' auto

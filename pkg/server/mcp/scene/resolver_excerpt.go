@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -31,9 +32,11 @@ import (
 )
 
 type pendingExcerpt struct {
-	isLog     bool
-	itemIndex int
-	card      ResolvedExcerptCard
+	kind          ExcerptKind
+	itemIndex     int
+	fieldPath     string
+	explicitBadge bool
+	card          ResolvedExcerptCard
 }
 
 func resolveExcerpts(
@@ -43,21 +46,11 @@ func resolveExcerpts(
 	applied workbench.AppliedFilter,
 	paletteReg *paletteRegistry,
 	autoInclude *roaring.Bitmap,
+	pendingMarkers []pendingMarker,
 	overlay *Overlay,
 ) (*mcpsdk.CallToolResult, error) {
 	ann := spec.Annotations
 	var pending []pendingExcerpt
-	usedBadges := make(map[string]bool, len(ann.DiffExcerpts)+len(ann.LogExcerpts))
-	for _, de := range ann.DiffExcerpts {
-		if de.Badge != "" {
-			usedBadges[de.Badge] = true
-		}
-	}
-	for _, le := range ann.LogExcerpts {
-		if le.Badge != "" {
-			usedBadges[le.Badge] = true
-		}
-	}
 
 	for i := range ann.DiffExcerpts {
 		de := &ann.DiffExcerpts[i]
@@ -74,9 +67,13 @@ func resolveExcerpts(
 			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.revision.timelineId` is required.", fieldPath))
 			return res, nil
 		}
+		if len(de.Paths) == 0 {
+			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.paths` is required and must contain at least one JSONPath selector.", fieldPath))
+			return res, nil
+		}
 
 		sliced, err := SliceResourceDiff(wb, de.Revision.TimelineID, de.Revision.RevisionIndex, DiffSliceOptions{
-			Windows: de.Windows,
+			Paths: de.Paths,
 		})
 		if err != nil {
 			if errRes, handled := sliceErrorResult(err, inspectionID, de.Revision.TimelineID, 0, fieldPath); handled {
@@ -94,8 +91,10 @@ func resolveExcerpts(
 		subtitle := fmt.Sprintf("+%d / -%d · %d diff lines", sliced.Slice.Changes.Added, sliced.Slice.Changes.Deleted, sliced.Slice.TotalDiffLines)
 		logTimestamp, insertID := resolveCloudLoggingMetadata(wb, sliced.Revision.LogID, sliced.Revision.Time)
 		pending = append(pending, pendingExcerpt{
-			isLog:     false,
-			itemIndex: i,
+			kind:          ExcerptKindDiff,
+			itemIndex:     i,
+			fieldPath:     fieldPath,
+			explicitBadge: de.Badge != "",
 			card: ResolvedExcerptCard{
 				Kind:          ExcerptKindDiff,
 				Badge:         de.Badge,
@@ -117,6 +116,104 @@ func resolveExcerpts(
 	}
 
 	idx := wb.SearchIndex()
+	for i := range ann.ManifestExcerpts {
+		me := &ann.ManifestExcerpts[i]
+		fieldPath := fmt.Sprintf("annotations.manifestExcerpts[%d]", i)
+		if utf8.RuneCountInString(me.Note) > maxAnnotationRunes {
+			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.note` exceeds maximum length of %d characters.", fieldPath, maxAnnotationRunes))
+			return res, nil
+		}
+		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, me.PaletteID)
+		if errRes != nil {
+			return errRes, nil
+		}
+		if me.TimelineID == 0 {
+			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.timelineId` is required.", fieldPath))
+			return res, nil
+		}
+		hasRev := me.RevisionIndex != nil
+		hasTime := me.Time != nil && !me.Time.IsZero()
+		if (hasRev && me.Time != nil) || (!hasRev && !hasTime) {
+			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Specify exactly one of `revisionIndex` or `time` in `%s`.", fieldPath))
+			return res, nil
+		}
+		if len(me.Paths) == 0 {
+			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.paths` is required and must contain at least one JSONPath selector.", fieldPath))
+			return res, nil
+		}
+
+		var selector workbench.RevisionSelector
+		if hasTime {
+			if idx == nil || idx.TimelineMap[me.TimelineID] == nil {
+				res, _, _ := timelineNotFoundResult(inspectionID, me.TimelineID)
+				return res, nil
+			}
+			queryTime := me.Time.UTC()
+			if errRes := checkViewportRange(queryTime, applied, spec.Filter, fieldPath+".time"); errRes != nil {
+				return errRes, nil
+			}
+			selector = workbench.RevisionAtTime(queryTime)
+		} else {
+			selector = workbench.RevisionAtIndex(*me.RevisionIndex)
+		}
+
+		sliced, err := SliceResourceManifest(wb, me.TimelineID, selector, ManifestSliceOptions{
+			Paths: me.Paths,
+		})
+		if err != nil {
+			if errRes, handled := sliceErrorResult(err, inspectionID, me.TimelineID, 0, fieldPath); handled {
+				return errRes, nil
+			}
+			return nil, fmt.Errorf("failed to slice resource manifest for %s: %w", fieldPath, err)
+		}
+
+		var pinTime time.Time
+		if hasTime {
+			pinTime = me.Time.UTC()
+		} else {
+			var vpErrRes *mcpsdk.CallToolResult
+			pinTime, vpErrRes = resolveManifestRevisionViewportPinTime(
+				sliced.Revision.Time,
+				sliced.NextRevisionTime,
+				applied,
+				spec.Filter,
+				fieldPath+".revisionIndex",
+			)
+			if vpErrRes != nil {
+				return vpErrRes, nil
+			}
+		}
+
+		autoInclude.Add(me.TimelineID)
+		revIdx := sliced.Revision.Index
+		title := formatManifestExcerptTitle(sliced.Revision.State)
+		subtitle := formatLineCountSubtitle(sliced.Slice.TotalLines)
+		logTimestamp, insertID := resolveCloudLoggingMetadata(wb, sliced.Revision.LogID, sliced.Revision.Time)
+		pending = append(pending, pendingExcerpt{
+			kind:          ExcerptKindManifest,
+			itemIndex:     i,
+			fieldPath:     fieldPath,
+			explicitBadge: me.Badge != "",
+			card: ResolvedExcerptCard{
+				Kind:          ExcerptKindManifest,
+				Badge:         me.Badge,
+				PaletteID:     paletteID,
+				TimeMs:        pinTime.UnixMilli(),
+				TimeLabel:     formatShiftedClock(pinTime, spec.TimezoneShiftHours),
+				TimelineID:    me.TimelineID,
+				ResourcePath:  compactResourcePath(sliced.Segments),
+				Title:         title,
+				Subtitle:      subtitle,
+				Lines:         sliced.Slice.Lines,
+				Note:          me.Note,
+				LogTimestamp:  logTimestamp,
+				InsertID:      insertID,
+				LogID:         sliced.Revision.LogID,
+				RevisionIndex: &revIdx,
+			},
+		})
+	}
+
 	for i := range ann.LogExcerpts {
 		le := &ann.LogExcerpts[i]
 		fieldPath := fmt.Sprintf("annotations.logExcerpts[%d]", i)
@@ -173,8 +270,10 @@ func resolveExcerpts(
 		subtitle := formatLineCountSubtitle(sliced.Slice.TotalLines)
 		logTimestamp, insertID := resolveCloudLoggingMetadata(wb, le.LogID, sliced.Time)
 		pending = append(pending, pendingExcerpt{
-			isLog:     true,
-			itemIndex: i,
+			kind:          ExcerptKindLog,
+			itemIndex:     i,
+			fieldPath:     fieldPath,
+			explicitBadge: le.Badge != "",
 			card: ResolvedExcerptCard{
 				Kind:         ExcerptKindLog,
 				Badge:        le.Badge,
@@ -198,36 +297,175 @@ func resolveExcerpts(
 		if c := cmp.Compare(a.card.TimeMs, b.card.TimeMs); c != 0 {
 			return c
 		}
-		if a.isLog != b.isLog {
-			if !a.isLog {
-				return -1
-			}
-			return 1
+		if c := cmp.Compare(excerptKindPriority(a.kind), excerptKindPriority(b.kind)); c != 0 {
+			return c
 		}
 		return cmp.Compare(a.itemIndex, b.itemIndex)
 	})
 
+	usedBadges := make(map[string]string, len(pending))
+	prevSeqNum := 0
+	prevSeqBadge := ""
+	prevSeqField := ""
+	prevSeqTimeLabel := ""
+	for idx := range pending {
+		item := &pending[idx]
+		if !item.explicitBadge {
+			continue
+		}
+		badge := item.card.Badge
+		if prevField, dup := usedBadges[badge]; dup {
+			res, _, _ := mdtemplate.ErrorResult(
+				"INVALID_ARGUMENT",
+				fmt.Sprintf("Duplicate excerpt badge `%s` in `%s.badge` (already used by `%s.badge`).", badge, item.fieldPath, prevField),
+				"Specify unique `badge` values across `diffExcerpts`, `manifestExcerpts`, and `logExcerpts`, or omit `badge` for automatic chronological numbering (`E1`..`En`).",
+			)
+			return res, nil
+		}
+		usedBadges[badge] = item.fieldPath
+		if seqNum, ok := parseExcerptSeqBadge(badge); ok {
+			if prevSeqNum > 0 && seqNum < prevSeqNum {
+				res, _, _ := mdtemplate.ErrorResult(
+					"INVALID_ARGUMENT",
+					fmt.Sprintf("Out-of-order manual excerpt badge `%s` in `%s.badge` (%s) appears chronologically after `%s` in `%s.badge` (%s).",
+						badge, item.fieldPath, item.card.TimeLabel, prevSeqBadge, prevSeqField, prevSeqTimeLabel),
+					"Ensure `E<n>` excerpt badges follow chronological card order, or omit `badge` for automatic chronological numbering (`E1`..`En`).",
+				)
+				return res, nil
+			}
+			prevSeqNum = seqNum
+			prevSeqBadge = badge
+			prevSeqField = item.fieldPath
+			prevSeqTimeLabel = item.card.TimeLabel
+		}
+	}
+
+	// Inherit an explicit marker badge onto a co-anchored excerpt that omitted badge.
+	for idx := range pending {
+		item := &pending[idx]
+		if item.explicitBadge {
+			continue
+		}
+		for _, pm := range pendingMarkers {
+			if !pm.explicitBadge || !isSameMarkerExcerptAnchor(pm.marker, item.card) {
+				continue
+			}
+			if usedBadges[pm.marker.Badge] == "" {
+				item.card.Badge = pm.marker.Badge
+				usedBadges[pm.marker.Badge] = item.fieldPath
+				setAnnotationExcerptBadge(ann, item.kind, item.itemIndex, pm.marker.Badge)
+			}
+			break
+		}
+	}
+
 	nextSeq := 1
 	for idx := range pending {
 		item := &pending[idx]
-		badge := item.card.Badge
-		if badge == "" {
-			for usedBadges[fmt.Sprintf("E%d", nextSeq)] {
+		if item.card.Badge == "" {
+			for usedBadges[fmt.Sprintf("E%d", nextSeq)] != "" {
 				nextSeq++
 			}
-			badge = fmt.Sprintf("E%d", nextSeq)
-			usedBadges[badge] = true
+			badge := fmt.Sprintf("E%d", nextSeq)
+			usedBadges[badge] = item.fieldPath
 			item.card.Badge = badge
-			if item.isLog {
-				ann.LogExcerpts[item.itemIndex].Badge = badge
-			} else {
-				ann.DiffExcerpts[item.itemIndex].Badge = badge
-			}
+			setAnnotationExcerptBadge(ann, item.kind, item.itemIndex, badge)
 		}
 		item.card.ID = fmt.Sprintf("excerpt-%d", idx+1)
 		overlay.Excerpts = append(overlay.Excerpts, item.card)
 	}
 	return nil, nil
+}
+
+func excerptKindPriority(kind ExcerptKind) int {
+	switch kind {
+	case ExcerptKindDiff:
+		return 0
+	case ExcerptKindManifest:
+		return 1
+	case ExcerptKindLog:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func parseExcerptSeqBadge(badge string) (int, bool) {
+	if len(badge) < 2 || badge[0] != 'E' {
+		return 0, false
+	}
+	for i := 1; i < len(badge); i++ {
+		if badge[i] < '0' || badge[i] > '9' {
+			return 0, false
+		}
+	}
+	n, err := strconv.Atoi(badge[1:])
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return n, true
+}
+
+func setAnnotationExcerptBadge(ann *Annotations, kind ExcerptKind, itemIndex int, badge string) {
+	switch kind {
+	case ExcerptKindDiff:
+		ann.DiffExcerpts[itemIndex].Badge = badge
+	case ExcerptKindManifest:
+		ann.ManifestExcerpts[itemIndex].Badge = badge
+	case ExcerptKindLog:
+		ann.LogExcerpts[itemIndex].Badge = badge
+	}
+}
+
+func isSameMarkerExcerptAnchor(m ResolvedMarker, ex ResolvedExcerptCard) bool {
+	if m.TimeMs != ex.TimeMs {
+		return false
+	}
+	if m.TimelineID != 0 && m.RevisionIndex != nil && ex.RevisionIndex != nil {
+		return m.TimelineID == ex.TimelineID && *m.RevisionIndex == *ex.RevisionIndex
+	}
+	if m.LogID != 0 && ex.LogID != 0 && m.LogID == ex.LogID {
+		return m.TimelineID == 0 || ex.TimelineID == 0 || m.TimelineID == ex.TimelineID
+	}
+	if m.Style != MarkerStyleReference && m.TimelineID != 0 && m.LogID == 0 && m.RevisionIndex == nil {
+		return m.TimelineID == ex.TimelineID
+	}
+	return false
+}
+
+func resolveManifestRevisionViewportPinTime(
+	revTime time.Time,
+	nextRevTime *time.Time,
+	applied workbench.AppliedFilter,
+	rawFilter workbench.Filter,
+	fieldPath string,
+) (time.Time, *mcpsdk.CallToolResult) {
+	if revTime.IsZero() {
+		return revTime, nil
+	}
+	minBound := applied.StartTime
+	if !minBound.IsZero() && rawFilter.StartTime == nil {
+		minBound = minBound.Add(-defaultHeaderSlack)
+	}
+	maxBound := applied.EndTime
+	if !maxBound.IsZero() && rawFilter.EndTime == nil {
+		maxBound = maxBound.Add(defaultHeaderSlack)
+	}
+
+	if !maxBound.IsZero() && revTime.After(maxBound) {
+		return time.Time{}, checkViewportRange(revTime, applied, rawFilter, fieldPath)
+	}
+	if !minBound.IsZero() && revTime.Before(minBound) {
+		if nextRevTime != nil && !nextRevTime.After(minBound) {
+			return time.Time{}, checkViewportRange(revTime, applied, rawFilter, fieldPath)
+		}
+	}
+
+	pinTime := revTime
+	if !applied.StartTime.IsZero() && pinTime.Before(applied.StartTime) {
+		pinTime = applied.StartTime
+	}
+	return pinTime, nil
 }
 
 func sliceErrorResult(err error, inspectionID string, timelineID, logID uint32, fieldPath string) (*mcpsdk.CallToolResult, bool) {
@@ -245,30 +483,60 @@ func sliceErrorResult(err error, inspectionID string, timelineID, logID uint32, 
 		return res, true
 	}
 
+	var pathErr *InvalidJSONPathError
+	if errors.As(err, &pathErr) {
+		msg := fmt.Sprintf("`%s.paths` is required and must contain at least one JSONPath selector.", fieldPath)
+		if pathErr.PathIndex >= 0 {
+			msg = fmt.Sprintf("Invalid JSONPath %s in `%s.paths[%d]`: %s.", md.Code(pathErr.Path), fieldPath, pathErr.PathIndex, pathErr.Reason)
+		}
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", msg)
+		return res, true
+	}
+
 	var winErr *InvalidSliceWindowError
 	if errors.As(err, &winErr) {
-		res, _, _ := mdtemplate.ErrorResult(
-			"INVALID_ARGUMENT",
-			fmt.Sprintf("Invalid `%s.windows[%d]`: %s.", fieldPath, winErr.WindowIndex, winErr.Reason),
-		)
+		msg := fmt.Sprintf("Invalid `%s.windows`: %s.", fieldPath, winErr.Reason)
+		if winErr.WindowIndex >= 0 {
+			msg = fmt.Sprintf("Invalid `%s.windows[%d]`: %s.", fieldPath, winErr.WindowIndex, winErr.Reason)
+		}
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", msg)
 		return res, true
 	}
 
 	var notFoundErr *SliceQueryNotFoundError
 	if errors.As(err, &notFoundErr) {
-		bullets := []string{
-			fmt.Sprintf("Query %s in `%s.windows[%d]` matched 0 lines.", md.Code(notFoundErr.Query), fieldPath, notFoundErr.WindowIndex),
+		var firstBullet string
+		switch {
+		case notFoundErr.Path != "" && notFoundErr.Query != "":
+			firstBullet = fmt.Sprintf("Query %s within JSONPath %s in `%s.windows[%d]` matched 0 lines.",
+				md.Code(notFoundErr.Query), md.Code(notFoundErr.Path), fieldPath, notFoundErr.WindowIndex)
+		case notFoundErr.Path != "":
+			selectorRef := fmt.Sprintf("%s.paths[%d]", fieldPath, notFoundErr.WindowIndex)
+			if strings.HasPrefix(fieldPath, "annotations.logExcerpts") {
+				selectorRef = fmt.Sprintf("%s.windows[%d].path", fieldPath, notFoundErr.WindowIndex)
+			}
+			firstBullet = fmt.Sprintf("JSONPath %s in `%s` matched 0 YAML nodes.", md.Code(notFoundErr.Path), selectorRef)
+		default:
+			firstBullet = fmt.Sprintf("Query %s in `%s.windows[%d]` matched 0 lines.", md.Code(notFoundErr.Query), fieldPath, notFoundErr.WindowIndex)
 		}
-		if len(notFoundErr.TopLevelKeys) > 0 {
+		bullets := []string{firstBullet}
+		if notFoundErr.MatchedPrefix != "" && len(notFoundErr.AvailableKeys) > 0 {
+			bullets = append(bullets, fmt.Sprintf("Available keys under %s: `%s`.",
+				md.Code(notFoundErr.MatchedPrefix), strings.Join(notFoundErr.AvailableKeys, "`, `")))
+		} else if len(notFoundErr.TopLevelKeys) > 0 {
 			bullets = append(bullets, fmt.Sprintf("Available top-level keys: `%s`.", strings.Join(notFoundErr.TopLevelKeys, "`, `")))
 		}
 		if notFoundErr.Summary != "" {
 			bullets = append(bullets, fmt.Sprintf("Log summary: %s.", md.Code(notFoundErr.Summary)))
 		}
 		if notFoundErr.Preview != "" {
-			bullets = append(bullets, fmt.Sprintf("Changed hunk preview:\n%s", md.Fence("diff", notFoundErr.Preview)))
+			if strings.HasPrefix(fieldPath, "annotations.manifestExcerpts") {
+				bullets = append(bullets, fmt.Sprintf("Manifest preview:\n%s", md.Fence("yaml", notFoundErr.Preview)))
+			} else {
+				bullets = append(bullets, fmt.Sprintf("Changed hunk preview:\n%s", md.Fence("diff", notFoundErr.Preview)))
+			}
 		}
-		bullets = append(bullets, "Inspect the full content with `get_resource_diff` / `get_log` or omit `windows` to use the default excerpt.")
+		bullets = append(bullets, "Inspect the full content with `get_resource_diff` / `get_resource_manifest` / `get_log` to verify available fields.")
 		res, _, _ := mdtemplate.ErrorResult("SLICE_QUERY_NOT_FOUND", bullets...)
 		return res, true
 	}
@@ -321,6 +589,14 @@ func formatRevisionExcerptTitle(verb, state string) string {
 	default:
 		return "Resource diff"
 	}
+}
+
+func formatManifestExcerptTitle(state string) string {
+	s := strings.TrimSpace(state)
+	if s != "" {
+		return fmt.Sprintf("Manifest · %s", s)
+	}
+	return "Manifest"
 }
 
 func formatLineCountSubtitle(totalLines int) string {

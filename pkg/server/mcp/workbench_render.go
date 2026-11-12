@@ -42,7 +42,7 @@ type RenderTimelinesInput struct {
 	MaxDepth           int                `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
 	MaxNodes           int                `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
 	TimezoneShiftHours float64            `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
-	Annotations        *scene.Annotations `json:"annotations,omitempty" jsonschema:"Optional named palette, visual overlays (markers, spans, rowHighlights, connectors, callouts), and bottom-deck evidence cards (diffExcerpts, logExcerpts), plus clearLayers and removeIds patch directives."`
+	Annotations        *scene.Annotations `json:"annotations,omitempty" jsonschema:"Optional named palette, visual overlays (markers, spans, rowHighlights, connectors, callouts), and bottom-deck evidence cards (diffExcerpts, manifestExcerpts, logExcerpts), plus clearLayers and removeIds patch directives."`
 }
 
 type renderTimelinesTemplateData struct {

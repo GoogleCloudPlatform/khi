@@ -31,9 +31,9 @@ type diffHunkRange struct {
 	opEnd   int
 }
 
-// DiffSliceOptions configures multi-window slicing of a resource revision diff.
+// DiffSliceOptions configures JSONPath slicing of a resource revision diff.
 type DiffSliceOptions struct {
-	Windows  []SliceWindow
+	Paths    []string
 	MaxLines int
 }
 
@@ -74,19 +74,27 @@ func SliceResourceDiff(wb *workbench.Workbench, timelineID uint32, revisionIndex
 	}, nil
 }
 
-// SliceUnifiedDiff slices changed hunks between oldText and newText using multi-window search and context folding.
+// SliceUnifiedDiff slices JSONPath-selected fields (both changed and unchanged) between oldText and newText with context folding.
 func SliceUnifiedDiff(oldText, newText string, isInitialRevision bool, opts DiffSliceOptions) (*DiffSliceResult, error) {
 	if isInitialRevision {
 		oldText = ""
 	}
 	maxLines := normalizeMaxLines(opts.MaxLines)
-	preservePair := true
-	windows, err := compileSliceWindows(opts.Windows)
+	compiledPaths, err := compileJSONPaths(opts.Paths)
 	if err != nil {
 		return nil, err
 	}
 
-	ops := workbench.DiffLines(workbench.SplitLines(oldText), workbench.SplitLines(newText))
+	oldDoc, err := parseIndexedYAMLDocument(oldText)
+	if err != nil {
+		return nil, err
+	}
+	newDoc, err := parseIndexedYAMLDocument(newText)
+	if err != nil {
+		return nil, err
+	}
+
+	ops := workbench.DiffLines(oldDoc.lines, newDoc.lines)
 	changes := workbench.CountDiffOps(ops)
 	hunks := collectDiffHunks(ops)
 	totalDiffLines := 0
@@ -94,66 +102,233 @@ func SliceUnifiedDiff(oldText, newText string, isInitialRevision bool, opts Diff
 		totalDiffLines += h.opEnd - h.opStart
 	}
 
-	if len(windows) == 0 {
-		if len(hunks) == 0 {
-			return &DiffSliceResult{Changes: changes}, nil
-		}
-		kept := selectLeadingDiffIntervals(hunks, maxLines)
-		return &DiffSliceResult{
-			Changes:        changes,
-			TotalDiffLines: totalDiffLines,
-			Lines:          renderDiffIntervals(ops, hunks, kept, nil),
-		}, nil
-	}
-
-	if len(hunks) == 0 {
+	if len(ops) == 0 {
 		return nil, &SliceQueryNotFoundError{
-			WindowIndex:  windows[0].index,
-			Query:        windows[0].query,
-			TopLevelKeys: extractTopLevelYAMLKeys(newText),
-			Preview:      "(no manifest changes outside metadata.managedFields)",
+			WindowIndex: compiledPaths[0].index,
+			Path:        compiledPaths[0].raw,
+			Preview:     "(empty resource diff)",
 		}
 	}
 
-	pairs := collectReplacementPairs(ops, hunks)
+	selectedOp := make([]bool, len(ops))
+	oldHighlights := make(map[int][]byteSpan)
+	newHighlights := make(map[int][]byteSpan)
+
+	for _, p := range compiledPaths {
+		oldSels := evalCompiledJSONPath(oldDoc, p)
+		newSels := evalCompiledJSONPath(newDoc, p)
+		if len(oldSels) == 0 && len(newSels) == 0 {
+			matchedPrefix, availableKeys := diagnoseUnmatchedJSONPath(p, newDoc, oldDoc)
+			topKeys := extractChangedTopLevelYAMLKeys(ops)
+			if len(topKeys) == 0 {
+				topKeys = extractTopLevelYAMLKeys(newText)
+			}
+			preview := buildDiffPreview(ops, hunks)
+			if preview == "" {
+				preview = "(no manifest changes outside metadata.managedFields)"
+			}
+			return nil, &SliceQueryNotFoundError{
+				WindowIndex:   p.index,
+				Path:          p.raw,
+				MatchedPrefix: matchedPrefix,
+				AvailableKeys: availableKeys,
+				TopLevelKeys:  topKeys,
+				Preview:       preview,
+			}
+		}
+
+		oldLineSet := buildSelectedLineBitmap(len(oldDoc.lines), oldSels, oldHighlights)
+		newLineSet := buildSelectedLineBitmap(len(newDoc.lines), newSels, newHighlights)
+		markMatchingDiffOps(ops, oldLineSet, newLineSet, len(oldSels) > 0, len(newSels) > 0, selectedOp)
+	}
+
+	orderedOps, orderedSelected := groupSelectedReplacementPairs(ops, selectedOp)
 	matchSpansByOp := make(map[int][]byteSpan)
 	var rawIntervals []lineInterval
-
-	for _, w := range windows {
-		matchedCount := 0
-		for _, h := range hunks {
-			for opIdx := h.opStart; opIdx < h.opEnd; opIdx++ {
-				spans := findQuerySpans(ops[opIdx].Line, w)
-				if len(spans) == 0 {
-					continue
+	runStart := -1
+	for i, sel := range orderedSelected {
+		if sel {
+			if runStart < 0 {
+				runStart = i
+			}
+			op := orderedOps[i]
+			switch op.Kind {
+			case workbench.DiffOpDelete:
+				if spans := oldHighlights[op.OldPos+1]; len(spans) > 0 {
+					matchSpansByOp[i] = append(matchSpansByOp[i], spans...)
 				}
-				matchSpansByOp[opIdx] = append(matchSpansByOp[opIdx], spans...)
-				rawIntervals = append(rawIntervals, expandDiffMatchInterval(opIdx, h, pairs, w.before, w.after, preservePair, maxLines))
-				matchedCount++
-				if matchedCount >= w.maxMatches {
-					break
+			case workbench.DiffOpInsert, workbench.DiffOpEqual:
+				if spans := newHighlights[op.NewPos+1]; len(spans) > 0 {
+					matchSpansByOp[i] = append(matchSpansByOp[i], spans...)
+				} else if op.Kind == workbench.DiffOpEqual {
+					if oldSpans := oldHighlights[op.OldPos+1]; len(oldSpans) > 0 {
+						matchSpansByOp[i] = append(matchSpansByOp[i], oldSpans...)
+					}
 				}
 			}
-			if matchedCount >= w.maxMatches {
-				break
-			}
+		} else if runStart >= 0 {
+			rawIntervals = append(rawIntervals, lineInterval{start: runStart, end: i})
+			runStart = -1
 		}
-		if matchedCount == 0 {
-			return nil, &SliceQueryNotFoundError{
-				WindowIndex:  w.index,
-				Query:        w.query,
-				TopLevelKeys: extractChangedTopLevelYAMLKeys(ops),
-				Preview:      buildDiffPreview(ops, hunks),
-			}
-		}
+	}
+	if runStart >= 0 {
+		rawIntervals = append(rawIntervals, lineInterval{start: runStart, end: len(orderedSelected)})
 	}
 
 	merged := capIntervals(mergeIntervals(rawIntervals), maxLines)
 	return &DiffSliceResult{
 		Changes:        changes,
 		TotalDiffLines: totalDiffLines,
-		Lines:          renderDiffIntervals(ops, hunks, merged, matchSpansByOp),
+		Lines:          renderDiffIntervals(orderedOps, hunks, merged, matchSpansByOp),
 	}, nil
+}
+
+func buildSelectedLineBitmap(totalLines int, sels []yamlLineSelection, highlights map[int][]byteSpan) []bool {
+	if len(sels) == 0 || totalLines == 0 {
+		return nil
+	}
+	selected := make([]bool, totalLines+1)
+	for _, s := range sels {
+		lo := clampInt(s.startLine, 1, totalLines)
+		hi := clampInt(s.endLine, lo, totalLines)
+		for line := lo; line <= hi; line++ {
+			selected[line] = true
+		}
+		if s.highlightLine >= 1 && s.highlightLine <= totalLines {
+			highlights[s.highlightLine] = append(highlights[s.highlightLine], s.highlightSpan)
+		}
+	}
+	return selected
+}
+
+func markMatchingDiffOps(
+	ops []workbench.DiffOp,
+	oldLineSet []bool,
+	newLineSet []bool,
+	hasOld bool,
+	hasNew bool,
+	selectedOp []bool,
+) {
+	inOld := func(lineNum int) bool {
+		return lineNum >= 1 && lineNum < len(oldLineSet) && oldLineSet[lineNum]
+	}
+	inNew := func(lineNum int) bool {
+		return lineNum >= 1 && lineNum < len(newLineSet) && newLineSet[lineNum]
+	}
+
+	for i, op := range ops {
+		switch op.Kind {
+		case workbench.DiffOpEqual:
+			switch {
+			case hasOld && hasNew:
+				if inOld(op.OldPos+1) && inNew(op.NewPos+1) {
+					selectedOp[i] = true
+				}
+			case hasNew:
+				if inNew(op.NewPos + 1) {
+					selectedOp[i] = true
+				}
+			case hasOld:
+				if inOld(op.OldPos + 1) {
+					selectedOp[i] = true
+				}
+			}
+		case workbench.DiffOpDelete:
+			if hasOld && inOld(op.OldPos+1) {
+				selectedOp[i] = true
+			}
+		case workbench.DiffOpInsert:
+			if hasNew && inNew(op.NewPos+1) {
+				selectedOp[i] = true
+			}
+		}
+	}
+}
+
+// groupSelectedReplacementPairs keeps paired selected '-' and '+' sub-runs adjacent within multi-line replacement blocks
+// so unselected sibling changes in the same block fold into leading/interior/trailing omitted counts rather than splitting '-/+'.
+func groupSelectedReplacementPairs(ops []workbench.DiffOp, selected []bool) ([]workbench.DiffOp, []bool) {
+	outOps := make([]workbench.DiffOp, 0, len(ops))
+	outSel := make([]bool, 0, len(selected))
+
+	i := 0
+	for i < len(ops) {
+		if ops[i].Kind != workbench.DiffOpDelete {
+			outOps = append(outOps, ops[i])
+			outSel = append(outSel, selected[i])
+			i++
+			continue
+		}
+		delStart := i
+		for i < len(ops) && ops[i].Kind == workbench.DiffOpDelete {
+			i++
+		}
+		insStart := i
+		for i < len(ops) && ops[i].Kind == workbench.DiffOpInsert {
+			i++
+		}
+		pairEnd := i
+		if insStart == pairEnd {
+			outOps = append(outOps, ops[delStart:pairEnd]...)
+			outSel = append(outSel, selected[delStart:pairEnd]...)
+			continue
+		}
+
+		delRuns := collectSelectedRuns(selected, delStart, insStart)
+		insRuns := collectSelectedRuns(selected, insStart, pairEnd)
+		if len(delRuns) == 0 || len(insRuns) == 0 || len(delRuns) != len(insRuns) {
+			outOps = append(outOps, ops[delStart:pairEnd]...)
+			outSel = append(outSel, selected[delStart:pairEnd]...)
+			continue
+		}
+
+		appendRange := func(lo, hi int, sel bool) {
+			for idx := lo; idx < hi; idx++ {
+				outOps = append(outOps, ops[idx])
+				outSel = append(outSel, sel)
+			}
+		}
+
+		// Leading unselected '-' and '+' ops before the first selected pair.
+		appendRange(delStart, delRuns[0].start, false)
+		appendRange(insStart, insRuns[0].start, false)
+
+		for k := range delRuns {
+			if k > 0 {
+				// Interior unselected '-' and '+' ops between pair k-1 and pair k.
+				appendRange(delRuns[k-1].end, delRuns[k].start, false)
+				appendRange(insRuns[k-1].end, insRuns[k].start, false)
+			}
+			appendRange(delRuns[k].start, delRuns[k].end, true)
+			appendRange(insRuns[k].start, insRuns[k].end, true)
+		}
+
+		// Trailing unselected '-' and '+' ops after the last selected pair.
+		lastK := len(delRuns) - 1
+		appendRange(delRuns[lastK].end, insStart, false)
+		appendRange(insRuns[lastK].end, pairEnd, false)
+	}
+
+	return outOps, outSel
+}
+
+func collectSelectedRuns(selected []bool, lo, hi int) []lineInterval {
+	var runs []lineInterval
+	runStart := -1
+	for i := lo; i < hi; i++ {
+		if selected[i] {
+			if runStart < 0 {
+				runStart = i
+			}
+		} else if runStart >= 0 {
+			runs = append(runs, lineInterval{start: runStart, end: i})
+			runStart = -1
+		}
+	}
+	if runStart >= 0 {
+		runs = append(runs, lineInterval{start: runStart, end: hi})
+	}
+	return runs
 }
 
 func collectDiffHunks(ops []workbench.DiffOp) []diffHunkRange {
@@ -181,93 +356,6 @@ func collectDiffHunks(ops []workbench.DiffOp) []diffHunkRange {
 		i = end
 	}
 	return hunks
-}
-
-func collectReplacementPairs(ops []workbench.DiffOp, hunks []diffHunkRange) []lineInterval {
-	var pairs []lineInterval
-	for _, h := range hunks {
-		i := h.opStart
-		for i < h.opEnd {
-			if ops[i].Kind != workbench.DiffOpDelete {
-				i++
-				continue
-			}
-			delStart := i
-			for i < h.opEnd && ops[i].Kind == workbench.DiffOpDelete {
-				i++
-			}
-			insStart := i
-			for i < h.opEnd && ops[i].Kind == workbench.DiffOpInsert {
-				i++
-			}
-			if i > insStart {
-				pairs = append(pairs, lineInterval{start: delStart, end: i})
-			}
-		}
-	}
-	return pairs
-}
-
-func findReplacementPair(pairs []lineInterval, opIdx int) (lineInterval, bool) {
-	for _, p := range pairs {
-		if opIdx >= p.start && opIdx < p.end {
-			return p, true
-		}
-	}
-	return lineInterval{}, false
-}
-
-func expandDiffMatchInterval(
-	opIdx int,
-	hunk diffHunkRange,
-	pairs []lineInterval,
-	before, after int,
-	preservePair bool,
-	maxLines int,
-) lineInterval {
-	coreStart := opIdx
-	coreEnd := opIdx + 1
-	if preservePair {
-		if pair, ok := findReplacementPair(pairs, opIdx); ok && pair.end-pair.start <= maxLines {
-			coreStart = pair.start
-			coreEnd = pair.end
-		}
-	}
-
-	segStart := max(hunk.opStart, coreStart-before)
-	segEnd := min(hunk.opEnd, coreEnd+after)
-
-	if preservePair {
-		if pair, ok := findReplacementPair(pairs, segStart); ok {
-			candStart := min(segStart, pair.start)
-			if segEnd-candStart <= maxLines {
-				segStart = max(hunk.opStart, candStart)
-			}
-		}
-		if segEnd > segStart {
-			if pair, ok := findReplacementPair(pairs, segEnd-1); ok {
-				candEnd := max(segEnd, pair.end)
-				if candEnd-segStart <= maxLines {
-					segEnd = min(hunk.opEnd, candEnd)
-				}
-			}
-		}
-	}
-	return lineInterval{start: segStart, end: segEnd}
-}
-
-func selectLeadingDiffIntervals(hunks []diffHunkRange, maxLines int) []lineInterval {
-	remaining := maxLines
-	var out []lineInterval
-	for _, h := range hunks {
-		if remaining <= 0 {
-			break
-		}
-		take := min(h.opEnd-h.opStart, remaining)
-		out = append(out, lineInterval{start: h.opStart, end: h.opStart + take})
-		remaining -= take
-	}
-	return out
 }
 
 func renderDiffIntervals(

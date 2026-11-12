@@ -45,7 +45,7 @@ interface MeasuredDeckLayout {
 }
 
 /**
- * Dumb component rendering the background S-curve SVG tether layer and bottom evidence deck of diff and log cards.
+ * Dumb component rendering the background S-curve SVG tether layer and bottom evidence deck of diff, manifest, and log cards.
  */
 @Component({
   selector: 'khi-timeline-evidence-deck',
@@ -82,7 +82,7 @@ export class TimelineEvidenceDeckComponent {
   readonly stageWidthPx = input.required<number>();
 
   /**
-   * Shows interactive Open Diff and Open Log jump buttons when true.
+   * Shows interactive Open Diff, Open Manifest, and Open Log jump buttons when true.
    */
   readonly interactiveMode = input<boolean>(false);
 

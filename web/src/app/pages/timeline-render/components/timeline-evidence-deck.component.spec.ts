@@ -89,9 +89,35 @@ describe('TimelineEvidenceDeckComponent', () => {
             note: 'Kubelet stopped posting status',
           },
           {
+            id: 'ex-manifest',
+            kind: TimelineExcerptKind.MANIFEST,
+            badge: 'E2',
+            paletteId: 'victim',
+            timeMs: 1_015_000,
+            timeLabel: '00:16:55',
+            timelineId: 10,
+            resourcePath: 'horizontalpodautoscaler · default/frontend-hpa',
+            title: 'Manifest · Resource exists',
+            subtitle: '29 lines',
+            revisionIndex: 0,
+            logId: 12,
+            lines: [
+              {
+                kind: TimelineExcerptLineKind.CONTEXT,
+                newLineNum: 13,
+                text: '        averageUtilization: 40',
+                parts: [
+                  { text: '        ' },
+                  { text: 'averageUtilization: 40', matched: true },
+                ],
+              },
+            ],
+            note: 'Static target utilization threshold',
+          },
+          {
             id: 'ex-log-no-meta',
             kind: TimelineExcerptKind.LOG,
-            badge: 'E2',
+            badge: 'E3',
             paletteId: 'victim',
             timeMs: 1_020_000,
             timeLabel: '00:17:00',
@@ -117,7 +143,30 @@ describe('TimelineEvidenceDeckComponent', () => {
     fixture.detectChanges();
 
     const cards = fixture.debugElement.queryAll(By.css('.evidence-card'));
-    expect(cards.length).toBe(2);
+    expect(cards.length).toBe(3);
+
+    const kindTags = cards.map((cardDe) =>
+      (
+        cardDe.query(By.css('.card-kind-tag')).nativeElement as HTMLElement
+      ).textContent?.trim(),
+    );
+    expect(kindTags).toEqual(['DIFF', 'MANIFEST', 'LOG']);
+    expect(
+      cards[1]
+        .query(By.css('.card-kind-tag'))
+        .nativeElement.classList.contains('kind-manifest'),
+    ).toBeTrue();
+    expect(cards[1].query(By.css('.line-manifest'))).not.toBeNull();
+    expect(
+      (
+        cards[1].query(By.css('.line-num.single-num'))
+          .nativeElement as HTMLElement
+      ).textContent?.trim(),
+    ).toBe('13');
+    expect(
+      (cards[1].query(By.css('mark.query-match')).nativeElement as HTMLElement)
+        .textContent,
+    ).toBe('averageUtilization: 40');
 
     const cardEl = cards[0].nativeElement as HTMLElement;
     const tetherEl = fixture.debugElement.query(By.css('.tether-group'))
@@ -138,7 +187,7 @@ describe('TimelineEvidenceDeckComponent', () => {
     expect(cardEl.textContent).not.toContain('rev#');
     expect(cardEl.textContent).not.toContain('logId');
 
-    expect(cards[1].query(By.css('.header-query-row'))).toBeNull();
+    expect(cards[2].query(By.css('.header-query-row'))).toBeNull();
 
     expect(
       fixture.debugElement.query(By.css('mark.query-match')).nativeElement
@@ -157,8 +206,14 @@ describe('TimelineEvidenceDeckComponent', () => {
     component.jumpToSession.subscribe((t) => jumped.push(t));
 
     cards[0].query(By.css('button.jump-btn'))!.triggerEventHandler('click');
+    cards[1].query(By.css('button.jump-btn'))!.triggerEventHandler('click');
+    expect(
+      (cards[1].query(By.css('button.jump-btn'))!.nativeElement as HTMLElement)
+        .textContent,
+    ).toContain('Open Manifest');
     expect(jumped).toEqual([
       { timelineId: 10, revisionIndex: 2, logId: undefined },
+      { timelineId: 10, revisionIndex: 0, logId: 12 },
     ]);
   });
 
