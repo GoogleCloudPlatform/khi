@@ -179,7 +179,7 @@ github.com/GoogleCloudPlatform/khi/pkg/foo/bar.go:5.12,7.2 1 2
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := LoadCoverProfileIfPresent(tc.path, "github.com/GoogleCloudPlatform/khi", FilterOptions{})
+			got, err := LoadCoverProfileIfPresent(tc.path, "github.com/GoogleCloudPlatform/khi")
 			if err != nil {
 				t.Fatalf("LoadCoverProfileIfPresent() unexpected error: %v", err)
 			}

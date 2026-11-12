@@ -162,15 +162,7 @@ jobs:
         run: |
           make generate-backend
           KHI_SKIP_CLOUD_LOGGING=true go test -coverprofile=go-cover.output ./...
-      - name: Report Backend Differential Coverage
-        run: |
-          go run ./scripts/coverage-diff \
-            --coverprofile=go-cover.output \
-            --vcs=git \
-            --base=HEAD^1 \
-            --target=HEAD \
-            --format=github
-      - name: Report Backend Differential Mutation Testing
+      - name: Report Backend Differential Coverage & Mutation Testing
         run: |
           go run ./scripts/mutation-diff \
             --coverprofile=go-cover.output \

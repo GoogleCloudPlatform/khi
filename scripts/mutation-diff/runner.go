@@ -57,6 +57,7 @@ type RunnerOptions struct {
 	MaxMutants             int
 	Timeout                time.Duration
 	LogWriter              io.Writer
+	Progress               *ProgressReporter
 }
 
 type flatSiteRef struct {
@@ -178,6 +179,12 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 			return nil, fmt.Errorf("failed to create package workdir: %w", err)
 		}
 
+		pkgLabel := "./" + pkgDir
+		if pkgDir == "." {
+			pkgLabel = "."
+		}
+		opts.Progress.Phase(3, 4, fmt.Sprintf("Compiling package %d/%d: %s (%d candidate mutants)...", pkgIdx+1, len(sortedPkgs), pkgLabel, maxMutantID))
+
 		binPath, err := compilePackageWithFallback(ctx, opts.RepoRoot, pkgDir, pkgPlans, maxMutantID, pkgWorkDir, opts.LogWriter)
 		if err != nil {
 			return nil, err
@@ -194,6 +201,7 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 			}
 		}
 
+		opts.Progress.Phase(3, 4, fmt.Sprintf("Running baseline reachability in %s...", pkgLabel))
 		tracePath := filepath.Join(pkgWorkDir, "baseline.trace")
 		baselineDur, baselineOut, err := runBaselineTestBinary(ctx, binPath, pkgAbsDir, tracePath, len(changedTestFuncs) > 0)
 		if err != nil {
@@ -208,7 +216,7 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 		perMutTimeout := computePerMutantTimeout(baselineDur)
 		var pkgTracker *pkgRedundancyTracker
 		if len(changedTestFuncs) > 0 {
-			pkgTracker = prepareRedundancyTracker(ctx, binPath, pkgAbsDir, pkgWorkDir, baselineDur, perMutTimeout, workers, baselineOut, changedTestFuncs, pkgPlans)
+			pkgTracker = prepareRedundancyTracker(ctx, binPath, pkgLabel, pkgAbsDir, pkgWorkDir, baselineDur, perMutTimeout, workers, baselineOut, changedTestFuncs, pkgPlans, opts.Progress)
 			if pkgTracker != nil {
 				trackers = append(trackers, pkgTracker)
 			}
@@ -236,10 +244,8 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 
 	selectedJobs := applyMutantBudget(allJobs, opts.MaxMutants)
 	if len(selectedJobs) > 0 {
-		if opts.LogWriter != nil {
-			fmt.Fprintf(opts.LogWriter, "Running %d reached Go mutants across %d workers...\n", len(selectedJobs), workers)
-		}
-		runMutantWorkerPool(ctx, selectedJobs, workers)
+		opts.Progress.StartMutantPool(len(selectedJobs), workers)
+		runMutantWorkerPool(ctx, selectedJobs, workers, opts.Progress)
 	}
 
 	var redundantFindings []RedundantTestFinding
@@ -447,6 +453,7 @@ func collectPackageChangedTestFuncs(
 func prepareRedundancyTracker(
 	ctx context.Context,
 	binPath string,
+	pkgLabel string,
 	pkgAbsDir string,
 	pkgWorkDir string,
 	baselineDur time.Duration,
@@ -455,6 +462,7 @@ func prepareRedundancyTracker(
 	baselineOut []byte,
 	changedFuncs []ChangedTestFunc,
 	pkgPlans []*FilePlan,
+	progress *ProgressReporter,
 ) *pkgRedundancyTracker {
 	parsed := ParseVerboseTestOutput(baselineOut, false)
 	fnSet := make(map[string]struct{}, len(changedFuncs))
@@ -476,7 +484,7 @@ func prepareRedundancyTracker(
 		return nil
 	}
 
-	polarityByLeaf := traceLeafPolarities(ctx, binPath, pkgAbsDir, pkgWorkDir, perMutTimeout, workers, relevantLeafs)
+	polarityByLeaf := traceLeafPolarities(ctx, binPath, pkgLabel, pkgAbsDir, pkgWorkDir, perMutTimeout, workers, relevantLeafs, progress)
 	targetedRegex := ""
 	if baselineDur >= fastVerboseBaselineCap {
 		targetedRegex = BuildTestFuncsRunRegex(changedFuncs)
@@ -506,11 +514,13 @@ func collectBudgetSkippedMutantIDs(plans []*FilePlan) map[int]struct{} {
 func traceLeafPolarities(
 	ctx context.Context,
 	binPath string,
+	pkgLabel string,
 	pkgAbsDir string,
 	pkgWorkDir string,
 	timeout time.Duration,
 	workers int,
 	leaves []string,
+	progress *ProgressReporter,
 ) map[string]map[string]struct{} {
 	type leafTask struct {
 		idx  int
@@ -523,6 +533,7 @@ func traceLeafPolarities(
 	close(taskCh)
 
 	var mu sync.Mutex
+	doneCount := 0
 	result := make(map[string]map[string]struct{}, len(leaves))
 	baseEnv := os.Environ()
 
@@ -544,11 +555,14 @@ func traceLeafPolarities(
 				cancel()
 
 				tokens, _, err := ParsePolarityTraceFile(traceFile)
+				mu.Lock()
 				if err == nil && len(tokens) > 0 {
-					mu.Lock()
 					result[task.leaf] = tokens
-					mu.Unlock()
 				}
+				doneCount++
+				curDone := doneCount
+				mu.Unlock()
+				progress.SubtestProgress(pkgLabel, curDone, len(leaves))
 			}
 		}()
 	}
@@ -556,7 +570,7 @@ func traceLeafPolarities(
 	return result
 }
 
-func runMutantWorkerPool(ctx context.Context, jobs []mutantJob, workers int) {
+func runMutantWorkerPool(ctx context.Context, jobs []mutantJob, workers int, progress *ProgressReporter) {
 	jobCh := make(chan mutantJob, len(jobs))
 	for _, j := range jobs {
 		jobCh <- j
@@ -572,9 +586,12 @@ func runMutantWorkerPool(ctx context.Context, jobs []mutantJob, workers int) {
 			for job := range jobCh {
 				if ctx.Err() != nil {
 					job.mutant.Status = MutantSkippedBudget
+					progress.RecordMutantResult(MutantSkippedBudget)
 					continue
 				}
-				job.mutant.Status = evaluateSingleMutant(ctx, baseEnv, job)
+				status := evaluateSingleMutant(ctx, baseEnv, job)
+				job.mutant.Status = status
+				progress.RecordMutantResult(status)
 			}
 		}()
 	}

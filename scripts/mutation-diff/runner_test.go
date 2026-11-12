@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -278,6 +280,8 @@ func TestIsNegative(t *testing.T) {
 		changedTestLines[line] = struct{}{}
 	}
 
+	var progBuf bytes.Buffer
+	prog := NewProgressReporter(&progBuf, false, gotestutil.TermStyle{Enabled: false})
 	report, err := ExecuteMutationRun(context.Background(), &RunnerOptions{
 		RepoRoot:  repoDir,
 		BaseLabel: "main",
@@ -291,9 +295,23 @@ func TestIsNegative(t *testing.T) {
 		Workers:             2,
 		MaxMutants:          20,
 		Timeout:             time.Minute,
+		Progress:            prog,
 	})
+	prog.Finish()
 	if err != nil {
 		t.Fatalf("ExecuteMutationRun() unexpected error: %v", err)
+	}
+
+	progOut := progBuf.String()
+	for _, wantLine := range []string{
+		"[3/4] Compiling package 1/1: ./pkg/sign (2 candidate mutants)...",
+		"[3/4] Running baseline reachability in ./pkg/sign...",
+		"[3/4] Tracing 4 changed subtest(s) in ./pkg/sign...",
+		"[4/4] Evaluating 2 reached Go mutant(s) across 2 worker(s)...",
+	} {
+		if !strings.Contains(progOut, wantLine) {
+			t.Errorf("progress output missing %q in:\n%s", wantLine, progOut)
+		}
 	}
 
 	// Verify:
@@ -302,22 +320,28 @@ func TestIsNegative(t *testing.T) {
 	// - Neither "neg_one" (true polarity) nor "zero_boundary" (false polarity) is flagged!
 	want := []RedundantTestFinding{
 		{
-			GlobalIndex: 1,
-			Kind:        RedundantDuplicate,
-			File:        "pkg/sign/sign_test.go",
-			Line:        12,
-			TestName:    "TestIsNegative/neg_hundred",
-			DominatedBy: "TestIsNegative/neg_one",
-			SharedKills: 1,
+			GlobalIndex:     1,
+			Kind:            RedundantDuplicate,
+			File:            "pkg/sign/sign_test.go",
+			Line:            12,
+			TestName:        "TestIsNegative/neg_hundred",
+			DominatedBy:     "TestIsNegative/neg_one",
+			DominatedByFile: "pkg/sign/sign_test.go",
+			DominatedByLine: 11,
+			CandidateKills:  1,
+			DominatorKills:  1,
 		},
 		{
-			GlobalIndex: 2,
-			Kind:        RedundantDuplicate,
-			File:        "pkg/sign/sign_test.go",
-			Line:        14,
-			TestName:    "TestIsNegative/pos_ten",
-			DominatedBy: "TestIsNegative/zero_boundary",
-			SharedKills: 1,
+			GlobalIndex:     2,
+			Kind:            RedundantDuplicate,
+			File:            "pkg/sign/sign_test.go",
+			Line:            14,
+			TestName:        "TestIsNegative/pos_ten",
+			DominatedBy:     "TestIsNegative/zero_boundary",
+			DominatedByFile: "pkg/sign/sign_test.go",
+			DominatedByLine: 13,
+			CandidateKills:  1,
+			DominatorKills:  2,
 		},
 	}
 	if diff := cmp.Diff(want, report.RedundantTests); diff != "" {

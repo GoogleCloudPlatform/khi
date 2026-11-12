@@ -15,6 +15,10 @@
 package gotestutil
 
 import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -25,7 +29,6 @@ func TestIsTargetGoFile(t *testing.T) {
 	testCases := []struct {
 		name    string
 		relPath string
-		opts    FilterOptions
 		want    bool
 	}{
 		{
@@ -44,9 +47,8 @@ func TestIsTargetGoFile(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "unit test file excluded even with IncludeScripts",
+			name:    "unit test file excluded",
 			relPath: "scripts/mutation-diff/mutator_test.go",
-			opts:    FilterOptions{IncludeScripts: true},
 			want:    false,
 		},
 		{
@@ -65,14 +67,8 @@ func TestIsTargetGoFile(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "scripts directory excluded by default",
-			relPath: "scripts/backend-codegen/main.go",
-			want:    false,
-		},
-		{
-			name:    "scripts directory included when IncludeScripts is true",
+			name:    "scripts directory included by default",
 			relPath: "scripts/mutation-diff/mutator.go",
-			opts:    FilterOptions{IncludeScripts: true},
 			want:    true,
 		},
 		{
@@ -89,9 +85,9 @@ func TestIsTargetGoFile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := IsTargetGoFile(tc.relPath, tc.opts)
+			got := IsTargetGoFile(tc.relPath)
 			if got != tc.want {
-				t.Errorf("IsTargetGoFile(%q, %+v) = %v, want %v", tc.relPath, tc.opts, got, tc.want)
+				t.Errorf("IsTargetGoFile(%q) = %v, want %v", tc.relPath, got, tc.want)
 			}
 		})
 	}
@@ -202,9 +198,9 @@ diff --git a/scripts/mutation-diff/runner_test.go b/scripts/mutation-diff/runner
 --- a/scripts/mutation-diff/runner_test.go
 +++ b/scripts/mutation-diff/runner_test.go
 @@ -1,0 +2,1 @@
-+// ignored unless IncludeScripts is set
++// scripts test files are included by default
 `
-	prod, tests, err := ParseUnifiedDiffSplit(strings.NewReader(diffText), FilterOptions{})
+	prod, tests, err := ParseUnifiedDiffSplit(strings.NewReader(diffText))
 	if err != nil {
 		t.Fatalf("ParseUnifiedDiffSplit() unexpected error: %v", err)
 	}
@@ -212,12 +208,75 @@ diff --git a/scripts/mutation-diff/runner_test.go b/scripts/mutation-diff/runner
 		"pkg/foo/service.go": {5: {}},
 	}
 	wantTests := map[string]map[int]struct{}{
-		"pkg/foo/service_test.go": {11: {}, 12: {}},
+		"pkg/foo/service_test.go":              {11: {}, 12: {}},
+		"scripts/mutation-diff/runner_test.go": {2: {}},
 	}
 	if diff := cmp.Diff(wantProd, prod); diff != "" {
 		t.Errorf("prod diff mismatch (-want +got):\n%s", diff)
 	}
 	if diff := cmp.Diff(wantTests, tests); diff != "" {
 		t.Errorf("test diff mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCollectChangedLinesAutoFallsBackToGitOnGitRevision(t *testing.T) {
+	tmpDir := t.TempDir()
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.CommandContext(context.Background(), "git", args...)
+		cmd.Dir = tmpDir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
+		}
+	}
+
+	runGit("init", "-b", "main")
+	pkgDir := filepath.Join(tmpDir, "pkg", "demo")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "demo.go"), []byte("package demo\n"), 0o600); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	runGit("add", ".")
+	runGit("commit", "-m", "first")
+
+	if err := os.WriteFile(filepath.Join(pkgDir, "demo.go"), []byte("package demo\n\nfunc Hello() int { return 1 }\n"), 0o600); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	runGit("add", ".")
+	runGit("commit", "-m", "second")
+
+	// Create a dummy .jj directory so resolveVCS("auto") prefers jj first, then falls back to git for Git-only rev syntax "HEAD~1".
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".jj"), 0o755); err != nil {
+		t.Fatalf("mkdir .jj failed: %v", err)
+	}
+
+	res, err := CollectChangedLines(context.Background(), tmpDir, DiffOptions{
+		VCS:  "auto",
+		Base: "HEAD~1",
+	})
+	if err != nil {
+		t.Fatalf("CollectChangedLines() unexpected error: %v", err)
+	}
+	if res.VCS != "git" {
+		t.Errorf("res.VCS = %q, want %q", res.VCS, "git")
+	}
+	if _, ok := res.ChangedLines["pkg/demo/demo.go"][3]; !ok {
+		t.Errorf("expected line 3 of pkg/demo/demo.go in ChangedLines, got: %v", res.ChangedLines)
+	}
+
+	// Explicit VCS="jj" must report the jj failure instead of silently falling back to git.
+	if _, err := CollectChangedLines(context.Background(), tmpDir, DiffOptions{
+		VCS:  "jj",
+		Base: "HEAD~1",
+	}); err == nil {
+		t.Errorf("CollectChangedLines(VCS=jj) expected error on invalid jj repo, got nil")
 	}
 }

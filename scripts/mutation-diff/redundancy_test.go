@@ -146,24 +146,58 @@ func BenchmarkClamp(b *testing.B)                  {}
 	// 4. "TestClampSmokeOnlyErr/literal_subtest_err_only" is flagged WEAK_TEST.
 	want := []RedundantTestFinding{
 		{
-			Kind:        RedundantDuplicate,
-			File:        "pkg/calc/calc_test.go",
-			Line:        16,
-			TestName:    "TestClamp/added_duplicate_negative",
-			DominatedBy: "TestClamp/existing_negative",
-			SharedKills: 1,
+			Kind:            RedundantDuplicate,
+			File:            "pkg/calc/calc_test.go",
+			Line:            16,
+			TestName:        "TestClamp/added_duplicate_negative",
+			DominatedBy:     "TestClamp/existing_negative",
+			DominatedByFile: "pkg/calc/calc_test.go",
+			DominatedByLine: 11,
+			CandidateKills:  1,
+			DominatorKills:  1,
 		},
 		{
-			Kind:        RedundantWeakAssertion,
-			File:        "pkg/calc/calc_test.go",
-			Line:        42,
-			TestName:    "TestClampSmokeOnlyErr/literal_subtest_err_only",
-			DominatedBy: "TestClamp/existing_negative",
+			Kind:            RedundantWeakAssertion,
+			File:            "pkg/calc/calc_test.go",
+			Line:            42,
+			TestName:        "TestClampSmokeOnlyErr/literal_subtest_err_only",
+			DominatedBy:     "TestClamp/existing_negative",
+			DominatedByFile: "pkg/calc/calc_test.go",
+			DominatedByLine: 11,
+			CandidateKills:  0,
+			DominatorKills:  1,
 		},
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("AnalyzeTestRedundancy() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestNormalizeGoSubtestName(t *testing.T) {
+	testCases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{
+			name: "spaces become underscores while punctuation stays intact",
+			raw:  "should return error (invalid input)",
+			want: "should_return_error_(invalid_input)",
+		},
+		{
+			name: "non-printable control rune is escaped like Go testing rewrite",
+			raw:  "bell\x07case",
+			want: `bell\a` + "case",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := normalizeGoSubtestName(tc.raw); got != tc.want {
+				t.Errorf("normalizeGoSubtestName(%q) = %q, want %q", tc.raw, got, tc.want)
+			}
+		})
 	}
 }
 

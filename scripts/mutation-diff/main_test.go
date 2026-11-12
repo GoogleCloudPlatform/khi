@@ -119,8 +119,15 @@ func TestClamp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed reading summary.md: %v", err)
 	}
-	if !strings.Contains(string(summaryBytes), "`50.0%` (1/2)") {
-		t.Errorf("expected 50.0%% score in summary.md, got:\n%s", string(summaryBytes))
+	summaryStr := string(summaryBytes)
+	if !strings.Contains(summaryStr, "`50.0%` (1/2)") {
+		t.Errorf("expected 50.0%% score in summary.md, got:\n%s", summaryStr)
+	}
+	if !strings.Contains(summaryStr, "**Patch Coverage (Changed Lines)**: **`100.0%`**") {
+		t.Errorf("expected automatic 100.0%% patch coverage in summary.md, got:\n%s", summaryStr)
+	}
+	if strings.Contains(summaryStr, "Overall Go Statement Coverage") {
+		t.Errorf("did not expect overall coverage without --coverprofile or --full, got:\n%s", summaryStr)
 	}
 
 	// Verify --fail-under triggers error when score < threshold, and passes when score <= failUnder is false (score == threshold).
@@ -163,13 +170,30 @@ example.com/clitest/pkg/calc/calc.go:3.22,6.3 2 0
 		"--base=main",
 		"--coverprofile=" + coverPath,
 		"--format=text",
+		"--color=always",
 		"--fail-under=90",
 	}, &stdout, &stderr)
 	if err != nil {
 		t.Errorf("expected 0-tested run with --fail-under=90 to succeed, got: %v", err)
 	}
-	if !strings.Contains(stdout.String(), "0 tested, 2 uncovered") {
-		t.Errorf("expected 2 uncovered mutants from coverprofile pre-filter, got: %q", stdout.String())
+	if !strings.Contains(stdout.String(), "n/a (0 tested)") || !strings.Contains(stdout.String(), "Uncovered Mutants: 2") || !strings.Contains(stdout.String(), "\x1b[") {
+		t.Errorf("expected colored 2 uncovered mutants summary from coverprofile pre-filter, got: %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "(0 / 2 statements)") {
+		t.Errorf("expected overall statement coverage from --coverprofile in output, got: %q", stdout.String())
+	}
+
+	// Verify --fail-under-coverage enforces patch line coverage threshold.
+	err = run(context.Background(), []string{
+		"--repo-root=" + repoDir,
+		"--vcs=git",
+		"--base=main",
+		"--coverprofile=" + coverPath,
+		"--format=text",
+		"--fail-under-coverage=80",
+	}, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "patch line coverage 0.0% is below required threshold 80.0%") {
+		t.Errorf("expected --fail-under-coverage error, got: %v", err)
 	}
 }
 
@@ -178,5 +202,10 @@ func TestRunRejectsInvalidFormat(t *testing.T) {
 	err := run(context.Background(), []string{"--format=xml"}, &stdout, &stderr)
 	if err == nil || !strings.Contains(err.Error(), "invalid --format") {
 		t.Errorf("expected invalid --format error, got: %v", err)
+	}
+
+	err = run(context.Background(), []string{"--color=rainbow"}, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "invalid --color") {
+		t.Errorf("expected invalid --color error, got: %v", err)
 	}
 }
