@@ -18,9 +18,17 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+// severityComparer compares severities by identity because every severity is a registered singleton.
+var severityComparer = cmp.Comparer(func(a, b *pb.Severity) bool {
+	return a == b
+})
 
 func TestExtractK8sContainerLog_ResourceLabels(t *testing.T) {
 	testCase := []struct {
@@ -335,4 +343,176 @@ func TestExtractGCPContainerLogNodeNameLabel(t *testing.T) {
 			t.Errorf("ExtractGCPContainerLogNodeNameLabel mismatch (-want +got):\n%s", diff)
 		}
 	})
+}
+
+func TestExtractCiliumAgentLog(t *testing.T) {
+	logfmtParser := logutil.NewLogfmtTextParser()
+
+	testCases := []struct {
+		desc   string
+		input  string
+		parsed *logutil.ParseStructuredLogResult
+		want   CiliumAgentLogFieldSet
+	}{
+		{
+			desc: "logrus log with a pod reference combining the namespace and the name",
+			input: `
+jsonPayload:
+  ciliumEndpointName: kube-system/kube-dns-123456789a-abcde
+  containerID: 2bbd0dd28e
+  endpointID: 688
+  ipv4: 10.0.0.9
+  k8sPodName: kube-system/kube-dns-123456789a-abcde
+  level: info
+  msg: Identity of endpoint changed
+  new-identity: "7301"
+  old-identity: no identity
+  subsys: endpoint
+`,
+			want: CiliumAgentLogFieldSet{
+				Subsystem:    "endpoint",
+				Severity:     inspectioncore.SeverityInfo,
+				PodNamespace: "kube-system",
+				PodName:      "kube-dns-123456789a-abcde",
+			},
+		},
+		{
+			desc: "Hive slog log with the namespace and the name in separate fields",
+			input: `
+jsonPayload:
+  containerID: 6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1
+  endpointID: 169
+  k8sNamespace: kube-system
+  k8sPodName: konnectivity-agent-123456789b-fghij
+  level: info
+  module: agent.controlplane.endpoint-api
+  msg: Delete endpoint by containerID request
+`,
+			want: CiliumAgentLogFieldSet{
+				Subsystem:    "endpoint-api",
+				Severity:     inspectioncore.SeverityInfo,
+				PodNamespace: "kube-system",
+				PodName:      "konnectivity-agent-123456789b-fghij",
+			},
+		},
+		{
+			desc: "error log without a pod reference",
+			input: `
+jsonPayload:
+  error: "failed to list <unspecified>: the server could not find the requested resource (get ciliumpodippools.cilium.io)"
+  level: error
+  msg: k8sError
+  subsys: k8s
+`,
+			want: CiliumAgentLogFieldSet{
+				Subsystem: "k8s",
+				Error:     "failed to list <unspecified>: the server could not find the requested resource (get ciliumpodippools.cilium.io)",
+				Severity:  inspectioncore.SeverityError,
+			},
+		},
+		{
+			desc: "pod reference only in the endpoint name with an uppercase level",
+			input: `
+jsonPayload:
+  ciliumEndpointName: default/httpbin-0
+  level: WARN
+  msg: Regeneration of endpoint failed
+  subsys: endpoint
+`,
+			want: CiliumAgentLogFieldSet{
+				Subsystem:    "endpoint",
+				Severity:     inspectioncore.SeverityWarning,
+				PodNamespace: "default",
+				PodName:      "httpbin-0",
+			},
+		},
+		{
+			desc: "malformed pod reference and unknown level",
+			input: `
+jsonPayload:
+  k8sPodName: default/httpbin/0
+  level: trace
+  msg: Unexpected pod reference
+`,
+			want: CiliumAgentLogFieldSet{},
+		},
+		{
+			desc:   "text payload in logfmt",
+			input:  `textPayload: 'time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc k8sNamespace=default k8sPodName=httpbin-0'`,
+			parsed: logfmtParser.TryParse(`time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc k8sNamespace=default k8sPodName=httpbin-0`),
+			want: CiliumAgentLogFieldSet{
+				Subsystem:    "sfc",
+				PodNamespace: "default",
+				PodName:      "httpbin-0",
+			},
+		},
+		{
+			desc:   "text payload that is not logfmt",
+			input:  `textPayload: plain text message`,
+			parsed: (&logutil.FallbackRawTextLogParser{}).TryParse("plain text message"),
+			want:   CiliumAgentLogFieldSet{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			node, err := structured.FromYAML(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse yaml: %v", err)
+			}
+			reader := structured.NewNodeReader(node)
+
+			got := ExtractCiliumAgentLog(reader, tc.parsed)
+			if diff := cmp.Diff(tc.want, got, severityComparer); diff != "" {
+				t.Errorf("ExtractCiliumAgentLog() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExtractCiliumAgentLog_Mock(t *testing.T) {
+	want := CiliumAgentLogFieldSet{
+		Subsystem:    "endpoint",
+		Severity:     inspectioncore.SeverityWarning,
+		PodNamespace: "default",
+		PodName:      "httpbin-0",
+	}
+	reader := structured.NewNodeReader(structured.NewMockNode(want))
+
+	got := ExtractCiliumAgentLog(reader, nil)
+	if diff := cmp.Diff(want, got, severityComparer); diff != "" {
+		t.Errorf("ExtractCiliumAgentLog() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCiliumAgentLogFieldSet_HasPodReference(t *testing.T) {
+	testCases := []struct {
+		desc   string
+		fields CiliumAgentLogFieldSet
+		want   bool
+	}{
+		{
+			desc:   "namespace and name",
+			fields: CiliumAgentLogFieldSet{PodNamespace: "default", PodName: "httpbin-0"},
+			want:   true,
+		},
+		{
+			desc:   "name without namespace",
+			fields: CiliumAgentLogFieldSet{PodName: "httpbin-0"},
+			want:   false,
+		},
+		{
+			desc:   "no pod reference",
+			fields: CiliumAgentLogFieldSet{Subsystem: "daemon"},
+			want:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := tc.fields.HasPodReference(); got != tc.want {
+				t.Errorf("HasPodReference() = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }
