@@ -39,11 +39,12 @@ func TestParseFlags(t *testing.T) {
 		},
 		{
 			name: "explicit flags",
-			args: []string{"--vcs=git", "--base=HEAD^1", "--target=HEAD", "--format=github", "--min-annotation-lines=6"},
+			args: []string{"--vcs=git", "--base=HEAD^1", "--target=HEAD", "--include-scripts", "--format=github", "--min-annotation-lines=6"},
 			want: cliConfig{
 				vcs:                "git",
 				base:               "HEAD^1",
 				target:             "HEAD",
+				includeScripts:     true,
 				format:             "github",
 				maxAnnotations:     10,
 				minAnnotationLines: 6,

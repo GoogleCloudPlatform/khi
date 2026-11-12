@@ -180,3 +180,44 @@ diff --git a/pkg/foo/service.go b/pkg/foo/service.go
 		})
 	}
 }
+
+func TestParseUnifiedDiffSplitCapturesTestLines(t *testing.T) {
+	diffText := `diff --git a/pkg/foo/service.go b/pkg/foo/service.go
+--- a/pkg/foo/service.go
++++ b/pkg/foo/service.go
+@@ -4,0 +5,1 @@
++	doWork()
+diff --git a/pkg/foo/service_test.go b/pkg/foo/service_test.go
+--- a/pkg/foo/service_test.go
++++ b/pkg/foo/service_test.go
+@@ -10,0 +11,2 @@
++func TestService(t *testing.T) {
++}
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1,0 +2,1 @@
++# non-Go file must be ignored by both maps
+diff --git a/scripts/mutation-diff/runner_test.go b/scripts/mutation-diff/runner_test.go
+--- a/scripts/mutation-diff/runner_test.go
++++ b/scripts/mutation-diff/runner_test.go
+@@ -1,0 +2,1 @@
++// ignored unless IncludeScripts is set
+`
+	prod, tests, err := ParseUnifiedDiffSplit(strings.NewReader(diffText), FilterOptions{})
+	if err != nil {
+		t.Fatalf("ParseUnifiedDiffSplit() unexpected error: %v", err)
+	}
+	wantProd := map[string]map[int]struct{}{
+		"pkg/foo/service.go": {5: {}},
+	}
+	wantTests := map[string]map[int]struct{}{
+		"pkg/foo/service_test.go": {11: {}, 12: {}},
+	}
+	if diff := cmp.Diff(wantProd, prod); diff != "" {
+		t.Errorf("prod diff mismatch (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff(wantTests, tests); diff != "" {
+		t.Errorf("test diff mismatch (-want +got):\n%s", diff)
+	}
+}

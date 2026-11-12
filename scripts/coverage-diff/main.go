@@ -36,6 +36,7 @@ type cliConfig struct {
 	base               string
 	target             string
 	coverProfile       string
+	includeScripts     bool
 	full               bool
 	format             string
 	summaryFile        string
@@ -70,10 +71,15 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 		return err
 	}
 
+	filterOpts := gotestutil.FilterOptions{
+		IncludeScripts: cfg.includeScripts,
+	}
+
 	diffRes, err := gotestutil.CollectChangedLines(ctx, repoRoot, gotestutil.DiffOptions{
 		VCS:    cfg.vcs,
 		Base:   cfg.base,
 		Target: cfg.target,
+		Filter: filterOpts,
 	})
 	if err != nil {
 		return err
@@ -85,7 +91,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 
 	blocksByFile := make(map[string][]gotestutil.CoverBlock)
 	if profilePath == "" {
-		plan := PlanTestExecution(repoRoot, changedFiles, cfg.full)
+		plan := PlanTestExecution(repoRoot, changedFiles, cfg.full, filterOpts)
 		if !plan.Skip {
 			profilePath = filepath.Join(repoRoot, defaultDiffCoverProfile)
 			if err := os.Remove(profilePath); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -98,7 +104,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	}
 
 	if profilePath != "" {
-		blocksByFile, err = gotestutil.LoadCoverProfileIfPresent(profilePath, modulePath, gotestutil.FilterOptions{})
+		blocksByFile, err = gotestutil.LoadCoverProfileIfPresent(profilePath, modulePath, filterOpts)
 		if err != nil {
 			return err
 		}
@@ -147,6 +153,7 @@ func parseFlags(args []string) (cliConfig, error) {
 	fs.StringVar(&cfg.base, "base", "", "Base revision to diff against (defaults to trunk() in jj or origin/main in git).")
 	fs.StringVar(&cfg.target, "target", "", "Optional target revision to diff against.")
 	fs.StringVar(&cfg.coverProfile, "coverprofile", "", "Existing Go coverprofile to analyze instead of running go test.")
+	fs.BoolVar(&cfg.includeScripts, "include-scripts", false, "Include Go packages under scripts/ in differential coverage analysis.")
 	fs.BoolVar(&cfg.full, "full", false, "Run go test across the entire repository (./...) when generating coverage locally.")
 	fs.StringVar(&cfg.format, "format", "text", "Output format: text or github.")
 	fs.StringVar(&cfg.summaryFile, "summary-file", "", "File path to append GitHub Markdown summary (defaults to GITHUB_STEP_SUMMARY).")

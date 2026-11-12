@@ -35,24 +35,28 @@ import (
 )
 
 const (
-	defaultMaxMutants     = 80
-	defaultOverallTimeout = 3 * time.Minute
-	minPerMutantTimeout   = 3 * time.Second
-	baselineTimeoutFactor = 5
+	defaultMaxMutants       = 80
+	defaultOverallTimeout   = 3 * time.Minute
+	minPerMutantTimeout     = 3 * time.Second
+	baselineTimeoutFactor   = 5
+	fastVerboseBaselineCap  = 500 * time.Millisecond
+	maxTracedSubtestsPerPkg = 40
 )
 
 // RunnerOptions configures package compilation and parallel mutant execution.
 type RunnerOptions struct {
-	RepoRoot           string
-	BaseLabel          string
-	ChangedLinesByFile map[string]map[int]struct{}
-	CoverBlocksByFile  map[string][]gotestutil.CoverBlock
-	HasCoverProfile    bool
-	Rules              []ExclusionRule
-	Workers            int
-	MaxMutants         int
-	Timeout            time.Duration
-	LogWriter          io.Writer
+	RepoRoot               string
+	BaseLabel              string
+	ChangedLinesByFile     map[string]map[int]struct{}
+	ChangedTestLinesByFile map[string]map[int]struct{}
+	CoverBlocksByFile      map[string][]gotestutil.CoverBlock
+	HasCoverProfile        bool
+	CheckRedundantTests    bool
+	Rules                  []ExclusionRule
+	Workers                int
+	MaxMutants             int
+	Timeout                time.Duration
+	LogWriter              io.Writer
 }
 
 type flatSiteRef struct {
@@ -60,11 +64,28 @@ type flatSiteRef struct {
 	siteIdx int
 }
 
+type pkgRedundancyTracker struct {
+	mu               sync.Mutex
+	pkgPlans         []*FilePlan
+	changedFuncs     []ChangedTestFunc
+	leafOrder        []string
+	polarityByLeaf   map[string]map[string]struct{}
+	targetedRunRegex string
+	mutantRuns       map[int]VerboseTestResult
+}
+
+func (t *pkgRedundancyTracker) recordMutantRun(mutantID int, res VerboseTestResult) {
+	t.mu.Lock()
+	t.mutantRuns[mutantID] = res
+	t.mu.Unlock()
+}
+
 type mutantJob struct {
 	mutant           *Mutant
 	binPath          string
 	pkgAbsDir        string
 	perMutantTimeout time.Duration
+	tracker          *pkgRedundancyTracker
 }
 
 // ExecuteMutationRun plans, compiles, baselines, and evaluates differential mutants across modified Go packages.
@@ -78,8 +99,10 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 
 	filesByPkg, sortedPkgs := groupFilesByPackage(opts.ChangedLinesByFile)
 	if len(sortedPkgs) == 0 {
-		return BuildMutationReport(opts.BaseLabel, nil, nil), nil
+		return BuildMutationReport(opts.BaseLabel, nil, nil, nil), nil
 	}
+	testFilesByPkg, _ := groupFilesByPackage(opts.ChangedTestLinesByFile)
+	workers := resolveWorkerCount(opts.Workers)
 
 	rootWorkDir, err := os.MkdirTemp("", "khi-mutation-diff-*")
 	if err != nil {
@@ -90,6 +113,7 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 	var allFilePlans []*FilePlan
 	var allWarnings []DirectiveWarning
 	var allJobs []mutantJob
+	var trackers []*pkgRedundancyTracker
 	globalIdx := 1
 
 	for pkgIdx, pkgDir := range sortedPkgs {
@@ -162,8 +186,16 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 			continue
 		}
 
+		var changedTestFuncs []ChangedTestFunc
+		if opts.CheckRedundantTests {
+			changedTestFuncs, err = collectPackageChangedTestFuncs(opts.RepoRoot, testFilesByPkg[pkgDir], opts.ChangedTestLinesByFile)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		tracePath := filepath.Join(pkgWorkDir, "baseline.trace")
-		baselineDur, err := runBaselineTestBinary(ctx, binPath, pkgAbsDir, tracePath)
+		baselineDur, baselineOut, err := runBaselineTestBinary(ctx, binPath, pkgAbsDir, tracePath, len(changedTestFuncs) > 0)
 		if err != nil {
 			return nil, fmt.Errorf("baseline unit tests failed in ./%s: %w", pkgDir, err)
 		}
@@ -174,6 +206,14 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 		}
 
 		perMutTimeout := computePerMutantTimeout(baselineDur)
+		var pkgTracker *pkgRedundancyTracker
+		if len(changedTestFuncs) > 0 {
+			pkgTracker = prepareRedundancyTracker(ctx, binPath, pkgAbsDir, pkgWorkDir, baselineDur, perMutTimeout, workers, baselineOut, changedTestFuncs, pkgPlans)
+			if pkgTracker != nil {
+				trackers = append(trackers, pkgTracker)
+			}
+		}
+
 		for _, plan := range pkgPlans {
 			for _, m := range plan.Mutants {
 				if m.Status != MutantPending {
@@ -188,6 +228,7 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 					binPath:          binPath,
 					pkgAbsDir:        pkgAbsDir,
 					perMutantTimeout: perMutTimeout,
+					tracker:          pkgTracker,
 				})
 			}
 		}
@@ -195,14 +236,22 @@ func ExecuteMutationRun(ctx context.Context, opts *RunnerOptions) (*MutationRepo
 
 	selectedJobs := applyMutantBudget(allJobs, opts.MaxMutants)
 	if len(selectedJobs) > 0 {
-		workers := resolveWorkerCount(opts.Workers)
 		if opts.LogWriter != nil {
 			fmt.Fprintf(opts.LogWriter, "Running %d reached Go mutants across %d workers...\n", len(selectedJobs), workers)
 		}
 		runMutantWorkerPool(ctx, selectedJobs, workers)
 	}
 
-	return BuildMutationReport(opts.BaseLabel, allFilePlans, allWarnings), nil
+	var redundantFindings []RedundantTestFinding
+	for _, tr := range trackers {
+		skippedIDs := collectBudgetSkippedMutantIDs(tr.pkgPlans)
+		redundantFindings = append(redundantFindings, AnalyzeTestRedundancy(tr.changedFuncs, tr.leafOrder, tr.polarityByLeaf, tr.mutantRuns, skippedIDs)...)
+	}
+	for i := range redundantFindings {
+		redundantFindings[i].GlobalIndex = i + 1
+	}
+
+	return BuildMutationReport(opts.BaseLabel, allFilePlans, allWarnings, redundantFindings), nil
 }
 
 func compilePackageWithFallback(
@@ -353,18 +402,158 @@ func runGoTestCompile(ctx context.Context, repoRoot string, overlayPath string, 
 	return nil
 }
 
-func runBaselineTestBinary(ctx context.Context, binPath string, pkgAbsDir string, tracePath string) (time.Duration, error) {
+func runBaselineTestBinary(ctx context.Context, binPath string, pkgAbsDir string, tracePath string, verbose bool) (time.Duration, []byte, error) {
 	start := time.Now()
-	cmd := exec.CommandContext(ctx, binPath)
+	var args []string
+	if verbose {
+		args = append(args, "-test.v")
+	}
+	cmd := exec.CommandContext(ctx, binPath, args...)
 	cmd.Dir = pkgAbsDir
 	cmd.Env = buildMutantEnv(os.Environ(), 0, tracePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("%w: %s", err, strings.TrimSpace(out.String()))
+		return 0, nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(out.String()))
 	}
-	return time.Since(start), nil
+	return time.Since(start), out.Bytes(), nil
+}
+
+func collectPackageChangedTestFuncs(
+	repoRoot string,
+	relTestFiles []string,
+	changedTestLines map[string]map[int]struct{},
+) ([]ChangedTestFunc, error) {
+	var out []ChangedTestFunc
+	for _, relFile := range relTestFiles {
+		absPath := filepath.Join(repoRoot, filepath.FromSlash(relFile))
+		src, err := os.ReadFile(absPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to read test file %s: %w", relFile, err)
+		}
+		funcs, err := DiscoverChangedTestFuncs(relFile, src, changedTestLines[relFile])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, funcs...)
+	}
+	return out, nil
+}
+
+func prepareRedundancyTracker(
+	ctx context.Context,
+	binPath string,
+	pkgAbsDir string,
+	pkgWorkDir string,
+	baselineDur time.Duration,
+	perMutTimeout time.Duration,
+	workers int,
+	baselineOut []byte,
+	changedFuncs []ChangedTestFunc,
+	pkgPlans []*FilePlan,
+) *pkgRedundancyTracker {
+	parsed := ParseVerboseTestOutput(baselineOut, false)
+	fnSet := make(map[string]struct{}, len(changedFuncs))
+	for _, fn := range changedFuncs {
+		fnSet[fn.FuncName] = struct{}{}
+	}
+
+	var relevantLeafs []string
+	for _, leaf := range parsed.LeafOrder {
+		topFn, _ := splitTopAndSubtest(leaf)
+		if _, ok := fnSet[topFn]; ok {
+			relevantLeafs = append(relevantLeafs, leaf)
+			if len(relevantLeafs) >= maxTracedSubtestsPerPkg {
+				break
+			}
+		}
+	}
+	if len(relevantLeafs) < 2 {
+		return nil
+	}
+
+	polarityByLeaf := traceLeafPolarities(ctx, binPath, pkgAbsDir, pkgWorkDir, perMutTimeout, workers, relevantLeafs)
+	targetedRegex := ""
+	if baselineDur >= fastVerboseBaselineCap {
+		targetedRegex = BuildTestFuncsRunRegex(changedFuncs)
+	}
+	return &pkgRedundancyTracker{
+		pkgPlans:         pkgPlans,
+		changedFuncs:     changedFuncs,
+		leafOrder:        relevantLeafs,
+		polarityByLeaf:   polarityByLeaf,
+		targetedRunRegex: targetedRegex,
+		mutantRuns:       make(map[int]VerboseTestResult),
+	}
+}
+
+func collectBudgetSkippedMutantIDs(plans []*FilePlan) map[int]struct{} {
+	skipped := make(map[int]struct{})
+	for _, p := range plans {
+		for _, m := range p.Mutants {
+			if m.Status == MutantSkippedBudget && m.ID > 0 {
+				skipped[m.ID] = struct{}{}
+			}
+		}
+	}
+	return skipped
+}
+
+func traceLeafPolarities(
+	ctx context.Context,
+	binPath string,
+	pkgAbsDir string,
+	pkgWorkDir string,
+	timeout time.Duration,
+	workers int,
+	leaves []string,
+) map[string]map[string]struct{} {
+	type leafTask struct {
+		idx  int
+		leaf string
+	}
+	taskCh := make(chan leafTask, len(leaves))
+	for i, leaf := range leaves {
+		taskCh <- leafTask{idx: i, leaf: leaf}
+	}
+	close(taskCh)
+
+	var mu sync.Mutex
+	result := make(map[string]map[string]struct{}, len(leaves))
+	baseEnv := os.Environ()
+
+	var wg sync.WaitGroup
+	for range min(workers, len(leaves)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for task := range taskCh {
+				if ctx.Err() != nil {
+					return
+				}
+				traceFile := filepath.Join(pkgWorkDir, fmt.Sprintf("leaf_%d.trace", task.idx))
+				runCtx, cancel := context.WithTimeout(ctx, timeout)
+				cmd := exec.CommandContext(runCtx, binPath, "-test.run="+BuildSingleLeafRunRegex(task.leaf))
+				cmd.Dir = pkgAbsDir
+				cmd.Env = buildMutantEnv(baseEnv, 0, traceFile)
+				_ = cmd.Run()
+				cancel()
+
+				tokens, _, err := ParsePolarityTraceFile(traceFile)
+				if err == nil && len(tokens) > 0 {
+					mu.Lock()
+					result[task.leaf] = tokens
+					mu.Unlock()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	return result
 }
 
 func runMutantWorkerPool(ctx context.Context, jobs []mutantJob, workers int) {
@@ -395,6 +584,33 @@ func runMutantWorkerPool(ctx context.Context, jobs []mutantJob, workers int) {
 func evaluateSingleMutant(parentCtx context.Context, baseEnv []string, job mutantJob) MutantStatus {
 	mutCtx, cancel := context.WithTimeout(parentCtx, job.perMutantTimeout)
 	defer cancel()
+
+	if job.tracker != nil {
+		args := []string{"-test.v"}
+		if job.tracker.targetedRunRegex != "" {
+			args = append(args, "-test.run="+job.tracker.targetedRunRegex)
+		}
+		cmd := exec.CommandContext(mutCtx, job.binPath, args...)
+		cmd.Dir = job.pkgAbsDir
+		cmd.Env = buildMutantEnv(baseEnv, job.mutant.ID, "")
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err := cmd.Run()
+		if parentCtx.Err() != nil {
+			return MutantSkippedBudget
+		}
+		if errors.Is(mutCtx.Err(), context.DeadlineExceeded) {
+			return MutantTimedOut
+		}
+		job.tracker.recordMutantRun(job.mutant.ID, ParseVerboseTestOutput(out.Bytes(), err != nil))
+		if err != nil {
+			return MutantKilled
+		}
+		if job.tracker.targetedRunRegex == "" {
+			return MutantSurvived
+		}
+	}
 
 	cmd := exec.CommandContext(mutCtx, job.binPath, "-test.failfast")
 	cmd.Dir = job.pkgAbsDir

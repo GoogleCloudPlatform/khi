@@ -28,19 +28,20 @@ import (
 )
 
 type cliConfig struct {
-	repoRoot       string
-	vcs            string
-	base           string
-	target         string
-	coverProfile   string
-	includeScripts bool
-	workers        int
-	maxMutants     int
-	timeout        time.Duration
-	format         string
-	summaryFile    string
-	maxAnnotations int
-	failUnder      float64
+	repoRoot            string
+	vcs                 string
+	base                string
+	target              string
+	coverProfile        string
+	includeScripts      bool
+	checkRedundantTests bool
+	workers             int
+	maxMutants          int
+	timeout             time.Duration
+	format              string
+	summaryFile         string
+	maxAnnotations      int
+	failUnder           float64
 }
 
 func main() {
@@ -95,15 +96,17 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	}
 
 	report, err := ExecuteMutationRun(ctx, &RunnerOptions{
-		RepoRoot:           repoRoot,
-		BaseLabel:          diffRes.BaseLabel,
-		ChangedLinesByFile: diffRes.ChangedLines,
-		CoverBlocksByFile:  coverBlocks,
-		HasCoverProfile:    hasCoverProfile,
-		Workers:            cfg.workers,
-		MaxMutants:         cfg.maxMutants,
-		Timeout:            cfg.timeout,
-		LogWriter:          stderr,
+		RepoRoot:               repoRoot,
+		BaseLabel:              diffRes.BaseLabel,
+		ChangedLinesByFile:     diffRes.ChangedLines,
+		ChangedTestLinesByFile: diffRes.ChangedTestLines,
+		CoverBlocksByFile:      coverBlocks,
+		HasCoverProfile:        hasCoverProfile,
+		CheckRedundantTests:    cfg.checkRedundantTests,
+		Workers:                cfg.workers,
+		MaxMutants:             cfg.maxMutants,
+		Timeout:                cfg.timeout,
+		LogWriter:              stderr,
 	})
 	if err != nil {
 		return err
@@ -144,6 +147,7 @@ func parseFlags(args []string) (cliConfig, error) {
 	fs.StringVar(&cfg.target, "target", "", "Optional target revision to diff against.")
 	fs.StringVar(&cfg.coverProfile, "coverprofile", "", "Optional Go coverprofile to skip compiling/running uncovered lines.")
 	fs.BoolVar(&cfg.includeScripts, "include-scripts", false, "Include Go packages under scripts/ in differential mutation analysis.")
+	fs.BoolVar(&cfg.checkRedundantTests, "check-redundant-tests", true, "Detect changed unit tests/subtests whose polarity and kill sets are subsumed by another test.")
 	fs.IntVar(&cfg.workers, "workers", 0, "Parallel mutant test worker count (0 selects min(NumCPU, 8)).")
 	fs.IntVar(&cfg.maxMutants, "max-mutants", defaultMaxMutants, "Maximum reached mutants to execute per run.")
 	fs.DurationVar(&cfg.timeout, "timeout", defaultOverallTimeout, "Overall timeout budget for the mutation run.")

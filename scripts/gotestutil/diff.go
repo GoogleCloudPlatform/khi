@@ -44,11 +44,12 @@ type DiffOptions struct {
 	Filter FilterOptions
 }
 
-// DiffResult holds the resolved VCS metadata and changed 1-based line numbers per file.
+// DiffResult holds the resolved VCS metadata and changed 1-based line numbers per production and test Go file.
 type DiffResult struct {
-	VCS          string
-	BaseLabel    string
-	ChangedLines map[string]map[int]struct{}
+	VCS              string
+	BaseLabel        string
+	ChangedLines     map[string]map[int]struct{}
+	ChangedTestLines map[string]map[int]struct{}
 }
 
 // IsTargetProductionGoFile reports whether relPath is a production Go source file eligible for default analysis.
@@ -56,12 +57,25 @@ func IsTargetProductionGoFile(relPath string) bool {
 	return IsTargetGoFile(relPath, FilterOptions{})
 }
 
-// IsTargetGoFile reports whether relPath is a Go source file matching opts.
+// IsTargetGoFile reports whether relPath is a non-test Go source file matching opts.
 func IsTargetGoFile(relPath string, opts FilterOptions) bool {
 	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
 	if clean == "" || !strings.HasSuffix(clean, ".go") || strings.HasSuffix(clean, "_test.go") {
 		return false
 	}
+	return isAllowedGoPath(clean, opts)
+}
+
+// IsTargetGoTestFile reports whether relPath is a Go unit test (*_test.go) file matching opts.
+func IsTargetGoTestFile(relPath string, opts FilterOptions) bool {
+	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
+	if !strings.HasSuffix(clean, "_test.go") {
+		return false
+	}
+	return isAllowedGoPath(clean, opts)
+}
+
+func isAllowedGoPath(clean string, opts FilterOptions) bool {
 	excludedPrefixes := []string{
 		"pkg/generated/",
 		"pkg/testutil/",
@@ -84,14 +98,22 @@ func ParseUnifiedDiff(r io.Reader) (map[string]map[int]struct{}, error) {
 	return ParseUnifiedDiffWithFilter(r, FilterOptions{})
 }
 
-// ParseUnifiedDiffWithFilter extracts added and modified 1-based line numbers per Go file matching filter.
+// ParseUnifiedDiffWithFilter extracts added and modified 1-based line numbers per production Go file matching filter.
 func ParseUnifiedDiffWithFilter(r io.Reader, filter FilterOptions) (map[string]map[int]struct{}, error) {
-	result := make(map[string]map[int]struct{})
+	prod, _, err := ParseUnifiedDiffSplit(r, filter)
+	return prod, err
+}
+
+// ParseUnifiedDiffSplit extracts added and modified 1-based line numbers split into production Go files and *_test.go files.
+func ParseUnifiedDiffSplit(r io.Reader, filter FilterOptions) (map[string]map[int]struct{}, map[string]map[int]struct{}, error) {
+	prodResult := make(map[string]map[int]struct{})
+	testResult := make(map[string]map[int]struct{})
 	scanner := bufio.NewScanner(r)
 	// Allow up to 16 MiB per line so diffs containing large generated JSON/lockfiles never fail scanning.
 	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
 
 	var currentFile string
+	var currentIsTest bool
 	inHunk := false
 	newLine := 0
 
@@ -111,9 +133,14 @@ func ParseUnifiedDiffWithFilter(r io.Reader, filter FilterOptions) (map[string]m
 				continue
 			}
 			rawPath = strings.TrimPrefix(rawPath, "b/")
-			if IsTargetGoFile(rawPath, filter) {
+			switch {
+			case IsTargetGoFile(rawPath, filter):
 				currentFile = strings.TrimPrefix(filepath.ToSlash(rawPath), "./")
-			} else {
+				currentIsTest = false
+			case IsTargetGoTestFile(rawPath, filter):
+				currentFile = strings.TrimPrefix(filepath.ToSlash(rawPath), "./")
+				currentIsTest = true
+			default:
 				currentFile = ""
 			}
 		case strings.HasPrefix(line, "@@ "):
@@ -124,7 +151,7 @@ func ParseUnifiedDiffWithFilter(r io.Reader, filter FilterOptions) (map[string]m
 			}
 			start, err := strconv.Atoi(matches[1])
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse hunk start line in %q: %w", line, err)
+				return nil, nil, fmt.Errorf("failed to parse hunk start line in %q: %w", line, err)
 			}
 			newLine = start
 			inHunk = currentFile != ""
@@ -135,10 +162,14 @@ func ParseUnifiedDiffWithFilter(r io.Reader, filter FilterOptions) (map[string]m
 			}
 			switch line[0] {
 			case '+':
-				lines, ok := result[currentFile]
+				targetMap := prodResult
+				if currentIsTest {
+					targetMap = testResult
+				}
+				lines, ok := targetMap[currentFile]
 				if !ok {
 					lines = make(map[int]struct{})
-					result[currentFile] = lines
+					targetMap[currentFile] = lines
 				}
 				lines[newLine] = struct{}{}
 				newLine++
@@ -151,9 +182,9 @@ func ParseUnifiedDiffWithFilter(r io.Reader, filter FilterOptions) (map[string]m
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("failed while scanning unified diff: %w", err)
+		return nil, nil, fmt.Errorf("failed while scanning unified diff: %w", err)
 	}
-	return result, nil
+	return prodResult, testResult, nil
 }
 
 // CollectChangedLines executes VCS diff in repoRoot and returns changed line numbers for matching Go files.
@@ -215,14 +246,15 @@ func collectJJDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Diff
 		}
 	}
 
-	changed, err := ParseUnifiedDiffWithFilter(bytes.NewReader(diffBytes), opts.Filter)
+	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes), opts.Filter)
 	if err != nil {
 		return DiffResult{}, err
 	}
 	return DiffResult{
-		VCS:          "jj",
-		BaseLabel:    base,
-		ChangedLines: changed,
+		VCS:              "jj",
+		BaseLabel:        base,
+		ChangedLines:     changed,
+		ChangedTestLines: changedTests,
 	}, nil
 }
 
@@ -254,14 +286,15 @@ func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Dif
 		return DiffResult{}, fmt.Errorf("failed to run git %s: %w", strings.Join(args, " "), err)
 	}
 
-	changed, err := ParseUnifiedDiffWithFilter(bytes.NewReader(diffBytes), opts.Filter)
+	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes), opts.Filter)
 	if err != nil {
 		return DiffResult{}, err
 	}
 	return DiffResult{
-		VCS:          "git",
-		BaseLabel:    base,
-		ChangedLines: changed,
+		VCS:              "git",
+		BaseLabel:        base,
+		ChangedLines:     changed,
+		ChangedTestLines: changedTests,
 	}, nil
 }
 
