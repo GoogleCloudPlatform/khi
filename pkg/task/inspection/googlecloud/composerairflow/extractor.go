@@ -315,7 +315,7 @@ func parseWorkerPayload(textPayload string) workerTaskInstanceInfo {
 			stateStr := matches[airflowWorkerRunningHostTemplate.SubexpIndex("state")]
 			state, err := stringToTiState(stateStr)
 			if err != nil {
-				slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err))
+				slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err)) //nolint:forbidigo // FieldSetReader extraction operates without context.Context.
 			}
 			return workerTaskInstanceInfo{
 				dagId:    matches[airflowWorkerRunningHostTemplate.SubexpIndex("dagid")],
@@ -335,7 +335,7 @@ func parseWorkerPayload(textPayload string) workerTaskInstanceInfo {
 		stateStr := matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("state")]
 		state, err := stringToTiState(stateStr)
 		if err != nil {
-			slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err))
+			slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err)) //nolint:forbidigo // FieldSetReader extraction operates without context.Context.
 		}
 		return workerTaskInstanceInfo{
 			dagId:    matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("dagid")],
@@ -349,7 +349,7 @@ func parseWorkerPayload(textPayload string) workerTaskInstanceInfo {
 		stateStr := matches[airflowWorkerFinalStateExtractTemplate.SubexpIndex("state")]
 		state, err := stringToTiState(stateStr)
 		if err != nil {
-			slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err))
+			slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err)) //nolint:forbidigo // FieldSetReader extraction operates without context.Context.
 		}
 		return workerTaskInstanceInfo{
 			state: state,

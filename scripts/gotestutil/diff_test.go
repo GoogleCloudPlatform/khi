@@ -48,7 +48,7 @@ func TestIsTargetGoFile(t *testing.T) {
 		},
 		{
 			name:    "unit test file excluded",
-			relPath: "scripts/mutation-diff/mutator_test.go",
+			relPath: "scripts/codequality/main_test.go",
 			want:    false,
 		},
 		{
@@ -68,7 +68,7 @@ func TestIsTargetGoFile(t *testing.T) {
 		},
 		{
 			name:    "scripts directory included by default",
-			relPath: "scripts/mutation-diff/mutator.go",
+			relPath: "scripts/codequality/main.go",
 			want:    true,
 		},
 		{
@@ -209,7 +209,7 @@ func TestIsTargetTSTestFile(t *testing.T) {
 		},
 		{
 			name:    "outside web/src excluded",
-			relPath: "scripts/mutation-diff/sample.spec.ts",
+			relPath: "scripts/codequality/sample.spec.ts",
 			want:    false,
 		},
 	}
@@ -224,11 +224,11 @@ func TestIsTargetTSTestFile(t *testing.T) {
 	}
 }
 
-func TestParseUnifiedDiff(t *testing.T) {
+func TestParseUnifiedDiffDetailsAllLanguagesAndDeletions(t *testing.T) {
 	testCases := []struct {
 		name string
 		diff string
-		want map[string]map[int]struct{}
+		want UnifiedDiffDetails
 	}{
 		{
 			name: "zero context additions modifications and pure deletions",
@@ -246,120 +246,47 @@ index 1111111..2222222 100644
 -	return a
 +	return a + b
 `,
-			want: map[string]map[int]struct{}{
-				"pkg/foo/bar.go": {
-					6:  {},
-					7:  {},
-					20: {},
+			want: UnifiedDiffDetails{
+				ProdLines: map[string]map[int]struct{}{
+					"pkg/foo/bar.go": {6: {}, 7: {}, 20: {}},
 				},
+				TestLines:   map[string]map[int]struct{}{},
+				TSLines:     map[string]map[int]struct{}{},
+				TSTestLines: map[string]map[int]struct{}{},
 			},
 		},
 		{
-			name: "diff with surrounding context lines and excluded files",
+			name: "partitions Go prod/test TypeScript prod/spec deleted Go and non-target Go files",
 			diff: `diff --git a/pkg/generated/foo.pb.go b/pkg/generated/foo.pb.go
 --- a/pkg/generated/foo.pb.go
 +++ b/pkg/generated/foo.pb.go
-@@ -1,0 +2,2 @@
-+	generated := true
-+	_ = generated
-diff --git a/pkg/foo/bar_test.go b/pkg/foo/bar_test.go
---- a/pkg/foo/bar_test.go
-+++ b/pkg/foo/bar_test.go
 @@ -1,0 +2,1 @@
-+func TestBar(t *testing.T) {}
++	generated := true
+diff --git a/pkg/generated/old.pb.go b/pkg/generated/old.pb.go
+deleted file mode 100644
+--- a/pkg/generated/old.pb.go
++++ /dev/null
+@@ -1,1 +0,0 @@
+-package generated
 diff --git a/pkg/foo/deleted.go b/pkg/foo/deleted.go
 deleted file mode 100644
 --- a/pkg/foo/deleted.go
 +++ /dev/null
-@@ -1,3 +0,0 @@
+@@ -1,1 +0,0 @@
 -package foo
--
--func Gone() {}
 diff --git a/pkg/foo/service.go b/pkg/foo/service.go
 --- a/pkg/foo/service.go
 +++ b/pkg/foo/service.go
-@@ -10,4 +10,5 @@ func Run() error {
+@@ -10,3 +10,4 @@ func Run() error {
  	keepBefore()
 -	replacedCall()
 +	newCallOne()
 +	newCallTwo()
- 	keepAfter()
  	return nil
-`,
-			want: map[string]map[int]struct{}{
-				"pkg/foo/service.go": {
-					11: {},
-					12: {},
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := ParseUnifiedDiff(strings.NewReader(tc.diff))
-			if err != nil {
-				t.Fatalf("ParseUnifiedDiff() unexpected error: %v", err)
-			}
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("ParseUnifiedDiff() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestParseUnifiedDiffSplitCapturesTestLines(t *testing.T) {
-	diffText := `diff --git a/pkg/foo/service.go b/pkg/foo/service.go
---- a/pkg/foo/service.go
-+++ b/pkg/foo/service.go
-@@ -4,0 +5,1 @@
-+	doWork()
 diff --git a/pkg/foo/service_test.go b/pkg/foo/service_test.go
 --- a/pkg/foo/service_test.go
 +++ b/pkg/foo/service_test.go
-@@ -10,0 +11,2 @@
-+func TestService(t *testing.T) {
-+}
-diff --git a/README.md b/README.md
---- a/README.md
-+++ b/README.md
 @@ -1,0 +2,1 @@
-+# non-Go file must be ignored by both maps
-diff --git a/scripts/mutation-diff/runner_test.go b/scripts/mutation-diff/runner_test.go
---- a/scripts/mutation-diff/runner_test.go
-+++ b/scripts/mutation-diff/runner_test.go
-@@ -1,0 +2,1 @@
-+// scripts test files are included by default
-`
-	prod, tests, err := ParseUnifiedDiffSplit(strings.NewReader(diffText))
-	if err != nil {
-		t.Fatalf("ParseUnifiedDiffSplit() unexpected error: %v", err)
-	}
-	wantProd := map[string]map[int]struct{}{
-		"pkg/foo/service.go": {5: {}},
-	}
-	wantTests := map[string]map[int]struct{}{
-		"pkg/foo/service_test.go":              {11: {}, 12: {}},
-		"scripts/mutation-diff/runner_test.go": {2: {}},
-	}
-	if diff := cmp.Diff(wantProd, prod); diff != "" {
-		t.Errorf("prod diff mismatch (-want +got):\n%s", diff)
-	}
-	if diff := cmp.Diff(wantTests, tests); diff != "" {
-		t.Errorf("test diff mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestParseUnifiedDiffAll(t *testing.T) {
-	diffText := `diff --git a/pkg/foo/service.go b/pkg/foo/service.go
---- a/pkg/foo/service.go
-+++ b/pkg/foo/service.go
-@@ -4,0 +5,1 @@
-+	doWork()
-diff --git a/pkg/foo/service_test.go b/pkg/foo/service_test.go
---- a/pkg/foo/service_test.go
-+++ b/pkg/foo/service_test.go
-@@ -10,0 +11,1 @@
 +func TestService(t *testing.T) {}
 diff --git a/web/src/app/foo.component.ts b/web/src/app/foo.component.ts
 --- a/web/src/app/foo.component.ts
@@ -373,63 +300,97 @@ diff --git a/web/src/app/foo.component.spec.ts b/web/src/app/foo.component.spec.
 @@ -1,0 +2,2 @@
 +it('renders', () => {});
 +it('updates', () => {});
-`
-	got, err := ParseUnifiedDiffAll(strings.NewReader(diffText))
-	if err != nil {
-		t.Fatalf("ParseUnifiedDiffAll() unexpected error: %v", err)
+`,
+			want: UnifiedDiffDetails{
+				ProdLines: map[string]map[int]struct{}{
+					"pkg/foo/service.go": {11: {}, 12: {}},
+				},
+				TestLines: map[string]map[int]struct{}{
+					"pkg/foo/service_test.go": {2: {}},
+				},
+				TSLines: map[string]map[int]struct{}{
+					"web/src/app/foo.component.ts": {8: {}, 9: {}},
+				},
+				TSTestLines: map[string]map[int]struct{}{
+					"web/src/app/foo.component.spec.ts": {2: {}, 3: {}},
+				},
+				DeletedGoFiles:      []string{"pkg/foo/deleted.go"},
+				OtherChangedGoFiles: []string{"pkg/generated/foo.pb.go", "pkg/generated/old.pb.go"},
+			},
+		},
+		{
+			name: "resets state cleanly across gitless headers blank hunk lines malformed hunks and diff boundaries",
+			diff: `--- a/pkg/foo/stale_old.go
+--- /dev/null
++++ /dev/null
++++ b/pkg/foo/a.go
+@@ -0,0 +2,3 @@
++	lineTwo()
+
++	lineFour()
++++ b/pkg/foo/b.go
++ignored_after_new_header_exits_hunk
+@@ -0,0 +7,1 @@
++	lineSeven()
++++ b/README.md
+@@ -1,0 +1,1 @@
++ignored_non_go_default_target
++++ b/pkg/foo/d.go
+@@ -0,0 +3,1 @@
++	lineThree()
+--- /dev/null
++ignored_after_old_header_exits_hunk
++++ /dev/null
+@@ -1,0 +8,1 @@
++ignored_after_deleted_resets_target
+--- a/README.md
++++ /dev/null
+--- a/pkg/foo/first_del.go
++++ /dev/null
++++ b/pkg/foo/c.go
+@@ -0,0 +9,1 @@
++	lineNine()
+@@ malformed hunk @@
++ignored_malformed_hunk
+@@ -0,0 +12,1 @@
++	lineTwelve()
+diff --git a/binary.dat b/binary.dat
++ignored_after_diff_git_exits_hunk
+@@ -1,0 +15,1 @@
++ignored_after_diff_git_resets_target
++++ /dev/null
+`,
+			want: UnifiedDiffDetails{
+				ProdLines: map[string]map[int]struct{}{
+					"pkg/foo/a.go": {2: {}, 4: {}},
+					"pkg/foo/b.go": {7: {}},
+					"pkg/foo/c.go": {9: {}, 12: {}},
+					"pkg/foo/d.go": {3: {}},
+				},
+				TestLines:      map[string]map[int]struct{}{},
+				TSLines:        map[string]map[int]struct{}{},
+				TSTestLines:    map[string]map[int]struct{}{},
+				DeletedGoFiles: []string{"pkg/foo/first_del.go"},
+			},
+		},
 	}
-	want := UnifiedDiffLines{
-		Go: map[string]map[int]struct{}{
-			"pkg/foo/service.go": {5: {}},
-		},
-		GoTest: map[string]map[int]struct{}{
-			"pkg/foo/service_test.go": {11: {}},
-		},
-		TS: map[string]map[int]struct{}{
-			"web/src/app/foo.component.ts": {8: {}, 9: {}},
-		},
-		TSTest: map[string]map[int]struct{}{
-			"web/src/app/foo.component.spec.ts": {2: {}, 3: {}},
-		},
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("ParseUnifiedDiffAll() mismatch (-want +got):\n%s", diff)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ParseUnifiedDiffDetails(strings.NewReader(tc.diff))
+			if err != nil {
+				t.Fatalf("ParseUnifiedDiffDetails() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ParseUnifiedDiffDetails() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
 func TestCollectChangedLinesAutoFallsBackToGitOnGitRevision(t *testing.T) {
 	tmpDir := t.TempDir()
-	runGit := func(args ...string) {
-		t.Helper()
-		cmd := exec.CommandContext(context.Background(), "git", args...)
-		cmd.Dir = tmpDir
-		cmd.Env = append(os.Environ(),
-			"GIT_AUTHOR_NAME=Test",
-			"GIT_AUTHOR_EMAIL=test@example.com",
-			"GIT_COMMITTER_NAME=Test",
-			"GIT_COMMITTER_EMAIL=test@example.com",
-		)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
-		}
-	}
-
-	runGit("init", "-b", "main")
-	pkgDir := filepath.Join(tmpDir, "pkg", "demo")
-	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
-		t.Fatalf("mkdir failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(pkgDir, "demo.go"), []byte("package demo\n"), 0o600); err != nil {
-		t.Fatalf("write failed: %v", err)
-	}
-	runGit("add", ".")
-	runGit("commit", "-m", "first")
-
-	if err := os.WriteFile(filepath.Join(pkgDir, "demo.go"), []byte("package demo\n\nfunc Hello() int { return 1 }\n"), 0o600); err != nil {
-		t.Fatalf("write failed: %v", err)
-	}
-	runGit("add", ".")
-	runGit("commit", "-m", "second")
+	initTestGitDiffRepo(t, tmpDir)
 
 	// Create a dummy .jj directory so resolveVCS("auto") prefers jj first, then falls back to git for Git-only rev syntax "HEAD~1".
 	if err := os.MkdirAll(filepath.Join(tmpDir, ".jj"), 0o755); err != nil {
@@ -456,5 +417,209 @@ func TestCollectChangedLinesAutoFallsBackToGitOnGitRevision(t *testing.T) {
 		Base: "HEAD~1",
 	}); err == nil {
 		t.Errorf("CollectChangedLines(VCS=jj) expected error on invalid jj repo, got nil")
+	}
+
+	baseBytes, exists, err := ReadBaseFile(context.Background(), tmpDir, res, "pkg/demo/demo.go")
+	if err != nil || !exists || string(baseBytes) != "package demo\n" {
+		t.Errorf("ReadBaseFile(existing) = (%q, %v, %v), want (\"package demo\\n\", true, nil)", string(baseBytes), exists, err)
+	}
+	if _, missingExists, err := ReadBaseFile(context.Background(), tmpDir, res, "pkg/demo/added_later.go"); err != nil || missingExists {
+		t.Errorf("ReadBaseFile(missing) = (%v, %v), want (false, nil)", missingExists, err)
+	}
+
+	verifyGitMergeBaseAndTargetDiff(t, tmpDir)
+}
+
+func verifyGitMergeBaseAndTargetDiff(t *testing.T, tmpDir string) {
+	t.Helper()
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.CommandContext(context.Background(), "git", args...)
+		cmd.Dir = tmpDir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
+		}
+	}
+	// Create a feature branch from HEAD~1 while main has advanced to HEAD so merge-base(main, feat) != main.
+	runGit("checkout", "-b", "feat", "HEAD~1")
+	featFile := filepath.Join(tmpDir, "pkg", "demo", "feat.go")
+	if err := os.WriteFile(featFile, []byte("package demo\n\nfunc Feat() int { return 9 }\n"), 0o600); err != nil {
+		t.Fatalf("write feat.go failed: %v", err)
+	}
+	runGit("add", ".")
+	runGit("commit", "-m", "feat commit")
+
+	// Default base="" resolves "main" and uses merge-base(main, HEAD), excluding main's second commit on demo.go.
+	mbRes, err := CollectChangedLines(context.Background(), tmpDir, DiffOptions{VCS: "git"})
+	if err != nil {
+		t.Fatalf("CollectChangedLines(default base) error: %v", err)
+	}
+	if _, hasMainChange := mbRes.ChangedLines["pkg/demo/demo.go"]; hasMainChange {
+		t.Errorf("expected merge-base diff to exclude main-only demo.go change, got %v", mbRes.ChangedLines)
+	}
+	if _, hasFeat := mbRes.ChangedLines["pkg/demo/feat.go"][3]; !hasFeat {
+		t.Errorf("expected feat.go line 3 in ChangedLines, got %v", mbRes.ChangedLines)
+	}
+	mbDemo, exists, err := ReadBaseFile(context.Background(), tmpDir, mbRes, "pkg/demo/demo.go")
+	if err != nil || !exists || string(mbDemo) != "package demo\n" {
+		t.Errorf("ReadBaseFile(merge-base demo.go) = (%q, %v, %v), want initial content", string(mbDemo), exists, err)
+	}
+
+	// Explicit Target uses two-rev diff (base..target).
+	targRes, err := CollectChangedLines(context.Background(), tmpDir, DiffOptions{
+		VCS:    "git",
+		Base:   "HEAD~1",
+		Target: "HEAD",
+	})
+	if err != nil {
+		t.Fatalf("CollectChangedLines(Target=HEAD) error: %v", err)
+	}
+	if _, hasFeat := targRes.ChangedLines["pkg/demo/feat.go"][3]; !hasFeat {
+		t.Errorf("expected feat.go line 3 in target diff, got %v", targRes.ChangedLines)
+	}
+}
+
+func initTestGitDiffRepo(t *testing.T, tmpDir string) {
+	t.Helper()
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.CommandContext(context.Background(), "git", args...)
+		cmd.Dir = tmpDir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
+		}
+	}
+	runGit("init", "-b", "main")
+	pkgDir := filepath.Join(tmpDir, "pkg", "demo")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "demo.go"), []byte("package demo\n"), 0o600); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	runGit("add", ".")
+	runGit("commit", "-m", "first")
+
+	if err := os.WriteFile(filepath.Join(pkgDir, "demo.go"), []byte("package demo\n\nfunc Hello() int { return 1 }\n"), 0o600); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	runGit("add", ".")
+	runGit("commit", "-m", "second")
+}
+
+func TestReadBaseFileValidationErrors(t *testing.T) {
+	testCases := []struct {
+		name    string
+		res     DiffResult
+		relPath string
+	}{
+		{
+			name:    "empty path rejected",
+			res:     DiffResult{VCS: "git", ResolvedBaseRev: "HEAD"},
+			relPath: "./",
+		},
+		{
+			name:    "missing resolved base rev rejected",
+			res:     DiffResult{VCS: "git"},
+			relPath: "pkg/a/a.go",
+		},
+		{
+			name:    "unsupported vcs rejected",
+			res:     DiffResult{VCS: "svn", ResolvedBaseRev: "r1"},
+			relPath: "pkg/a/a.go",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, exists, err := ReadBaseFile(context.Background(), t.TempDir(), tc.res, tc.relPath); err == nil || exists {
+				t.Errorf("ReadBaseFile() = (exists=%v, err=%v), want (false, non-nil)", exists, err)
+			}
+		})
+	}
+}
+
+func TestCollectJJDiffAndReadBaseFile(t *testing.T) {
+	if _, err := exec.LookPath("jj"); err != nil {
+		t.Skip("jj binary not installed")
+	}
+	tmpDir := t.TempDir()
+	initTestJJDiffRepo(t, tmpDir)
+
+	testCases := []struct {
+		name      string
+		base      string
+		queryFile string
+		wantExist bool
+	}{
+		{
+			name:      "reads existing base file from explicit parent",
+			base:      "@-",
+			queryFile: "pkg/jjdemo/jjdemo.go",
+			wantExist: true,
+		},
+		{
+			name:      "returns false for absent base file using default trunk()",
+			base:      "",
+			queryFile: "pkg/jjdemo/absent.go",
+			wantExist: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := CollectChangedLines(context.Background(), tmpDir, DiffOptions{
+				VCS:  "jj",
+				Base: tc.base,
+			})
+			if err != nil {
+				t.Fatalf("CollectChangedLines(jj) error: %v", err)
+			}
+			_, exists, err := ReadBaseFile(context.Background(), tmpDir, res, tc.queryFile)
+			if err != nil || exists != tc.wantExist {
+				t.Errorf("ReadBaseFile(%s) = (exists=%v, err=%v), want exists=%v", tc.queryFile, exists, err, tc.wantExist)
+			}
+		})
+	}
+}
+
+func initTestJJDiffRepo(t *testing.T, tmpDir string) {
+	t.Helper()
+	runJJ := func(args ...string) {
+		t.Helper()
+		cmd := exec.CommandContext(context.Background(), "jj", args...)
+		cmd.Dir = tmpDir
+		cmd.Env = append(os.Environ(),
+			"JJ_CONFIG=/dev/null",
+			"JJ_USER=Test",
+			"JJ_EMAIL=test@example.com",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("jj %v failed: %v\n%s", args, err, string(out))
+		}
+	}
+	runJJ("git", "init")
+	pkgDir := filepath.Join(tmpDir, "pkg", "jjdemo")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "jjdemo.go"), []byte("package jjdemo\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	runJJ("new", "-m", "second")
+	if err := os.WriteFile(filepath.Join(pkgDir, "jjdemo.go"), []byte("package jjdemo\n\nfunc Val() int { return 7 }\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
 	}
 }

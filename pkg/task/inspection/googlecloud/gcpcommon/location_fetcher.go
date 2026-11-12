@@ -16,6 +16,7 @@ package gcpcommon
 
 import (
 	"context"
+	"errors"
 
 	compute "cloud.google.com/go/compute/apiv1"
 	"cloud.google.com/go/compute/apiv1/computepb"
@@ -43,7 +44,7 @@ func (l *locationFetcherImpl) FetchRegions(ctx context.Context, projectId string
 	for {
 		region, err := iter.Next()
 		if err != nil {
-			if err == iterator.Done {
+			if errors.Is(err, iterator.Done) {
 				break
 			}
 			return nil, googlecloud.WrapPermissionDenied(err, googlecloud.Project(projectId).Identifier(), "compute.regions.list")

@@ -16,6 +16,7 @@ package gcpcommon
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -71,7 +72,7 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 
 	for {
 		entry, err := iter.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 

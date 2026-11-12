@@ -15,6 +15,7 @@
 package gcp_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -54,7 +55,7 @@ timestamp <= "2024-01-01T00:00:01Z"`, query)
 	}, googlecloud.DefaultRetryPolicy, gax.WithTimeout(5*time.Minute))
 
 	_, err = iter.Next()
-	if err != iterator.Done {
+	if !errors.Is(err, iterator.Done) {
 		return err
 	}
 

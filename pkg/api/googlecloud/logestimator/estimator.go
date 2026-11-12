@@ -16,6 +16,7 @@ package logestimator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync/atomic"
@@ -64,7 +65,7 @@ func (f *MonitoringClientFetcher) QueryMetricCount(ctx context.Context, containe
 
 	for {
 		resp, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {
@@ -104,7 +105,7 @@ func (f *LoggingClientProbeFetcher) ProbeLogTimestamps(ctx context.Context, cont
 	var timestamps []time.Time
 	for {
 		resp, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {

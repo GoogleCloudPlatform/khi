@@ -410,7 +410,7 @@ func (s *InspectionServiceServer) GetInspectionDataChunk(
 	buf := make([]byte, readSize)
 	if len(buf) > 0 {
 		_, err = io.ReadFull(reader, buf)
-		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}

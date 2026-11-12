@@ -15,6 +15,7 @@
 package coreinspection
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -77,7 +78,7 @@ func TestRegisterImportedInspection_NameReservation(t *testing.T) {
 					t.Errorf("imported inspection [%d] SuggestedFileName = %q, want %q", i, header.SuggestedFileName, wantFile)
 				}
 
-				if err := server.InspectionNameRegistry().ReserveName("other-id", wantName); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+				if err := server.InspectionNameRegistry().ReserveName("other-id", wantName); !errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
 					t.Errorf("expected %q to be reserved, but got error: %v", wantName, err)
 				}
 			}

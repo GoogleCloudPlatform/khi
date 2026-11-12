@@ -99,17 +99,17 @@ make test
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
-`main`（`trunk`）からの変更差分に含まれるGoおよびTypeScriptコードの差分カバレッジ（未カバー行）・ミューテーションスコア（アサーション強度）・冗長テストの有無をまとめて検証するには、下記を実行してください。
+`main`（`trunk`）からの変更差分に含まれるGoおよびTypeScriptコードの品質ルール（Go ASTの認知複雑度・関数/ファイル長・シグネチャ制約・クローン・ファイル名、および両言語の未カバー実行行・生存ミュータント・冗長テスト）をまとめて検証するには、下記を実行してください。
 
 ```shell
-make mutation-diff
+make codequality
 ```
 
-言語別の個別実行（`make mutation-diff-go` / `make mutation-diff-web`）、コンテナ内のChromeを使った実行（`USE_CONTAINER=true`）、比較元のリビジョン指定（例: `make mutation-diff MUTATION_BASE=@-` や `MUTATION_BASE=origin/main~3`）、リポジトリ全体のカバレッジ計測（`MUTATION_FULL=true`）、およびパイプ渡し時のカラー出力切り替え（`COLOR=always` / `COLOR=never`、対話型ターミナルでは自動でカラー表示）もオプションで指定可能です。
+Goリファクタリング中の高速フィードバック（1秒未満の静的AST構造検査のみ）には `make codequality-fast` を使用できます。言語別の個別実行（`make codequality-go` / `make codequality-web`）、コンテナ内のChromeを使った実行（`USE_CONTAINER=true`）、比較元のリビジョン指定（例: `make codequality CODEQUALITY_BASE=@-` や `CODEQUALITY_BASE=origin/main~3`）、リポジトリ全体のカバレッジ計測（`CODEQUALITY_FULL=true`）、およびパイプ渡し時のカラー出力切り替え（`COLOR=always` / `COLOR=never`、対話型ターミナルでは自動でカラー表示）もオプションで指定可能です。
 
-生存ミュータント（ロジックを変異させてもテストが成功してしまう箇所）が検出された場合は、壊れやすいモックテストを無理に増やすのではなく、①不要・冗長な分岐（不変条件で到達しないガード等）の削除、②既存テストにおける `cmp.Diff` や `*.spec.ts` のシグナル・ViewModel・境界値アサーションの強化を優先してください。不変条件・到達不能コードを `NOMUTANTS` で抑制することは認められません。消せない正当なケースに限り、必須カテゴリ付きのコメント（`// NOMUTANTS(<category>): <理由>` または `// NOMUTANTS(<category>, <operator>): <理由>`、`<category>` は `equivalent` / `perf` / `observability` / `external` のいずれか）で明示的に抑制できます。
+Go側の品質ルールはすべて統一された上限・悪化防止ラチェット（既存のレガシー関数では `after <= before` 判定）で動作します。GoまたはTypeScriptで生存ミュータントや未カバー分岐が検出された場合は、壊れやすいモックテストを無理に増やすのではなく、①不要・冗長な分岐（不変条件で到達しないガード等）の削除、②既存テストにおける `cmp.Diff` や `*.spec.ts` のシグナル・ViewModel・境界値アサーションの強化を優先してください。不変条件・到達不能コードを `CODEQUALITY_ALLOW` で抑制することは認められません。消せない正当なケースに限り、必須ルールID・カテゴリ付きのコメント（`// CODEQUALITY_ALLOW(<rule_id>, <category>): <理由>` または `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <理由>`、`<category>` はルールごとに許可された `dispatch` / `protocol` / `equivalent` / `perf` / `observability` / `external`）で明示的に抑制できます。
 
-また、`make mutation-diff` は差分内で追加・変更された `*_test.go` および `*.spec.ts` のテストケースも同時に解析し、冗長なテスト（既存のテストと全く同じ経路を通って追加のバグを1つも検出していない `SAME PATH`、または既にカバー済みの経路に対して `err != nil` や `expect(component).toBeTruthy()` のみのスモーク確認しか行わず戻り値・状態を検証していない `NO OUTPUT CHECK`）を検出・集約表示します。固有のドメイン回帰ケースを除き、同値クラスの重複テストは整理してください。
+また、`make codequality` は差分内で追加・変更された `*_test.go` および `*.spec.ts` のテストケースも `test_redundancy` ルールとして同時に解析し、冗長なテスト（既存のテストと全く同じ分岐極性経路を通って追加のバグを1つも検出していない `SAME PATH`、または既にカバー済みの経路に対して `err != nil` や `expect(component).toBeTruthy()` のみのスモーク確認しか行わず戻り値・状態を検証していない `NO OUTPUT CHECK`）を検出します。同値クラスの重複テストは整理するか、固有の変異を検出できるようアサーションを強化してください。
 
 ### 過去の自動生成テストファイルのクリーンアップ
 

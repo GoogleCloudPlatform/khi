@@ -17,6 +17,7 @@ package apiv1
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -595,8 +596,8 @@ func TestInspectionServiceServer_CancelInspection(t *testing.T) {
 					t.Fatal("CancelInspection() expected error, got nil")
 				}
 
-				connErr, ok := err.(*connect.Error)
-				if !ok {
+				var connErr *connect.Error
+				if !errors.As(err, &connErr) {
 					t.Fatalf("expected connect.Error, got %T: %v", err, err)
 				}
 				if connErr.Code() != tc.wantCode {

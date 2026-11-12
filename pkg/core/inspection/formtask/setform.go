@@ -122,15 +122,15 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 
 	allowCustomValue, err := b.allowCustomValue(ctx)
 	if err != nil {
-		return *new(T), fmt.Errorf("allowCustomValue provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("allowCustomValue provider for task `%s` returned an error\n%w", b.id, err)
 	}
 	disableAddAll, err := b.disableAddAll(ctx)
 	if err != nil {
-		return *new(T), fmt.Errorf("disableAddAll provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("disableAddAll provider for task `%s` returned an error\n%w", b.id, err)
 	}
 	disableRemoveAll, err := b.disableRemoveAll(ctx)
 	if err != nil {
-		return *new(T), fmt.Errorf("disableRemoveAll provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("disableRemoveAll provider for task `%s` returned an error\n%w", b.id, err)
 	}
 
 	field := inspectionmetadata.SetParameterFormField{}
@@ -142,7 +142,7 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	var currentValue []string
 	defaultValue, err := b.defaultValue(ctx, prevValue)
 	if err != nil {
-		return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%w", b.id, err)
 	}
 	field.Default = defaultValue
 	currentValue = defaultValue
@@ -163,21 +163,21 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 
 	options, err := b.optionsProvider(ctx, prevValue)
 	if err != nil {
-		return *new(T), fmt.Errorf("options provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("options provider for task `%s` returned an error\n%w", b.id, err)
 	}
 	field.Options = options
 
 	if validationErr == "" {
 		validationErr, err = b.validator(ctx, currentValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
+			return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%w", b.id, err)
 		}
 	}
 	if validationErr != "" {
 		// When invalid, fallback to default
 		currentValue, err = b.defaultValue(ctx, prevValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
+			return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%w", b.id, err)
 		}
 	}
 	if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
@@ -186,7 +186,7 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 
 	convertedValue, err := b.converter(ctx, currentValue)
 	if err != nil {
-		return *new(T), fmt.Errorf("failed to convert the value `%v` to the dedicated value in task %s\n%v", currentValue, b.id, err)
+		return *new(T), fmt.Errorf("failed to convert the value `%v` to the dedicated value in task %s\n%w", currentValue, b.id, err)
 	}
 
 	if validationErr != "" {
@@ -195,7 +195,7 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	} else {
 		hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
+			return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%w", b.id, err)
 		}
 		if hint == "" {
 			hintType = inspectionmetadata.None
@@ -214,7 +214,7 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	}
 	err = formFields.SetField(field)
 	if err != nil {
-		return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
+		return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%w", b.id, err)
 	}
 	return convertedValue, nil
 }
