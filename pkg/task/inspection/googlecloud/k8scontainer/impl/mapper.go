@@ -70,10 +70,7 @@ func processContainerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeS
 // enrichCiliumAgentLog sets the severity of a cilium-agent log from its level and returns its summary with the subsystem, the error and the Pod that the log refers to.
 // The summary of a JSON log otherwise only contains its message because the generic container log parser reads the message field alone.
 func enrichCiliumAgentLog(cs *khifilev6.LogChangeSet, l *log.Log, containerFields k8scontainer.K8sContainerLogFieldSet, summary string) string {
-	ciliumFields, err := k8scontainer.ExtractCiliumAgentLog(l.NodeReader, containerFields.ParsedMessage)
-	if err != nil {
-		return summary
-	}
+	ciliumFields := k8scontainer.ExtractCiliumAgentLog(l.NodeReader, containerFields.ParsedMessage)
 	if ciliumFields.Severity != nil {
 		cs.SetSeverity(ciliumFields.Severity)
 	}
@@ -159,8 +156,8 @@ func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string
 
 	// cilium-agent logs the lifecycle of the endpoint of each Pod, so its log also appears on the timeline of the Pod it refers to.
 	if containerFields.ContainerName == k8scontainer.CiliumAgentContainerName {
-		ciliumFields, err := k8scontainer.ExtractCiliumAgentLog(l.NodeReader, containerFields.ParsedMessage)
-		if err == nil && ciliumFields.HasPodReference() {
+		ciliumFields := k8scontainer.ExtractCiliumAgentLog(l.NodeReader, containerFields.ParsedMessage)
+		if ciliumFields.HasPodReference() {
 			cs.AddEvent(mustPodTimelinePath(ctx, clusterName, ciliumFields.PodNamespace, ciliumFields.PodName))
 		}
 	}

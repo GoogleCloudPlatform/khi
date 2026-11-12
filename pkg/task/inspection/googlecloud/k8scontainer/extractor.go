@@ -192,12 +192,9 @@ func (c CiliumAgentLogFieldSet) HasPodReference() bool {
 
 // ExtractCiliumAgentLog extracts CiliumAgentLogFieldSet from a cilium-agent log.
 // It reads the fields from jsonPayload, or from parsed when the log has a text payload in logfmt.
-func ExtractCiliumAgentLog(reader *structured.NodeReader, parsed *logutil.ParseStructuredLogResult) (CiliumAgentLogFieldSet, error) {
+func ExtractCiliumAgentLog(reader *structured.NodeReader, parsed *logutil.ParseStructuredLogResult) CiliumAgentLogFieldSet {
 	if mock, ok := structured.GetMock[CiliumAgentLogFieldSet](reader); ok {
-		return mock, nil
-	}
-	if reader == nil {
-		return CiliumAgentLogFieldSet{}, fmt.Errorf("failed to extract the cilium-agent log: reader is nil")
+		return mock
 	}
 
 	var subsystem, module, level, errorMessage, k8sNamespace, k8sPodName, endpointName string
@@ -228,7 +225,7 @@ func ExtractCiliumAgentLog(reader *structured.NodeReader, parsed *logutil.ParseS
 		result.Subsystem = module[strings.LastIndex(module, ".")+1:]
 	}
 	result.PodNamespace, result.PodName = resolveCiliumPodReference(k8sNamespace, k8sPodName, endpointName)
-	return result, nil
+	return result
 }
 
 // readParsedStringField returns the string field of a parsed log, or an empty string when the field is missing.

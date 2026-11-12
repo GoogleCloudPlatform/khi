@@ -462,10 +462,7 @@ jsonPayload:
 			}
 			reader := structured.NewNodeReader(node)
 
-			got, err := ExtractCiliumAgentLog(reader, tc.parsed)
-			if err != nil {
-				t.Fatalf("ExtractCiliumAgentLog() returned an unexpected error: %v", err)
-			}
+			got := ExtractCiliumAgentLog(reader, tc.parsed)
 			if diff := cmp.Diff(tc.want, got, severityComparer); diff != "" {
 				t.Errorf("ExtractCiliumAgentLog() mismatch (-want +got):\n%s", diff)
 			}
@@ -482,18 +479,9 @@ func TestExtractCiliumAgentLog_Mock(t *testing.T) {
 	}
 	reader := structured.NewNodeReader(structured.NewMockNode(want))
 
-	got, err := ExtractCiliumAgentLog(reader, nil)
-	if err != nil {
-		t.Fatalf("ExtractCiliumAgentLog() returned an unexpected error: %v", err)
-	}
+	got := ExtractCiliumAgentLog(reader, nil)
 	if diff := cmp.Diff(want, got, severityComparer); diff != "" {
 		t.Errorf("ExtractCiliumAgentLog() mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestExtractCiliumAgentLog_NilReader(t *testing.T) {
-	if _, err := ExtractCiliumAgentLog(nil, nil); err == nil {
-		t.Errorf("ExtractCiliumAgentLog(nil, nil) returned no error, want an error")
 	}
 }
 
