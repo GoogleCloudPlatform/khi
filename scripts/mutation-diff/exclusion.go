@@ -284,37 +284,57 @@ type SuppressionIndex struct {
 	Warnings []DirectiveWarning
 }
 
+// RawComment holds a 1-based line number and raw comment text (starting with // or /*).
+type RawComment struct {
+	// Line is the 1-based starting line number of the comment.
+	Line int `json:"line"`
+	// Text is the raw comment token text including its leading // or /* delimiter.
+	Text string `json:"text"`
+}
+
 // ParseSuppressions extracts // NOMUTANTS directives and validation warnings from a parsed Go file.
 func ParseSuppressions(filePath string, fset *token.FileSet, file *ast.File, src []byte) SuppressionIndex {
+	var raw []RawComment
+	for _, group := range file.Comments {
+		for _, c := range group.List {
+			pos := fset.Position(c.Slash)
+			raw = append(raw, RawComment{
+				Line: pos.Line,
+				Text: c.Text,
+			})
+		}
+	}
+	return ParseSuppressionsFromComments(filePath, raw, src)
+}
+
+// ParseSuppressionsFromComments extracts // NOMUTANTS directives and validation warnings from language-agnostic comments.
+func ParseSuppressionsFromComments(filePath string, comments []RawComment, src []byte) SuppressionIndex {
 	idx := SuppressionIndex{
 		byLine: make(map[int][]nomutantsRule),
 	}
 	sourceLines := strings.Split(string(src), "\n")
 
-	for _, group := range file.Comments {
-		for _, c := range group.List {
-			pos := fset.Position(c.Slash)
-			rule, warnMsg, matched := parseNomutantsComment(c.Text)
-			if !matched {
-				continue
-			}
-			if warnMsg != "" {
-				idx.Warnings = append(idx.Warnings, DirectiveWarning{
-					File:    filePath,
-					Line:    pos.Line,
-					Message: warnMsg,
-				})
-				continue
-			}
+	for _, c := range comments {
+		rule, warnMsg, matched := parseNomutantsComment(c.Text)
+		if !matched {
+			continue
+		}
+		if warnMsg != "" {
+			idx.Warnings = append(idx.Warnings, DirectiveWarning{
+				File:    filePath,
+				Line:    c.Line,
+				Message: warnMsg,
+			})
+			continue
+		}
 
-			idx.byLine[pos.Line] = append(idx.byLine[pos.Line], rule)
+		idx.byLine[c.Line] = append(idx.byLine[c.Line], rule)
 
-			// Standalone comment lines apply to the next non-comment, non-blank source line.
-			if isStandaloneCommentLine(sourceLines, pos.Line) {
-				targetLine := nextCodeLine(sourceLines, pos.Line)
-				if targetLine > 0 {
-					idx.byLine[targetLine] = append(idx.byLine[targetLine], rule)
-				}
+		// Standalone comment lines apply to the next non-comment, non-blank source line.
+		if isStandaloneCommentLine(sourceLines, c.Line) {
+			targetLine := nextCodeLine(sourceLines, c.Line)
+			if targetLine > 0 {
+				idx.byLine[targetLine] = append(idx.byLine[targetLine], rule)
 			}
 		}
 	}

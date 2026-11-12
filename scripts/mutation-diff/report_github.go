@@ -65,10 +65,11 @@ func RenderGitHubAnnotations(w io.Writer, report *MutationReport, maxAnnotations
 		}
 		return largeSpans[i].StartLine < largeSpans[j].StartLine
 	})
+	langName := report.Language.DisplayName()
 	for i := range largeSpans {
 		sp := &largeSpans[i]
 		rangeLabel := formatLineSpan(sp.StartLine, sp.EndLine)
-		msg := fmt.Sprintf("Changed Go block (%s, %d executable lines) is not covered by unit tests.", rangeLabel, sp.ExecutableLines)
+		msg := fmt.Sprintf("Changed %s block (%s, %d executable lines) is not covered by unit tests.", langName, rangeLabel, sp.ExecutableLines)
 		fmt.Fprintf(w, "::warning file=%s,line=%d,endLine=%d,title=%s::%s\n",
 			gotestutil.EscapeAnnotationProperty(sp.File),
 			sp.StartLine,
@@ -107,7 +108,7 @@ func RenderGitHubAnnotations(w io.Writer, report *MutationReport, maxAnnotations
 			rt.TestName,
 			rt.DominatedBy,
 			covLoc,
-			explainSingleRedundantWhy(rt, covLoc),
+			explainSingleRedundantWhy(report.Language, rt, covLoc),
 			explainRedundantFix(rt.Kind, false),
 		)
 		fmt.Fprintf(w, "::warning file=%s,line=%d,title=%s::%s\n",
@@ -122,15 +123,16 @@ func RenderGitHubAnnotations(w io.Writer, report *MutationReport, maxAnnotations
 
 // RenderGitHubSummary writes a unified GitHub-Flavored Markdown coverage and mutation report suitable for GITHUB_STEP_SUMMARY.
 func RenderGitHubSummary(w io.Writer, report *MutationReport) {
-	fmt.Fprintln(w, "## Go Differential Test & Mutation Report")
+	langName := report.Language.DisplayName()
+	fmt.Fprintf(w, "## %s Differential Test & Mutation Report\n", langName)
 	fmt.Fprintln(w)
 
 	if !report.HasCandidates() && len(report.Warnings) == 0 && len(report.RedundantTests) == 0 {
-		fmt.Fprintln(w, "No executable Go production lines were added or modified in this change.")
+		fmt.Fprintf(w, "No executable %s production lines were added or modified in this change.\n", langName)
 		if report.Coverage != nil && report.Coverage.HasOverallCoverage && report.Coverage.OverallStatements > 0 {
 			fmt.Fprintln(w)
-			fmt.Fprintf(w, "- **Overall Go Statement Coverage**: `%.1f%%` (%d / %d statements)\n",
-				report.Coverage.OverallPercent(), report.Coverage.OverallCovered, report.Coverage.OverallStatements)
+			fmt.Fprintf(w, "- **Overall %s Statement Coverage**: `%.1f%%` (%d / %d statements)\n",
+				langName, report.Coverage.OverallPercent(), report.Coverage.OverallCovered, report.Coverage.OverallStatements)
 		}
 		return
 	}
@@ -141,8 +143,8 @@ func RenderGitHubSummary(w io.Writer, report *MutationReport) {
 				report.Coverage.PatchPercent(), report.Coverage.PatchCoveredLines, report.Coverage.PatchExecutableLines)
 		}
 		if report.Coverage.HasOverallCoverage && report.Coverage.OverallStatements > 0 {
-			fmt.Fprintf(w, "- **Overall Go Statement Coverage**: `%.1f%%` (%d / %d statements)\n",
-				report.Coverage.OverallPercent(), report.Coverage.OverallCovered, report.Coverage.OverallStatements)
+			fmt.Fprintf(w, "- **Overall %s Statement Coverage**: `%.1f%%` (%d / %d statements)\n",
+				langName, report.Coverage.OverallPercent(), report.Coverage.OverallCovered, report.Coverage.OverallStatements)
 		}
 	}
 
@@ -234,7 +236,7 @@ func RenderGitHubSummary(w io.Writer, report *MutationReport) {
 		for i := 0; i < limit; i++ {
 			sp := &spans[i]
 			fmt.Fprintf(w, "**`%s:%s`** (%d executable lines)\n\n", sp.File, formatLineSpan(sp.StartLine, sp.EndLine), sp.ExecutableLines)
-			fmt.Fprintln(w, "```go")
+			fmt.Fprintf(w, "```%s\n", report.Language.CodeFence())
 			for _, ln := range sp.Lines {
 				fmt.Fprintf(w, "%4d | %s\n", ln.Number, ln.Text)
 			}
@@ -269,7 +271,11 @@ func RenderGitHubSummary(w io.Writer, report *MutationReport) {
 		}
 		fmt.Fprintln(w, "</details>")
 		fmt.Fprintln(w)
-		fmt.Fprint(w, remediationGuideMarkdown)
+		if report.Language == LangTS {
+			fmt.Fprint(w, remediationGuideMarkdownTS)
+		} else {
+			fmt.Fprint(w, remediationGuideMarkdown)
+		}
 	}
 
 	if len(report.RedundantTests) > 0 {
@@ -281,7 +287,7 @@ func RenderGitHubSummary(w io.Writer, report *MutationReport) {
 		for _, rt := range report.RedundantTests {
 			covLoc := formatCoveringLocation(rt.File, rt.DominatedByFile, rt.DominatedByLine)
 			covCell := fmt.Sprintf("`%s` (%s)", gotestutil.EscapeMarkdownTable(rt.DominatedBy), gotestutil.EscapeMarkdownTable(covLoc))
-			whyCell := fmt.Sprintf("**%s** — %s", redundantKindBadge(rt.Kind), gotestutil.EscapeMarkdownTable(explainSingleRedundantWhy(rt, covLoc)))
+			whyCell := fmt.Sprintf("**%s** — %s", redundantKindBadge(rt.Kind), gotestutil.EscapeMarkdownTable(explainSingleRedundantWhy(report.Language, rt, covLoc)))
 			fmt.Fprintf(w, "| `%s` (`%s:%d`) | %s | %s |\n",
 				gotestutil.EscapeMarkdownTable(rt.TestName),
 				gotestutil.EscapeMarkdownTable(rt.File),
@@ -300,6 +306,14 @@ const remediationGuideMarkdown = `> [!TIP]
 > **How to Triage Surviving Mutants (Without Test Bloat)**
 > 1. **Delete redundant code first**: If flipping or skipping a branch cannot alter observable behavior because an invariant already holds, simplify or delete the production branch. Invariant or unreachable guards must **not** be suppressed with ` + "`NOMUTANTS`" + `.
 > 2. **Strengthen existing assertions**: Assert full output structs with ` + "`cmp.Diff`" + ` or add one boundary row to an existing table test rather than introducing mock-heavy tests.
+> 3. **Suppress categorized equivalent mutants**: For genuine cases (` + "`equivalent`, `perf`, `observability`, `external`" + `), add ` + "`// NOMUTANTS(<category>): <reason>`" + ` above or on the line.
+> 4. **Add a focused unit test**: Only when substantive domain behavior is genuinely unverified.
+`
+
+const remediationGuideMarkdownTS = `> [!TIP]
+> **How to Triage Surviving Mutants (Without Test Bloat)**
+> 1. **Delete redundant code first**: If flipping or skipping a branch cannot alter observable behavior because an invariant already holds, simplify or delete the production branch. Invariant or unreachable guards must **not** be suppressed with ` + "`NOMUTANTS`" + `.
+> 2. **Strengthen existing assertions**: Assert computed view models, signal outputs, or rendered DOM states in ` + "`*.spec.ts`" + ` rather than leaving ` + "`should create`" + `-only smoke specs.
 > 3. **Suppress categorized equivalent mutants**: For genuine cases (` + "`equivalent`, `perf`, `observability`, `external`" + `), add ` + "`// NOMUTANTS(<category>): <reason>`" + ` above or on the line.
 > 4. **Add a focused unit test**: Only when substantive domain behavior is genuinely unverified.
 `

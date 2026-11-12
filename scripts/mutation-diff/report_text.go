@@ -24,16 +24,17 @@ import (
 
 // RenderTextReport writes a terminal-friendly unified differential coverage and mutation report to w using style.
 func RenderTextReport(w io.Writer, report *MutationReport, style gotestutil.TermStyle) {
+	langName := report.Language.DisplayName()
 	if !report.HasCandidates() && len(report.Warnings) == 0 && len(report.RedundantTests) == 0 {
-		fmt.Fprintf(w, "%s\n", style.Dim(fmt.Sprintf("Go Differential Test Report (base: %s): no executable Go production lines changed.", report.BaseLabel)))
+		fmt.Fprintf(w, "%s\n", style.Dim(fmt.Sprintf("%s Differential Test Report (base: %s): no executable %s production lines changed.", langName, report.BaseLabel, langName)))
 		if report.Coverage != nil && report.Coverage.HasOverallCoverage && report.Coverage.OverallStatements > 0 {
-			fmt.Fprintf(w, "Overall Go Statement Coverage: %.1f%% (%d/%d statements)\n",
-				report.Coverage.OverallPercent(), report.Coverage.OverallCovered, report.Coverage.OverallStatements)
+			fmt.Fprintf(w, "Overall %s Statement Coverage: %.1f%% (%d/%d statements)\n",
+				langName, report.Coverage.OverallPercent(), report.Coverage.OverallCovered, report.Coverage.OverallStatements)
 		}
 		return
 	}
 
-	headerTitle := fmt.Sprintf("══ Go Differential Test Report (base: %s) ══", report.BaseLabel)
+	headerTitle := fmt.Sprintf("══ %s Differential Test Report (base: %s) ══", langName, report.BaseLabel)
 	fmt.Fprintln(w, style.BoldCyan(headerTitle))
 
 	if report.Coverage != nil && report.Coverage.PatchExecutableLines > 0 {
@@ -123,13 +124,17 @@ func RenderTextReport(w io.Writer, report *MutationReport, style gotestutil.Term
 			fmt.Fprintf(w, "      %s %s\n", style.Green("+"), styledNew)
 		}
 		fmt.Fprintln(w)
-		fmt.Fprintf(w, "  %s\n", style.Dim("Tip: Delete redundant/unreachable branches first, or strengthen assertions (cmp.Diff / boundary inputs) rather than adding mock-heavy tests."))
+		tipText := "Tip: Delete redundant/unreachable branches first, or strengthen assertions (cmp.Diff / boundary inputs) rather than adding mock-heavy tests."
+		if report.Language == LangTS {
+			tipText = "Tip: Delete redundant/unreachable branches first, or strengthen assertions in *.spec.ts rather than adding mock-heavy boilerplate."
+		}
+		fmt.Fprintf(w, "  %s\n", style.Dim(tipText))
 	}
 
 	renderUncoveredSectionText(w, report, style)
 
 	if len(report.RedundantTests) > 0 {
-		renderRedundantTestsText(w, report.RedundantTests, style)
+		renderRedundantTestsText(w, report.Language, report.RedundantTests, style)
 	}
 }
 
@@ -402,7 +407,7 @@ func groupRedundantFindings(findings []RedundantTestFinding) []redundantDisplayG
 	return groups
 }
 
-func renderRedundantTestsText(w io.Writer, findings []RedundantTestFinding, style gotestutil.TermStyle) {
+func renderRedundantTestsText(w io.Writer, lang Language, findings []RedundantTestFinding, style gotestutil.TermStyle) {
 	fmt.Fprintln(w)
 	secTitle := fmt.Sprintf("── Redundant Tests in Diff (%d) — already covered by another test ──", len(findings))
 	fmt.Fprintln(w, style.BoldYellow(secTitle))
@@ -435,7 +440,7 @@ func renderRedundantTestsText(w io.Writer, findings []RedundantTestFinding, styl
 			candName := trimSharedTopFunc(rt.TestName, g.sharedTopFunc)
 			fmt.Fprintf(w, "    %s %s %s  %s\n", idTag, lineTag, candName, badge)
 			fmt.Fprintf(w, "         %s %s: %s\n", style.Bold("Covered by"), style.Cyan(covLoc), covName)
-			fmt.Fprintf(w, "         %s %s\n", style.Bold("Why:"), explainSingleRedundantWhy(rt, covLoc))
+			fmt.Fprintf(w, "         %s %s\n", style.Bold("Why:"), explainSingleRedundantWhy(lang, rt, covLoc))
 			fmt.Fprintf(w, "         %s %s\n", style.Bold("Fix:"), explainRedundantFix(rt.Kind, false))
 			continue
 		}
@@ -447,13 +452,16 @@ func renderRedundantTestsText(w io.Writer, findings []RedundantTestFinding, styl
 			candName := trimSharedTopFunc(rt.TestName, g.sharedTopFunc)
 			fmt.Fprintf(w, "      - %s %s %s  %s\n", idTag, lineTag, candName, badge)
 		}
-		fmt.Fprintf(w, "      %s %s\n", style.Bold("Why:"), explainGroupRedundantWhy(g, covLoc))
+		fmt.Fprintf(w, "      %s %s\n", style.Bold("Why:"), explainGroupRedundantWhy(lang, g, covLoc))
 		fmt.Fprintf(w, "      %s %s\n", style.Bold("Fix:"), explainRedundantFix(g.kind, true))
 	}
 }
 
-func explainGroupRedundantWhy(g redundantDisplayGroup, covLoc string) string {
+func explainGroupRedundantWhy(lang Language, g redundantDisplayGroup, covLoc string) string {
 	if g.kind == RedundantWeakAssertion {
+		if lang == LangTS {
+			return fmt.Sprintf("All %d cases only perform trivial smoke checks without asserting outputs or DOM/state changes, on a path already tested at %s.", len(g.items), covLoc)
+		}
 		return fmt.Sprintf("All %d cases only check 'err != nil' without asserting outputs or state changes, on a path already tested at %s.", len(g.items), covLoc)
 	}
 	allEqual := true

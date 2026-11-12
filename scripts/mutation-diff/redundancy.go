@@ -22,6 +22,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -423,11 +425,239 @@ type leafDescriptor struct {
 	file        string
 	line        int
 	isCandidate bool
-	onlyErrNil  bool
+	weakAssert  bool
 	orderIdx    int
 	polarity    map[string]struct{}
 	ranMutants  map[int]struct{}
 	kills       map[int]struct{}
+}
+
+// rawTSSpecCase represents a single Jasmine spec declaration extracted by mutate_ts.js from a *.spec.ts file.
+type rawTSSpecCase struct {
+	FullName         string `json:"fullName"`
+	Line             int    `json:"line"`
+	StartLine        int    `json:"startLine"`
+	EndLine          int    `json:"endLine"`
+	ItStartLine      int    `json:"itStartLine"`
+	ItEndLine        int    `json:"itEndLine"`
+	SuiteHeaderLines []int  `json:"suiteHeaderLines"`
+	WeakAssertion    bool   `json:"weakAssertion"`
+}
+
+// ChangedTSSpec holds source location and diff membership for a Jasmine spec in a modified *.spec.ts file.
+type ChangedTSSpec struct {
+	File          string
+	FullName      string
+	Line          int
+	InDiff        bool
+	WeakAssertion bool
+}
+
+// TSSpecOrderEntry identifies a single executed Jasmine spec in Pass 0 execution order.
+type TSSpecOrderEntry struct {
+	ID       string `json:"id"`
+	FullName string `json:"fullName"`
+}
+
+// TSMutantSpecRun records which Jasmine spec IDs ran and failed during a single mutant evaluation pass.
+type TSMutantSpecRun struct {
+	RanSpecIDs    []string `json:"ranSpecIds"`
+	FailedSpecIDs []string `json:"failedSpecIds"`
+}
+
+// DiscoverChangedTSSpecs maps AST-extracted Jasmine spec declarations against VCS changed lines for filePath.
+func DiscoverChangedTSSpecs(filePath string, specCases []rawTSSpecCase, changedLines map[int]struct{}) []ChangedTSSpec {
+	if len(changedLines) == 0 || len(specCases) == 0 {
+		return nil
+	}
+	out := make([]ChangedTSSpec, 0, len(specCases))
+	hasAnyInDiff := false
+	for _, sc := range specCases {
+		if sc.FullName == "" {
+			continue
+		}
+		inDiff := spanHasChangedLine(sc.StartLine, sc.EndLine, changedLines) ||
+			spanHasChangedLine(sc.ItStartLine, sc.ItEndLine, changedLines) ||
+			anyLineInSet(sc.SuiteHeaderLines, changedLines)
+		if inDiff {
+			hasAnyInDiff = true
+		}
+		out = append(out, ChangedTSSpec{
+			File:          filePath,
+			FullName:      sc.FullName,
+			Line:          sc.Line,
+			InDiff:        inDiff,
+			WeakAssertion: sc.WeakAssertion,
+		})
+	}
+	if !hasAnyInDiff {
+		return nil
+	}
+	return out
+}
+
+// IsSubjectMutantForTSSpec reports whether prodFile belongs to the directory or subtree under test of specFile.
+func IsSubjectMutantForTSSpec(specFile string, prodFile string) bool {
+	specDir := path.Dir(strings.TrimPrefix(filepath.ToSlash(specFile), "./"))
+	prodDir := path.Dir(strings.TrimPrefix(filepath.ToSlash(prodFile), "./"))
+	return prodDir == specDir || strings.HasPrefix(prodDir, specDir+"/")
+}
+
+// AnalyzeTSTestRedundancy identifies changed Jasmine specs whose polarity and kill sets are subsumed by another spec in the same spec file.
+func AnalyzeTSTestRedundancy(
+	changedSpecs []ChangedTSSpec,
+	specOrder []TSSpecOrderEntry,
+	specPolarities map[string][]string,
+	mutantRuns map[string]TSMutantSpecRun,
+	mutantFileByID map[int]string,
+	budgetSkippedMutants map[int]struct{},
+) []RedundantTestFinding {
+	if len(changedSpecs) == 0 || len(specOrder) == 0 {
+		return nil
+	}
+
+	specsByName := make(map[string][]ChangedTSSpec)
+	specFileSet := make(map[string]struct{})
+	hasCandidate := false
+	for _, sp := range changedSpecs {
+		specsByName[sp.FullName] = append(specsByName[sp.FullName], sp)
+		specFileSet[sp.File] = struct{}{}
+		if sp.InDiff {
+			hasCandidate = true
+		}
+	}
+	if !hasCandidate {
+		return nil
+	}
+
+	ranBySpecID := make(map[string]map[int]struct{})
+	killsBySpecID := make(map[string]map[int]struct{})
+	for mutIDStr, runRes := range mutantRuns {
+		mutID, err := strconv.Atoi(mutIDStr)
+		if err != nil || mutID <= 0 {
+			continue
+		}
+		for _, specID := range runRes.RanSpecIDs {
+			m := ranBySpecID[specID]
+			if m == nil {
+				m = make(map[int]struct{})
+				ranBySpecID[specID] = m
+			}
+			m[mutID] = struct{}{}
+		}
+		for _, specID := range runRes.FailedSpecIDs {
+			m := killsBySpecID[specID]
+			if m == nil {
+				m = make(map[int]struct{})
+				killsBySpecID[specID] = m
+			}
+			m[mutID] = struct{}{}
+		}
+	}
+
+	cursorByName := make(map[string]int, len(specsByName))
+	leavesByFile := make(map[string][]leafDescriptor, len(specFileSet))
+
+	for idx, entry := range specOrder {
+		if entry.ID == "" || entry.FullName == "" {
+			continue
+		}
+		list := specsByName[entry.FullName]
+		if len(list) == 0 {
+			continue
+		}
+		cur := cursorByName[entry.FullName]
+		if cur >= len(list) {
+			continue
+		}
+		meta := list[cur]
+		cursorByName[entry.FullName] = cur + 1
+
+		rawTokens := specPolarities[entry.ID]
+		if len(rawTokens) == 0 {
+			continue
+		}
+		pol := filterTSPolarityTokensForSpec(meta.File, rawTokens, mutantFileByID)
+		if len(pol) == 0 {
+			continue
+		}
+
+		ranSubject := filterMutantIDsForSpec(meta.File, ranBySpecID[entry.ID], mutantFileByID)
+		killsSubject := filterMutantIDsForSpec(meta.File, killsBySpecID[entry.ID], mutantFileByID)
+
+		leavesByFile[meta.File] = append(leavesByFile[meta.File], leafDescriptor{
+			name:        entry.FullName,
+			file:        meta.File,
+			line:        meta.Line,
+			isCandidate: meta.InDiff,
+			weakAssert:  meta.WeakAssertion,
+			orderIdx:    idx,
+			polarity:    pol,
+			ranMutants:  ranSubject,
+			kills:       killsSubject,
+		})
+	}
+
+	sortedSpecFiles := make([]string, 0, len(leavesByFile))
+	for f := range leavesByFile {
+		sortedSpecFiles = append(sortedSpecFiles, f)
+	}
+	slices.Sort(sortedSpecFiles)
+
+	var findings []RedundantTestFinding
+	for _, specFile := range sortedSpecFiles {
+		skippedSubject := filterMutantIDsForSpec(specFile, budgetSkippedMutants, mutantFileByID)
+		findings = append(findings, evaluateLeafRedundancy(leavesByFile[specFile], skippedSubject)...)
+	}
+	return findings
+}
+
+func filterMutantIDsForSpec(specFile string, ids map[int]struct{}, mutantFileByID map[int]string) map[int]struct{} {
+	if len(ids) == 0 {
+		return nil
+	}
+	out := make(map[int]struct{}, len(ids))
+	for id := range ids {
+		if len(mutantFileByID) == 0 {
+			out[id] = struct{}{}
+			continue
+		}
+		if prodFile, ok := mutantFileByID[id]; ok && IsSubjectMutantForTSSpec(specFile, prodFile) {
+			out[id] = struct{}{}
+		}
+	}
+	return out
+}
+
+func filterTSPolarityTokensForSpec(specFile string, rawTokens []string, mutantFileByID map[int]string) map[string]struct{} {
+	pol := make(map[string]struct{}, len(rawTokens))
+	for _, tok := range rawTokens {
+		if tok == "" {
+			continue
+		}
+		if len(mutantFileByID) == 0 {
+			pol[tok] = struct{}{}
+			continue
+		}
+		idPart := tok
+		if idx := strings.IndexByte(tok, ':'); idx > 0 {
+			idPart = tok[:idx]
+		}
+		if strings.HasPrefix(idPart, "P") {
+			if pID, err := strconv.Atoi(idPart[1:]); err == nil {
+				if prodFile, ok := mutantFileByID[-pID]; ok && IsSubjectMutantForTSSpec(specFile, prodFile) {
+					pol[tok] = struct{}{}
+				}
+			}
+			continue
+		}
+		if mID, err := strconv.Atoi(idPart); err == nil {
+			if prodFile, ok := mutantFileByID[mID]; ok && IsSubjectMutantForTSSpec(specFile, prodFile) {
+				pol[tok] = struct{}{}
+			}
+		}
+	}
+	return pol
 }
 
 // AnalyzeTestRedundancy identifies changed tests or subtests whose polarity and kill sets are subsumed by another test.
@@ -463,7 +693,7 @@ func AnalyzeTestRedundancy(
 			name:       leaf,
 			file:       fnMeta.File,
 			line:       fnMeta.Line,
-			onlyErrNil: fnMeta.OnlyErrorNil,
+			weakAssert: fnMeta.OnlyErrorNil,
 			orderIdx:   idx,
 			polarity:   pol,
 			ranMutants: make(map[int]struct{}),
@@ -476,7 +706,7 @@ func AnalyzeTestRedundancy(
 			subMeta, found := lookupSubtestMeta(fnMeta.Subtests, subName)
 			if found {
 				desc.line = subMeta.Line
-				desc.onlyErrNil = subMeta.OnlyErrorNil
+				desc.weakAssert = subMeta.OnlyErrorNil
 			}
 			desc.isCandidate = fnMeta.EntireFuncChanged || (found && subMeta.InDiff)
 		}
@@ -492,6 +722,10 @@ func AnalyzeTestRedundancy(
 		leaves = append(leaves, desc)
 	}
 
+	return evaluateLeafRedundancy(leaves, budgetSkippedMutants)
+}
+
+func evaluateLeafRedundancy(leaves []leafDescriptor, budgetSkippedMutants map[int]struct{}) []RedundantTestFinding {
 	var findings []RedundantTestFinding
 	for i := range leaves {
 		cand := &leaves[i]
@@ -503,7 +737,7 @@ func AnalyzeTestRedundancy(
 		}
 
 		if len(cand.kills) > 0 {
-			if dom := findDominatingDuplicate(cand, leaves); dom != nil {
+			if dom := findDominatingDuplicate(i, leaves); dom != nil {
 				findings = append(findings, RedundantTestFinding{
 					Kind:            RedundantDuplicate,
 					File:            cand.file,
@@ -519,8 +753,8 @@ func AnalyzeTestRedundancy(
 			continue
 		}
 
-		if cand.onlyErrNil {
-			if dom := findDominatingCoveringTest(cand, leaves); dom != nil {
+		if cand.weakAssert {
+			if dom := findDominatingCoveringTest(i, leaves); dom != nil {
 				findings = append(findings, RedundantTestFinding{
 					Kind:            RedundantWeakAssertion,
 					File:            cand.file,
@@ -546,11 +780,15 @@ func AnalyzeTestRedundancy(
 	return findings
 }
 
-func findDominatingDuplicate(cand *leafDescriptor, all []leafDescriptor) *leafDescriptor {
+func findDominatingDuplicate(candIdx int, all []leafDescriptor) *leafDescriptor {
+	cand := &all[candIdx]
 	bestIdx := -1
 	for j := range all {
+		if j == candIdx {
+			continue
+		}
 		dom := &all[j]
-		if dom.name == cand.name || len(dom.kills) == 0 {
+		if len(dom.kills) == 0 {
 			continue
 		}
 		// Require identical branch-polarity equivalence class so multi-call integration tests never swallow focused unit tests.
@@ -573,10 +811,14 @@ func findDominatingDuplicate(cand *leafDescriptor, all []leafDescriptor) *leafDe
 	return &all[bestIdx]
 }
 
-func findDominatingCoveringTest(cand *leafDescriptor, all []leafDescriptor) *leafDescriptor {
+func findDominatingCoveringTest(candIdx int, all []leafDescriptor) *leafDescriptor {
+	cand := &all[candIdx]
 	for j := range all {
+		if j == candIdx {
+			continue
+		}
 		dom := &all[j]
-		if dom.name == cand.name || len(dom.kills) == 0 {
+		if len(dom.kills) == 0 {
 			continue
 		}
 		if isStringSubset(cand.polarity, dom.polarity) {
@@ -670,6 +912,15 @@ func lookupSubtestMeta(subtests map[string]SubtestMeta, subName string) (Subtest
 func spanHasChangedLine(startLine int, endLine int, changed map[int]struct{}) bool {
 	for line := startLine; line <= endLine; line++ {
 		if _, ok := changed[line]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func anyLineInSet(lines []int, set map[int]struct{}) bool {
+	for _, line := range lines {
+		if _, ok := set[line]; ok {
 			return true
 		}
 	}

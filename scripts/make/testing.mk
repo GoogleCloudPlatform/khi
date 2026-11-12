@@ -61,10 +61,13 @@ coverage-web-container: build-builder ## Run frontend tests and generate coverag
 
 COLOR ?= auto
 MUTATION_BASE ?=
+MUTATION_TARGET ?=
 MUTATION_VCS ?=
 MUTATION_FULL ?= false
 MUTATION_MAX ?= 80
 MUTATION_COLOR ?= $(COLOR)
+
+MUTATION_DIFF_FLAGS := --color=$(MUTATION_COLOR) --max-mutants=$(MUTATION_MAX) $(if $(MUTATION_VCS),--vcs=$(MUTATION_VCS),) $(if $(MUTATION_BASE),--base=$(MUTATION_BASE),) $(if $(MUTATION_TARGET),--target=$(MUTATION_TARGET),) $(if $(filter true 1,$(MUTATION_FULL)),--full,)
 
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
@@ -72,11 +75,42 @@ coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_
 	go tool cover -html=./go-cover.output -o=go-cover.html
 
 .PHONY: mutation-diff
-mutation-diff: $(GENERATE_BACKEND_DUMMY) ## Run unified Go differential coverage, mutation testing, and redundant test detection
+ifneq ($(filter true 1,$(USE_CONTAINER)),)
+mutation-diff: $(GENERATE_BACKEND_DUMMY) $(GENERATE_FRONTEND_DUMMY) build-builder ## Run unified Go and TypeScript differential coverage, mutation testing, and redundant test detection
 	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
 		$(MAKE) build-web; \
 	fi
-	go run ./scripts/mutation-diff --color=$(MUTATION_COLOR) --max-mutants=$(MUTATION_MAX) $(if $(MUTATION_VCS),--vcs=$(MUTATION_VCS),) $(if $(MUTATION_BASE),--base=$(MUTATION_BASE),) $(if $(filter true 1,$(MUTATION_FULL)),--full,)
+	USE_CONTAINER=true CONTAINER_CMD="$(CONTAINER_CMD)" BUILDER_IMAGE="$(BUILDER_IMAGE)" go run ./scripts/mutation-diff --lang=all $(MUTATION_DIFF_FLAGS)
+	@touch scripts/make/mutation-diff.done
+else
+mutation-diff: $(GENERATE_BACKEND_DUMMY) $(GENERATE_FRONTEND_DUMMY) ## Run unified Go and TypeScript differential coverage, mutation testing, and redundant test detection
+	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
+		$(MAKE) build-web; \
+	fi
+	go run ./scripts/mutation-diff --lang=all $(MUTATION_DIFF_FLAGS)
+	@touch scripts/make/mutation-diff.done
+endif
+
+.PHONY: mutation-diff-go
+mutation-diff-go: $(GENERATE_BACKEND_DUMMY) ## Run unified Go differential coverage, mutation testing, and redundant test detection
+	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
+		$(MAKE) build-web; \
+	fi
+	go run ./scripts/mutation-diff --lang=go $(MUTATION_DIFF_FLAGS)
+	@touch scripts/make/mutation-diff.done
+
+.PHONY: mutation-diff-web
+ifneq ($(filter true 1,$(USE_CONTAINER)),)
+mutation-diff-web: mutation-diff-web-container
+else
+mutation-diff-web: $(GENERATE_FRONTEND_DUMMY) ## Run unified TypeScript differential coverage, mutation testing, and redundant test detection
+	go run ./scripts/mutation-diff --lang=ts $(MUTATION_DIFF_FLAGS)
+	@touch scripts/make/mutation-diff.done
+endif
+
+.PHONY: mutation-diff-web-container
+mutation-diff-web-container: $(GENERATE_FRONTEND_DUMMY) build-builder ## Run unified TypeScript differential coverage and mutation testing using container Karma
+	USE_CONTAINER=true CONTAINER_CMD="$(CONTAINER_CMD)" BUILDER_IMAGE="$(BUILDER_IMAGE)" go run ./scripts/mutation-diff --lang=ts $(MUTATION_DIFF_FLAGS)
 	@touch scripts/make/mutation-diff.done
 
 FIXTURES_GCS_BUCKET ?= gs://khi-fixtures

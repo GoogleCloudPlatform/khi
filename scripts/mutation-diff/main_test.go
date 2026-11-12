@@ -199,7 +199,12 @@ example.com/clitest/pkg/calc/calc.go:3.22,6.3 2 0
 
 func TestRunRejectsInvalidFormat(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	err := run(context.Background(), []string{"--format=xml"}, &stdout, &stderr)
+	err := run(context.Background(), []string{"--lang=rust"}, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "invalid --lang") {
+		t.Errorf("expected invalid --lang error, got: %v", err)
+	}
+
+	err = run(context.Background(), []string{"--format=xml"}, &stdout, &stderr)
 	if err == nil || !strings.Contains(err.Error(), "invalid --format") {
 		t.Errorf("expected invalid --format error, got: %v", err)
 	}

@@ -100,17 +100,17 @@ When you want to run backend tests without Cloud Logging, run the following code
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
-To verify differential line coverage, assertion strength (mutation testing), and redundant tests on the Go lines you added or modified relative to `main` (`trunk`), run:
+To verify differential line coverage, assertion strength (mutation testing), and redundant tests on the Go and TypeScript lines you added or modified relative to `main` (`trunk`), run:
 
 ```shell
 make mutation-diff
 ```
 
-You can also specify a custom base revision (for example, `make mutation-diff MUTATION_BASE=@-` or `MUTATION_BASE=origin/main~3`), run full-repo coverage (`MUTATION_FULL=true`), or force/disable ANSI colors (`COLOR=always` / `COLOR=never`).
+You can also target a single language (`make mutation-diff-go` or `make mutation-diff-web`), run frontend Karma inside the builder container (`USE_CONTAINER=true`), specify a custom base revision (for example, `make mutation-diff MUTATION_BASE=@-` or `MUTATION_BASE=origin/main~3`), run full-repo coverage (`MUTATION_FULL=true`), or force/disable ANSI colors (`COLOR=always` / `COLOR=never`).
 
-When a mutant survives, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff` or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// NOMUTANTS(<category>): <reason>` or `// NOMUTANTS(<category>, <operator>): <reason>`, where `<category>` is `equivalent`, `perf`, `observability`, or `external`).
+When a mutant survives, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff`, asserting Angular signals/view models in `*.spec.ts`, or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// NOMUTANTS(<category>): <reason>` or `// NOMUTANTS(<category>, <operator>): <reason>`, where `<category>` is `equivalent`, `perf`, `observability`, or `external`).
 
-`make mutation-diff` also inspects newly added or modified `*_test.go` cases and reports redundant tests (`SAME PATH` when a new test runs the exact same code path and catches no additional bugs beyond an existing test, or `NO OUTPUT CHECK` when a new test catches 0 bugs and only checks `err != nil` on an already-tested path). Keep cases that document distinct domain regressions, and remove duplicate equivalence-class cases.
+`make mutation-diff` also inspects newly added or modified `*_test.go` and `*.spec.ts` cases and reports redundant tests (`SAME PATH` when a new test runs the exact same code path and catches no additional bugs beyond an existing test, or `NO OUTPUT CHECK` when a new test catches 0 bugs and only checks `err != nil` or trivial smoke assertions like `expect(component).toBeTruthy()` on an already-tested path). Keep cases that document distinct domain regressions, and remove duplicate equivalence-class cases.
 
 ### Clean up legacy generated test files
 
