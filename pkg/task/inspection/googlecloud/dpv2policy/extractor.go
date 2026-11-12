@@ -15,7 +15,6 @@
 package dpv2policy
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -129,15 +128,12 @@ type PolicyActionPolicy struct {
 
 // ExtractPolicyAction extracts PolicyActionFieldSet from a policy-action log.
 // Missing fields are left empty because the fields present in a log depend on the kind of the endpoints and the disposition.
-func ExtractPolicyAction(reader *structured.NodeReader) (PolicyActionFieldSet, error) {
+func ExtractPolicyAction(reader *structured.NodeReader) PolicyActionFieldSet {
 	if mock, ok := structured.GetMock[PolicyActionFieldSet](reader); ok {
-		return mock, nil
-	}
-	if reader == nil {
-		return PolicyActionFieldSet{}, fmt.Errorf("failed to extract the policy action: reader is nil")
+		return mock
 	}
 	if cached, ok := structured.GetCache(reader, policyActionCacheKey); ok {
-		return cached, nil
+		return cached
 	}
 	result := PolicyActionFieldSet{
 		Disposition: reader.ReadStringOrDefault(pathDisposition, ""),
@@ -153,7 +149,7 @@ func ExtractPolicyAction(reader *structured.NodeReader) (PolicyActionFieldSet, e
 		result.NodeName = reader.ReadStringOrDefault(pathResourceNodeName, "")
 	}
 	structured.SetCache(reader, policyActionCacheKey, result)
-	return result, nil
+	return result
 }
 
 // extractPolicyActionEndpoint reads an endpoint from the object at endpointPath and the IP address and the port in jsonPayload.connection.

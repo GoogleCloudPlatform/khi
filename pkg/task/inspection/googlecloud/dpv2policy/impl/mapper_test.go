@@ -377,10 +377,7 @@ func TestMapPolicyActionLog(t *testing.T) {
 			builder := khifilev6.NewTestBuilder(id.NewGenerator())
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			cs, err := mapPolicyActionLog(ctx, testlog.NewMockLog(testLogTime, tc.input), "test-cluster", tc.resourceUIDs)
-			if err != nil {
-				t.Fatalf("mapPolicyActionLog() returned an unexpected error: %v", err)
-			}
+			cs := mapPolicyActionLog(ctx, testlog.NewMockLog(testLogTime, tc.input), "test-cluster", tc.resourceUIDs)
 			tc.assert(t, builder, cs)
 		})
 	}
