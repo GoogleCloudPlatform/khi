@@ -460,3 +460,52 @@ metadata:
 		})
 	}
 }
+
+// TestIsOwnedByPodWithSameName verifies that only namespaced resources of the declared types are treated as owned by the Pod with the same name.
+func TestIsOwnedByPodWithSameName(t *testing.T) {
+	task := &resourceOwnerReferenceTimelineMapperTaskSetting{
+		podOwnedTypesByName: map[string]struct{}{
+			"cilium.io#ciliumendpoint": {},
+		},
+	}
+
+	testCases := []struct {
+		desc     string
+		identity *k8saudit.ResourceIdentity
+		want     bool
+	}{
+		{
+			desc:     "namespaced CiliumEndpoint",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Namespace: "default", Name: "nginx"},
+			want:     true,
+		},
+		{
+			desc:     "resource of a type not declared",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "core/v1", Kind: "configmap", Namespace: "default", Name: "nginx"},
+			want:     false,
+		},
+		{
+			desc:     "CiliumEndpoint in the cluster scope",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Namespace: k8saudit.ClusterScopeNamespace, Name: "nginx"},
+			want:     false,
+		},
+		{
+			desc:     "CiliumEndpoint without a namespace",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Name: "nginx"},
+			want:     false,
+		},
+		{
+			desc:     "subresource of a CiliumEndpoint",
+			identity: &k8saudit.ResourceIdentity{APIVersion: "cilium.io/v2", Kind: "ciliumendpoint", Namespace: "default", Name: "nginx", SubresourceName: "status"},
+			want:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := task.isOwnedByPodWithSameName(tc.identity); got != tc.want {
+				t.Errorf("isOwnedByPodWithSameName() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
