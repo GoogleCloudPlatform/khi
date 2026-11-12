@@ -32,7 +32,8 @@ func generateK8sNodeStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity
 		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
 		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
 		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
-		logestimator.LogID(logestimator.NoneOf("events")),
+		// Network policy logs are parsed by the dedicated Dataplane V2 network policy log feature.
+		logestimator.LogID(logestimator.NoneOf("events", "policy-action")),
 	}
 
 	if len(nodeNameSubstrings) > 0 {

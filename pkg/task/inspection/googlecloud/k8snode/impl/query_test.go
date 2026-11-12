@@ -55,9 +55,10 @@ func TestGenerateK8sNodeStructuredQuery(t *testing.T) {
 resource.labels.project_id="test-project"
 resource.labels.location="us-central1-a"
 resource.labels.cluster_name="test-cluster"
--LOG_ID("events")`,
+-LOG_ID("events")
+-LOG_ID("policy-action")`,
 			wantMetricFilters: []string{
-				`metric.type = "logging.googleapis.com/log_entry_count" AND resource.type = "k8s_node" AND resource.labels.project_id = "test-project" AND resource.labels.location = "us-central1-a" AND resource.labels.cluster_name = "test-cluster" AND metric.labels.log != "events"`,
+				`metric.type = "logging.googleapis.com/log_entry_count" AND resource.type = "k8s_node" AND resource.labels.project_id = "test-project" AND resource.labels.location = "us-central1-a" AND resource.labels.cluster_name = "test-cluster" AND metric.labels.log != "events" AND metric.labels.log != "policy-action"`,
 			},
 			wantSupportMetricsFlag: true,
 		},
@@ -70,9 +71,10 @@ resource.labels.project_id="test-project"
 resource.labels.location="us-central1-a"
 resource.labels.cluster_name="test-cluster"
 -LOG_ID("events")
+-LOG_ID("policy-action")
 resource.labels.node_name:"node-1"`,
 			wantMetricFilters: []string{
-				`metric.type = "logging.googleapis.com/log_entry_count" AND resource.type = "k8s_node" AND resource.labels.project_id = "test-project" AND resource.labels.location = "us-central1-a" AND resource.labels.cluster_name = "test-cluster" AND metric.labels.log != "events" AND resource.labels.node_name = has_substring("node-1")`,
+				`metric.type = "logging.googleapis.com/log_entry_count" AND resource.type = "k8s_node" AND resource.labels.project_id = "test-project" AND resource.labels.location = "us-central1-a" AND resource.labels.cluster_name = "test-cluster" AND metric.labels.log != "events" AND metric.labels.log != "policy-action" AND resource.labels.node_name = has_substring("node-1")`,
 			},
 			wantSupportMetricsFlag: true,
 		},
@@ -85,9 +87,10 @@ resource.labels.project_id="test-project"
 resource.labels.location="us-central1-a"
 resource.labels.cluster_name="test-cluster"
 -LOG_ID("events")
+-LOG_ID("policy-action")
 resource.labels.node_name:("node-1" OR "node-2")`,
 			wantMetricFilters: []string{
-				`metric.type = "logging.googleapis.com/log_entry_count" AND resource.type = "k8s_node" AND resource.labels.project_id = "test-project" AND resource.labels.location = "us-central1-a" AND resource.labels.cluster_name = "test-cluster" AND metric.labels.log != "events" AND (resource.labels.node_name = has_substring("node-1") OR resource.labels.node_name = has_substring("node-2"))`,
+				`metric.type = "logging.googleapis.com/log_entry_count" AND resource.type = "k8s_node" AND resource.labels.project_id = "test-project" AND resource.labels.location = "us-central1-a" AND resource.labels.cluster_name = "test-cluster" AND metric.labels.log != "events" AND metric.labels.log != "policy-action" AND (resource.labels.node_name = has_substring("node-1") OR resource.labels.node_name = has_substring("node-2"))`,
 			},
 			wantSupportMetricsFlag: true,
 		},
@@ -210,6 +213,7 @@ resource.labels.project_id="test-project"
 resource.labels.location="us-central1-a"
 resource.labels.cluster_name="test-cluster"
 -LOG_ID("events")
+-LOG_ID("policy-action")
 resource.labels.node_name:"node-1"
 timestamp >= "2025-01-01T01:00:00+0000"
 timestamp <= "2025-01-01T01:01:00+0000"`
