@@ -387,6 +387,44 @@ jsonPayload:
 			},
 		},
 		{
+			desc: "pod_namespace takes precedence over namespace",
+			input: `
+jsonPayload:
+  connection:
+    dest_ip: 169.254.20.10
+    dest_port: 53
+    direction: egress
+    protocol: udp
+    src_ip: 10.0.0.12
+    src_port: 41000
+  dest:
+    instance: 169.254.20.10
+  disposition: allow
+  node_name: gke-test-cluster-default-pool-12345678-abcd
+  src:
+    namespace: other-namespace
+    pod_name: sleep-abcde
+    pod_namespace: default
+`,
+			want: PolicyActionFieldSet{
+				Disposition: DispositionAllow,
+				NodeName:    "gke-test-cluster-default-pool-12345678-abcd",
+				Direction:   "egress",
+				Protocol:    "udp",
+				Source: PolicyActionEndpoint{
+					IP:           "10.0.0.12",
+					Port:         41000,
+					PodNamespace: "default",
+					PodName:      "sleep-abcde",
+				},
+				Destination: PolicyActionEndpoint{
+					IP:       "169.254.20.10",
+					Port:     53,
+					Instance: "169.254.20.10",
+				},
+			},
+		},
+		{
 			desc:  "log without the policy action payload",
 			input: `logName: projects/test-project/logs/policy-action`,
 			want:  PolicyActionFieldSet{},
