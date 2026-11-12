@@ -57,10 +57,7 @@ func processPolicyActionLog(ctx context.Context, l *log.Log) (*khifilev6.LogChan
 	cs.SetLogType(dpv2policy.LogTypeNetworkPolicy)
 	cs.SetTimestamp(l.Timestamp)
 
-	policyAction, err := dpv2policy.ExtractPolicyAction(l.NodeReader)
-	if err != nil {
-		return nil, err
-	}
+	policyAction := dpv2policy.ExtractPolicyAction(l.NodeReader)
 
 	// Policy-action logs have no severity. Denials are surfaced as warnings so that dropped connections stand out on timelines.
 	if policyAction.Disposition == dpv2policy.DispositionDeny {
@@ -167,8 +164,8 @@ var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 
 // groupPolicyActionLog returns the name of the node that reported the log so that the logs of each node are mapped in parallel.
 func groupPolicyActionLog(ctx context.Context, l *log.Log) string {
-	policyAction, err := dpv2policy.ExtractPolicyAction(l.NodeReader)
-	if err != nil || policyAction.NodeName == "" {
+	policyAction := dpv2policy.ExtractPolicyAction(l.NodeReader)
+	if policyAction.NodeName == "" {
 		return "unknown"
 	}
 	return policyAction.NodeName
@@ -193,19 +190,16 @@ type policyActionTimelineMapper struct {
 // ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
 func (m *policyActionTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	clusterIdentity := m.clusterIdentity.Get(ctx)
-	cs, err := mapPolicyActionLog(ctx, l, clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster), m.resourceUIDs.Get(ctx))
-	return cs, struct{}{}, err
+	cs := mapPolicyActionLog(ctx, l, clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster), m.resourceUIDs.Get(ctx))
+	return cs, struct{}{}, nil
 }
 
 var _ inspectiontaskbase.TimelineMapper[struct{}] = (*policyActionTimelineMapper)(nil)
 
 // mapPolicyActionLog adds events for a network policy log to the timelines of its source and destination Pods and of the network policies that decided the connection.
 // It adds the event to the timeline of the reporting node instead when neither endpoint is a Pod.
-func mapPolicyActionLog(ctx context.Context, l *log.Log, clusterName string, resourceUIDs k8saudit.UIDToResourceIdentity) (*khifilev6.TimelineChangeSet, error) {
-	policyAction, err := dpv2policy.ExtractPolicyAction(l.NodeReader)
-	if err != nil {
-		return nil, nil
-	}
+func mapPolicyActionLog(ctx context.Context, l *log.Log, clusterName string, resourceUIDs k8saudit.UIDToResourceIdentity) *khifilev6.TimelineChangeSet {
+	policyAction := dpv2policy.ExtractPolicyAction(l.NodeReader)
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
@@ -225,7 +219,7 @@ func mapPolicyActionLog(ctx context.Context, l *log.Log, clusterName string, res
 		cs.AddEvent(dpv2policy.MustNetworkPolicyTimeline(ctx, mustNodeTimeline(ctx, clusterName, policyAction.NodeName), dpv2policy.NodeTimelineName))
 	}
 
-	return cs, nil
+	return cs
 }
 
 // resolvePolicyResource returns the identity of the Kubernetes resource defining the policy rule.

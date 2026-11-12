@@ -401,18 +401,12 @@ jsonPayload:
 			}
 			reader := structured.NewNodeReader(node)
 
-			got, err := ExtractPolicyAction(reader)
-			if err != nil {
-				t.Fatalf("ExtractPolicyAction() returned an unexpected error: %v", err)
-			}
+			got := ExtractPolicyAction(reader)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ExtractPolicyAction() mismatch (-want +got):\n%s", diff)
 			}
 
-			cached, err := ExtractPolicyAction(reader)
-			if err != nil {
-				t.Fatalf("ExtractPolicyAction() returned an unexpected error on the cached reader: %v", err)
-			}
+			cached := ExtractPolicyAction(reader)
 			if diff := cmp.Diff(tc.want, cached); diff != "" {
 				t.Errorf("ExtractPolicyAction() on the cached reader mismatch (-want +got):\n%s", diff)
 			}
@@ -428,18 +422,9 @@ func TestExtractPolicyAction_Mock(t *testing.T) {
 	}
 	reader := structured.NewNodeReader(structured.NewMockNode(want))
 
-	got, err := ExtractPolicyAction(reader)
-	if err != nil {
-		t.Fatalf("ExtractPolicyAction() returned an unexpected error: %v", err)
-	}
+	got := ExtractPolicyAction(reader)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("ExtractPolicyAction() mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestExtractPolicyAction_NilReader(t *testing.T) {
-	if _, err := ExtractPolicyAction(nil); err == nil {
-		t.Errorf("ExtractPolicyAction(nil) returned no error, want an error")
 	}
 }
 
