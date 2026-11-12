@@ -20,6 +20,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,6 +35,9 @@ func TestGenerateRuntimeSourceParsesCleanly(t *testing.T) {
 	}
 	if file.Name.Name != "samplepkg" {
 		t.Errorf("package name = %q, want %q", file.Name.Name, "samplepkg")
+	}
+	if !strings.Contains(string(src), "__khiMutMu.Lock()") {
+		t.Errorf("GenerateRuntimeSource() missing mutex lock around trace file write")
 	}
 }
 

@@ -73,6 +73,7 @@ var __khiMutTracePath = sync.OnceValue(func() string {
 	return os.Getenv("KHI_MUTANT_TRACE_FILE")
 })
 
+var __khiMutMu sync.Mutex
 var __khiMutSeen [%d]atomic.Bool
 
 func __khiMutRecord(id int) {
@@ -86,6 +87,8 @@ func __khiMutRecord(id int) {
 	if p == "" {
 		return
 	}
+	__khiMutMu.Lock()
+	defer __khiMutMu.Unlock()
 	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return
