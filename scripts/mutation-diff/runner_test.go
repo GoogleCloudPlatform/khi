@@ -1,0 +1,350 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package main
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/google/go-cmp/cmp"
+)
+
+func TestBuildMutantEnvStripsOuterMutantVariables(t *testing.T) {
+	outer := []string{
+		"PATH=/usr/bin",
+		"KHI_MUTANT_ID=99",
+		"KHI_MUTANT_TRACE_FILE=/tmp/outer.trace",
+	}
+	got := buildMutantEnv(outer, 7, "/tmp/inner.trace")
+	want := []string{
+		"PATH=/usr/bin",
+		"KHI_SKIP_CLOUD_LOGGING=true",
+		"KHI_MUTANT_ID=7",
+		"KHI_MUTANT_TRACE_FILE=/tmp/inner.trace",
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("buildMutantEnv() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestApplyMutantBudgetRoundRobin(t *testing.T) {
+	mA1 := &Mutant{File: "pkg/a/a.go", ID: 1, Status: MutantPending}
+	mA2 := &Mutant{File: "pkg/a/a.go", ID: 2, Status: MutantPending}
+	mA3 := &Mutant{File: "pkg/a/a.go", ID: 3, Status: MutantPending}
+	mB1 := &Mutant{File: "pkg/b/b.go", ID: 1, Status: MutantPending}
+
+	jobs := []mutantJob{
+		{mutant: mA1},
+		{mutant: mA2},
+		{mutant: mA3},
+		{mutant: mB1},
+	}
+
+	selected := applyMutantBudget(jobs, 3)
+	var gotSelected []string
+	for _, j := range selected {
+		gotSelected = append(gotSelected, j.mutant.File+":"+string(rune('0'+j.mutant.ID)))
+	}
+	wantSelected := []string{
+		"pkg/a/a.go:1",
+		"pkg/b/b.go:1",
+		"pkg/a/a.go:2",
+	}
+	if diff := cmp.Diff(wantSelected, gotSelected); diff != "" {
+		t.Errorf("applyMutantBudget() selected mismatch (-want +got):\n%s", diff)
+	}
+	if mA3.Status != MutantSkippedBudget {
+		t.Errorf("unselected mutant status = %v, want %v", mA3.Status, MutantSkippedBudget)
+	}
+}
+
+func TestComputePerMutantTimeout(t *testing.T) {
+	testCases := []struct {
+		name     string
+		baseline time.Duration
+		want     time.Duration
+	}{
+		{
+			name:     "enforces minimum 3s floor for fast packages",
+			baseline: 100 * time.Millisecond,
+			want:     3 * time.Second,
+		},
+		{
+			name:     "scales 5x for slower baseline packages",
+			baseline: 2 * time.Second,
+			want:     10 * time.Second,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := computePerMutantTimeout(tc.baseline)
+			if got != tc.want {
+				t.Errorf("computePerMutantTimeout(%v) = %v, want %v", tc.baseline, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestExecuteMutationRunE2E(t *testing.T) {
+	repoDir := t.TempDir()
+
+	goMod := `module example.com/muttest
+
+go 1.23
+`
+	if err := os.WriteFile(filepath.Join(repoDir, "go.mod"), []byte(goMod), 0o600); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	pkgDir := filepath.Join(repoDir, "pkg", "quota")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("failed to mkdir pkg/quota: %v", err)
+	}
+
+	// Production file with:
+	// 1. Killed mutant: ValidateExact checks limit == 10 and test verifies 10 and 9.
+	// 2. Surviving SBR mutant: UpdateAudit updates q.Updated = true, but test only checks err == nil!
+	// 3. Uncovered mutant: NeverCalled is not called by any test.
+	// 4. Short-circuit safety: SafeCheck uses q != nil && q.Limit > 0 with nil test input.
+	prodSrc := `package quota
+
+type Tracker struct {
+	Limit   int
+	Updated bool
+}
+
+func SafeCheck(q *Tracker) bool {
+	return q != nil && q.Limit > 0
+}
+
+func UpdateAudit(q *Tracker) error {
+	q.Updated = true
+	return nil
+}
+
+func NeverCalled(x int) int {
+	return x + 1
+}
+`
+	prodFile := filepath.Join(pkgDir, "quota.go")
+	if err := os.WriteFile(prodFile, []byte(prodSrc), 0o600); err != nil {
+		t.Fatalf("failed to write quota.go: %v", err)
+	}
+
+	testSrc := `package quota
+
+import "testing"
+
+func TestSafeCheck(t *testing.T) {
+	if SafeCheck(nil) {
+		t.Fatal("expected false for nil tracker")
+	}
+	if SafeCheck(&Tracker{Limit: 0}) {
+		t.Fatal("expected false for zero limit")
+	}
+	if !SafeCheck(&Tracker{Limit: 1}) {
+		t.Fatal("expected true for positive limit")
+	}
+}
+
+func TestUpdateAuditWeakAssertion(t *testing.T) {
+	tr := &Tracker{}
+	if err := UpdateAudit(tr); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Intentionally forgets to check tr.Updated!
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgDir, "quota_test.go"), []byte(testSrc), 0o600); err != nil {
+		t.Fatalf("failed to write quota_test.go: %v", err)
+	}
+
+	report, err := ExecuteMutationRun(context.Background(), &RunnerOptions{
+		RepoRoot:  repoDir,
+		BaseLabel: "main",
+		ChangedLinesByFile: map[string]map[int]struct{}{
+			"pkg/quota/quota.go": {
+				9:  {}, // return q != nil && q.Limit > 0
+				13: {}, // q.Updated = true
+				18: {}, // return x + 1
+			},
+		},
+		Workers:    2,
+		MaxMutants: 50,
+		Timeout:    time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteMutationRun() unexpected error: %v", err)
+	}
+
+	// Verify working tree file was not modified by overlay execution.
+	afterBytes, err := os.ReadFile(prodFile)
+	if err != nil {
+		t.Fatalf("failed reading quota.go after run: %v", err)
+	}
+	if string(afterBytes) != prodSrc {
+		t.Errorf("working tree file was mutated on disk")
+	}
+
+	if report.TotalKilled != 4 {
+		t.Errorf("TotalKilled = %d, want 4 (LCR &&->||, ROR !=->==, ROR >->>= and >->=0)", report.TotalKilled)
+	}
+	if report.TotalSurvived != 1 {
+		t.Errorf("TotalSurvived = %d, want 1 (SBR on q.Updated = true)", report.TotalSurvived)
+	}
+	if report.TotalUncovered != 1 {
+		t.Errorf("TotalUncovered = %d, want 1 (NeverCalled x + 1)", report.TotalUncovered)
+	}
+
+	surviving := report.SurvivingMutants()
+	if len(surviving) != 1 || !strings.Contains(surviving[0].OriginalLine, "q.Updated = true") {
+		t.Errorf("unexpected surviving mutants: %+v", surviving)
+	}
+}
+
+func TestExecuteMutationRunDetectsRedundantSubtestsE2E(t *testing.T) {
+	repoDir := t.TempDir()
+
+	goMod := `module example.com/redundanttest
+
+go 1.23
+`
+	if err := os.WriteFile(filepath.Join(repoDir, "go.mod"), []byte(goMod), 0o600); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	pkgDir := filepath.Join(repoDir, "pkg", "sign")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("failed to mkdir pkg/sign: %v", err)
+	}
+
+	prodSrc := `package sign
+
+func IsNegative(x int) bool {
+	return x < 0
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgDir, "sign.go"), []byte(prodSrc), 0o600); err != nil {
+		t.Fatalf("failed to write sign.go: %v", err)
+	}
+
+	testSrc := `package sign
+
+import "testing"
+
+func TestIsNegative(t *testing.T) {
+	testCases := []struct {
+		name string
+		in   int
+		want bool
+	}{
+		{name: "neg one", in: -1, want: true},
+		{name: "neg hundred", in: -100, want: true},
+		{name: "zero boundary", in: 0, want: false},
+		{name: "pos ten", in: 10, want: false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsNegative(tc.in); got != tc.want {
+				t.Errorf("IsNegative(%d) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgDir, "sign_test.go"), []byte(testSrc), 0o600); err != nil {
+		t.Fatalf("failed to write sign_test.go: %v", err)
+	}
+
+	// Simulate all lines in sign.go and sign_test.go added in the PR diff.
+	changedTestLines := make(map[int]struct{})
+	for line := 1; line <= 25; line++ {
+		changedTestLines[line] = struct{}{}
+	}
+
+	var progBuf bytes.Buffer
+	prog := NewProgressReporter(&progBuf, false, gotestutil.TermStyle{Enabled: false})
+	report, err := ExecuteMutationRun(context.Background(), &RunnerOptions{
+		RepoRoot:  repoDir,
+		BaseLabel: "main",
+		ChangedLinesByFile: map[string]map[int]struct{}{
+			"pkg/sign/sign.go": {4: {}},
+		},
+		ChangedTestLinesByFile: map[string]map[int]struct{}{
+			"pkg/sign/sign_test.go": changedTestLines,
+		},
+		CheckRedundantTests: true,
+		Workers:             2,
+		MaxMutants:          20,
+		Timeout:             time.Minute,
+		Progress:            prog,
+	})
+	prog.Finish()
+	if err != nil {
+		t.Fatalf("ExecuteMutationRun() unexpected error: %v", err)
+	}
+
+	progOut := progBuf.String()
+	for _, wantLine := range []string{
+		"[3/4] Compiling package 1/1: ./pkg/sign (2 candidate mutants)...",
+		"[3/4] Running baseline reachability in ./pkg/sign...",
+		"[3/4] Tracing 4 changed subtest(s) in ./pkg/sign...",
+		"[4/4] Evaluating 2 reached Go mutant(s) across 2 worker(s)...",
+	} {
+		if !strings.Contains(progOut, wantLine) {
+			t.Errorf("progress output missing %q in:\n%s", wantLine, progOut)
+		}
+	}
+
+	// Verify:
+	// - "neg_hundred" is flagged DUPLICATE of "neg_one" (same true polarity, same killed mutant >= 0).
+	// - "pos_ten" is flagged DUPLICATE of "zero_boundary" (zero_boundary kills BOTH <= 0 and >= 0 on false polarity, strictly dominating pos_ten which only kills <= 0? Wait: on IsNegative(10), 10 <= 0 is false, 10 >= 0 is true -> pos_ten kills >= 0, while zero_boundary kills BOTH <= 0 and >= 0 on false polarity!).
+	// - Neither "neg_one" (true polarity) nor "zero_boundary" (false polarity) is flagged!
+	want := []RedundantTestFinding{
+		{
+			GlobalIndex:     1,
+			Kind:            RedundantDuplicate,
+			File:            "pkg/sign/sign_test.go",
+			Line:            12,
+			TestName:        "TestIsNegative/neg_hundred",
+			DominatedBy:     "TestIsNegative/neg_one",
+			DominatedByFile: "pkg/sign/sign_test.go",
+			DominatedByLine: 11,
+			CandidateKills:  1,
+			DominatorKills:  1,
+		},
+		{
+			GlobalIndex:     2,
+			Kind:            RedundantDuplicate,
+			File:            "pkg/sign/sign_test.go",
+			Line:            14,
+			TestName:        "TestIsNegative/pos_ten",
+			DominatedBy:     "TestIsNegative/zero_boundary",
+			DominatedByFile: "pkg/sign/sign_test.go",
+			DominatedByLine: 13,
+			CandidateKills:  1,
+			DominatorKills:  2,
+		},
+	}
+	if diff := cmp.Diff(want, report.RedundantTests); diff != "" {
+		t.Errorf("RedundantTests mismatch (-want +got):\n%s", diff)
+	}
+}

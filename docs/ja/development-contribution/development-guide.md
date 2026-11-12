@@ -99,13 +99,17 @@ make test
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
-`main`（`trunk`）からの変更差分に含まれるGoコードの単体テストカバレッジ（差分カバレッジ・未カバー行）を確認するには、下記を実行してください。
+`main`（`trunk`）からの変更差分に含まれるGoコードの差分カバレッジ（未カバー行）・ミューテーションスコア（アサーション強度）・冗長テストの有無をまとめて検証するには、下記を実行してください。
 
 ```shell
-make coverage-diff
+make mutation-diff
 ```
 
-比較元のリビジョンを指定する場合（例: Jujutsu で直前コミットと比較する `make coverage-diff COVERAGE_BASE=@-`）や、リポジトリ全体を対象に計測する場合（`make coverage-diff COVERAGE_FULL=true`）もオプションで切り替え可能です。
+比較元のリビジョン指定（例: `make mutation-diff MUTATION_BASE=@-` や `MUTATION_BASE=origin/main~3`）、リポジトリ全体のカバレッジ計測（`MUTATION_FULL=true`）、およびパイプ渡し時のカラー出力切り替え（`COLOR=always` / `COLOR=never`、対話型ターミナルでは自動でカラー表示）もオプションで指定可能です。
+
+生存ミュータント（ロジックを変異させてもテストが成功してしまう箇所）が検出された場合は、壊れやすいモックテストを無理に増やすのではなく、①不要・冗長な分岐（不変条件で到達しないガード等）の削除、②既存テストにおける `cmp.Diff` や境界値ケースの強化を優先してください。不変条件・到達不能コードを `NOMUTANTS` で抑制することは認められません。消せない正当なケースに限り、必須カテゴリ付きのコメント（`// NOMUTANTS(<category>): <理由>` または `// NOMUTANTS(<category>, <operator>): <理由>`、`<category>` は `equivalent` / `perf` / `observability` / `external` のいずれか）で明示的に抑制できます。
+
+また、`make mutation-diff` は差分内で追加・変更された `*_test.go` のテストケースも同時に解析し、冗長なテスト（既存のテストと全く同じ経路を通って追加のバグを1つも検出していない `SAME PATH`、または既にカバー済みの経路に対して `err != nil` のみを確認し戻り値や状態を検証していない `NO OUTPUT CHECK`）を検出・集約表示します。固有のドメイン回帰ケースを除き、同値クラスの重複テストは整理してください。
 
 ### 過去の自動生成テストファイルのクリーンアップ
 

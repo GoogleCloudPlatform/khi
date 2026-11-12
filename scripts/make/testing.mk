@@ -59,20 +59,25 @@ coverage-web-container: build-builder ## Run frontend tests and generate coverag
 		$(BUILDER_IMAGE) \
 		make coverage-web USE_CONTAINER=false
 
-COVERAGE_BASE ?=
-COVERAGE_FULL ?= false
+COLOR ?= auto
+MUTATION_BASE ?=
+MUTATION_VCS ?=
+MUTATION_FULL ?= false
+MUTATION_MAX ?= 80
+MUTATION_COLOR ?= $(COLOR)
 
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
 	KHI_SKIP_CLOUD_LOGGING=true go test -cover ./... -coverprofile=./go-cover.output
 	go tool cover -html=./go-cover.output -o=go-cover.html
 
-.PHONY: coverage-diff
-coverage-diff: $(GENERATE_BACKEND_DUMMY) ## Run Go differential coverage report for changed lines
+.PHONY: mutation-diff
+mutation-diff: $(GENERATE_BACKEND_DUMMY) ## Run unified Go differential coverage, mutation testing, and redundant test detection
 	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
 		$(MAKE) build-web; \
 	fi
-	go run ./scripts/coverage-diff $(if $(COVERAGE_BASE),--base=$(COVERAGE_BASE),) $(if $(filter true 1,$(COVERAGE_FULL)),--full,)
+	go run ./scripts/mutation-diff --color=$(MUTATION_COLOR) --max-mutants=$(MUTATION_MAX) $(if $(MUTATION_VCS),--vcs=$(MUTATION_VCS),) $(if $(MUTATION_BASE),--base=$(MUTATION_BASE),) $(if $(filter true 1,$(MUTATION_FULL)),--full,)
+	@touch scripts/make/mutation-diff.done
 
 FIXTURES_GCS_BUCKET ?= gs://khi-fixtures
 

@@ -15,27 +15,21 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
+	"context"
 	"fmt"
 	"go/scanner"
 	"go/token"
 	"io"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
-	"sort"
-	"strconv"
+	"slices"
 	"strings"
-)
 
-// CoverBlock represents a single statement block entry from a Go coverprofile.
-type CoverBlock struct {
-	StartLine     int
-	StartCol      int
-	EndLine       int
-	EndCol        int
-	NumStatements int
-	Count         int
-}
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+)
 
 // SourceLine holds a 1-based line number and its raw source text.
 type SourceLine struct {
@@ -115,165 +109,100 @@ func (r *CoverageReport) OverallPercent() float64 {
 // SourceReader loads raw file bytes for a repository-relative slash path.
 type SourceReader func(relPath string) ([]byte, error)
 
-// ReadModulePath extracts the Go module path from a go.mod file.
-func ReadModulePath(goModPath string) (string, error) {
-	f, err := os.Open(goModPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open %s: %w", goModPath, err)
-	}
-	defer f.Close()
+// CoverageTestPlan describes which Go packages to execute for differential line coverage.
+type CoverageTestPlan struct {
+	Skip     bool
+	Packages []string
+}
 
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if strings.HasPrefix(line, "module ") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "module ")), nil
+// PlanCoverageExecution builds a minimal or full Go test execution plan from changed production Go files.
+func PlanCoverageExecution(repoRoot string, changedFiles []string, full bool) CoverageTestPlan {
+	if full {
+		return CoverageTestPlan{
+			Packages: []string{"./..."},
 		}
 	}
-	if err := sc.Err(); err != nil {
-		return "", fmt.Errorf("failed reading %s: %w", goModPath, err)
+	if len(changedFiles) == 0 {
+		return CoverageTestPlan{Skip: true}
 	}
-	return "", fmt.Errorf("module directive not found in %s", goModPath)
-}
 
-type blockKey struct {
-	file      string
-	startLine int
-	startCol  int
-	endLine   int
-	endCol    int
-	numStmt   int
-}
-
-// ParseCoverProfile parses a Go coverprofile stream, merging duplicate block entries and filtering out non-target files.
-func ParseCoverProfile(r io.Reader, modulePath string) (map[string][]CoverBlock, error) {
-	merged := make(map[blockKey]int)
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-
-	modulePrefix := strings.TrimSuffix(modulePath, "/") + "/"
-	lineNum := 0
-	for sc.Scan() {
-		lineNum++
-		line := strings.TrimSpace(sc.Text())
-		if line == "" || strings.HasPrefix(line, "mode:") {
+	pkgSet := make(map[string]struct{})
+	for _, relFile := range changedFiles {
+		cleanFile := strings.TrimPrefix(filepath.ToSlash(relFile), "./")
+		if !gotestutil.IsTargetGoFile(cleanFile) {
+			continue
+		}
+		relDir := path.Dir(cleanFile)
+		absDir := filepath.Join(repoRoot, filepath.FromSlash(relDir))
+		if !dirHasGoFiles(absDir) {
 			continue
 		}
 
-		colonIdx := strings.LastIndexByte(line, ':')
-		if colonIdx < 0 {
-			return nil, fmt.Errorf("invalid coverprofile line %d: missing ':' in %q", lineNum, line)
+		pkgSpec := "./" + relDir
+		if relDir == "." {
+			pkgSpec = "."
 		}
-		rawFile := line[:colonIdx]
-		rest := line[colonIdx+1:]
-
-		var relFile string
-		switch {
-		case strings.HasPrefix(rawFile, modulePrefix):
-			relFile = strings.TrimPrefix(rawFile, modulePrefix)
-		default:
-			relFile = strings.TrimPrefix(filepath.ToSlash(rawFile), "./")
-		}
-		if !IsTargetProductionGoFile(relFile) {
-			continue
-		}
-
-		fields := strings.Fields(rest)
-		if len(fields) != 3 {
-			return nil, fmt.Errorf("invalid coverprofile line %d: unexpected fields in %q", lineNum, line)
-		}
-		startLine, startCol, endLine, endCol, err := parseBlockCoords(fields[0])
-		if err != nil {
-			return nil, fmt.Errorf("invalid coverprofile line %d: %w", lineNum, err)
-		}
-		numStmt, err := strconv.Atoi(fields[1])
-		if err != nil {
-			return nil, fmt.Errorf("invalid statement count on line %d: %w", lineNum, err)
-		}
-		count, err := strconv.Atoi(fields[2])
-		if err != nil {
-			return nil, fmt.Errorf("invalid execution count on line %d: %w", lineNum, err)
-		}
-
-		key := blockKey{
-			file:      relFile,
-			startLine: startLine,
-			startCol:  startCol,
-			endLine:   endLine,
-			endCol:    endCol,
-			numStmt:   numStmt,
-		}
-		merged[key] += count
-	}
-	if err := sc.Err(); err != nil {
-		return nil, fmt.Errorf("failed scanning coverprofile: %w", err)
+		pkgSet[pkgSpec] = struct{}{}
 	}
 
-	byFile := make(map[string][]CoverBlock)
-	for k, count := range merged {
-		byFile[k.file] = append(byFile[k.file], CoverBlock{
-			StartLine:     k.startLine,
-			StartCol:      k.startCol,
-			EndLine:       k.endLine,
-			EndCol:        k.endCol,
-			NumStatements: k.numStmt,
-			Count:         count,
-		})
+	if len(pkgSet) == 0 {
+		return CoverageTestPlan{Skip: true}
 	}
-	for file := range byFile {
-		blocks := byFile[file]
-		sort.Slice(blocks, func(i, j int) bool {
-			if blocks[i].StartLine != blocks[j].StartLine {
-				return blocks[i].StartLine < blocks[j].StartLine
-			}
-			if blocks[i].StartCol != blocks[j].StartCol {
-				return blocks[i].StartCol < blocks[j].StartCol
-			}
-			if blocks[i].EndLine != blocks[j].EndLine {
-				return blocks[i].EndLine < blocks[j].EndLine
-			}
-			return blocks[i].EndCol < blocks[j].EndCol
-		})
+
+	out := make([]string, 0, len(pkgSet))
+	for k := range pkgSet {
+		out = append(out, k)
 	}
-	return byFile, nil
+	slices.Sort(out)
+	return CoverageTestPlan{
+		Packages: out,
+	}
 }
 
-func parseBlockCoords(spec string) (int, int, int, int, error) {
-	parts := strings.Split(spec, ",")
-	if len(parts) != 2 {
-		return 0, 0, 0, 0, fmt.Errorf("expected start,end coordinates in %q", spec)
+// RunGoTestCoverage executes go test according to plan and writes the coverage profile to profileOut.
+func RunGoTestCoverage(ctx context.Context, repoRoot string, plan CoverageTestPlan, profileOut string, errOut io.Writer) error {
+	if plan.Skip {
+		return nil
 	}
-	sLine, sCol, err := parseLineCol(parts[0])
-	if err != nil {
-		return 0, 0, 0, 0, err
+
+	args := make([]string, 0, 2+len(plan.Packages))
+	args = append(args, "test", "-coverprofile="+profileOut)
+	args = append(args, plan.Packages...)
+
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), "KHI_SKIP_CLOUD_LOGGING=true")
+
+	var combined bytes.Buffer
+	cmd.Stdout = &combined
+	cmd.Stderr = &combined
+
+	if err := cmd.Run(); err != nil {
+		if errOut != nil && combined.Len() > 0 {
+			_, _ = io.Copy(errOut, &combined)
+		}
+		return fmt.Errorf("go test failed (%s): %w", strings.Join(args, " "), err)
 	}
-	eLine, eCol, err := parseLineCol(parts[1])
-	if err != nil {
-		return 0, 0, 0, 0, err
-	}
-	return sLine, sCol, eLine, eCol, nil
+	return nil
 }
 
-func parseLineCol(s string) (int, int, error) {
-	parts := strings.Split(s, ".")
-	if len(parts) != 2 {
-		return 0, 0, fmt.Errorf("expected line.col in %q", s)
-	}
-	line, err := strconv.Atoi(parts[0])
+func dirHasGoFiles(dir string) bool {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return 0, 0, err
+		return false
 	}
-	col, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return 0, 0, err
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".go") {
+			return true
+		}
 	}
-	return line, col, nil
+	return false
 }
 
 // AnalyzeCoverage computes differential and overall coverage metrics from parsed coverprofile blocks and diff lines.
 func AnalyzeCoverage(
 	baseLabel string,
-	blocksByFile map[string][]CoverBlock,
+	blocksByFile map[string][]gotestutil.CoverBlock,
 	changedLinesByFile map[string]map[int]struct{},
 	readSource SourceReader,
 	includeOverall bool,
@@ -298,7 +227,7 @@ func AnalyzeCoverage(
 	for f := range changedLinesByFile {
 		files = append(files, f)
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 
 	for _, relFile := range files {
 		changedSet := changedLinesByFile[relFile]
@@ -313,7 +242,7 @@ func AnalyzeCoverage(
 			return nil, fmt.Errorf("failed to read %s: %w", relFile, err)
 		}
 
-		fileReport := analyzeFile(relFile, src, blocksByFile[relFile], changedSet)
+		fileReport := analyzeFileCoverage(relFile, src, blocksByFile[relFile], changedSet)
 		if fileReport.ChangedExecutableLines == 0 {
 			continue
 		}
@@ -330,13 +259,13 @@ type lineCoverageState struct {
 	covered    bool
 }
 
-func analyzeFile(
+func analyzeFileCoverage(
 	relFile string,
 	src []byte,
-	blocks []CoverBlock,
+	blocks []gotestutil.CoverBlock,
 	changedSet map[int]struct{},
 ) FileCoverageReport {
-	rawLines := splitLines(string(src))
+	rawLines := splitSourceLines(string(src))
 	codeLines := classifyExecutableCodeLines(src, len(rawLines))
 
 	fileReport := FileCoverageReport{
@@ -373,7 +302,7 @@ func analyzeFile(
 	return fileReport
 }
 
-func splitLines(content string) []string {
+func splitSourceLines(content string) []string {
 	trimmed := strings.TrimSuffix(content, "\n")
 	if trimmed == "" {
 		return nil
@@ -420,11 +349,10 @@ func classifyExecutableCodeLines(src []byte, numLines int) []bool {
 	return hasSubstantiveToken
 }
 
-func mapBlocksToLines(rawLines []string, codeLines []bool, blocks []CoverBlock) []lineCoverageState {
+func mapBlocksToLines(rawLines []string, codeLines []bool, blocks []gotestutil.CoverBlock) []lineCoverageState {
 	numLines := len(rawLines)
 	states := make([]lineCoverageState, numLines+1)
 
-	// Precompute whether each line has a block starting before a trailing '{' block on the same line (e.g., "if cond {").
 	earliestStartCol := make([]int, numLines+1)
 	for _, b := range blocks {
 		if b.StartLine >= 1 && b.StartLine <= numLines {
@@ -432,7 +360,6 @@ func mapBlocksToLines(rawLines []string, codeLines []bool, blocks []CoverBlock) 
 				earliestStartCol[b.StartLine] = b.StartCol
 			}
 		}
-		// Outer blocks that started on an earlier line and end on StartLine before StartCol also cover the condition header.
 		if b.EndLine >= 1 && b.EndLine <= numLines && b.StartLine < b.EndLine {
 			if !isOnlyClosingBracePrefix(rawLines[b.EndLine-1], b.EndCol) {
 				earliestStartCol[b.EndLine] = 1
@@ -464,7 +391,6 @@ func mapBlocksToLines(rawLines []string, codeLines []bool, blocks []CoverBlock) 
 				states[l].executable = true
 				states[l].covered = b.Count > 0
 			} else if b.Count == 0 {
-				// Any uncovered statement block on the same line (e.g., single-line "if err != nil { return err }") marks the line uncovered.
 				states[l].covered = false
 			}
 		}
@@ -518,7 +444,6 @@ func canMergeUncoveredLines(prevLine int, nextLine int, codeLines []bool) bool {
 	if nextLine == prevLine+1 {
 		return true
 	}
-	// Merge across at most 2 intervening non-executable lines (comments, blank lines, or closing braces) inside the same block.
 	if nextLine-prevLine > 3 {
 		return false
 	}
@@ -542,7 +467,6 @@ func buildUncoveredSpans(relFile string, rawLines []string, ranges []LineRange, 
 	spans := make([]UncoveredSpan, 0, len(ranges))
 	for _, rg := range ranges {
 		snippetStart := rg.StartLine
-		// Include the preceding block header line (e.g., "if cond {") as context when it opens the uncovered block.
 		if snippetStart > 1 && snippetStart-1 <= len(rawLines) {
 			prevTrimmed := strings.TrimSpace(rawLines[snippetStart-2])
 			if strings.HasSuffix(prevTrimmed, "{") && !strings.HasPrefix(prevTrimmed, "//") {

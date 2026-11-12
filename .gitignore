@@ -20,7 +20,6 @@ __debug_bin*
 # Test and coverage reports
 go-cover.html
 go-cover.output
-go-cover-diff.output
 result.json
 coverage.out
 
