@@ -310,3 +310,52 @@ func TestRenderTextReportWithSurvivingWarningsAndGroupedRedundantTests(t *testin
 		}
 	}
 }
+
+func TestRenderTextReportTypeScriptLanguageLabels(t *testing.T) {
+	plans := []*FilePlan{
+		{
+			File: "web/src/app/sign.component.ts",
+			Mutants: []*Mutant{
+				{
+					GlobalIndex:  1,
+					File:         "web/src/app/sign.component.ts",
+					Line:         12,
+					Operator:     OperatorROR,
+					OriginalExpr: "v < 0",
+					MutatedExpr:  "v <= 0",
+					OriginalLine: "return v < 0;",
+					MutatedLine:  "return v <= 0;",
+					Status:       MutantSurvived,
+				},
+			},
+		},
+	}
+	redundant := []RedundantTestFinding{
+		{
+			GlobalIndex:     1,
+			Kind:            RedundantWeakAssertion,
+			File:            "web/src/app/sign.component.spec.ts",
+			Line:            9,
+			TestName:        "SignComponent should create",
+			DominatedBy:     "SignComponent renders negative state",
+			DominatedByFile: "web/src/app/sign.component.spec.ts",
+			DominatedByLine: 18,
+			CandidateKills:  0,
+			DominatorKills:  2,
+		},
+	}
+	report := BuildMutationReportForLang(LangTS, "trunk()", plans, nil, redundant)
+
+	var buf bytes.Buffer
+	RenderTextReport(&buf, report, gotestutil.TermStyle{Enabled: false})
+	got := buf.String()
+	for _, wantSub := range []string{
+		"══ TypeScript Differential Test Report (base: trunk()) ══",
+		"strengthen assertions in *.spec.ts",
+		"expect(component).toBeTruthy()",
+	} {
+		if !strings.Contains(got, wantSub) {
+			t.Errorf("RenderTextReport(LangTS) missing %q in:\n%s", wantSub, got)
+		}
+	}
+}

@@ -220,11 +220,78 @@ func TestRenderGitHubAnnotationsAndSummary(t *testing.T) {
 		"- if x < 5 {",
 		"+ if x <= 5 {",
 		"How to Triage Surviving Mutants (Without Test Bloat)",
+		"`cmp.Diff`",
 		"Redundant Tests in Diff (1)",
 		"| `TestLogicSmoke` (`pkg/a/logic_test.go:42`) | `TestLogic` (line 10) | **NO OUTPUT CHECK** — Only checks 'err != nil'",
 	} {
 		if !strings.Contains(gotSum, snippet) {
 			t.Errorf("RenderGitHubSummary() missing expected snippet %q in:\n%s", snippet, gotSum)
+		}
+	}
+}
+
+func TestRenderGitHubSummaryTypeScriptLanguageFences(t *testing.T) {
+	plans := []*FilePlan{
+		{
+			File: "web/src/app/foo.ts",
+			Mutants: []*Mutant{
+				{
+					GlobalIndex:  1,
+					File:         "web/src/app/foo.ts",
+					Line:         3,
+					Operator:     OperatorROR,
+					OriginalExpr: "x < 0",
+					MutatedExpr:  "x <= 0",
+					OriginalLine: "if (x < 0) {",
+					MutatedLine:  "if (x <= 0) {",
+					Status:       MutantSurvived,
+				},
+			},
+		},
+	}
+	report := BuildMutationReportForLang(LangTS, "HEAD^1", plans, nil, nil)
+	AttachLineCoverage(report, &CoverageReport{
+		BaseLabel:            "HEAD^1",
+		PatchExecutableLines: 4,
+		PatchCoveredLines:    0,
+		OverallStatements:    10,
+		OverallCovered:       6,
+		HasOverallCoverage:   true,
+		Files: []FileCoverageReport{
+			{
+				File:                   "web/src/app/foo.ts",
+				ChangedExecutableLines: 4,
+				UncoveredRanges:        []LineRange{{StartLine: 5, EndLine: 8}},
+				UncoveredSpans: []UncoveredSpan{
+					{
+						File:            "web/src/app/foo.ts",
+						StartLine:       5,
+						EndLine:         8,
+						ExecutableLines: 4,
+						Lines:           []SourceLine{{Number: 5, Text: "return x + 1;"}},
+					},
+				},
+			},
+		},
+	})
+
+	var annBuf, sumBuf bytes.Buffer
+	RenderGitHubAnnotations(&annBuf, report, 10, 4)
+	RenderGitHubSummary(&sumBuf, report)
+
+	if !strings.Contains(annBuf.String(), "Changed TypeScript block (5-8, 4 executable lines)") {
+		t.Errorf("expected TypeScript block annotation, got: %q", annBuf.String())
+	}
+	gotSum := sumBuf.String()
+	for _, wantSub := range []string{
+		"## TypeScript Differential Test & Mutation Report",
+		"**Overall TypeScript Statement Coverage**: `60.0%` (6 / 10 statements)",
+		"```ts",
+		"   5 | return x + 1;",
+		"`*.spec.ts`",
+	} {
+		if !strings.Contains(gotSum, wantSub) {
+			t.Errorf("RenderGitHubSummary(LangTS) missing %q in:\n%s", wantSub, gotSum)
 		}
 	}
 }

@@ -165,6 +165,7 @@ jobs:
       - name: Report Backend Differential Coverage & Mutation Testing
         run: |
           go run ./scripts/mutation-diff \
+            --lang=go \
             --coverprofile=go-cover.output \
             --vcs=git \
             --base=HEAD^1 \
@@ -185,6 +186,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -243,6 +246,16 @@ jobs:
 
       - name: Angular Test
         run: make coverage-web
+
+      - name: Report Frontend Differential Coverage & Mutation Testing
+        run: |
+          go run ./scripts/mutation-diff \
+            --lang=ts \
+            --ts-coverage=web/coverage/frontend/coverage-final.json \
+            --vcs=git \
+            --base=HEAD^1 \
+            --target=HEAD \
+            --format=github
 
       - name: Frontend Format and Lint Check
         run: |

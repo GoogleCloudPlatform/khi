@@ -93,6 +93,137 @@ func TestIsTargetGoFile(t *testing.T) {
 	}
 }
 
+func TestIsTargetProductionTSFile(t *testing.T) {
+	testCases := []struct {
+		name    string
+		relPath string
+		want    bool
+	}{
+		{
+			name:    "standard component ts file",
+			relPath: "web/src/app/app.component.ts",
+			want:    true,
+		},
+		{
+			name:    "leading dot-slash ts file",
+			relPath: "./web/src/app/services/data.service.ts",
+			want:    true,
+		},
+		{
+			name:    "spec test file excluded",
+			relPath: "web/src/app/app.component.spec.ts",
+			want:    false,
+		},
+		{
+			name:    "storybook stories file excluded",
+			relPath: "web/src/app/dialogs/foo.stories.ts",
+			want:    false,
+		},
+		{
+			name:    "ambient d.ts file excluded",
+			relPath: "web/src/global.d.ts",
+			want:    false,
+		},
+		{
+			name:    "mock suffix file excluded",
+			relPath: "web/src/app/services/foo.mock.ts",
+			want:    false,
+		},
+		{
+			name:    "mock directory excluded",
+			relPath: "web/src/app/services/mock/fake-backend.ts",
+			want:    false,
+		},
+		{
+			name:    "test helper directory excluded",
+			relPath: "web/src/app/common/test/harness.ts",
+			want:    false,
+		},
+		{
+			name:    "generated directory excluded",
+			relPath: "web/src/app/generated/proto.ts",
+			want:    false,
+		},
+		{
+			name:    "environments directory excluded",
+			relPath: "web/src/environments/environment.ts",
+			want:    false,
+		},
+		{
+			name:    "zzz generated file excluded",
+			relPath: "web/src/assets/zzz-fonts.ts",
+			want:    false,
+		},
+		{
+			name:    "test bootstrap file excluded",
+			relPath: "web/src/test.ts",
+			want:    false,
+		},
+		{
+			name:    "outside web/src excluded",
+			relPath: "web/karma.conf.ts",
+			want:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IsTargetProductionTSFile(tc.relPath)
+			if got != tc.want {
+				t.Errorf("IsTargetProductionTSFile(%q) = %v, want %v", tc.relPath, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestIsTargetTSTestFile(t *testing.T) {
+	testCases := []struct {
+		name    string
+		relPath string
+		want    bool
+	}{
+		{
+			name:    "standard angular spec file",
+			relPath: "web/src/app/app.component.spec.ts",
+			want:    true,
+		},
+		{
+			name:    "leading dot-slash spec file",
+			relPath: "./web/src/app/services/data.service.spec.ts",
+			want:    true,
+		},
+		{
+			name:    "production ts file excluded",
+			relPath: "web/src/app/app.component.ts",
+			want:    false,
+		},
+		{
+			name:    "generated spec excluded",
+			relPath: "web/src/app/generated/foo.spec.ts",
+			want:    false,
+		},
+		{
+			name:    "zzz spec excluded",
+			relPath: "web/src/app/zzz_auto.spec.ts",
+			want:    false,
+		},
+		{
+			name:    "outside web/src excluded",
+			relPath: "scripts/mutation-diff/sample.spec.ts",
+			want:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := IsTargetTSTestFile(tc.relPath)
+			if got != tc.want {
+				t.Errorf("IsTargetTSTestFile(%q) = %v, want %v", tc.relPath, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestParseUnifiedDiff(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -216,6 +347,53 @@ diff --git a/scripts/mutation-diff/runner_test.go b/scripts/mutation-diff/runner
 	}
 	if diff := cmp.Diff(wantTests, tests); diff != "" {
 		t.Errorf("test diff mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestParseUnifiedDiffAll(t *testing.T) {
+	diffText := `diff --git a/pkg/foo/service.go b/pkg/foo/service.go
+--- a/pkg/foo/service.go
++++ b/pkg/foo/service.go
+@@ -4,0 +5,1 @@
++	doWork()
+diff --git a/pkg/foo/service_test.go b/pkg/foo/service_test.go
+--- a/pkg/foo/service_test.go
++++ b/pkg/foo/service_test.go
+@@ -10,0 +11,1 @@
++func TestService(t *testing.T) {}
+diff --git a/web/src/app/foo.component.ts b/web/src/app/foo.component.ts
+--- a/web/src/app/foo.component.ts
++++ b/web/src/app/foo.component.ts
+@@ -7,0 +8,2 @@
++  readonly enabled = true;
++  readonly count = 1;
+diff --git a/web/src/app/foo.component.spec.ts b/web/src/app/foo.component.spec.ts
+--- a/web/src/app/foo.component.spec.ts
++++ b/web/src/app/foo.component.spec.ts
+@@ -1,0 +2,2 @@
++it('renders', () => {});
++it('updates', () => {});
+`
+	got, err := ParseUnifiedDiffAll(strings.NewReader(diffText))
+	if err != nil {
+		t.Fatalf("ParseUnifiedDiffAll() unexpected error: %v", err)
+	}
+	want := UnifiedDiffLines{
+		Go: map[string]map[int]struct{}{
+			"pkg/foo/service.go": {5: {}},
+		},
+		GoTest: map[string]map[int]struct{}{
+			"pkg/foo/service_test.go": {11: {}},
+		},
+		TS: map[string]map[int]struct{}{
+			"web/src/app/foo.component.ts": {8: {}, 9: {}},
+		},
+		TSTest: map[string]map[int]struct{}{
+			"web/src/app/foo.component.spec.ts": {2: {}, 3: {}},
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ParseUnifiedDiffAll() mismatch (-want +got):\n%s", diff)
 	}
 }
 

@@ -116,8 +116,35 @@ func formatLineSpan(start int, end int) string {
 	return fmt.Sprintf("%d-%d", start, end)
 }
 
+// Language identifies the target programming language for a differential test and mutation report.
+type Language string
+
+const (
+	// LangGo identifies Go backend and script packages.
+	LangGo Language = "go"
+	// LangTS identifies Angular/TypeScript frontend code under web/src/.
+	LangTS Language = "ts"
+)
+
+// DisplayName returns the human-readable language title ("Go" or "TypeScript").
+func (l Language) DisplayName() string {
+	if l == LangTS {
+		return "TypeScript"
+	}
+	return "Go"
+}
+
+// CodeFence returns the Markdown syntax-highlighting language tag ("go" or "ts").
+func (l Language) CodeFence() string {
+	if l == LangTS {
+		return "ts"
+	}
+	return "go"
+}
+
 // MutationReport holds the complete unified results of differential coverage, mutation testing, and redundant test detection.
 type MutationReport struct {
+	Language             Language
 	BaseLabel            string
 	TotalKilled          int
 	TotalTimedOut        int
@@ -172,14 +199,26 @@ func (r *MutationReport) SurvivingMutants() []*Mutant {
 	return out
 }
 
-// BuildMutationReport aggregates per-file mutation plans, warnings, and redundant test findings into a MutationReport.
+// BuildMutationReport aggregates per-file Go mutation plans, warnings, and redundant test findings into a MutationReport.
 func BuildMutationReport(
 	baseLabel string,
 	plans []*FilePlan,
 	warnings []DirectiveWarning,
 	redundantTests []RedundantTestFinding,
 ) *MutationReport {
+	return BuildMutationReportForLang(LangGo, baseLabel, plans, warnings, redundantTests)
+}
+
+// BuildMutationReportForLang aggregates per-file mutation plans, warnings, and redundant test findings for lang.
+func BuildMutationReportForLang(
+	lang Language,
+	baseLabel string,
+	plans []*FilePlan,
+	warnings []DirectiveWarning,
+	redundantTests []RedundantTestFinding,
+) *MutationReport {
 	report := &MutationReport{
+		Language:             lang,
 		BaseLabel:            baseLabel,
 		SuppressedByCategory: make(map[SuppressionCategory]int),
 		Warnings:             warnings,
@@ -292,8 +331,11 @@ func formatCoveringLocation(candFile string, domFile string, domLine int) string
 	return "existing test"
 }
 
-func explainSingleRedundantWhy(rt RedundantTestFinding, covLoc string) string {
+func explainSingleRedundantWhy(lang Language, rt RedundantTestFinding, covLoc string) string {
 	if rt.Kind == RedundantWeakAssertion {
+		if lang == LangTS {
+			return fmt.Sprintf("Only performs a trivial smoke check (such as 'expect(component).toBeTruthy()') without asserting outputs or DOM/state changes (catches 0 bugs), on a path already tested at %s.", covLoc)
+		}
 		return fmt.Sprintf("Only checks 'err != nil' without asserting return values or state changes (catches 0 bugs), on a path already tested at %s.", covLoc)
 	}
 	if rt.DominatorKills > rt.CandidateKills && rt.DominatorKills > 0 {
