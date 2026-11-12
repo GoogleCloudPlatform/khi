@@ -32,6 +32,7 @@ import (
 
 // processK8sNodeLog sets the log type, timestamp, severity and summary of a Kubernetes node log.
 // The summary shows the pods, containers and resources that the finders resolve from the IDs in the log message.
+// The summary of a cilium-cni plugin log also shows the subsystem and the Pod written in the log, and shows the Pod only once.
 func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
@@ -56,9 +57,19 @@ func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patte
 	raw := nodeLogFS.Message.Raw()
 	summaryReplaceMap := map[string]string{}
 
+	ciliumCNIPodNamespace, ciliumCNIPodName, hasCiliumCNIPod := findCiliumCNIPodReference(nodeLogFS.Message)
+	isCiliumCNIPod := func(namespace, name string) bool {
+		return hasCiliumCNIPod && namespace == ciliumCNIPodNamespace && name == ciliumCNIPodName
+	}
+	// The pod sandbox ID and the Pod UID in a cilium-cni log resolve to the Pod that the log already names, so they are not appended again in another format.
+	ciliumCNIPodIDs := map[string]struct{}{}
+
 	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
 	for _, pod := range pods {
 		summaryReplaceMap[pod.PodSandboxID] = toReadablePodSandboxName(pod.PodNamespace, pod.PodName)
+		if isCiliumCNIPod(pod.PodNamespace, pod.PodName) {
+			ciliumCNIPodIDs[pod.PodSandboxID] = struct{}{}
+		}
 	}
 	for _, containerRef := range containerRefs {
 		summaryReplaceMap[containerRef.Container.ContainerID] = toReadableContainerName(containerRef.Pod.PodNamespace, containerRef.Pod.PodName, containerRef.Container.ContainerName)
@@ -70,6 +81,9 @@ func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patte
 			uid, err := result.GetMatchedString(raw)
 			if err == nil {
 				summaryReplaceMap[uid] = toReadableResourceName(result.Value.APIVersion, result.Value.Kind, result.Value.Namespace, result.Value.Name)
+				if result.Value.Kind == "pod" && isCiliumCNIPod(result.Value.Namespace, result.Value.Name) {
+					ciliumCNIPodIDs[uid] = struct{}{}
+				}
 			}
 		}
 	}
@@ -116,9 +130,20 @@ func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patte
 		}
 	}
 
+	if isCiliumCNILog(nodeLogFS.Message) {
+		// The plugin can end its messages with a space, which would otherwise widen the gap before the appended references.
+		summary = fmt.Sprintf("[cilium-cni] %s", strings.TrimSpace(summary))
+	}
+	if hasCiliumCNIPod {
+		summary = fmt.Sprintf("%s %s", summary, toReadablePodSandboxName(ciliumCNIPodNamespace, ciliumCNIPodName))
+	}
+
 	for k, v := range summaryReplaceMap {
 		i := strings.Index(summary, k)
 		if i == -1 {
+			if _, found := ciliumCNIPodIDs[k]; found {
+				continue
+			}
 			summary = fmt.Sprintf("%s %s", summary, v)
 		} else {
 			summary = strings.ReplaceAll(summary, k, v)

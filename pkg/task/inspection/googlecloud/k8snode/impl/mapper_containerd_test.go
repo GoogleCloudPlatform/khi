@@ -477,6 +477,65 @@ func TestContainerdLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(wantPodPath)
 			},
 		},
+		{
+			desc:         "cilium-cni log links to the pod timeline by its pod fields",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 interface=eth0 k8sNamespace=kube-system k8sPodName=test-pod error="[DELETE /endpoint][404] deleteEndpointNotFound"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "kube-system", "test-pod")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath).
+					HasEventCount(2)
+			},
+		},
+		{
+			desc:         "cilium-cni log whose pod sandbox id resolves to the same pod adds the pod event once",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 interface=eth0 k8sNamespace=kube-system k8sPodName=test-pod error="[DELETE /endpoint][404] deleteEndpointNotFound"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "test-pod",
+					PodNamespace: "kube-system",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+				wantPodPath := mustK8sPodTimeline(ctx, "test-cluster", "kube-system", "test-pod")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath).
+					HasEventCount(2)
+			},
+		},
+		{
+			desc:         "cilium-cni log without pod fields adds only the component event",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=info msg="Fast start health check grace period active." subsys=cilium-cni containerID="" netNSName="" interface="" args="" k8sNamespace="" k8sPodName=""`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEventCount(1)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

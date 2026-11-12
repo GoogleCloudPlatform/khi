@@ -295,6 +295,11 @@ func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon
 
 	addPodContainerAndResourceEvents(ctx, cs, clusterName, nodeLogFieldSet.Message.Raw(), podSandboxIDFinder, containerIDPatternFinder, resourceUIDPatternFinder)
 
+	// The pod sandbox ID in a cilium-cni log is resolvable only when its RunPodSandbox log is in the inspected range, but the Pod name is always written.
+	if podNamespace, podName, found := findCiliumCNIPodReference(nodeLogFieldSet.Message); found {
+		cs.AddEvent(mustK8sPodTimeline(ctx, clusterName, podNamespace, podName))
+	}
+
 	return cs, nil
 }
 

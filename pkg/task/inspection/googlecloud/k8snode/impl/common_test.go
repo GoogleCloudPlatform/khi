@@ -248,6 +248,100 @@ func TestProcessK8sNodeLog(t *testing.T) {
 					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
+		{
+			desc:         "containerd log of the cilium-cni plugin with pod fields",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni eventID=00000000-0000-0000-0000-000000000010 containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 netNSName="" interface=eth0 args="K8S_POD_UID=00000000-0000-0000-0000-000000000011;IgnoreUnknown=1;K8S_POD_NAMESPACE=kube-system;K8S_POD_NAME=test-pod;K8S_POD_INFRA_CONTAINER_ID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1" k8sNamespace=kube-system k8sPodName=test-pod error="[DELETE /endpoint][404] deleteEndpointNotFound"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`[cilium-cni] Errors encountered while deleting endpoint(error=[DELETE /endpoint][404] deleteEndpointNotFound) 【test-pod (Namespace: kube-system)】`).
+					HasSeverity(inspectioncore.SeverityWarning)
+			},
+		},
+		{
+			desc:         "containerd log of the cilium-cni plugin whose pod sandbox id resolves to the same pod",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 interface=eth0 k8sNamespace=kube-system k8sPodName=test-pod error="[DELETE /endpoint][404] deleteEndpointNotFound"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "test-pod",
+					PodNamespace: "kube-system",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`[cilium-cni] Errors encountered while deleting endpoint(error=[DELETE /endpoint][404] deleteEndpointNotFound) 【test-pod (Namespace: kube-system)】`).
+					HasSeverity(inspectioncore.SeverityWarning)
+			},
+		},
+		{
+			desc:         "containerd log of the cilium-cni plugin whose pod uid resolves to the same pod",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=info msg="NewCreationFallbackClient tryConnect() succeeded " subsys=cilium-cni eventID=00000000-0000-0000-0000-000000000012 containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 netNSName=/var/run/netns/cni-00000000-0000-0000-0000-000000000013 interface=eth0 args="K8S_POD_UID=00000000-0000-0000-0000-000000000011;IgnoreUnknown=1;K8S_POD_NAMESPACE=kube-system;K8S_POD_NAME=test-pod;K8S_POD_INFRA_CONTAINER_ID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1" file-path=/home/kubernetes/bin k8sNamespace=kube-system k8sPodName=test-pod`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "test-pod",
+					PodNamespace: "kube-system",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			inputResourceUIDInfo: map[string]*k8saudit.ResourceIdentity{
+				"00000000-0000-0000-0000-000000000011": {
+					Name:       "test-pod",
+					Namespace:  "kube-system",
+					Kind:       "pod",
+					APIVersion: "core/v1",
+				},
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`[cilium-cni] NewCreationFallbackClient tryConnect() succeeded 【test-pod (Namespace: kube-system)】`).
+					HasSeverity(inspectioncore.SeverityInfo)
+			},
+		},
+		{
+			desc:         "containerd log of the cilium-cni plugin without pod fields",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=info msg="Fast start health check grace period active." subsys=cilium-cni eventID=00000000-0000-0000-0000-000000000014 containerID="" netNSName="" interface="" args="" file-path=/home/kubernetes/bin k8sNamespace="" k8sPodName="" current=54490721570 due=172533575384`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`[cilium-cni] Fast start health check grace period active.`).
+					HasSeverity(inspectioncore.SeverityInfo)
+			},
+		},
+		{
+			desc:         "containerd log of the cilium-cni plugin whose pod sandbox id resolves to a pod in another namespace",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 interface=eth0 k8sNamespace=kube-system k8sPodName=test-pod error="[DELETE /endpoint][404] deleteEndpointNotFound"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "test-pod",
+					PodNamespace: "default",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`[cilium-cni] Errors encountered while deleting endpoint(error=[DELETE /endpoint][404] deleteEndpointNotFound) 【test-pod (Namespace: kube-system)】 【test-pod (Namespace: default)】`).
+					HasSeverity(inspectioncore.SeverityWarning)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
