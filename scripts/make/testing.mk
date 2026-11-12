@@ -60,11 +60,13 @@ coverage-web-container: build-builder ## Run frontend tests and generate coverag
 		make coverage-web USE_CONTAINER=false
 
 COVERAGE_BASE ?=
+COVERAGE_VCS ?=
 COVERAGE_FULL ?= false
+COVERAGE_INCLUDE_SCRIPTS ?= false
 MUTATION_BASE ?= $(COVERAGE_BASE)
-MUTATION_VCS ?=
+MUTATION_VCS ?= $(COVERAGE_VCS)
 MUTATION_MAX ?= 80
-MUTATION_INCLUDE_SCRIPTS ?= false
+MUTATION_INCLUDE_SCRIPTS ?= $(COVERAGE_INCLUDE_SCRIPTS)
 
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
@@ -76,7 +78,7 @@ coverage-diff: $(GENERATE_BACKEND_DUMMY) ## Run Go differential coverage report 
 	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
 		$(MAKE) build-web; \
 	fi
-	go run ./scripts/coverage-diff $(if $(COVERAGE_BASE),--base=$(COVERAGE_BASE),) $(if $(filter true 1,$(COVERAGE_FULL)),--full,)
+	go run ./scripts/coverage-diff $(if $(COVERAGE_VCS),--vcs=$(COVERAGE_VCS),) $(if $(COVERAGE_BASE),--base=$(COVERAGE_BASE),) $(if $(filter true 1,$(COVERAGE_FULL)),--full,) $(if $(filter true 1,$(COVERAGE_INCLUDE_SCRIPTS)),--include-scripts,)
 
 .PHONY: mutation-diff
 mutation-diff: $(GENERATE_BACKEND_DUMMY) ## Run Go differential mutation testing for changed lines

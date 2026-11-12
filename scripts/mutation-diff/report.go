@@ -75,6 +75,7 @@ type MutationReport struct {
 	TotalSkipped         int
 	Files                []FileMutationSummary
 	Warnings             []DirectiveWarning
+	RedundantTests       []RedundantTestFinding
 }
 
 // EffectiveKilled returns the total count of killed and timed-out mutants across all files.
@@ -114,12 +115,18 @@ func (r *MutationReport) SurvivingMutants() []*Mutant {
 	return out
 }
 
-// BuildMutationReport aggregates per-file mutation plans and directive warnings into a MutationReport.
-func BuildMutationReport(baseLabel string, plans []*FilePlan, warnings []DirectiveWarning) *MutationReport {
+// BuildMutationReport aggregates per-file mutation plans, warnings, and redundant test findings into a MutationReport.
+func BuildMutationReport(
+	baseLabel string,
+	plans []*FilePlan,
+	warnings []DirectiveWarning,
+	redundantTests []RedundantTestFinding,
+) *MutationReport {
 	report := &MutationReport{
 		BaseLabel:            baseLabel,
 		SuppressedByCategory: make(map[SuppressionCategory]int),
 		Warnings:             warnings,
+		RedundantTests:       redundantTests,
 	}
 
 	sortedPlans := make([]*FilePlan, len(plans))
@@ -209,16 +216,23 @@ func RenderTextReport(w io.Writer, report *MutationReport) {
 	}
 
 	surviving := report.SurvivingMutants()
-	if len(surviving) == 0 {
-		return
+	if len(surviving) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Surviving mutants (tests passed despite logic change):")
+		for _, m := range surviving {
+			fmt.Fprintf(w, "  [M%d] %s %s:%d\n", m.GlobalIndex, m.Operator, m.File, m.Line)
+			fmt.Fprintf(w, "    - %s\n", m.OriginalLine)
+			fmt.Fprintf(w, "    + %s\n", m.MutatedLine)
+		}
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Surviving mutants (tests passed despite logic change):")
-	for _, m := range surviving {
-		fmt.Fprintf(w, "  [M%d] %s %s:%d\n", m.GlobalIndex, m.Operator, m.File, m.Line)
-		fmt.Fprintf(w, "    - %s\n", m.OriginalLine)
-		fmt.Fprintf(w, "    + %s\n", m.MutatedLine)
+	if len(report.RedundantTests) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Potentially redundant tests in diff (subsumed branch polarity & mutant kills):")
+		for _, rt := range report.RedundantTests {
+			fmt.Fprintf(w, "  [R%d] %s %s:%d %s\n", rt.GlobalIndex, rt.Kind, rt.File, rt.Line, rt.TestName)
+			fmt.Fprintf(w, "    -> %s\n", formatRedundantReason(rt))
+		}
 	}
 }
 
@@ -254,6 +268,21 @@ func RenderGitHubAnnotations(w io.Writer, report *MutationReport, maxAnnotations
 		fmt.Fprintf(w, "::warning file=%s,line=%d,title=%s::%s\n",
 			gotestutil.EscapeAnnotationProperty(m.File),
 			m.Line,
+			gotestutil.EscapeAnnotationProperty(title),
+			gotestutil.EscapeAnnotationData(msg),
+		)
+		emitted++
+	}
+
+	for _, rt := range report.RedundantTests {
+		if emitted >= maxAnnotations {
+			return
+		}
+		title := fmt.Sprintf("Potentially Redundant Test in PR Diff (%s)", rt.Kind)
+		msg := fmt.Sprintf("Test '%s' %s. Remove pure equivalence-class duplicates unless preserving a distinct regression fixture.", rt.TestName, formatRedundantReason(rt))
+		fmt.Fprintf(w, "::warning file=%s,line=%d,title=%s::%s\n",
+			gotestutil.EscapeAnnotationProperty(rt.File),
+			rt.Line,
 			gotestutil.EscapeAnnotationProperty(title),
 			gotestutil.EscapeAnnotationData(msg),
 		)
@@ -317,30 +346,55 @@ func RenderGitHubSummary(w io.Writer, report *MutationReport) {
 	}
 
 	surviving := report.SurvivingMutants()
-	if len(surviving) == 0 {
-		return
-	}
-
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "<details>\n")
-	fmt.Fprintf(w, "<summary>Surviving Mutants (%d)</summary>\n\n", len(surviving))
-
-	limit := min(len(surviving), maxGitHubMutantDiffs)
-	for i := 0; i < limit; i++ {
-		m := surviving[i]
-		fmt.Fprintf(w, "**`[M%d]` `%s` in `%s:%d`**\n\n", m.GlobalIndex, m.Operator, m.File, m.Line)
-		fmt.Fprintln(w, "```diff")
-		fmt.Fprintf(w, "- %s\n", m.OriginalLine)
-		fmt.Fprintf(w, "+ %s\n", m.MutatedLine)
-		fmt.Fprintln(w, "```")
+	if len(surviving) > 0 {
 		fmt.Fprintln(w)
+		fmt.Fprintf(w, "<details>\n")
+		fmt.Fprintf(w, "<summary>Surviving Mutants (%d)</summary>\n\n", len(surviving))
+
+		limit := min(len(surviving), maxGitHubMutantDiffs)
+		for i := 0; i < limit; i++ {
+			m := surviving[i]
+			fmt.Fprintf(w, "**`[M%d]` `%s` in `%s:%d`**\n\n", m.GlobalIndex, m.Operator, m.File, m.Line)
+			fmt.Fprintln(w, "```diff")
+			fmt.Fprintf(w, "- %s\n", m.OriginalLine)
+			fmt.Fprintf(w, "+ %s\n", m.MutatedLine)
+			fmt.Fprintln(w, "```")
+			fmt.Fprintln(w)
+		}
+		if len(surviving) > limit {
+			fmt.Fprintf(w, "_...and %d additional surviving mutants omitted._\n\n", len(surviving)-limit)
+		}
+		fmt.Fprintln(w, "</details>")
+		fmt.Fprintln(w)
+		fmt.Fprint(w, remediationGuideMarkdown)
 	}
-	if len(surviving) > limit {
-		fmt.Fprintf(w, "_...and %d additional surviving mutants omitted._\n\n", len(surviving)-limit)
+
+	if len(report.RedundantTests) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "<details>\n")
+		fmt.Fprintf(w, "<summary>Potentially Redundant Changed Tests (%d)</summary>\n\n", len(report.RedundantTests))
+		fmt.Fprintln(w, "| Test | Location | Kind | Reason |")
+		fmt.Fprintln(w, "| :--- | :--- | :--- | :--- |")
+		for _, rt := range report.RedundantTests {
+			fmt.Fprintf(w, "| `%s` | `%s:%d` | `%s` | %s |\n",
+				gotestutil.EscapeMarkdownTable(rt.TestName),
+				gotestutil.EscapeMarkdownTable(rt.File),
+				rt.Line,
+				rt.Kind,
+				gotestutil.EscapeMarkdownTable(formatRedundantReason(rt)),
+			)
+		}
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "_Note: Keep cases that document distinct domain regressions or input encodings; remove pure equivalence-class duplicates._")
+		fmt.Fprintln(w, "</details>")
 	}
-	fmt.Fprintln(w, "</details>")
-	fmt.Fprintln(w)
-	fmt.Fprint(w, remediationGuideMarkdown)
+}
+
+func formatRedundantReason(rt RedundantTestFinding) string {
+	if rt.Kind == RedundantWeakAssertion {
+		return fmt.Sprintf("executes changed code with 0 mutant kills and only error-nil checks (already covered by %s)", rt.DominatedBy)
+	}
+	return fmt.Sprintf("exercises identical branch polarities and kills no additional mutants beyond %s (%d shared kill(s))", rt.DominatedBy, rt.SharedKills)
 }
 
 func formatSuppressedSummary(total int, byCat map[SuppressionCategory]int) string {

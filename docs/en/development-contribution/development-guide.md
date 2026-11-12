@@ -116,6 +116,8 @@ make mutation-diff
 
 When a mutant survives, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff` or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// NOMUTANTS(<category>): <reason>` or `// NOMUTANTS(<category>, <operator>): <reason>`, where `<category>` is `equivalent`, `perf`, `observability`, or `external`).
 
+`make mutation-diff` also inspects newly added or modified `*_test.go` cases and reports potentially redundant tests (`DUPLICATE` when a new test exercises identical branch polarities and kills no additional mutants beyond another test, or `WEAK_TEST` when a new test has 0 mutant kills and only checks `err != nil` on already-covered branches). Keep cases that document distinct domain regressions, and remove pure equivalence-class duplicates.
+
 ### Clean up legacy generated test files
 
 If you have local working copies created before test flags were migrated to environment variables, you may find leftover untracked `zzz_testflag_test.go` files in `pkg/`.

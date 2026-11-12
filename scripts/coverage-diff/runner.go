@@ -36,7 +36,7 @@ type TestPlan struct {
 }
 
 // PlanTestExecution builds a minimal or full Go test execution plan from changed production Go files.
-func PlanTestExecution(repoRoot string, changedFiles []string, full bool) TestPlan {
+func PlanTestExecution(repoRoot string, changedFiles []string, full bool, filter gotestutil.FilterOptions) TestPlan {
 	if full {
 		return TestPlan{
 			Packages: []string{"./..."},
@@ -49,7 +49,7 @@ func PlanTestExecution(repoRoot string, changedFiles []string, full bool) TestPl
 	pkgSet := make(map[string]struct{})
 	for _, relFile := range changedFiles {
 		cleanFile := strings.TrimPrefix(filepath.ToSlash(relFile), "./")
-		if !gotestutil.IsTargetProductionGoFile(cleanFile) {
+		if !gotestutil.IsTargetGoFile(cleanFile, filter) {
 			continue
 		}
 		relDir := path.Dir(cleanFile)

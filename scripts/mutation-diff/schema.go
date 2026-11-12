@@ -74,13 +74,13 @@ var __khiMutTracePath = sync.OnceValue(func() string {
 })
 
 var __khiMutMu sync.Mutex
-var __khiMutSeen [%d]atomic.Bool
+var __khiMutSeen [%d][3]atomic.Bool
 
-func __khiMutRecord(id int) {
+func __khiMutRecordSlot(id int, slot int, suffix string) {
 	if id <= 0 || id >= len(__khiMutSeen) {
 		return
 	}
-	if __khiMutSeen[id].Load() || __khiMutSeen[id].Swap(true) {
+	if __khiMutSeen[id][slot].Load() || __khiMutSeen[id][slot].Swap(true) {
 		return
 	}
 	p := __khiMutTracePath()
@@ -93,21 +93,34 @@ func __khiMutRecord(id int) {
 	if err != nil {
 		return
 	}
-	_, _ = f.WriteString(strconv.Itoa(id) + "\n")
+	_, _ = f.WriteString(strconv.Itoa(id) + suffix)
 	_ = f.Close()
+}
+
+func __khiMutRecordBool(id int, v bool) {
+	if v {
+		__khiMutRecordSlot(id, 2, ":T\n")
+	} else {
+		__khiMutRecordSlot(id, 1, ":F\n")
+	}
 }
 
 func __khiMutActive(id int) bool {
 	sel := __khiMutSelected()
 	if sel == 0 {
-		__khiMutRecord(id)
+		__khiMutRecordSlot(id, 0, ":S\n")
 		return false
 	}
 	return sel == id
 }
 
 func __khiMutFlip(id int, v bool) bool {
-	if __khiMutActive(id) {
+	sel := __khiMutSelected()
+	if sel == 0 {
+		__khiMutRecordBool(id, v)
+		return v
+	}
+	if sel == id {
 		return !v
 	}
 	return v
@@ -116,8 +129,8 @@ func __khiMutFlip(id int, v bool) bool {
 func __khiMutCond(idTrue, idFalse int, cond bool) bool {
 	sel := __khiMutSelected()
 	if sel == 0 {
-		__khiMutRecord(idTrue)
-		__khiMutRecord(idFalse)
+		__khiMutRecordBool(idTrue, cond)
+		__khiMutRecordBool(idFalse, cond)
 		return cond
 	}
 	if sel == idTrue {
@@ -130,14 +143,26 @@ func __khiMutCond(idTrue, idFalse int, cond bool) bool {
 }
 
 func __khiMutAnd(id int, lhs, rhs func() bool) bool {
-	if __khiMutActive(id) {
+	sel := __khiMutSelected()
+	if sel == 0 {
+		res := lhs() && rhs()
+		__khiMutRecordBool(id, res)
+		return res
+	}
+	if sel == id {
 		return lhs() || rhs()
 	}
 	return lhs() && rhs()
 }
 
 func __khiMutOr(id int, lhs, rhs func() bool) bool {
-	if __khiMutActive(id) {
+	sel := __khiMutSelected()
+	if sel == 0 {
+		res := lhs() || rhs()
+		__khiMutRecordBool(id, res)
+		return res
+	}
+	if sel == id {
 		return lhs() && rhs()
 	}
 	return lhs() || rhs()
@@ -146,9 +171,10 @@ func __khiMutOr(id int, lhs, rhs func() bool) bool {
 func __khiMutLT[T cmp.Ordered](id1, id2 int, a, b T) bool {
 	sel := __khiMutSelected()
 	if sel == 0 {
-		__khiMutRecord(id1)
-		__khiMutRecord(id2)
-		return a < b
+		res := a < b
+		__khiMutRecordBool(id1, res)
+		__khiMutRecordBool(id2, res)
+		return res
 	}
 	if sel == id1 {
 		return a <= b
@@ -162,9 +188,10 @@ func __khiMutLT[T cmp.Ordered](id1, id2 int, a, b T) bool {
 func __khiMutLE[T cmp.Ordered](id1, id2 int, a, b T) bool {
 	sel := __khiMutSelected()
 	if sel == 0 {
-		__khiMutRecord(id1)
-		__khiMutRecord(id2)
-		return a <= b
+		res := a <= b
+		__khiMutRecordBool(id1, res)
+		__khiMutRecordBool(id2, res)
+		return res
 	}
 	if sel == id1 {
 		return a < b
@@ -178,9 +205,10 @@ func __khiMutLE[T cmp.Ordered](id1, id2 int, a, b T) bool {
 func __khiMutGT[T cmp.Ordered](id1, id2 int, a, b T) bool {
 	sel := __khiMutSelected()
 	if sel == 0 {
-		__khiMutRecord(id1)
-		__khiMutRecord(id2)
-		return a > b
+		res := a > b
+		__khiMutRecordBool(id1, res)
+		__khiMutRecordBool(id2, res)
+		return res
 	}
 	if sel == id1 {
 		return a >= b
@@ -194,9 +222,10 @@ func __khiMutGT[T cmp.Ordered](id1, id2 int, a, b T) bool {
 func __khiMutGE[T cmp.Ordered](id1, id2 int, a, b T) bool {
 	sel := __khiMutSelected()
 	if sel == 0 {
-		__khiMutRecord(id1)
-		__khiMutRecord(id2)
-		return a >= b
+		res := a >= b
+		__khiMutRecordBool(id1, res)
+		__khiMutRecordBool(id2, res)
+		return res
 	}
 	if sel == id1 {
 		return a > b
@@ -306,13 +335,20 @@ func WritePackageOverlay(
 
 // ParseTraceFile reads unique reached mutant IDs written to tracePath during the baseline run.
 func ParseTraceFile(tracePath string) (map[int]struct{}, error) {
+	_, reached, err := ParsePolarityTraceFile(tracePath)
+	return reached, err
+}
+
+// ParsePolarityTraceFile reads directed polarity tokens (e.g. "12:T", "12:F", "12:S") and reached mutant IDs from tracePath.
+func ParsePolarityTraceFile(tracePath string) (map[string]struct{}, map[int]struct{}, error) {
+	tokens := make(map[string]struct{})
 	reached := make(map[int]struct{})
 	f, err := os.Open(tracePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return reached, nil
+			return tokens, reached, nil
 		}
-		return nil, fmt.Errorf("failed to open mutant trace file %s: %w", tracePath, err)
+		return nil, nil, fmt.Errorf("failed to open mutant trace file %s: %w", tracePath, err)
 	}
 	defer f.Close()
 
@@ -322,16 +358,23 @@ func ParseTraceFile(tracePath string) (map[int]struct{}, error) {
 		if txt == "" {
 			continue
 		}
-		id, err := strconv.Atoi(txt)
+		idPart := txt
+		polPart := "S"
+		if idStr, polStr, hasColon := strings.Cut(txt, ":"); hasColon {
+			idPart = idStr
+			polPart = polStr
+		}
+		id, err := strconv.Atoi(idPart)
 		if err != nil {
-			return nil, fmt.Errorf("invalid mutant id %q in trace file: %w", txt, err)
+			return nil, nil, fmt.Errorf("invalid mutant id %q in trace file: %w", txt, err)
 		}
 		if id > 0 {
 			reached[id] = struct{}{}
+			tokens[strconv.Itoa(id)+":"+polPart] = struct{}{}
 		}
 	}
 	if err := sc.Err(); err != nil {
-		return nil, fmt.Errorf("failed reading mutant trace file %s: %w", tracePath, err)
+		return nil, nil, fmt.Errorf("failed reading mutant trace file %s: %w", tracePath, err)
 	}
-	return reached, nil
+	return tokens, reached, nil
 }

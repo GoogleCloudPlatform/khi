@@ -101,21 +101,21 @@ func TestParseTraceFile(t *testing.T) {
 		}
 	})
 
-	t.Run("parses deduplicated positive mutant IDs", func(t *testing.T) {
+	t.Run("parses deduplicated positive mutant IDs and polarity tokens", func(t *testing.T) {
 		tracePath := filepath.Join(tmpDir, "reached.trace")
 		content := `0
-1
-4
-1
+1:T
+4:S
+1:F
 -2
 7
 `
 		if err := os.WriteFile(tracePath, []byte(content), 0o600); err != nil {
 			t.Fatalf("failed to write trace fixture: %v", err)
 		}
-		got, err := ParseTraceFile(tracePath)
+		tokens, got, err := ParsePolarityTraceFile(tracePath)
 		if err != nil {
-			t.Fatalf("ParseTraceFile() unexpected error: %v", err)
+			t.Fatalf("ParsePolarityTraceFile() unexpected error: %v", err)
 		}
 		want := map[int]struct{}{
 			1: {},
@@ -123,7 +123,16 @@ func TestParseTraceFile(t *testing.T) {
 			7: {},
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("ParseTraceFile() mismatch (-want +got):\n%s", diff)
+			t.Errorf("ParsePolarityTraceFile() reached mismatch (-want +got):\n%s", diff)
+		}
+		wantTokens := map[string]struct{}{
+			"1:T": {},
+			"1:F": {},
+			"4:S": {},
+			"7:S": {},
+		}
+		if diff := cmp.Diff(wantTokens, tokens); diff != "" {
+			t.Errorf("ParsePolarityTraceFile() tokens mismatch (-want +got):\n%s", diff)
 		}
 	})
 }

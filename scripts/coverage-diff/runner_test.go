@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -27,11 +28,13 @@ func TestPlanTestExecution(t *testing.T) {
 	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "pkg", "common", "set", "set.go"))
 	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "pkg", "task", "inspection", "sample", "extractor.go"))
 	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "pkg", "task", "inspection", "sample", "impl", "mapper.go"))
+	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "scripts", "mutation-diff", "runner.go"))
 
 	testCases := []struct {
 		name         string
 		changedFiles []string
 		full         bool
+		filter       gotestutil.FilterOptions
 		want         TestPlan
 	}{
 		{
@@ -56,6 +59,7 @@ func TestPlanTestExecution(t *testing.T) {
 				"pkg/common/set/set.go",
 				"pkg/task/inspection/sample/extractor.go",
 				"pkg/generated/ignored.go",
+				"scripts/mutation-diff/runner.go",
 			},
 			full: false,
 			want: TestPlan{
@@ -65,11 +69,24 @@ func TestPlanTestExecution(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "include-scripts enables packages under scripts directory",
+			changedFiles: []string{
+				"scripts/mutation-diff/runner.go",
+			},
+			full:   false,
+			filter: gotestutil.FilterOptions{IncludeScripts: true},
+			want: TestPlan{
+				Packages: []string{
+					"./scripts/mutation-diff",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := PlanTestExecution(tmpRepo, tc.changedFiles, tc.full)
+			got := PlanTestExecution(tmpRepo, tc.changedFiles, tc.full, tc.filter)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("PlanTestExecution() mismatch (-want +got):\n%s", diff)
 			}

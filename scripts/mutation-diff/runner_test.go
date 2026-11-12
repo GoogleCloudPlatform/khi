@@ -217,3 +217,110 @@ func TestUpdateAuditWeakAssertion(t *testing.T) {
 		t.Errorf("unexpected surviving mutants: %+v", surviving)
 	}
 }
+
+func TestExecuteMutationRunDetectsRedundantSubtestsE2E(t *testing.T) {
+	repoDir := t.TempDir()
+
+	goMod := `module example.com/redundanttest
+
+go 1.23
+`
+	if err := os.WriteFile(filepath.Join(repoDir, "go.mod"), []byte(goMod), 0o600); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	pkgDir := filepath.Join(repoDir, "pkg", "sign")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatalf("failed to mkdir pkg/sign: %v", err)
+	}
+
+	prodSrc := `package sign
+
+func IsNegative(x int) bool {
+	return x < 0
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgDir, "sign.go"), []byte(prodSrc), 0o600); err != nil {
+		t.Fatalf("failed to write sign.go: %v", err)
+	}
+
+	testSrc := `package sign
+
+import "testing"
+
+func TestIsNegative(t *testing.T) {
+	testCases := []struct {
+		name string
+		in   int
+		want bool
+	}{
+		{name: "neg one", in: -1, want: true},
+		{name: "neg hundred", in: -100, want: true},
+		{name: "zero boundary", in: 0, want: false},
+		{name: "pos ten", in: 10, want: false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsNegative(tc.in); got != tc.want {
+				t.Errorf("IsNegative(%d) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(pkgDir, "sign_test.go"), []byte(testSrc), 0o600); err != nil {
+		t.Fatalf("failed to write sign_test.go: %v", err)
+	}
+
+	// Simulate all lines in sign.go and sign_test.go added in the PR diff.
+	changedTestLines := make(map[int]struct{})
+	for line := 1; line <= 25; line++ {
+		changedTestLines[line] = struct{}{}
+	}
+
+	report, err := ExecuteMutationRun(context.Background(), &RunnerOptions{
+		RepoRoot:  repoDir,
+		BaseLabel: "main",
+		ChangedLinesByFile: map[string]map[int]struct{}{
+			"pkg/sign/sign.go": {4: {}},
+		},
+		ChangedTestLinesByFile: map[string]map[int]struct{}{
+			"pkg/sign/sign_test.go": changedTestLines,
+		},
+		CheckRedundantTests: true,
+		Workers:             2,
+		MaxMutants:          20,
+		Timeout:             time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("ExecuteMutationRun() unexpected error: %v", err)
+	}
+
+	// Verify:
+	// - "neg_hundred" is flagged DUPLICATE of "neg_one" (same true polarity, same killed mutant >= 0).
+	// - "pos_ten" is flagged DUPLICATE of "zero_boundary" (zero_boundary kills BOTH <= 0 and >= 0 on false polarity, strictly dominating pos_ten which only kills <= 0? Wait: on IsNegative(10), 10 <= 0 is false, 10 >= 0 is true -> pos_ten kills >= 0, while zero_boundary kills BOTH <= 0 and >= 0 on false polarity!).
+	// - Neither "neg_one" (true polarity) nor "zero_boundary" (false polarity) is flagged!
+	want := []RedundantTestFinding{
+		{
+			GlobalIndex: 1,
+			Kind:        RedundantDuplicate,
+			File:        "pkg/sign/sign_test.go",
+			Line:        12,
+			TestName:    "TestIsNegative/neg_hundred",
+			DominatedBy: "TestIsNegative/neg_one",
+			SharedKills: 1,
+		},
+		{
+			GlobalIndex: 2,
+			Kind:        RedundantDuplicate,
+			File:        "pkg/sign/sign_test.go",
+			Line:        14,
+			TestName:    "TestIsNegative/pos_ten",
+			DominatedBy: "TestIsNegative/zero_boundary",
+			SharedKills: 1,
+		},
+	}
+	if diff := cmp.Diff(want, report.RedundantTests); diff != "" {
+		t.Errorf("RedundantTests mismatch (-want +got):\n%s", diff)
+	}
+}

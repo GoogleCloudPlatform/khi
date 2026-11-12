@@ -23,7 +23,7 @@ import (
 )
 
 func TestRenderTextReportEmpty(t *testing.T) {
-	report := BuildMutationReport("trunk()", nil, nil)
+	report := BuildMutationReport("trunk()", nil, nil, nil)
 	var buf bytes.Buffer
 	RenderTextReport(&buf, report)
 
@@ -112,7 +112,19 @@ func TestRenderTextReportWithSurvivingAndWarnings(t *testing.T) {
 		},
 	}
 
-	report := BuildMutationReport("trunk()", plans, warnings)
+	redundant := []RedundantTestFinding{
+		{
+			GlobalIndex: 1,
+			Kind:        RedundantDuplicate,
+			File:        "pkg/scene/palette_test.go",
+			Line:        28,
+			TestName:    "TestPalette/extra_negative",
+			DominatedBy: "TestPalette/negative",
+			SharedKills: 2,
+		},
+	}
+
+	report := BuildMutationReport("trunk()", plans, warnings, redundant)
 	var buf bytes.Buffer
 	RenderTextReport(&buf, report)
 
@@ -128,6 +140,10 @@ Surviving mutants (tests passed despite logic change):
   [M1] ROR pkg/scene/palette.go:40
     - if idx < maxColors {
     + if idx <= maxColors {
+
+Potentially redundant tests in diff (subsumed branch polarity & mutant kills):
+  [R1] DUPLICATE pkg/scene/palette_test.go:28 TestPalette/extra_negative
+    -> exercises identical branch polarities and kills no additional mutants beyond TestPalette/negative (2 shared kill(s))
 `
 	if diff := cmp.Diff(want, buf.String()); diff != "" {
 		t.Errorf("RenderTextReport() mismatch (-want +got):\n%s", diff)
@@ -203,7 +219,18 @@ func TestRenderGitHubAnnotationsAndSummary(t *testing.T) {
 		},
 	}
 
-	report := BuildMutationReport("HEAD^1", plans, nil)
+	redundant := []RedundantTestFinding{
+		{
+			GlobalIndex: 1,
+			Kind:        RedundantWeakAssertion,
+			File:        "pkg/a/logic_test.go",
+			Line:        42,
+			TestName:    "TestLogicSmoke",
+			DominatedBy: "TestLogic",
+		},
+	}
+
+	report := BuildMutationReport("HEAD^1", plans, nil, redundant)
 
 	var annBuf bytes.Buffer
 	RenderGitHubAnnotations(&annBuf, report, 1)
@@ -212,10 +239,36 @@ func TestRenderGitHubAnnotationsAndSummary(t *testing.T) {
 		t.Errorf("expected exactly 1 capped GitHub annotation on line 12, got: %q", gotAnn)
 	}
 
+	var allAnnBuf bytes.Buffer
+	RenderGitHubAnnotations(&allAnnBuf, report, 10)
+	if !strings.Contains(allAnnBuf.String(), "Potentially Redundant Test in PR Diff (WEAK_TEST)") {
+		t.Errorf("expected redundant test annotation in uncapped output, got: %q", allAnnBuf.String())
+	}
+
 	var zeroAnnBuf bytes.Buffer
 	RenderGitHubAnnotations(&zeroAnnBuf, report, 0)
 	if zeroAnnBuf.Len() != 0 {
 		t.Errorf("expected empty output when maxAnnotations=0, got: %q", zeroAnnBuf.String())
+	}
+
+	noSurvivingOrRedundant := BuildMutationReport("HEAD^1", []*FilePlan{{
+		File: "pkg/a/logic.go",
+		Mutants: []*Mutant{{
+			GlobalIndex: 1,
+			File:        "pkg/a/logic.go",
+			Line:        20,
+			Operator:    OperatorAOR,
+			Status:      MutantKilled,
+		}},
+	}}, nil, nil)
+	var cleanTextBuf, cleanSumBuf bytes.Buffer
+	RenderTextReport(&cleanTextBuf, noSurvivingOrRedundant)
+	RenderGitHubSummary(&cleanSumBuf, noSurvivingOrRedundant)
+	if strings.Contains(cleanTextBuf.String(), "Surviving mutants") || strings.Contains(cleanTextBuf.String(), "Potentially redundant") {
+		t.Errorf("unexpected failure sections in clean text report:\n%s", cleanTextBuf.String())
+	}
+	if strings.Contains(cleanSumBuf.String(), "Surviving Mutants") || strings.Contains(cleanSumBuf.String(), "Potentially Redundant") {
+		t.Errorf("unexpected failure sections in clean GitHub summary:\n%s", cleanSumBuf.String())
 	}
 
 	var sumBuf bytes.Buffer
@@ -229,6 +282,8 @@ func TestRenderGitHubAnnotationsAndSummary(t *testing.T) {
 		"- if x < 5 {",
 		"+ if x <= 5 {",
 		"How to Triage Surviving Mutants (Without Test Bloat)",
+		"Potentially Redundant Changed Tests (1)",
+		"| `TestLogicSmoke` | `pkg/a/logic_test.go:42` | `WEAK_TEST` |",
 	} {
 		if !strings.Contains(gotSum, snippet) {
 			t.Errorf("RenderGitHubSummary() missing expected snippet %q in:\n%s", snippet, gotSum)
