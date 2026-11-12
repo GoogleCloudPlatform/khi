@@ -170,6 +170,14 @@ jobs:
             --base=HEAD^1 \
             --target=HEAD \
             --format=github
+      - name: Report Backend Differential Mutation Testing
+        run: |
+          go run ./scripts/mutation-diff \
+            --coverprofile=go-cover.output \
+            --vcs=git \
+            --base=HEAD^1 \
+            --target=HEAD \
+            --format=github
       - name: Backend Format and Lint Check
         run: |
           make check-format-misc

@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 const maxSummarySnippets = 25
@@ -113,11 +115,11 @@ func RenderGitHubAnnotations(w io.Writer, report *CoverageReport, maxAnnotations
 		rangeLabel := formatSingleRange(sp.StartLine, sp.EndLine)
 		msg := fmt.Sprintf("Changed Go block (%s, %d executable lines) is not covered by unit tests.", rangeLabel, sp.ExecutableLines)
 		fmt.Fprintf(w, "::warning file=%s,line=%d,endLine=%d,title=%s::%s\n",
-			escapeAnnotationProperty(sp.File),
+			gotestutil.EscapeAnnotationProperty(sp.File),
 			sp.StartLine,
 			sp.EndLine,
-			escapeAnnotationProperty("Uncovered Lines in PR Diff"),
-			escapeAnnotationData(msg),
+			gotestutil.EscapeAnnotationProperty("Uncovered Lines in PR Diff"),
+			gotestutil.EscapeAnnotationData(msg),
 		)
 	}
 }
@@ -150,7 +152,7 @@ func RenderGitHubSummary(w io.Writer, report *CoverageReport) {
 	for i := range report.Files {
 		f := &report.Files[i]
 		fmt.Fprintf(w, "| `%s` | `%.1f%%` (%d/%d) | `%.1f%%` | %s |\n",
-			escapeMarkdownTable(f.File),
+			gotestutil.EscapeMarkdownTable(f.File),
 			f.PatchPercent(),
 			f.ChangedCoveredLines,
 			f.ChangedExecutableLines,
@@ -240,28 +242,4 @@ func formatSingleRange(startLine int, endLine int) string {
 		return fmt.Sprintf("%d", startLine)
 	}
 	return fmt.Sprintf("%d-%d", startLine, endLine)
-}
-
-func escapeAnnotationData(s string) string {
-	r := strings.NewReplacer(
-		"%", "%25",
-		"\r", "%0D",
-		"\n", "%0A",
-	)
-	return r.Replace(s)
-}
-
-func escapeAnnotationProperty(s string) string {
-	r := strings.NewReplacer(
-		"%", "%25",
-		"\r", "%0D",
-		"\n", "%0A",
-		":", "%3A",
-		",", "%2C",
-	)
-	return r.Replace(s)
-}
-
-func escapeMarkdownTable(s string) string {
-	return strings.ReplaceAll(s, "|", `\|`)
 }

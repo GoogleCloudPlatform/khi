@@ -24,6 +24,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 const defaultDiffCoverProfile = "go-cover-diff.output"
@@ -59,16 +61,16 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 		return fmt.Errorf("invalid --format %q (want text or github)", cfg.format)
 	}
 
-	repoRoot, err := resolveRepoRoot(cfg.repoRoot)
+	repoRoot, err := gotestutil.ResolveRepoRoot(cfg.repoRoot)
 	if err != nil {
 		return err
 	}
-	modulePath, err := ReadModulePath(filepath.Join(repoRoot, "go.mod"))
+	modulePath, err := gotestutil.ReadModulePath(filepath.Join(repoRoot, "go.mod"))
 	if err != nil {
 		return err
 	}
 
-	diffRes, err := CollectChangedLines(ctx, repoRoot, DiffOptions{
+	diffRes, err := gotestutil.CollectChangedLines(ctx, repoRoot, gotestutil.DiffOptions{
 		VCS:    cfg.vcs,
 		Base:   cfg.base,
 		Target: cfg.target,
@@ -81,7 +83,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	profilePath := cfg.coverProfile
 	includeOverall := cfg.coverProfile != "" || cfg.full
 
-	blocksByFile := make(map[string][]CoverBlock)
+	blocksByFile := make(map[string][]gotestutil.CoverBlock)
 	if profilePath == "" {
 		plan := PlanTestExecution(repoRoot, changedFiles, cfg.full)
 		if !plan.Skip {
@@ -96,7 +98,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	}
 
 	if profilePath != "" {
-		blocksByFile, err = loadCoverProfileIfPresent(profilePath, modulePath)
+		blocksByFile, err = gotestutil.LoadCoverProfileIfPresent(profilePath, modulePath, gotestutil.FilterOptions{})
 		if err != nil {
 			return err
 		}
@@ -123,7 +125,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 		if summaryTarget != "" {
 			var buf bytes.Buffer
 			RenderGitHubSummary(&buf, report)
-			if err := appendFile(summaryTarget, buf.Bytes()); err != nil {
+			if err := gotestutil.AppendSummaryFile(summaryTarget, buf.Bytes()); err != nil {
 				return fmt.Errorf("failed to write GitHub step summary to %s: %w", summaryTarget, err)
 			}
 		} else {
@@ -157,40 +159,6 @@ func parseFlags(args []string) (cliConfig, error) {
 	return cfg, nil
 }
 
-func resolveRepoRoot(explicit string) (string, error) {
-	if explicit != "" {
-		return filepath.Abs(explicit)
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-	dir := wd
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return wd, nil
-		}
-		dir = parent
-	}
-}
-
-func loadCoverProfileIfPresent(profilePath string, modulePath string) (map[string][]CoverBlock, error) {
-	f, err := os.Open(profilePath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return make(map[string][]CoverBlock), nil
-		}
-		return nil, fmt.Errorf("failed to open coverprofile %s: %w", profilePath, err)
-	}
-	defer f.Close()
-
-	return ParseCoverProfile(f, modulePath)
-}
-
 func sortedFileKeys(m map[string]map[int]struct{}) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -198,14 +166,4 @@ func sortedFileKeys(m map[string]map[int]struct{}) []string {
 	}
 	slices.Sort(keys)
 	return keys
-}
-
-func appendFile(path string, data []byte) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.Write(data)
-	return err
 }

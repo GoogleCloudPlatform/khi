@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package gotestutil
 
 import (
 	"bufio"
@@ -31,11 +31,17 @@ import (
 
 var hunkHeaderRegex = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@`)
 
+// FilterOptions controls which Go source files are included in analysis.
+type FilterOptions struct {
+	IncludeScripts bool
+}
+
 // DiffOptions configures how VCS changes are collected.
 type DiffOptions struct {
 	VCS    string
 	Base   string
 	Target string
+	Filter FilterOptions
 }
 
 // DiffResult holds the resolved VCS metadata and changed 1-based line numbers per file.
@@ -45,8 +51,13 @@ type DiffResult struct {
 	ChangedLines map[string]map[int]struct{}
 }
 
-// IsTargetProductionGoFile reports whether relPath is a production Go source file eligible for coverage measurement.
+// IsTargetProductionGoFile reports whether relPath is a production Go source file eligible for default analysis.
 func IsTargetProductionGoFile(relPath string) bool {
+	return IsTargetGoFile(relPath, FilterOptions{})
+}
+
+// IsTargetGoFile reports whether relPath is a Go source file matching opts.
+func IsTargetGoFile(relPath string, opts FilterOptions) bool {
 	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
 	if clean == "" || !strings.HasSuffix(clean, ".go") || strings.HasSuffix(clean, "_test.go") {
 		return false
@@ -54,8 +65,10 @@ func IsTargetProductionGoFile(relPath string) bool {
 	excludedPrefixes := []string{
 		"pkg/generated/",
 		"pkg/testutil/",
-		"scripts/",
 		"web/",
+	}
+	if !opts.IncludeScripts {
+		excludedPrefixes = append(excludedPrefixes, "scripts/")
 	}
 	for _, prefix := range excludedPrefixes {
 		if strings.HasPrefix(clean, prefix) {
@@ -68,6 +81,11 @@ func IsTargetProductionGoFile(relPath string) bool {
 
 // ParseUnifiedDiff extracts added and modified 1-based line numbers per production Go file from a unified diff stream.
 func ParseUnifiedDiff(r io.Reader) (map[string]map[int]struct{}, error) {
+	return ParseUnifiedDiffWithFilter(r, FilterOptions{})
+}
+
+// ParseUnifiedDiffWithFilter extracts added and modified 1-based line numbers per Go file matching filter.
+func ParseUnifiedDiffWithFilter(r io.Reader, filter FilterOptions) (map[string]map[int]struct{}, error) {
 	result := make(map[string]map[int]struct{})
 	scanner := bufio.NewScanner(r)
 	// Allow up to 16 MiB per line so diffs containing large generated JSON/lockfiles never fail scanning.
@@ -93,7 +111,7 @@ func ParseUnifiedDiff(r io.Reader) (map[string]map[int]struct{}, error) {
 				continue
 			}
 			rawPath = strings.TrimPrefix(rawPath, "b/")
-			if IsTargetProductionGoFile(rawPath) {
+			if IsTargetGoFile(rawPath, filter) {
 				currentFile = strings.TrimPrefix(filepath.ToSlash(rawPath), "./")
 			} else {
 				currentFile = ""
@@ -138,7 +156,7 @@ func ParseUnifiedDiff(r io.Reader) (map[string]map[int]struct{}, error) {
 	return result, nil
 }
 
-// CollectChangedLines executes VCS diff in repoRoot and returns changed line numbers for production Go files.
+// CollectChangedLines executes VCS diff in repoRoot and returns changed line numbers for matching Go files.
 func CollectChangedLines(ctx context.Context, repoRoot string, opts DiffOptions) (DiffResult, error) {
 	vcs, err := resolveVCS(ctx, repoRoot, opts.VCS)
 	if err != nil {
@@ -191,14 +209,13 @@ func collectJJDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Diff
 	fromRevset := fmt.Sprintf("fork_point((%s) | (%s))", target, base)
 	diffBytes, err := runCommandOutput(ctx, repoRoot, "jj", "diff", "--git", "--context=0", "--from", fromRevset, "--to", target)
 	if err != nil {
-		// Fall back to direct --from when fork_point cannot resolve (e.g., disjoint histories).
 		diffBytes, err = runCommandOutput(ctx, repoRoot, "jj", "diff", "--git", "--context=0", "--from", base, "--to", target)
 		if err != nil {
 			return DiffResult{}, fmt.Errorf("failed to run jj diff (base=%s, target=%s): %w", base, target, err)
 		}
 	}
 
-	changed, err := ParseUnifiedDiff(bytes.NewReader(diffBytes))
+	changed, err := ParseUnifiedDiffWithFilter(bytes.NewReader(diffBytes), opts.Filter)
 	if err != nil {
 		return DiffResult{}, err
 	}
@@ -237,7 +254,7 @@ func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Dif
 		return DiffResult{}, fmt.Errorf("failed to run git %s: %w", strings.Join(args, " "), err)
 	}
 
-	changed, err := ParseUnifiedDiff(bytes.NewReader(diffBytes))
+	changed, err := ParseUnifiedDiffWithFilter(bytes.NewReader(diffBytes), opts.Filter)
 	if err != nil {
 		return DiffResult{}, err
 	}
