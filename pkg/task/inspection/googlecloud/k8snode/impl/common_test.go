@@ -322,6 +322,26 @@ func TestProcessK8sNodeLog(t *testing.T) {
 					HasSeverity(inspectioncore.SeverityInfo)
 			},
 		},
+		{
+			desc:         "containerd log of the cilium-cni plugin whose pod sandbox id resolves to a pod in another namespace",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=warn msg="Errors encountered while deleting endpoint" subsys=cilium-cni containerID=6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1 interface=eth0 k8sNamespace=kube-system k8sPodName=test-pod error="[DELETE /endpoint][404] deleteEndpointNotFound"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			inputPodIDInfo: map[string]*k8snode.PodSandboxIDInfo{
+				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
+					PodName:      "test-pod",
+					PodNamespace: "default",
+					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
+				},
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`[cilium-cni] Errors encountered while deleting endpoint(error=[DELETE /endpoint][404] deleteEndpointNotFound) 【test-pod (Namespace: kube-system)】 【test-pod (Namespace: default)】`).
+					HasSeverity(inspectioncore.SeverityWarning)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

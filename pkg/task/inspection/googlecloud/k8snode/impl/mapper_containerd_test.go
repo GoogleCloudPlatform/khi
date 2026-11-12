@@ -520,6 +520,22 @@ func TestContainerdLogTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEventCount(2)
 			},
 		},
+		{
+			desc:         "cilium-cni log without pod fields adds only the component event",
+			inputMessage: `time=2026-01-01T00:00:00.000000000Z level=info msg="Fast start health check grace period active." subsys=cilium-cni containerID="" netNSName="" interface="" args="" k8sNamespace="" k8sPodName=""`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEventCount(1)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

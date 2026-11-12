@@ -277,6 +277,11 @@ func TestFindCiliumCNIPodReference(t *testing.T) {
 			want:    podReference{},
 		},
 		{
+			desc:    "cilium-cni log with the pod name but without the namespace",
+			message: logfmtParser.TryParse(`level=info msg="Releasing IP" subsys=cilium-cni k8sNamespace="" k8sPodName=test-pod`),
+			want:    podReference{},
+		},
+		{
 			desc:    "containerd log without the subsystem",
 			message: logfmtParser.TryParse(`level=info msg="starting containerd"`),
 			want:    podReference{},
