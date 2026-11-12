@@ -76,6 +76,28 @@ func (o MutantOperator) IsValid() bool {
 	}
 }
 
+// Label returns a human-readable summary of what the mutation operator changes.
+func (o MutantOperator) Label() string {
+	switch o {
+	case OperatorROR:
+		return "boundary/comparison"
+	case OperatorLCR:
+		return "logical &&/||"
+	case OperatorBCR:
+		return "branch forced true/false"
+	case OperatorAOR:
+		return "arithmetic/concat"
+	case OperatorUOI:
+		return "negation/sign"
+	case OperatorBLR:
+		return "return bool flipped"
+	case OperatorSBR:
+		return "statement skipped"
+	default:
+		return string(o)
+	}
+}
+
 // Mutant describes a single candidate logic change on a modified Go line.
 type Mutant struct {
 	// ID is the 1-based package-scoped identifier assigned to executable mutants (0 when suppressed/uncovered pre-compile).

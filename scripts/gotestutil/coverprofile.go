@@ -81,7 +81,7 @@ func ReadModulePath(goModPath string) (string, error) {
 }
 
 // LoadCoverProfileIfPresent reads and parses profilePath, returning an empty map if the file does not exist.
-func LoadCoverProfileIfPresent(profilePath string, modulePath string, filter FilterOptions) (map[string][]CoverBlock, error) {
+func LoadCoverProfileIfPresent(profilePath string, modulePath string) (map[string][]CoverBlock, error) {
 	f, err := os.Open(profilePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -91,7 +91,7 @@ func LoadCoverProfileIfPresent(profilePath string, modulePath string, filter Fil
 	}
 	defer f.Close()
 
-	return ParseCoverProfileWithFilter(f, modulePath, filter)
+	return ParseCoverProfile(f, modulePath)
 }
 
 type blockKey struct {
@@ -103,13 +103,8 @@ type blockKey struct {
 	numStmt   int
 }
 
-// ParseCoverProfile parses a Go coverprofile stream for default production Go files.
+// ParseCoverProfile parses a Go coverprofile stream, merging duplicate block entries for eligible production Go files.
 func ParseCoverProfile(r io.Reader, modulePath string) (map[string][]CoverBlock, error) {
-	return ParseCoverProfileWithFilter(r, modulePath, FilterOptions{})
-}
-
-// ParseCoverProfileWithFilter parses a Go coverprofile stream, merging duplicate block entries and filtering files by filter.
-func ParseCoverProfileWithFilter(r io.Reader, modulePath string, filter FilterOptions) (map[string][]CoverBlock, error) {
 	merged := make(map[blockKey]int)
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
@@ -136,7 +131,7 @@ func ParseCoverProfileWithFilter(r io.Reader, modulePath string, filter FilterOp
 		} else {
 			relFile = strings.TrimPrefix(filepath.ToSlash(rawFile), "./")
 		}
-		if !IsTargetGoFile(relFile, filter) {
+		if !IsTargetGoFile(relFile) {
 			continue
 		}
 

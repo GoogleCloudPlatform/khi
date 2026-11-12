@@ -16,6 +16,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
@@ -146,5 +147,73 @@ func Process(v int) (string, error) {
 				t.Errorf("AnalyzeCoverage() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestPlanCoverageExecution(t *testing.T) {
+	tmpRepo := t.TempDir()
+	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "pkg", "common", "set", "set.go"))
+	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "pkg", "task", "inspection", "sample", "extractor.go"))
+	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "pkg", "task", "inspection", "sample", "impl", "mapper.go"))
+	mustCreateDummyGoFile(t, filepath.Join(tmpRepo, "scripts", "mutation-diff", "runner.go"))
+
+	testCases := []struct {
+		name         string
+		changedFiles []string
+		full         bool
+		want         CoverageTestPlan
+	}{
+		{
+			name:         "no changed files skips execution in targeted mode",
+			changedFiles: nil,
+			full:         false,
+			want: CoverageTestPlan{
+				Skip: true,
+			},
+		},
+		{
+			name:         "full mode runs entire repository regardless of changed files",
+			changedFiles: nil,
+			full:         true,
+			want: CoverageTestPlan{
+				Packages: []string{"./..."},
+			},
+		},
+		{
+			name: "targeted mode runs packages containing changed production files including scripts",
+			changedFiles: []string{
+				"pkg/common/set/set.go",
+				"pkg/task/inspection/sample/extractor.go",
+				"pkg/generated/ignored.go",
+				"scripts/mutation-diff/runner.go",
+			},
+			full: false,
+			want: CoverageTestPlan{
+				Packages: []string{
+					"./pkg/common/set",
+					"./pkg/task/inspection/sample",
+					"./scripts/mutation-diff",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PlanCoverageExecution(tmpRepo, tc.changedFiles, tc.full)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("PlanCoverageExecution() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func mustCreateDummyGoFile(t *testing.T, fullPath string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		t.Fatalf("failed to create directory: %v", err)
+	}
+	if err := os.WriteFile(fullPath, []byte("package dummy\n"), 0o644); err != nil {
+		t.Fatalf("failed to write dummy file: %v", err)
 	}
 }

@@ -17,26 +17,23 @@ package main
 import (
 	"cmp"
 	"fmt"
-	"io"
 	"slices"
+	"sort"
+	"strconv"
 	"strings"
-	"text/tabwriter"
-
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
-const maxGitHubMutantDiffs = 25
-
-// FileMutationSummary holds aggregated mutation counts for a single modified Go file.
+// FileMutationSummary holds aggregated coverage and mutation counts for a single modified Go file.
 type FileMutationSummary struct {
-	File       string
-	Killed     int
-	TimedOut   int
-	Survived   int
-	Uncovered  int
-	Suppressed int
-	Skipped    int
-	Mutants    []*Mutant
+	File         string
+	Killed       int
+	TimedOut     int
+	Survived     int
+	Uncovered    int
+	Suppressed   int
+	Skipped      int
+	Mutants      []*Mutant
+	LineCoverage *FileCoverageReport
 }
 
 // EffectiveKilled returns the total count of killed and timed-out mutants.
@@ -58,12 +55,68 @@ func (f *FileMutationSummary) ScorePercent() float64 {
 	return 100.0 * float64(f.EffectiveKilled()) / float64(tested)
 }
 
-// HasCandidates reports whether the file has any non-compile-skipped mutants.
+// HasCandidates reports whether the file has any changed executable lines or non-compile-skipped mutants.
 func (f *FileMutationSummary) HasCandidates() bool {
+	if f.LineCoverage != nil && f.LineCoverage.ChangedExecutableLines > 0 {
+		return true
+	}
 	return f.Tested() > 0 || f.Uncovered > 0 || f.Suppressed > 0 || f.Skipped > 0
 }
 
-// MutationReport holds the complete results of a differential mutation testing run.
+// UncoveredLineRanges returns compact 1-based line ranges (e.g. "42-44, 58" or "-") combining line coverage and uncovered mutants.
+func (f *FileMutationSummary) UncoveredLineRanges() string {
+	seen := make(map[int]struct{})
+	var lines []int
+	if f.LineCoverage != nil {
+		for _, rg := range f.LineCoverage.UncoveredRanges {
+			for ln := rg.StartLine; ln <= rg.EndLine; ln++ {
+				if _, ok := seen[ln]; !ok {
+					seen[ln] = struct{}{}
+					lines = append(lines, ln)
+				}
+			}
+		}
+	}
+	for _, m := range f.Mutants {
+		if m.Status == MutantUncovered && m.Line > 0 {
+			if _, ok := seen[m.Line]; !ok {
+				seen[m.Line] = struct{}{}
+				lines = append(lines, m.Line)
+			}
+		}
+	}
+	slices.Sort(lines)
+	return collapseIntRanges(lines)
+}
+
+func collapseIntRanges(sortedLines []int) string {
+	if len(sortedLines) == 0 {
+		return "-"
+	}
+	var parts []string
+	start := sortedLines[0]
+	end := sortedLines[0]
+	for _, ln := range sortedLines[1:] {
+		if ln == end+1 {
+			end = ln
+			continue
+		}
+		parts = append(parts, formatLineSpan(start, end))
+		start = ln
+		end = ln
+	}
+	parts = append(parts, formatLineSpan(start, end))
+	return strings.Join(parts, ", ")
+}
+
+func formatLineSpan(start int, end int) string {
+	if start == end {
+		return strconv.Itoa(start)
+	}
+	return fmt.Sprintf("%d-%d", start, end)
+}
+
+// MutationReport holds the complete unified results of differential coverage, mutation testing, and redundant test detection.
 type MutationReport struct {
 	BaseLabel            string
 	TotalKilled          int
@@ -76,6 +129,7 @@ type MutationReport struct {
 	Files                []FileMutationSummary
 	Warnings             []DirectiveWarning
 	RedundantTests       []RedundantTestFinding
+	Coverage             *CoverageReport
 }
 
 // EffectiveKilled returns the total count of killed and timed-out mutants across all files.
@@ -97,8 +151,11 @@ func (r *MutationReport) ScorePercent() float64 {
 	return 100.0 * float64(r.EffectiveKilled()) / float64(tested)
 }
 
-// HasCandidates reports whether any mutant candidates or suppressions were found in the diff.
+// HasCandidates reports whether any changed executable Go lines, mutant candidates, or suppressions were found.
 func (r *MutationReport) HasCandidates() bool {
+	if r.Coverage != nil && r.Coverage.PatchExecutableLines > 0 {
+		return true
+	}
 	return len(r.Files) > 0
 }
 
@@ -175,231 +232,136 @@ func BuildMutationReport(
 	return report
 }
 
-// RenderTextReport writes a terminal-friendly differential mutation report to w.
-func RenderTextReport(w io.Writer, report *MutationReport) {
-	if !report.HasCandidates() && len(report.Warnings) == 0 {
-		fmt.Fprintf(w, "Go Differential Mutation Score (base: %s): no mutable Go production expressions changed.\n", report.BaseLabel)
+// AttachLineCoverage merges differential line coverage metrics (including 0-mutant Go files) into report.
+func AttachLineCoverage(report *MutationReport, cov *CoverageReport) {
+	if report == nil || cov == nil {
 		return
 	}
+	report.Coverage = cov
 
-	suppressedLabel := formatSuppressedSummary(report.TotalSuppressed, report.SuppressedByCategory)
-	if report.Tested() == 0 {
-		fmt.Fprintf(w, "Go Differential Mutation Score (base: %s): n/a (0 tested, %d uncovered, %s)\n",
-			report.BaseLabel, report.TotalUncovered, suppressedLabel)
-	} else {
-		fmt.Fprintf(w, "Go Differential Mutation Score (base: %s): %.1f%% (%d killed / %d tested, %d uncovered, %s)\n",
-			report.BaseLabel, report.ScorePercent(), report.EffectiveKilled(), report.Tested(), report.TotalUncovered, suppressedLabel)
+	idxByFile := make(map[string]int, len(report.Files))
+	for i := range report.Files {
+		idxByFile[report.Files[i].File] = i
 	}
 
-	if len(report.Files) > 0 {
-		fmt.Fprintln(w)
-		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(tw, "FILE\tSCORE\tKILLED\tSURVIVED\tUNCOVERED\tSUPPRESSED")
-		for i := range report.Files {
-			f := &report.Files[i]
-			scoreStr := "n/a"
-			if f.Tested() > 0 {
-				scoreStr = fmt.Sprintf("%.1f%% (%d/%d)", f.ScorePercent(), f.EffectiveKilled(), f.Tested())
-			}
-			fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\n",
-				f.File, scoreStr, f.EffectiveKilled(), f.Survived, f.Uncovered, f.Suppressed)
+	addedNew := false
+	for i := range cov.Files {
+		fc := &cov.Files[i]
+		if existingIdx, ok := idxByFile[fc.File]; ok {
+			report.Files[existingIdx].LineCoverage = fc
+			continue
 		}
-		_ = tw.Flush()
+		report.Files = append(report.Files, FileMutationSummary{
+			File:         fc.File,
+			LineCoverage: fc,
+		})
+		addedNew = true
 	}
 
-	if len(report.Warnings) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Warnings (invalid NOMUTANTS directives):")
-		for _, warn := range report.Warnings {
-			fmt.Fprintf(w, "  %s:%d: %s\n", warn.File, warn.Line, warn.Message)
-		}
-	}
-
-	surviving := report.SurvivingMutants()
-	if len(surviving) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Surviving mutants (tests passed despite logic change):")
-		for _, m := range surviving {
-			fmt.Fprintf(w, "  [M%d] %s %s:%d\n", m.GlobalIndex, m.Operator, m.File, m.Line)
-			fmt.Fprintf(w, "    - %s\n", m.OriginalLine)
-			fmt.Fprintf(w, "    + %s\n", m.MutatedLine)
-		}
-	}
-
-	if len(report.RedundantTests) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Potentially redundant tests in diff (subsumed branch polarity & mutant kills):")
-		for _, rt := range report.RedundantTests {
-			fmt.Fprintf(w, "  [R%d] %s %s:%d %s\n", rt.GlobalIndex, rt.Kind, rt.File, rt.Line, rt.TestName)
-			fmt.Fprintf(w, "    -> %s\n", formatRedundantReason(rt))
-		}
+	if addedNew {
+		slices.SortFunc(report.Files, func(a, b FileMutationSummary) int {
+			return cmp.Compare(a.File, b.File)
+		})
 	}
 }
 
-// RenderGitHubAnnotations writes GitHub Actions workflow warning commands for surviving mutants and invalid directives.
-func RenderGitHubAnnotations(w io.Writer, report *MutationReport, maxAnnotations int) {
-	if maxAnnotations <= 0 {
-		return
+func redundantKindBadge(kind RedundantTestKind) string {
+	if kind == RedundantWeakAssertion {
+		return "NO OUTPUT CHECK"
 	}
-	emitted := 0
-
-	for _, warn := range report.Warnings {
-		if emitted >= maxAnnotations {
-			return
-		}
-		fmt.Fprintf(w, "::warning file=%s,line=%d,title=%s::%s\n",
-			gotestutil.EscapeAnnotationProperty(warn.File),
-			warn.Line,
-			gotestutil.EscapeAnnotationProperty("Invalid NOMUTANTS Directive"),
-			gotestutil.EscapeAnnotationData(warn.Message),
-		)
-		emitted++
-	}
-
-	for _, m := range report.SurvivingMutants() {
-		if emitted >= maxAnnotations {
-			return
-		}
-		title := fmt.Sprintf("Surviving Mutant in PR Diff (%s)", m.Operator)
-		msg := fmt.Sprintf(
-			"Unit tests still pass when line %d is mutated from '%s' to '%s'. Prefer deleting redundant branches or strengthening existing assertions over adding mock-heavy boilerplate.",
-			m.Line, m.OriginalExpr, m.MutatedExpr,
-		)
-		fmt.Fprintf(w, "::warning file=%s,line=%d,title=%s::%s\n",
-			gotestutil.EscapeAnnotationProperty(m.File),
-			m.Line,
-			gotestutil.EscapeAnnotationProperty(title),
-			gotestutil.EscapeAnnotationData(msg),
-		)
-		emitted++
-	}
-
-	for _, rt := range report.RedundantTests {
-		if emitted >= maxAnnotations {
-			return
-		}
-		title := fmt.Sprintf("Potentially Redundant Test in PR Diff (%s)", rt.Kind)
-		msg := fmt.Sprintf("Test '%s' %s. Remove pure equivalence-class duplicates unless preserving a distinct regression fixture.", rt.TestName, formatRedundantReason(rt))
-		fmt.Fprintf(w, "::warning file=%s,line=%d,title=%s::%s\n",
-			gotestutil.EscapeAnnotationProperty(rt.File),
-			rt.Line,
-			gotestutil.EscapeAnnotationProperty(title),
-			gotestutil.EscapeAnnotationData(msg),
-		)
-		emitted++
-	}
+	return "SAME PATH"
 }
 
-// RenderGitHubSummary writes a GitHub-Flavored Markdown mutation report suitable for GITHUB_STEP_SUMMARY.
-func RenderGitHubSummary(w io.Writer, report *MutationReport) {
-	fmt.Fprintln(w, "## Go Differential Mutation Report")
-	fmt.Fprintln(w)
-
-	if !report.HasCandidates() && len(report.Warnings) == 0 {
-		fmt.Fprintln(w, "No mutable Go production expressions were added or modified in this change.")
-		return
+func trimSharedTopFunc(fullName string, sharedTop string) string {
+	if sharedTop != "" && strings.HasPrefix(fullName, sharedTop+"/") {
+		return strings.TrimPrefix(fullName, sharedTop+"/")
 	}
-
-	suppressedLabel := formatSuppressedSummary(report.TotalSuppressed, report.SuppressedByCategory)
-	if report.Tested() == 0 {
-		fmt.Fprintf(w, "- **Mutation Score (Changed Lines)**: `n/a` (0 tested, %d uncovered, %s)\n",
-			report.TotalUncovered, suppressedLabel)
-	} else {
-		fmt.Fprintf(w, "- **Mutation Score (Changed Lines)**: **`%.1f%%`** (%d killed / %d tested)\n",
-			report.ScorePercent(), report.EffectiveKilled(), report.Tested())
-		fmt.Fprintf(w, "- **Skipped / Filtered**: %d uncovered, %s",
-			report.TotalUncovered, suppressedLabel)
-		if report.TotalSkipped > 0 {
-			fmt.Fprintf(w, ", %d budget-skipped", report.TotalSkipped)
-		}
-		fmt.Fprintln(w)
-	}
-	fmt.Fprintln(w)
-
-	if len(report.Files) > 0 {
-		fmt.Fprintln(w, "| File | Mutation Score | Killed | Survived | Uncovered | Suppressed |")
-		fmt.Fprintln(w, "| :--- | ---: | ---: | ---: | ---: | ---: |")
-		for i := range report.Files {
-			f := &report.Files[i]
-			scoreCell := "`n/a`"
-			if f.Tested() > 0 {
-				scoreCell = fmt.Sprintf("`%.1f%%` (%d/%d)", f.ScorePercent(), f.EffectiveKilled(), f.Tested())
-			}
-			fmt.Fprintf(w, "| `%s` | %s | %d | %d | %d | %d |\n",
-				gotestutil.EscapeMarkdownTable(f.File),
-				scoreCell,
-				f.EffectiveKilled(),
-				f.Survived,
-				f.Uncovered,
-				f.Suppressed,
-			)
-		}
-	}
-
-	if len(report.Warnings) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "### Invalid `NOMUTANTS` Directives")
-		fmt.Fprintln(w)
-		for _, warn := range report.Warnings {
-			fmt.Fprintf(w, "- `%s:%d`: %s\n", warn.File, warn.Line, warn.Message)
-		}
-	}
-
-	surviving := report.SurvivingMutants()
-	if len(surviving) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintf(w, "<details>\n")
-		fmt.Fprintf(w, "<summary>Surviving Mutants (%d)</summary>\n\n", len(surviving))
-
-		limit := min(len(surviving), maxGitHubMutantDiffs)
-		for i := 0; i < limit; i++ {
-			m := surviving[i]
-			fmt.Fprintf(w, "**`[M%d]` `%s` in `%s:%d`**\n\n", m.GlobalIndex, m.Operator, m.File, m.Line)
-			fmt.Fprintln(w, "```diff")
-			fmt.Fprintf(w, "- %s\n", m.OriginalLine)
-			fmt.Fprintf(w, "+ %s\n", m.MutatedLine)
-			fmt.Fprintln(w, "```")
-			fmt.Fprintln(w)
-		}
-		if len(surviving) > limit {
-			fmt.Fprintf(w, "_...and %d additional surviving mutants omitted._\n\n", len(surviving)-limit)
-		}
-		fmt.Fprintln(w, "</details>")
-		fmt.Fprintln(w)
-		fmt.Fprint(w, remediationGuideMarkdown)
-	}
-
-	if len(report.RedundantTests) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintf(w, "<details>\n")
-		fmt.Fprintf(w, "<summary>Potentially Redundant Changed Tests (%d)</summary>\n\n", len(report.RedundantTests))
-		fmt.Fprintln(w, "| Test | Location | Kind | Reason |")
-		fmt.Fprintln(w, "| :--- | :--- | :--- | :--- |")
-		for _, rt := range report.RedundantTests {
-			fmt.Fprintf(w, "| `%s` | `%s:%d` | `%s` | %s |\n",
-				gotestutil.EscapeMarkdownTable(rt.TestName),
-				gotestutil.EscapeMarkdownTable(rt.File),
-				rt.Line,
-				rt.Kind,
-				gotestutil.EscapeMarkdownTable(formatRedundantReason(rt)),
-			)
-		}
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "_Note: Keep cases that document distinct domain regressions or input encodings; remove pure equivalence-class duplicates._")
-		fmt.Fprintln(w, "</details>")
-	}
+	return fullName
 }
 
-func formatRedundantReason(rt RedundantTestFinding) string {
+func formatCoveringLocation(candFile string, domFile string, domLine int) string {
+	if domFile != "" && domFile != candFile {
+		if domLine > 0 {
+			return fmt.Sprintf("%s:%d", domFile, domLine)
+		}
+		return domFile
+	}
+	if domLine > 0 {
+		return fmt.Sprintf("line %d", domLine)
+	}
+	return "existing test"
+}
+
+func explainSingleRedundantWhy(rt RedundantTestFinding, covLoc string) string {
 	if rt.Kind == RedundantWeakAssertion {
-		return fmt.Sprintf("executes changed code with 0 mutant kills and only error-nil checks (already covered by %s)", rt.DominatedBy)
+		return fmt.Sprintf("Only checks 'err != nil' without asserting return values or state changes (catches 0 bugs), on a path already tested at %s.", covLoc)
 	}
-	return fmt.Sprintf("exercises identical branch polarities and kills no additional mutants beyond %s (%d shared kill(s))", rt.DominatedBy, rt.SharedKills)
+	if rt.DominatorKills > rt.CandidateKills && rt.DominatorKills > 0 {
+		return fmt.Sprintf("Runs the exact same if/else path, and catches fewer logic bugs (%d vs %d) than %s.", rt.CandidateKills, rt.DominatorKills, covLoc)
+	}
+	return fmt.Sprintf("Runs the exact same code path and checks the exact same %d logic condition(s) as %s (no new branches tested).", rt.CandidateKills, covLoc)
+}
+
+func explainRedundantFix(kind RedundantTestKind, plural bool) string {
+	if kind == RedundantWeakAssertion {
+		if plural {
+			return "Assert returned outputs/state changes or delete these smoke tests."
+		}
+		return "Assert the returned output/state or delete this smoke test."
+	}
+	if plural {
+		return "Delete duplicate cases unless keeping a distinct regression input."
+	}
+	return "Delete this duplicate case unless it documents a distinct regression input."
+}
+
+func collectAllCoverageSpans(cov *CoverageReport) []UncoveredSpan {
+	if cov == nil {
+		return nil
+	}
+	var all []UncoveredSpan
+	for i := range cov.Files {
+		all = append(all, cov.Files[i].UncoveredSpans...)
+	}
+	return all
+}
+
+func sortSpansBySizeDesc(spans []UncoveredSpan) {
+	sort.Slice(spans, func(i, j int) bool {
+		if spans[i].ExecutableLines != spans[j].ExecutableLines {
+			return spans[i].ExecutableLines > spans[j].ExecutableLines
+		}
+		lenI := spans[i].EndLine - spans[i].StartLine + 1
+		lenJ := spans[j].EndLine - spans[j].StartLine + 1
+		if lenI != lenJ {
+			return lenI > lenJ
+		}
+		if spans[i].File != spans[j].File {
+			return spans[i].File < spans[j].File
+		}
+		return spans[i].StartLine < spans[j].StartLine
+	})
 }
 
 func formatSuppressedSummary(total int, byCat map[SuppressionCategory]int) string {
-	if total == 0 || len(byCat) == 0 {
+	cats := formatSuppressedCategories(byCat)
+	if total == 0 || cats == "" {
+		return strconv.Itoa(total)
+	}
+	return fmt.Sprintf("%d (%s)", total, cats)
+}
+
+func formatSuppressedPhrase(total int, byCat map[SuppressionCategory]int) string {
+	cats := formatSuppressedCategories(byCat)
+	if total == 0 || cats == "" {
 		return fmt.Sprintf("%d suppressed", total)
+	}
+	return fmt.Sprintf("%d suppressed (%s)", total, cats)
+}
+
+func formatSuppressedCategories(byCat map[SuppressionCategory]int) string {
+	if len(byCat) == 0 {
+		return ""
 	}
 	var parts []string
 	for _, cat := range AllSuppressionCategories {
@@ -407,16 +369,5 @@ func formatSuppressedSummary(total int, byCat map[SuppressionCategory]int) strin
 			parts = append(parts, fmt.Sprintf("%s: %d", cat, n))
 		}
 	}
-	if len(parts) == 0 {
-		return fmt.Sprintf("%d suppressed", total)
-	}
-	return fmt.Sprintf("%d suppressed (%s)", total, strings.Join(parts, ", "))
+	return strings.Join(parts, ", ")
 }
-
-const remediationGuideMarkdown = `> [!TIP]
-> **How to Triage Surviving Mutants (Without Test Bloat)**
-> 1. **Delete redundant code first**: If flipping or skipping a branch cannot alter observable behavior because an invariant already holds, simplify or delete the production branch. Invariant or unreachable guards must **not** be suppressed with ` + "`NOMUTANTS`" + `.
-> 2. **Strengthen existing assertions**: Assert full output structs with ` + "`cmp.Diff`" + ` or add one boundary row to an existing table test rather than introducing mock-heavy tests.
-> 3. **Suppress categorized equivalent mutants**: For genuine cases (` + "`equivalent`, `perf`, `observability`, `external`" + `), add ` + "`// NOMUTANTS(<category>): <reason>`" + ` above or on the line.
-> 4. **Add a focused unit test**: Only when substantive domain behavior is genuinely unverified.
-`

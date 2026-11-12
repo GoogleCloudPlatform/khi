@@ -15,278 +15,53 @@
 package main
 
 import (
-	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestRenderTextReportEmpty(t *testing.T) {
-	report := BuildMutationReport("trunk()", nil, nil, nil)
-	var buf bytes.Buffer
-	RenderTextReport(&buf, report)
-
-	want := "Go Differential Mutation Score (base: trunk()): no mutable Go production expressions changed.\n"
-	if buf.String() != want {
-		t.Errorf("RenderTextReport() = %q, want %q", buf.String(), want)
-	}
-}
-
-func TestRenderTextReportWithSurvivingAndWarnings(t *testing.T) {
+func TestAttachLineCoverageAndUncoveredRanges(t *testing.T) {
 	plans := []*FilePlan{
 		{
-			File: "pkg/scene/palette.go",
+			File: "pkg/b/logic.go",
 			Mutants: []*Mutant{
-				{
-					GlobalIndex:  1,
-					File:         "pkg/scene/palette.go",
-					Line:         40,
-					Operator:     OperatorROR,
-					OriginalExpr: "idx < maxColors",
-					MutatedExpr:  "idx <= maxColors",
-					OriginalLine: "if idx < maxColors {",
-					MutatedLine:  "if idx <= maxColors {",
-					Status:       MutantSurvived,
-				},
-				{
-					GlobalIndex:  2,
-					File:         "pkg/scene/palette.go",
-					Line:         40,
-					Operator:     OperatorROR,
-					OriginalExpr: "idx < maxColors",
-					MutatedExpr:  "idx >= maxColors",
-					OriginalLine: "if idx < maxColors {",
-					MutatedLine:  "if idx >= maxColors {",
-					Status:       MutantKilled,
-				},
-				{
-					GlobalIndex:  3,
-					File:         "pkg/scene/palette.go",
-					Line:         42,
-					Operator:     OperatorAOR,
-					OriginalExpr: "n + 1",
-					MutatedExpr:  "n",
-					OriginalLine: "return n + 1",
-					MutatedLine:  "return n",
-					Status:       MutantKilled,
-				},
-				{
-					GlobalIndex:  4,
-					File:         "pkg/scene/palette.go",
-					Line:         43,
-					Operator:     OperatorAOR,
-					OriginalExpr: "n - 1",
-					MutatedExpr:  "n + 1",
-					OriginalLine: "return n - 1",
-					MutatedLine:  "return n + 1",
-					Status:       MutantKilled,
-				},
-				{
-					GlobalIndex:  5,
-					File:         "pkg/scene/palette.go",
-					Line:         44,
-					Operator:     OperatorAOR,
-					OriginalExpr: "n * 2",
-					MutatedExpr:  "n / 2",
-					Status:       MutantUncovered,
-				},
-				{
-					GlobalIndex:         6,
-					File:                "pkg/scene/palette.go",
-					Line:                45,
-					Operator:            OperatorSBR,
-					OriginalExpr:        "count++",
-					MutatedExpr:         "/* skipped count++ */",
-					SuppressionCategory: SuppressionObservability,
-					Status:              MutantSuppressed,
-				},
+				{Line: 10, Status: MutantKilled},
+				{Line: 14, Status: MutantUncovered},
 			},
 		},
 	}
-	warnings := []DirectiveWarning{
-		{
-			File:    "pkg/scene/palette.go",
-			Line:    50,
-			Message: "// NOMUTANTS requires a category and reason: // NOMUTANTS(<category>): <reason> (allowed categories: equivalent, perf, observability, external)",
-		},
-	}
-
-	redundant := []RedundantTestFinding{
-		{
-			GlobalIndex: 1,
-			Kind:        RedundantDuplicate,
-			File:        "pkg/scene/palette_test.go",
-			Line:        28,
-			TestName:    "TestPalette/extra_negative",
-			DominatedBy: "TestPalette/negative",
-			SharedKills: 2,
-		},
-	}
-
-	report := BuildMutationReport("trunk()", plans, warnings, redundant)
-	var buf bytes.Buffer
-	RenderTextReport(&buf, report)
-
-	want := `Go Differential Mutation Score (base: trunk()): 75.0% (3 killed / 4 tested, 1 uncovered, 1 suppressed (observability: 1))
-
-FILE                  SCORE        KILLED  SURVIVED  UNCOVERED  SUPPRESSED
-pkg/scene/palette.go  75.0% (3/4)  3       1         1          1
-
-Warnings (invalid NOMUTANTS directives):
-  pkg/scene/palette.go:50: // NOMUTANTS requires a category and reason: // NOMUTANTS(<category>): <reason> (allowed categories: equivalent, perf, observability, external)
-
-Surviving mutants (tests passed despite logic change):
-  [M1] ROR pkg/scene/palette.go:40
-    - if idx < maxColors {
-    + if idx <= maxColors {
-
-Potentially redundant tests in diff (subsumed branch polarity & mutant kills):
-  [R1] DUPLICATE pkg/scene/palette_test.go:28 TestPalette/extra_negative
-    -> exercises identical branch polarities and kills no additional mutants beyond TestPalette/negative (2 shared kill(s))
-`
-	if diff := cmp.Diff(want, buf.String()); diff != "" {
-		t.Errorf("RenderTextReport() mismatch (-want +got):\n%s", diff)
-	}
-}
-
-func TestRenderGitHubAnnotationsAndSummary(t *testing.T) {
-	plans := []*FilePlan{
-		{
-			File: "pkg/a/logic.go",
-			Mutants: []*Mutant{
-				{
-					GlobalIndex:  1,
-					File:         "pkg/a/logic.go",
-					Line:         12,
-					Operator:     OperatorROR,
-					OriginalExpr: "x < 5",
-					MutatedExpr:  "x <= 5",
-					OriginalLine: "if x < 5 {",
-					MutatedLine:  "if x <= 5 {",
-					Status:       MutantSurvived,
-				},
-				{
-					GlobalIndex:  2,
-					File:         "pkg/a/logic.go",
-					Line:         15,
-					Operator:     OperatorROR,
-					OriginalExpr: "x > 10",
-					MutatedExpr:  "x >= 10",
-					OriginalLine: "if x > 10 {",
-					MutatedLine:  "if x >= 10 {",
-					Status:       MutantSurvived,
-				},
-				{
-					GlobalIndex:  3,
-					File:         "pkg/a/logic.go",
-					Line:         18,
-					Operator:     OperatorSBR,
-					OriginalExpr: "s.ready = true",
-					MutatedExpr:  "/* skipped assignment */",
-					OriginalLine: "s.ready = true",
-					MutatedLine:  "/* skipped: s.ready = true */",
-					Status:       MutantTimedOut,
-				},
-				{
-					GlobalIndex:  4,
-					File:         "pkg/a/logic.go",
-					Line:         20,
-					Operator:     OperatorAOR,
-					OriginalExpr: "x + 1",
-					MutatedExpr:  "x",
-					Status:       MutantKilled,
-				},
-				{
-					GlobalIndex:  5,
-					File:         "pkg/a/logic.go",
-					Line:         22,
-					Operator:     OperatorAOR,
-					OriginalExpr: "x - 1",
-					MutatedExpr:  "x + 1",
-					Status:       MutantKilled,
-				},
-				{
-					GlobalIndex:  6,
-					File:         "pkg/a/logic.go",
-					Line:         25,
-					Operator:     OperatorAOR,
-					OriginalExpr: "x * 2",
-					MutatedExpr:  "x / 2",
-					Status:       MutantSkippedBudget,
-				},
+	report := BuildMutationReport("trunk()", plans, nil, nil)
+	AttachLineCoverage(report, &CoverageReport{
+		BaseLabel:            "trunk()",
+		PatchExecutableLines: 5,
+		PatchCoveredLines:    3,
+		Files: []FileCoverageReport{
+			{
+				File:                   "pkg/a/wiring.go",
+				ChangedExecutableLines: 2,
+				ChangedCoveredLines:    1,
+				UncoveredRanges:        []LineRange{{StartLine: 8, EndLine: 8}},
+			},
+			{
+				File:                   "pkg/b/logic.go",
+				ChangedExecutableLines: 3,
+				ChangedCoveredLines:    2,
+				UncoveredRanges:        []LineRange{{StartLine: 15, EndLine: 16}},
 			},
 		},
-	}
+	})
 
-	redundant := []RedundantTestFinding{
-		{
-			GlobalIndex: 1,
-			Kind:        RedundantWeakAssertion,
-			File:        "pkg/a/logic_test.go",
-			Line:        42,
-			TestName:    "TestLogicSmoke",
-			DominatedBy: "TestLogic",
-		},
+	if len(report.Files) != 2 {
+		t.Fatalf("len(report.Files) = %d, want 2", len(report.Files))
 	}
-
-	report := BuildMutationReport("HEAD^1", plans, nil, redundant)
-
-	var annBuf bytes.Buffer
-	RenderGitHubAnnotations(&annBuf, report, 1)
-	gotAnn := strings.TrimSpace(annBuf.String())
-	if strings.Count(gotAnn, "::warning ") != 1 || !strings.Contains(gotAnn, "line=12") {
-		t.Errorf("expected exactly 1 capped GitHub annotation on line 12, got: %q", gotAnn)
+	if report.Files[0].File != "pkg/a/wiring.go" {
+		t.Errorf("Files[0].File = %q, want pkg/a/wiring.go", report.Files[0].File)
 	}
-
-	var allAnnBuf bytes.Buffer
-	RenderGitHubAnnotations(&allAnnBuf, report, 10)
-	if !strings.Contains(allAnnBuf.String(), "Potentially Redundant Test in PR Diff (WEAK_TEST)") {
-		t.Errorf("expected redundant test annotation in uncapped output, got: %q", allAnnBuf.String())
+	if got := report.Files[0].UncoveredLineRanges(); got != "8" {
+		t.Errorf("Files[0].UncoveredLineRanges() = %q, want %q", got, "8")
 	}
-
-	var zeroAnnBuf bytes.Buffer
-	RenderGitHubAnnotations(&zeroAnnBuf, report, 0)
-	if zeroAnnBuf.Len() != 0 {
-		t.Errorf("expected empty output when maxAnnotations=0, got: %q", zeroAnnBuf.String())
-	}
-
-	noSurvivingOrRedundant := BuildMutationReport("HEAD^1", []*FilePlan{{
-		File: "pkg/a/logic.go",
-		Mutants: []*Mutant{{
-			GlobalIndex: 1,
-			File:        "pkg/a/logic.go",
-			Line:        20,
-			Operator:    OperatorAOR,
-			Status:      MutantKilled,
-		}},
-	}}, nil, nil)
-	var cleanTextBuf, cleanSumBuf bytes.Buffer
-	RenderTextReport(&cleanTextBuf, noSurvivingOrRedundant)
-	RenderGitHubSummary(&cleanSumBuf, noSurvivingOrRedundant)
-	if strings.Contains(cleanTextBuf.String(), "Surviving mutants") || strings.Contains(cleanTextBuf.String(), "Potentially redundant") {
-		t.Errorf("unexpected failure sections in clean text report:\n%s", cleanTextBuf.String())
-	}
-	if strings.Contains(cleanSumBuf.String(), "Surviving Mutants") || strings.Contains(cleanSumBuf.String(), "Potentially Redundant") {
-		t.Errorf("unexpected failure sections in clean GitHub summary:\n%s", cleanSumBuf.String())
-	}
-
-	var sumBuf bytes.Buffer
-	RenderGitHubSummary(&sumBuf, report)
-	gotSum := sumBuf.String()
-	for _, snippet := range []string{
-		"## Go Differential Mutation Report",
-		"**`60.0%`** (3 killed / 5 tested)",
-		"1 budget-skipped",
-		"| `pkg/a/logic.go` | `60.0%` (3/5) | 3 | 2 | 0 | 0 |",
-		"- if x < 5 {",
-		"+ if x <= 5 {",
-		"How to Triage Surviving Mutants (Without Test Bloat)",
-		"Potentially Redundant Changed Tests (1)",
-		"| `TestLogicSmoke` | `pkg/a/logic_test.go:42` | `WEAK_TEST` |",
-	} {
-		if !strings.Contains(gotSum, snippet) {
-			t.Errorf("RenderGitHubSummary() missing expected snippet %q in:\n%s", snippet, gotSum)
-		}
+	// Line 14 from MutantUncovered merges with lines 15-16 from LineCoverage into "14-16".
+	if diff := cmp.Diff("14-16", report.Files[1].UncoveredLineRanges()); diff != "" {
+		t.Errorf("Files[1].UncoveredLineRanges() mismatch (-want +got):\n%s", diff)
 	}
 }

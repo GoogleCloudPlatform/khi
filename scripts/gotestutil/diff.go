@@ -31,17 +31,11 @@ import (
 
 var hunkHeaderRegex = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@`)
 
-// FilterOptions controls which Go source files are included in analysis.
-type FilterOptions struct {
-	IncludeScripts bool
-}
-
 // DiffOptions configures how VCS changes are collected.
 type DiffOptions struct {
 	VCS    string
 	Base   string
 	Target string
-	Filter FilterOptions
 }
 
 // DiffResult holds the resolved VCS metadata and changed 1-based line numbers per production and test Go file.
@@ -52,37 +46,29 @@ type DiffResult struct {
 	ChangedTestLines map[string]map[int]struct{}
 }
 
-// IsTargetProductionGoFile reports whether relPath is a production Go source file eligible for default analysis.
-func IsTargetProductionGoFile(relPath string) bool {
-	return IsTargetGoFile(relPath, FilterOptions{})
-}
-
-// IsTargetGoFile reports whether relPath is a non-test Go source file matching opts.
-func IsTargetGoFile(relPath string, opts FilterOptions) bool {
+// IsTargetGoFile reports whether relPath is a non-test Go source file eligible for coverage and mutation analysis.
+func IsTargetGoFile(relPath string) bool {
 	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
 	if clean == "" || !strings.HasSuffix(clean, ".go") || strings.HasSuffix(clean, "_test.go") {
 		return false
 	}
-	return isAllowedGoPath(clean, opts)
+	return isAllowedGoPath(clean)
 }
 
-// IsTargetGoTestFile reports whether relPath is a Go unit test (*_test.go) file matching opts.
-func IsTargetGoTestFile(relPath string, opts FilterOptions) bool {
+// IsTargetGoTestFile reports whether relPath is a Go unit test (*_test.go) file eligible for analysis.
+func IsTargetGoTestFile(relPath string) bool {
 	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
 	if !strings.HasSuffix(clean, "_test.go") {
 		return false
 	}
-	return isAllowedGoPath(clean, opts)
+	return isAllowedGoPath(clean)
 }
 
-func isAllowedGoPath(clean string, opts FilterOptions) bool {
+func isAllowedGoPath(clean string) bool {
 	excludedPrefixes := []string{
 		"pkg/generated/",
 		"pkg/testutil/",
 		"web/",
-	}
-	if !opts.IncludeScripts {
-		excludedPrefixes = append(excludedPrefixes, "scripts/")
 	}
 	for _, prefix := range excludedPrefixes {
 		if strings.HasPrefix(clean, prefix) {
@@ -95,17 +81,12 @@ func isAllowedGoPath(clean string, opts FilterOptions) bool {
 
 // ParseUnifiedDiff extracts added and modified 1-based line numbers per production Go file from a unified diff stream.
 func ParseUnifiedDiff(r io.Reader) (map[string]map[int]struct{}, error) {
-	return ParseUnifiedDiffWithFilter(r, FilterOptions{})
-}
-
-// ParseUnifiedDiffWithFilter extracts added and modified 1-based line numbers per production Go file matching filter.
-func ParseUnifiedDiffWithFilter(r io.Reader, filter FilterOptions) (map[string]map[int]struct{}, error) {
-	prod, _, err := ParseUnifiedDiffSplit(r, filter)
+	prod, _, err := ParseUnifiedDiffSplit(r)
 	return prod, err
 }
 
 // ParseUnifiedDiffSplit extracts added and modified 1-based line numbers split into production Go files and *_test.go files.
-func ParseUnifiedDiffSplit(r io.Reader, filter FilterOptions) (map[string]map[int]struct{}, map[string]map[int]struct{}, error) {
+func ParseUnifiedDiffSplit(r io.Reader) (map[string]map[int]struct{}, map[string]map[int]struct{}, error) {
 	prodResult := make(map[string]map[int]struct{})
 	testResult := make(map[string]map[int]struct{})
 	scanner := bufio.NewScanner(r)
@@ -134,10 +115,10 @@ func ParseUnifiedDiffSplit(r io.Reader, filter FilterOptions) (map[string]map[in
 			}
 			rawPath = strings.TrimPrefix(rawPath, "b/")
 			switch {
-			case IsTargetGoFile(rawPath, filter):
+			case IsTargetGoFile(rawPath):
 				currentFile = strings.TrimPrefix(filepath.ToSlash(rawPath), "./")
 				currentIsTest = false
-			case IsTargetGoTestFile(rawPath, filter):
+			case IsTargetGoTestFile(rawPath):
 				currentFile = strings.TrimPrefix(filepath.ToSlash(rawPath), "./")
 				currentIsTest = true
 			default:
@@ -196,12 +177,23 @@ func CollectChangedLines(ctx context.Context, repoRoot string, opts DiffOptions)
 
 	switch vcs {
 	case "jj":
-		return collectJJDiff(ctx, repoRoot, opts)
+		res, jjErr := collectJJDiff(ctx, repoRoot, opts)
+		if jjErr != nil && opts.VCS != "jj" && hasGitRepo(repoRoot) {
+			if gitRes, gitErr := collectGitDiff(ctx, repoRoot, opts); gitErr == nil {
+				return gitRes, nil
+			}
+		}
+		return res, jjErr
 	case "git":
 		return collectGitDiff(ctx, repoRoot, opts)
 	default:
 		return DiffResult{}, fmt.Errorf("unsupported vcs %q", vcs)
 	}
+}
+
+func hasGitRepo(repoRoot string) bool {
+	_, err := os.Stat(filepath.Join(repoRoot, ".git"))
+	return err == nil
 }
 
 func resolveVCS(ctx context.Context, repoRoot string, requested string) (string, error) {
@@ -246,7 +238,7 @@ func collectJJDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Diff
 		}
 	}
 
-	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes), opts.Filter)
+	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes))
 	if err != nil {
 		return DiffResult{}, err
 	}
@@ -286,7 +278,7 @@ func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Dif
 		return DiffResult{}, fmt.Errorf("failed to run git %s: %w", strings.Join(args, " "), err)
 	}
 
-	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes), opts.Filter)
+	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes))
 	if err != nil {
 		return DiffResult{}, err
 	}

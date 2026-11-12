@@ -42,13 +42,16 @@ const (
 
 // RedundantTestFinding describes a changed test or subtest whose fault-detection footprint is subsumed by another test.
 type RedundantTestFinding struct {
-	GlobalIndex int
-	Kind        RedundantTestKind
-	File        string
-	Line        int
-	TestName    string
-	DominatedBy string
-	SharedKills int
+	GlobalIndex     int
+	Kind            RedundantTestKind
+	File            string
+	Line            int
+	TestName        string
+	DominatedBy     string
+	DominatedByFile string
+	DominatedByLine int
+	CandidateKills  int
+	DominatorKills  int
 }
 
 // SubtestMeta holds source location and diff metadata for a table case or t.Run subtest.
@@ -230,9 +233,13 @@ func normalizeGoSubtestName(raw string) string {
 	var sb strings.Builder
 	sb.Grow(len(raw))
 	for _, r := range raw {
-		if unicode.IsSpace(r) {
+		switch {
+		case unicode.IsSpace(r):
 			sb.WriteByte('_')
-		} else {
+		case !strconv.IsPrint(r):
+			quoted := strconv.QuoteRune(r)
+			sb.WriteString(quoted[1 : len(quoted)-1])
+		default:
 			sb.WriteRune(r)
 		}
 	}
@@ -496,27 +503,34 @@ func AnalyzeTestRedundancy(
 		}
 
 		if len(cand.kills) > 0 {
-			if domName, shared := findDominatingDuplicate(cand, leaves); domName != "" {
+			if dom := findDominatingDuplicate(cand, leaves); dom != nil {
 				findings = append(findings, RedundantTestFinding{
-					Kind:        RedundantDuplicate,
-					File:        cand.file,
-					Line:        cand.line,
-					TestName:    cand.name,
-					DominatedBy: domName,
-					SharedKills: shared,
+					Kind:            RedundantDuplicate,
+					File:            cand.file,
+					Line:            cand.line,
+					TestName:        cand.name,
+					DominatedBy:     dom.name,
+					DominatedByFile: dom.file,
+					DominatedByLine: dom.line,
+					CandidateKills:  len(cand.kills),
+					DominatorKills:  len(dom.kills),
 				})
 			}
 			continue
 		}
 
 		if cand.onlyErrNil {
-			if domName := findDominatingCoveringTest(cand, leaves); domName != "" {
+			if dom := findDominatingCoveringTest(cand, leaves); dom != nil {
 				findings = append(findings, RedundantTestFinding{
-					Kind:        RedundantWeakAssertion,
-					File:        cand.file,
-					Line:        cand.line,
-					TestName:    cand.name,
-					DominatedBy: domName,
+					Kind:            RedundantWeakAssertion,
+					File:            cand.file,
+					Line:            cand.line,
+					TestName:        cand.name,
+					DominatedBy:     dom.name,
+					DominatedByFile: dom.file,
+					DominatedByLine: dom.line,
+					CandidateKills:  0,
+					DominatorKills:  len(dom.kills),
 				})
 			}
 		}
@@ -532,7 +546,7 @@ func AnalyzeTestRedundancy(
 	return findings
 }
 
-func findDominatingDuplicate(cand *leafDescriptor, all []leafDescriptor) (string, int) {
+func findDominatingDuplicate(cand *leafDescriptor, all []leafDescriptor) *leafDescriptor {
 	bestIdx := -1
 	for j := range all {
 		dom := &all[j]
@@ -554,22 +568,22 @@ func findDominatingDuplicate(cand *leafDescriptor, all []leafDescriptor) (string
 		}
 	}
 	if bestIdx < 0 {
-		return "", 0
+		return nil
 	}
-	return all[bestIdx].name, len(cand.kills)
+	return &all[bestIdx]
 }
 
-func findDominatingCoveringTest(cand *leafDescriptor, all []leafDescriptor) string {
+func findDominatingCoveringTest(cand *leafDescriptor, all []leafDescriptor) *leafDescriptor {
 	for j := range all {
 		dom := &all[j]
 		if dom.name == cand.name || len(dom.kills) == 0 {
 			continue
 		}
 		if isStringSubset(cand.polarity, dom.polarity) {
-			return dom.name
+			return dom
 		}
 	}
-	return ""
+	return nil
 }
 
 func killsSubsumedOnSharedRuns(cand *leafDescriptor, dom *leafDescriptor) bool {

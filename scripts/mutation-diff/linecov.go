@@ -15,10 +15,16 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"go/scanner"
 	"go/token"
+	"io"
 	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -103,6 +109,96 @@ func (r *CoverageReport) OverallPercent() float64 {
 // SourceReader loads raw file bytes for a repository-relative slash path.
 type SourceReader func(relPath string) ([]byte, error)
 
+// CoverageTestPlan describes which Go packages to execute for differential line coverage.
+type CoverageTestPlan struct {
+	Skip     bool
+	Packages []string
+}
+
+// PlanCoverageExecution builds a minimal or full Go test execution plan from changed production Go files.
+func PlanCoverageExecution(repoRoot string, changedFiles []string, full bool) CoverageTestPlan {
+	if full {
+		return CoverageTestPlan{
+			Packages: []string{"./..."},
+		}
+	}
+	if len(changedFiles) == 0 {
+		return CoverageTestPlan{Skip: true}
+	}
+
+	pkgSet := make(map[string]struct{})
+	for _, relFile := range changedFiles {
+		cleanFile := strings.TrimPrefix(filepath.ToSlash(relFile), "./")
+		if !gotestutil.IsTargetGoFile(cleanFile) {
+			continue
+		}
+		relDir := path.Dir(cleanFile)
+		absDir := filepath.Join(repoRoot, filepath.FromSlash(relDir))
+		if !dirHasGoFiles(absDir) {
+			continue
+		}
+
+		pkgSpec := "./" + relDir
+		if relDir == "." {
+			pkgSpec = "."
+		}
+		pkgSet[pkgSpec] = struct{}{}
+	}
+
+	if len(pkgSet) == 0 {
+		return CoverageTestPlan{Skip: true}
+	}
+
+	out := make([]string, 0, len(pkgSet))
+	for k := range pkgSet {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return CoverageTestPlan{
+		Packages: out,
+	}
+}
+
+// RunGoTestCoverage executes go test according to plan and writes the coverage profile to profileOut.
+func RunGoTestCoverage(ctx context.Context, repoRoot string, plan CoverageTestPlan, profileOut string, errOut io.Writer) error {
+	if plan.Skip {
+		return nil
+	}
+
+	args := make([]string, 0, 2+len(plan.Packages))
+	args = append(args, "test", "-coverprofile="+profileOut)
+	args = append(args, plan.Packages...)
+
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), "KHI_SKIP_CLOUD_LOGGING=true")
+
+	var combined bytes.Buffer
+	cmd.Stdout = &combined
+	cmd.Stderr = &combined
+
+	if err := cmd.Run(); err != nil {
+		if errOut != nil && combined.Len() > 0 {
+			_, _ = io.Copy(errOut, &combined)
+		}
+		return fmt.Errorf("go test failed (%s): %w", strings.Join(args, " "), err)
+	}
+	return nil
+}
+
+func dirHasGoFiles(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".go") {
+			return true
+		}
+	}
+	return false
+}
+
 // AnalyzeCoverage computes differential and overall coverage metrics from parsed coverprofile blocks and diff lines.
 func AnalyzeCoverage(
 	baseLabel string,
@@ -146,7 +242,7 @@ func AnalyzeCoverage(
 			return nil, fmt.Errorf("failed to read %s: %w", relFile, err)
 		}
 
-		fileReport := analyzeFile(relFile, src, blocksByFile[relFile], changedSet)
+		fileReport := analyzeFileCoverage(relFile, src, blocksByFile[relFile], changedSet)
 		if fileReport.ChangedExecutableLines == 0 {
 			continue
 		}
@@ -163,13 +259,13 @@ type lineCoverageState struct {
 	covered    bool
 }
 
-func analyzeFile(
+func analyzeFileCoverage(
 	relFile string,
 	src []byte,
 	blocks []gotestutil.CoverBlock,
 	changedSet map[int]struct{},
 ) FileCoverageReport {
-	rawLines := splitLines(string(src))
+	rawLines := splitSourceLines(string(src))
 	codeLines := classifyExecutableCodeLines(src, len(rawLines))
 
 	fileReport := FileCoverageReport{
@@ -206,7 +302,7 @@ func analyzeFile(
 	return fileReport
 }
 
-func splitLines(content string) []string {
+func splitSourceLines(content string) []string {
 	trimmed := strings.TrimSuffix(content, "\n")
 	if trimmed == "" {
 		return nil
