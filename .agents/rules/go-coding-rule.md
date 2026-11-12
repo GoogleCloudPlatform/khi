@@ -11,7 +11,11 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 1. **Build Verification**: Before running tests or submitting changes, you must always verify that your code compiles successfully.
    - Run `make build-go` to ensure there are no compilation errors across the backend.
-2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. Run `make coverage-diff` to inspect differential test coverage and ensure substantive newly added or modified logic blocks are covered by unit tests. Make sure you run `make test-go` before asking the user to verify.
+2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. Run `make coverage-diff` to inspect differential test coverage and `make mutation-diff` to verify that unit tests meaningfully assert changed logic. When a mutant survives:
+   - First check if the branch is redundant or guarded by an existing invariant — **never** suppress invariant, defensive, or unreachable conditions with `NOMUTANTS`; simplify or delete the redundant branch instead.
+   - Strengthen existing assertions (`cmp.Diff` on whole structs, boundary inputs) rather than adding mock-heavy boilerplate tests.
+   - Only for genuine non-deletable cases, suppress with a required category (`// NOMUTANTS(<category>): <reason>` or `// NOMUTANTS(<category>, <operator>): <reason>`, where `<category>` is one of `equivalent`, `perf`, `observability`, `external`).
+   - Make sure you run `make test-go` before asking the user to verify.
 3. **Formatting and Linting**:
    - Run `make format-go` to ensure standard Go formatting.
    - Run `make lint-go` if applicable, and ensure no new linting errors are introduced.

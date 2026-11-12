@@ -61,6 +61,10 @@ coverage-web-container: build-builder ## Run frontend tests and generate coverag
 
 COVERAGE_BASE ?=
 COVERAGE_FULL ?= false
+MUTATION_BASE ?= $(COVERAGE_BASE)
+MUTATION_VCS ?=
+MUTATION_MAX ?= 80
+MUTATION_INCLUDE_SCRIPTS ?= false
 
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
@@ -73,6 +77,13 @@ coverage-diff: $(GENERATE_BACKEND_DUMMY) ## Run Go differential coverage report 
 		$(MAKE) build-web; \
 	fi
 	go run ./scripts/coverage-diff $(if $(COVERAGE_BASE),--base=$(COVERAGE_BASE),) $(if $(filter true 1,$(COVERAGE_FULL)),--full,)
+
+.PHONY: mutation-diff
+mutation-diff: $(GENERATE_BACKEND_DUMMY) ## Run Go differential mutation testing for changed lines
+	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
+		$(MAKE) build-web; \
+	fi
+	go run ./scripts/mutation-diff --max-mutants=$(MUTATION_MAX) $(if $(MUTATION_VCS),--vcs=$(MUTATION_VCS),) $(if $(MUTATION_BASE),--base=$(MUTATION_BASE),) $(if $(filter true 1,$(MUTATION_INCLUDE_SCRIPTS)),--include-scripts,)
 
 FIXTURES_GCS_BUCKET ?= gs://khi-fixtures
 

@@ -108,6 +108,14 @@ make coverage-diff
 
 You can also specify a custom base revision (for example, `make coverage-diff COVERAGE_BASE=@-` in Jujutsu) or run across all packages (`make coverage-diff COVERAGE_FULL=true`).
 
+To verify that unit tests meaningfully check the behavior of changed Go lines (rather than merely executing them without strong assertions), run differential mutation testing:
+
+```shell
+make mutation-diff
+```
+
+When a mutant survives, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff` or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// NOMUTANTS(<category>): <reason>` or `// NOMUTANTS(<category>, <operator>): <reason>`, where `<category>` is `equivalent`, `perf`, `observability`, or `external`).
+
 ### Clean up legacy generated test files
 
 If you have local working copies created before test flags were migrated to environment variables, you may find leftover untracked `zzz_testflag_test.go` files in `pkg/`.

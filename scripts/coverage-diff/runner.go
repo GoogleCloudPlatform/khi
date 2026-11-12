@@ -23,8 +23,10 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 // TestPlan describes which Go packages to execute for differential coverage.
@@ -47,7 +49,7 @@ func PlanTestExecution(repoRoot string, changedFiles []string, full bool) TestPl
 	pkgSet := make(map[string]struct{})
 	for _, relFile := range changedFiles {
 		cleanFile := strings.TrimPrefix(filepath.ToSlash(relFile), "./")
-		if !IsTargetProductionGoFile(cleanFile) {
+		if !gotestutil.IsTargetProductionGoFile(cleanFile) {
 			continue
 		}
 		relDir := path.Dir(cleanFile)
@@ -120,6 +122,6 @@ func sortedKeys(set map[string]struct{}) []string {
 	for k := range set {
 		out = append(out, k)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }

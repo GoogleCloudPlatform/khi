@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package gotestutil
 
 import (
 	"strings"
@@ -21,10 +21,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestIsTargetProductionGoFile(t *testing.T) {
+func TestIsTargetGoFile(t *testing.T) {
 	testCases := []struct {
 		name    string
 		relPath string
+		opts    FilterOptions
 		want    bool
 	}{
 		{
@@ -38,8 +39,14 @@ func TestIsTargetProductionGoFile(t *testing.T) {
 			want:    true,
 		},
 		{
-			name:    "unit test file excluded",
-			relPath: "pkg/common/set/set_test.go",
+			name:    "empty path excluded",
+			relPath: "./",
+			want:    false,
+		},
+		{
+			name:    "unit test file excluded even with IncludeScripts",
+			relPath: "scripts/mutation-diff/mutator_test.go",
+			opts:    FilterOptions{IncludeScripts: true},
 			want:    false,
 		},
 		{
@@ -58,9 +65,15 @@ func TestIsTargetProductionGoFile(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "scripts directory excluded",
+			name:    "scripts directory excluded by default",
 			relPath: "scripts/backend-codegen/main.go",
 			want:    false,
+		},
+		{
+			name:    "scripts directory included when IncludeScripts is true",
+			relPath: "scripts/mutation-diff/mutator.go",
+			opts:    FilterOptions{IncludeScripts: true},
+			want:    true,
 		},
 		{
 			name:    "go file under web node_modules excluded",
@@ -76,9 +89,9 @@ func TestIsTargetProductionGoFile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := IsTargetProductionGoFile(tc.relPath)
+			got := IsTargetGoFile(tc.relPath, tc.opts)
 			if got != tc.want {
-				t.Errorf("IsTargetProductionGoFile(%q) = %v, want %v", tc.relPath, got, tc.want)
+				t.Errorf("IsTargetGoFile(%q, %+v) = %v, want %v", tc.relPath, tc.opts, got, tc.want)
 			}
 		})
 	}

@@ -16,50 +16,11 @@ package main
 
 import (
 	"os"
-	"strings"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 	"github.com/google/go-cmp/cmp"
 )
-
-func TestParseCoverProfile(t *testing.T) {
-	profile := `mode: set
-github.com/GoogleCloudPlatform/khi/pkg/foo/bar.go:10.15,14.2 2 0
-github.com/GoogleCloudPlatform/khi/pkg/foo/bar.go:10.15,14.2 2 1
-github.com/GoogleCloudPlatform/khi/pkg/foo/bar.go:5.12,8.2 1 0
-github.com/GoogleCloudPlatform/khi/pkg/generated/gen.go:1.1,5.2 3 1
-github.com/GoogleCloudPlatform/khi/pkg/testutil/helper.go:1.1,5.2 2 1
-github.com/GoogleCloudPlatform/khi/pkg/foo/zzz_codegen.go:1.1,5.2 2 1
-`
-	want := map[string][]CoverBlock{
-		"pkg/foo/bar.go": {
-			{
-				StartLine:     5,
-				StartCol:      12,
-				EndLine:       8,
-				EndCol:        2,
-				NumStatements: 1,
-				Count:         0,
-			},
-			{
-				StartLine:     10,
-				StartCol:      15,
-				EndLine:       14,
-				EndCol:        2,
-				NumStatements: 2,
-				Count:         1,
-			},
-		},
-	}
-
-	got, err := ParseCoverProfile(strings.NewReader(profile), "github.com/GoogleCloudPlatform/khi")
-	if err != nil {
-		t.Fatalf("ParseCoverProfile() unexpected error: %v", err)
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("ParseCoverProfile() mismatch (-want +got):\n%s", diff)
-	}
-}
 
 func TestAnalyzeCoverage(t *testing.T) {
 	sampleSrc := `package sample
@@ -78,18 +39,13 @@ func Process(v int) (string, error) {
 }
 `
 
-	sampleBlocks := map[string][]CoverBlock{
+	sampleBlocks := map[string][]gotestutil.CoverBlock{
 		"pkg/sample/sample.go": {
-			// Function entry up to "if v < 0".
 			{StartLine: 5, StartCol: 37, EndLine: 7, EndCol: 11, NumStatements: 1, Count: 1},
-			// Untaken "if v < 0" body.
 			{StartLine: 7, StartCol: 11, EndLine: 9, EndCol: 3, NumStatements: 1, Count: 0},
-			// Taken "else" body.
 			{StartLine: 9, StartCol: 9, EndLine: 11, EndCol: 3, NumStatements: 1, Count: 1},
-			// Single-line "if v == 999" condition evaluated, body untaken.
 			{StartLine: 12, StartCol: 2, EndLine: 12, EndCol: 14, NumStatements: 1, Count: 1},
 			{StartLine: 12, StartCol: 15, EndLine: 12, EndCol: 51, NumStatements: 1, Count: 0},
-			// Final return covered.
 			{StartLine: 13, StartCol: 2, EndLine: 13, EndCol: 34, NumStatements: 1, Count: 1},
 		},
 	}
@@ -104,13 +60,13 @@ func Process(v int) (string, error) {
 			name: "ignores comments and closing braces while catching multi-line and single-line uncovered branches",
 			changedLines: map[string]map[int]struct{}{
 				"pkg/sample/sample.go": {
-					6:  {}, // Comment-only line.
-					7:  {}, // "if v < 0 {" condition was evaluated (covered).
-					8:  {}, // Uncovered error return inside if block.
-					9:  {}, // "} else {" taken else header (covered).
-					10: {}, // Covered else body.
-					11: {}, // Closing brace only.
-					12: {}, // Single-line "if v == 999 { return ... }" with uncovered body.
+					6:  {},
+					7:  {},
+					8:  {},
+					9:  {},
+					10: {},
+					11: {},
+					12: {},
 				},
 			},
 			includeOverall: true,
