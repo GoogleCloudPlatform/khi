@@ -21,6 +21,7 @@ import {
   TimelineExcerptLineKind,
   TimelineMarkerStyle,
   TimelineResolvedPaletteColors,
+  TimelineSpanLabelPlacement,
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import {
@@ -48,6 +49,7 @@ import {
   resolveConnectorPathGeometry,
   resolveSceneHorizontalBounds,
   resolveSpanBoxGeometry,
+  resolveSpanIsLabelAbove,
   resolveSpanVerticalBounds,
   selectVisibleAnnotations,
 } from 'src/app/pages/timeline-render/timeline-render-scene-builder';
@@ -347,6 +349,7 @@ describe('buildTimelineSceneViewModel', () => {
       paletteId: 'trigger',
       colors: triggerPalette,
       isRowScoped: true,
+      isLabelAbove: false,
       showCornerBrackets: true,
       coincidentLeft: false,
       coincidentRight: false,
@@ -802,6 +805,104 @@ describe('buildTimelineSceneViewModel', () => {
     expect(vm.spans[2].widthPx).toBe(10);
     expect(vm.spans[2].showCornerBrackets).toBe(false);
     expect(vm.spans[2].labelLeftPx).toBe(6);
+  });
+
+  it('places compact single-row span labels above the box without overlapping side-by-side chips or stems and omits duration when hideDuration is true', () => {
+    const compactRows = [
+      { id: 100, heightPx: 25 },
+      { id: 200, heightPx: 25 },
+    ];
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: MIN_INDEX_PANE_WIDTH_PX,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: compactRows,
+      overlay: {
+        palette: [triggerPalette, victimPalette],
+        markers: [
+          {
+            id: 'm-transition',
+            badge: '1',
+            label: 'HPA target dropped',
+            style: TimelineMarkerStyle.PIN,
+            paletteId: 'victim',
+            timeMs: 1_016_000,
+            timeLabel: '01:56:00',
+            timelineId: 100,
+          },
+        ],
+        spans: [
+          // Passed in reverse chronological order to verify right-to-left neighbor clamping preserves input order.
+          {
+            id: 'sp-after',
+            label: 'averageUtilization: 1 ~ 2%',
+            startTimeMs: 1_016_000,
+            endTimeMs: 1_040_000,
+            durationLabel: '24s',
+            timelineIds: [100],
+            pattern: TimelineSpanPattern.SOLID,
+            hideDuration: true,
+            paletteId: 'victim',
+          },
+          {
+            id: 'sp-before',
+            label: 'averageUtilization: 20 ~ 27%',
+            startTimeMs: 1_004_000,
+            endTimeMs: 1_015_000,
+            durationLabel: '11s',
+            timelineIds: [100],
+            pattern: TimelineSpanPattern.OUTLINE,
+            hideDuration: true,
+            paletteId: 'trigger',
+          },
+          {
+            id: 'sp-other-row-inside',
+            label: 'Explicit inside override',
+            startTimeMs: 1_004_000,
+            endTimeMs: 1_040_000,
+            durationLabel: '36s',
+            timelineIds: [200],
+            pattern: TimelineSpanPattern.OUTLINE,
+            labelPlacement: TimelineSpanLabelPlacement.INSIDE,
+            paletteId: 'trigger',
+          },
+        ],
+      },
+    });
+
+    expect(vm.spans.map((s) => s.id)).toEqual([
+      'sp-after',
+      'sp-before',
+      'sp-other-row-inside',
+    ]);
+    const [afterSpan, beforeSpan, insideSpan] = vm.spans;
+
+    // Both single-row spans (heightPx = 21 < 44) auto-resolve to above-box placement and omit (duration).
+    expect(beforeSpan.isLabelAbove).toBe(true);
+    expect(beforeSpan.headerText).toBe('averageUtilization: 20 ~ 27%');
+    expect(beforeSpan.chipStageTopPx).toBe(beforeSpan.topPx - 21);
+    // Even on row index 0, chipStageTopPx sits below topBandHeightPx + 36 (ruler timestamp pills).
+    expect(beforeSpan.chipStageTopPx).toBeGreaterThanOrEqual(
+      vm.topBandHeightPx + 36,
+    );
+
+    // afterSpan starts at marker m-transition (1_016_000 -> stemX = defaultChartLeftPx + 160), so its above-chip shifts +6px past the stem.
+    expect(afterSpan.isLabelAbove).toBe(true);
+    expect(afterSpan.headerText).toBe('averageUtilization: 1 ~ 2%');
+    expect(afterSpan.labelLeftPx).toBe(6);
+    expect(afterSpan.chipStageLeftPx).toBe(afterSpan.leftPx + 6);
+
+    // beforeSpan clamps its chipMaxWidthPx against afterSpan.chipStageLeftPx - 6 so the two adjacent chips never collide.
+    expect(beforeSpan.labelLeftPx).toBe(0);
+    expect(beforeSpan.chipStageLeftPx).toBe(beforeSpan.leftPx);
+    expect(
+      beforeSpan.chipStageLeftPx + beforeSpan.chipMaxWidthPx,
+    ).toBeLessThanOrEqual(afterSpan.chipStageLeftPx - 6);
+
+    // Explicit inside placement keeps the chip inside row 200 and preserves duration suffix when hideDuration is omitted.
+    expect(insideSpan.isLabelAbove).toBe(false);
+    expect(insideSpan.headerText).toBe('Explicit inside override (36s)');
+    expect(insideSpan.chipStageTopPx).toBeGreaterThan(insideSpan.topPx);
   });
 
   it('excludes markers and spans strictly outside the visible viewport time range', () => {
@@ -1422,12 +1523,89 @@ describe('findStemFreeSpanIntervals', () => {
   });
 });
 
+describe('resolveSpanIsLabelAbove', () => {
+  const baseSpan = {
+    id: 'sp',
+    label: 'Metric',
+    startTimeMs: 100,
+    endTimeMs: 200,
+    durationLabel: '100ms',
+    pattern: TimelineSpanPattern.OUTLINE,
+    paletteId: 'default',
+  };
+
+  it('resolves auto to above for compact row-scoped spans with headroom and inside for tall or full-height spans', () => {
+    expect(
+      resolveSpanIsLabelAbove(baseSpan, {
+        topPx: 62,
+        bottomPx: 83,
+        heightPx: 21,
+        isRowScoped: true,
+      }),
+    ).toBe(true);
+
+    expect(
+      resolveSpanIsLabelAbove(baseSpan, {
+        topPx: 62,
+        bottomPx: 108,
+        heightPx: 46,
+        isRowScoped: true,
+      }),
+    ).toBe(false);
+
+    expect(
+      resolveSpanIsLabelAbove(baseSpan, {
+        topPx: 60,
+        bottomPx: 260,
+        heightPx: 200,
+        isRowScoped: false,
+      }),
+    ).toBe(false);
+
+    // Falls back to inside under auto if synthetic topPx has insufficient stage clearance above.
+    expect(
+      resolveSpanIsLabelAbove(baseSpan, {
+        topPx: 12,
+        bottomPx: 33,
+        heightPx: 21,
+        isRowScoped: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('respects explicit above and inside overrides regardless of span height', () => {
+    expect(
+      resolveSpanIsLabelAbove(
+        { ...baseSpan, labelPlacement: TimelineSpanLabelPlacement.ABOVE },
+        { topPx: 60, bottomPx: 260, heightPx: 200, isRowScoped: false },
+      ),
+    ).toBe(true);
+
+    expect(
+      resolveSpanIsLabelAbove(
+        { ...baseSpan, labelPlacement: TimelineSpanLabelPlacement.INSIDE },
+        { topPx: 62, bottomPx: 83, heightPx: 21, isRowScoped: true },
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('layoutSpanHeaderChip', () => {
   const vertical = {
     topPx: 100,
     bottomPx: 200,
     heightPx: 100,
     isRowScoped: true,
+  };
+  const compactVertical = {
+    topPx: 100,
+    bottomPx: 121,
+    heightPx: 21,
+    isRowScoped: true,
+  };
+  const defaultBounds = {
+    chartLeftPx: 100,
+    stageWidthPx: 1000,
   };
 
   it('formats headerText with durationLabel and places chip at minLocalLeft when clear', () => {
@@ -1447,8 +1625,9 @@ describe('layoutSpanHeaderChip', () => {
       coincidentLeft: false,
       coincidentRight: false,
     };
-    const chip = layoutSpanHeaderChip(span, box, vertical, []);
+    const chip = layoutSpanHeaderChip(span, box, vertical, [], defaultBounds);
     expect(chip.headerText).toBe('Gap (10s)');
+    expect(chip.isLabelAbove).toBe(false);
     expect(chip.labelLeftPx).toBe(6);
     expect(chip.chipStageLeftPx).toBe(206);
     expect(chip.chipStageTopPx).toBe(104);
@@ -1471,9 +1650,48 @@ describe('layoutSpanHeaderChip', () => {
       coincidentLeft: true,
       coincidentRight: false,
     };
-    const chip = layoutSpanHeaderChip(span, box, vertical, []);
+    const chip = layoutSpanHeaderChip(span, box, vertical, [], defaultBounds);
     expect(chip.labelLeftPx).toBe(14);
     expect(chip.chipStageLeftPx).toBe(214);
+  });
+
+  it('places above-box chip directly above narrow box, extends maxWidth into open right space, and slides past stems in the above band', () => {
+    const span = {
+      id: 'sp-above',
+      label: 'averageUtilization: 20 ~ 27%',
+      durationLabel: '3m',
+      hideDuration: true,
+      startTimeMs: 200,
+      endTimeMs: 260,
+      timelineIds: [10],
+      pattern: TimelineSpanPattern.OUTLINE,
+      paletteId: 'default',
+    };
+    const narrowBox = {
+      leftPx: 200,
+      widthPx: 60,
+      showCornerBrackets: true,
+      coincidentLeft: false,
+      coincidentRight: false,
+    };
+    // Stem crosses the external above-band [79, 98] at x = 220 (local +20), while open space extends to 1000.
+    const stems: readonly VerticalStemSegment[] = [
+      { x: 220, topPx: 30, bottomPx: 120 },
+    ];
+    const chip = layoutSpanHeaderChip(
+      span,
+      narrowBox,
+      compactVertical,
+      stems,
+      defaultBounds,
+    );
+    expect(chip.headerText).toBe('averageUtilization: 20 ~ 27%');
+    expect(chip.isLabelAbove).toBe(true);
+    expect(chip.chipStageTopPx).toBe(79);
+    // Slides to local +26 (stage 226) to clear stem at 220 while remaining anchored over [200, 260].
+    expect(chip.labelLeftPx).toBe(26);
+    expect(chip.chipStageLeftPx).toBe(226);
+    expect(chip.chipMaxWidthPx).toBe(1000 - 6 - 226);
   });
 });
 

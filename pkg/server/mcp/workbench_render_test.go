@@ -570,11 +570,13 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 			ClearLayers: []scene.AnnotationLayer{scene.AnnotationLayerMarkers},
 			Spans: []scene.SpanAnnotation{
 				{
-					Start:     scene.Anchor{Time: &spanStart},
-					End:       scene.Anchor{Time: &spanEnd},
-					Label:     "Customer impact window",
-					Pattern:   scene.SpanPatternHatched,
-					PaletteID: "trigger",
+					Start:          scene.Anchor{Time: &spanStart},
+					End:            scene.Anchor{Time: &spanEnd},
+					Label:          "Customer impact window",
+					Pattern:        scene.SpanPatternHatched,
+					LabelPlacement: scene.SpanLabelPlacementAbove,
+					HideDuration:   true,
+					PaletteID:      "trigger",
 				},
 			},
 		},
@@ -585,6 +587,20 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 	if len(renderer.gotReq.Overlay.Markers) != 0 || len(renderer.gotReq.Overlay.Spans) != 1 || len(renderer.gotReq.Overlay.Excerpts) != 0 {
 		t.Errorf("Step 3 branched overlay mismatch: markers=%d spans=%d excerpts=%d",
 			len(renderer.gotReq.Overlay.Markers), len(renderer.gotReq.Overlay.Spans), len(renderer.gotReq.Overlay.Excerpts))
+	}
+	wantBranchedSpan := scene.ResolvedSpan{
+		ID:             "span-1",
+		Label:          "Customer impact window",
+		StartTimeMs:    spanStart.UnixMilli(),
+		EndTimeMs:      spanEnd.UnixMilli(),
+		DurationLabel:  "",
+		Pattern:        scene.SpanPatternHatched,
+		LabelPlacement: scene.SpanLabelPlacementAbove,
+		HideDuration:   true,
+		PaletteID:      "trigger",
+	}
+	if diff := cmp.Diff(wantBranchedSpan, renderer.gotReq.Overlay.Spans[0]); diff != "" {
+		t.Errorf("Step 3 ResolvedSpan mismatch (-want +got):\n%s", diff)
 	}
 
 	// Confirm parent and childA remain untouched in sceneStore.

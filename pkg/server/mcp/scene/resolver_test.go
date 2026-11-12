@@ -426,13 +426,14 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 		},
 		Spans: []ResolvedSpan{
 			{
-				ID:            "span-1",
-				Label:         "Node NotReady window",
-				StartTimeMs:   fx.baseTime.Add(24 * time.Minute).UnixMilli(),
-				EndTimeMs:     fx.baseTime.Add(34 * time.Minute).UnixMilli(),
-				DurationLabel: "10m",
-				Pattern:       SpanPatternHatched,
-				PaletteID:     "trigger",
+				ID:             "span-1",
+				Label:          "Node NotReady window",
+				StartTimeMs:    fx.baseTime.Add(24 * time.Minute).UnixMilli(),
+				EndTimeMs:      fx.baseTime.Add(34 * time.Minute).UnixMilli(),
+				DurationLabel:  "10m",
+				Pattern:        SpanPatternHatched,
+				LabelPlacement: SpanLabelPlacementAuto,
+				PaletteID:      "trigger",
 			},
 		},
 		RowHighlights: []ResolvedRowHighlight{
@@ -644,6 +645,119 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 	}
 }
 
+func TestResolve_SpanLabelPlacementAndHideDuration(t *testing.T) {
+	fx := setupResolverFixture(t)
+	ctx := context.Background()
+
+	beforeStart := fx.baseTime.Add(15 * time.Minute)
+	beforeEnd := fx.baseTime.Add(23 * time.Minute)
+	afterStart := fx.baseTime.Add(24 * time.Minute)
+	afterEnd := fx.baseTime.Add(34 * time.Minute)
+
+	testCases := []struct {
+		name      string
+		spans     []SpanAnnotation
+		wantSpans []ResolvedSpan
+	}{
+		{
+			name: "defaults labelPlacement to auto and formats duration when hideDuration is false",
+			spans: []SpanAnnotation{
+				{
+					Label: "Baseline window",
+					Start: Anchor{Time: &beforeStart},
+					End:   Anchor{Time: &beforeEnd},
+				},
+			},
+			wantSpans: []ResolvedSpan{
+				{
+					ID:             "span-1",
+					Label:          "Baseline window",
+					StartTimeMs:    beforeStart.UnixMilli(),
+					EndTimeMs:      beforeEnd.UnixMilli(),
+					DurationLabel:  "8m",
+					Pattern:        SpanPatternSolid,
+					LabelPlacement: SpanLabelPlacementAuto,
+					PaletteID:      "default",
+				},
+			},
+		},
+		{
+			name: "propagates explicit above and inside placements and omits durationLabel when hideDuration is true",
+			spans: []SpanAnnotation{
+				{
+					Label:          "averageUtilization: 20 ~ 27%",
+					Start:          Anchor{Time: &beforeStart},
+					End:            Anchor{Time: &beforeEnd},
+					TimelineIDs:    []uint32{fx.podTimelineID},
+					IncludeSubtree: boolRef(false),
+					Pattern:        SpanPatternOutline,
+					LabelPlacement: SpanLabelPlacementAbove,
+					HideDuration:   true,
+				},
+				{
+					Label:          "averageUtilization: 1 ~ 2%",
+					Start:          Anchor{Time: &afterStart},
+					End:            Anchor{Time: &afterEnd},
+					TimelineIDs:    []uint32{fx.podTimelineID},
+					IncludeSubtree: boolRef(false),
+					Pattern:        SpanPatternSolid,
+					LabelPlacement: SpanLabelPlacementInside,
+					HideDuration:   false,
+				},
+			},
+			wantSpans: []ResolvedSpan{
+				{
+					ID:             "span-1",
+					Label:          "averageUtilization: 20 ~ 27%",
+					StartTimeMs:    beforeStart.UnixMilli(),
+					EndTimeMs:      beforeEnd.UnixMilli(),
+					DurationLabel:  "",
+					TimelineIDs:    []uint32{fx.podTimelineID},
+					Pattern:        SpanPatternOutline,
+					LabelPlacement: SpanLabelPlacementAbove,
+					HideDuration:   true,
+					PaletteID:      "default",
+				},
+				{
+					ID:             "span-2",
+					Label:          "averageUtilization: 1 ~ 2%",
+					StartTimeMs:    afterStart.UnixMilli(),
+					EndTimeMs:      afterEnd.UnixMilli(),
+					DurationLabel:  "10m",
+					TimelineIDs:    []uint32{fx.podTimelineID},
+					Pattern:        SpanPatternSolid,
+					LabelPlacement: SpanLabelPlacementInside,
+					HideDuration:   false,
+					PaletteID:      "default",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					Spans: tc.spans,
+				},
+			}
+			specCopy := spec.Clone()
+			applied := fx.wb.ResolveFilter(specCopy.Filter)
+			gotOverlay, errRes, err := Resolve(ctx, fx.wb, fx.inspectionID, &specCopy, applied)
+			if err != nil {
+				t.Fatalf("Resolve() unexpected error = %v", err)
+			}
+			if errRes != nil {
+				t.Fatalf("Resolve() unexpected tool error = %+v", errRes)
+			}
+			if diff := cmp.Diff(tc.wantSpans, gotOverlay.Spans); diff != "" {
+				t.Errorf("Resolve().Spans mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestResolve_Errors(t *testing.T) {
 	fx := setupResolverFixture(t)
 	ctx := context.Background()
@@ -697,6 +811,23 @@ func TestResolve_Errors(t *testing.T) {
 				},
 			},
 			wantCode: "INVALID_ANCHOR",
+		},
+		{
+			name: "unsupported span labelPlacement returns INVALID_ARGUMENT",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					Spans: []SpanAnnotation{
+						{
+							Label:          "bad placement",
+							Start:          Anchor{Time: &narrowStart},
+							End:            Anchor{Time: &narrowEnd},
+							LabelPlacement: SpanLabelPlacement("below"),
+						},
+					},
+				},
+			},
+			wantCode: "INVALID_ARGUMENT",
 		},
 		{
 			name: "invalid CEL in rowHighlights.timelineQuery returns INVALID_CEL",

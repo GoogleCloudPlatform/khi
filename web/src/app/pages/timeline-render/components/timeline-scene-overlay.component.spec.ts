@@ -20,6 +20,7 @@ import {
   TimelineExcerptKind,
   TimelineExcerptLineKind,
   TimelineMarkerStyle,
+  TimelineSpanLabelPlacement,
   TimelineSpanPattern,
 } from 'src/app/common/schema/timeline-render-types';
 import { TimelineSceneOverlayComponent } from 'src/app/pages/timeline-render/components/timeline-scene-overlay.component';
@@ -212,5 +213,76 @@ describe('TimelineSceneOverlayComponent', () => {
     ).toBe(true);
     expect(labelChipEl.style.left).toBe(`${vm.spans[0].chipStageLeftPx}px`);
     expect(labelChipEl.style.maxWidth).toBe(`${vm.spans[0].chipMaxWidthPx}px`);
+    expect(labelChipEl.classList.contains('above')).toBe(false);
+  });
+
+  it('renders above-box span label chips with .above class and omits duration when hideDuration is true', () => {
+    const vm = buildTimelineSceneViewModel({
+      indexPaneWidthPx: 420,
+      viewportLeftTimeMs: 1_000_000,
+      pixelsPerMs: 0.01,
+      rows: [
+        { id: 10, heightPx: 25 },
+        { id: 20, heightPx: 50 },
+      ],
+      overlay: {
+        spans: [
+          {
+            id: 's-before',
+            label: 'averageUtilization: 20 ~ 27%',
+            startTimeMs: 1_010_000,
+            endTimeMs: 1_022_000,
+            durationLabel: '12s',
+            timelineIds: [10],
+            pattern: TimelineSpanPattern.OUTLINE,
+            hideDuration: true,
+            paletteId: 'default',
+          },
+          {
+            id: 's-after',
+            label: 'averageUtilization: 1 ~ 2%',
+            startTimeMs: 1_024_000,
+            endTimeMs: 1_045_000,
+            durationLabel: '21s',
+            timelineIds: [10],
+            pattern: TimelineSpanPattern.SOLID,
+            labelPlacement: TimelineSpanLabelPlacement.ABOVE,
+            hideDuration: true,
+            paletteId: 'default',
+          },
+          {
+            id: 's-inside',
+            label: 'Pod Disruption',
+            startTimeMs: 1_010_000,
+            endTimeMs: 1_045_000,
+            durationLabel: '35s',
+            timelineIds: [20],
+            pattern: TimelineSpanPattern.SOLID,
+            labelPlacement: TimelineSpanLabelPlacement.INSIDE,
+            paletteId: 'default',
+          },
+        ],
+      },
+    });
+
+    fixture.componentRef.setInput('scene', vm);
+    fixture.detectChanges();
+
+    const chips = fixture.debugElement.queryAll(By.css('.span-label-chip'));
+    expect(chips.length).toBe(3);
+
+    const beforeChip = chips[0].nativeElement as HTMLElement;
+    const afterChip = chips[1].nativeElement as HTMLElement;
+    const insideChip = chips[2].nativeElement as HTMLElement;
+
+    expect(beforeChip.classList.contains('above')).toBe(true);
+    expect(beforeChip.textContent?.trim()).toBe('averageUtilization: 20 ~ 27%');
+    expect(beforeChip.style.top).toBe(`${vm.spans[0].chipStageTopPx}px`);
+
+    expect(afterChip.classList.contains('above')).toBe(true);
+    expect(afterChip.textContent?.trim()).toBe('averageUtilization: 1 ~ 2%');
+
+    expect(insideChip.classList.contains('above')).toBe(false);
+    expect(insideChip.textContent?.trim()).toBe('Pod Disruption (35s)');
   });
 });
