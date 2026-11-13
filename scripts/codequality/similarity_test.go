@@ -54,7 +54,7 @@ func (s *stubNonCloserEmbedder) EmbedBatch(_ context.Context, texts []string) ([
 	return out, nil
 }
 
-func TestSimilaritySessionGoAndTypeScriptIntegration(t *testing.T) {
+func TestSimilaritySessionOptInAndMultiLanguageIntegration(t *testing.T) {
 	realRepoRoot, err := gotestutil.ResolveRepoRoot("")
 	if err != nil {
 		t.Fatalf("ResolveRepoRoot failed: %v", err)
@@ -133,8 +133,33 @@ func dedupNames(names []string) []string {
 	var factoryCalls atomic.Int32
 	summaryPath := filepath.Join(t.TempDir(), "sim_summary.md")
 
-	var stdout, stderr bytes.Buffer
+	var defaultOffOut, stderr bytes.Buffer
 	code, err := runCLI(context.Background(), cliEnv{
+		args: []string{
+			"--repo-root=" + repoDir,
+			"--vcs=git",
+			"--base=HEAD~1",
+			"--fast",
+			"--color=never",
+		},
+		stdout: &defaultOffOut,
+		stderr: &stderr,
+		getenv: func(string) string { return "" },
+		embedFactory: func(context.Context, simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
+			factoryCalls.Add(1)
+			return emb, "", nil
+		},
+	})
+	if err != nil || code != 0 {
+		t.Fatalf("runCLI(default opt-out) = (%d, %v), stderr=%s", code, err, stderr.String())
+	}
+	if factoryCalls.Load() != 0 || strings.Contains(defaultOffOut.String(), "Similarity:") {
+		t.Errorf("default run invoked similarity unexpectedly: calls=%d, out:\n%s", factoryCalls.Load(), defaultOffOut.String())
+	}
+
+	var gotGoProject string
+	var stdout bytes.Buffer
+	code, err = runCLI(context.Background(), cliEnv{
 		args: []string{
 			"--repo-root=" + repoDir,
 			"--vcs=git",
@@ -145,41 +170,67 @@ func dedupNames(names []string) []string {
 		},
 		stdout: &stdout,
 		stderr: &stderr,
-		getenv: func(string) string { return "" },
-		embedFactory: func(context.Context, func(string) string) (simcheck.Embedder, string, error) {
+		getenv: func(k string) string {
+			if k == "CODEQUALITY_SIMILARITY" {
+				return " true "
+			}
+			if k == "CODEQUALITY_SIMILARITY_PROJECT" {
+				return " env-sim-project "
+			}
+			return ""
+		},
+		embedFactory: func(_ context.Context, opts simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
 			factoryCalls.Add(1)
+			gotGoProject = opts.ProjectID
 			return emb, "", nil
 		},
 	})
 	if err != nil || code != 0 {
-		t.Fatalf("runCLI(--fast) = (%d, %v), stderr=%s", code, err, stderr.String())
+		t.Fatalf("runCLI(CODEQUALITY_SIMILARITY=true) = (%d, %v), stderr=%s", code, err, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "Similar Existing Go Functions") || !strings.Contains(stdout.String(), "DedupItems") {
 		t.Errorf("stdout missing Go similarity advisory:\n%s", stdout.String())
+	}
+	if gotGoProject != "env-sim-project" {
+		t.Errorf("gotGoProject = %q, want env-sim-project", gotGoProject)
 	}
 	if factoryCalls.Load() != 1 || emb.closed.Load() != 1 {
 		t.Errorf("factoryCalls=%d, closed=%d; want 1 each", factoryCalls.Load(), emb.closed.Load())
 	}
 
+	var gotTSProject string
 	var tsOut bytes.Buffer
 	code, err = runCLI(context.Background(), cliEnv{
 		args: []string{
 			"--repo-root=" + repoDir,
 			"--lang=ts",
 			"--ts-coverage=" + tsCovPath,
+			"--similarity-project=cli-override-project",
 			"--vcs=git",
 			"--base=HEAD~1",
 			"--color=never",
 		},
 		stdout: &tsOut,
 		stderr: &stderr,
-		getenv: func(string) string { return "" },
-		embedFactory: func(context.Context, func(string) string) (simcheck.Embedder, string, error) {
+		getenv: func(k string) string {
+			if k == "CODEQUALITY_SIMILARITY" {
+				return "1"
+			}
+			if k == "CODEQUALITY_SIMILARITY_PROJECT" {
+				return "env-sim-project"
+			}
+			return ""
+		},
+		embedFactory: func(_ context.Context, opts simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
+			gotTSProject = opts.ProjectID
 			return &stubNonCloserEmbedder{}, "", nil
 		},
 	})
 	if err != nil || code != 0 {
 		t.Fatalf("runCLI(--lang=ts) = (%d, %v), stderr=%s", code, err, stderr.String())
+	}
+	if gotTSProject != "cli-override-project" {
+		t.Errorf("gotTSProject = %q, want cli-override-project", gotTSProject)
 	}
 	if !strings.Contains(tsOut.String(), "Similar Existing TypeScript Functions") || !strings.Contains(tsOut.String(), "formatBytes") {
 		t.Errorf("ts stdout missing TypeScript similarity advisory:\n%s", tsOut.String())
@@ -192,6 +243,7 @@ func dedupNames(names []string) []string {
 			"--vcs=git",
 			"--base=HEAD~1",
 			"--fast",
+			"--similarity=true",
 			"--color=never",
 		},
 		stdout: &nilFactoryOut,
@@ -214,8 +266,13 @@ func dedupNames(names []string) []string {
 		},
 		stdout: &disabledOut,
 		stderr: &stderr,
-		getenv: func(string) string { return "" },
-		embedFactory: func(context.Context, func(string) string) (simcheck.Embedder, string, error) {
+		getenv: func(k string) string {
+			if k == "CODEQUALITY_SIMILARITY" {
+				return "true"
+			}
+			return ""
+		},
+		embedFactory: func(context.Context, simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
 			return emb, "", nil
 		},
 	})
@@ -225,6 +282,13 @@ func dedupNames(names []string) []string {
 }
 
 func TestSimilaritySessionIdempotentCloseAndNilSafety(t *testing.T) {
+	if parseSimilarityEnv(nil) {
+		t.Errorf("parseSimilarityEnv(nil) = true, want false")
+	}
+	if gotProj := parseSimilarityProjectEnv(nil); gotProj != "" {
+		t.Errorf("parseSimilarityProjectEnv(nil) = %q, want empty", gotProj)
+	}
+
 	ctx := context.Background()
 	var nilSess *similaritySession
 	if err := nilSess.Close(); err != nil {
@@ -232,7 +296,7 @@ func TestSimilaritySessionIdempotentCloseAndNilSafety(t *testing.T) {
 	}
 
 	emb := &stubClosableEmbedder{}
-	sess := newSimilaritySession(ctx, true, func(context.Context, func(string) string) (simcheck.Embedder, string, error) {
+	sess := newSimilaritySession(ctx, cliFlags{similarity: true}, func(context.Context, simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
 		return emb, "", nil
 	}, nil)
 	if _, err := sess.resolve(); err != nil {

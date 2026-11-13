@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genai"
@@ -68,7 +69,7 @@ func TestVertexClientGenaiSDKCachingAndQuotaHeader(t *testing.T) {
 			return
 		}
 		partText := req.Content.Parts[0].Text
-		if len(partText) > maxInstanceChars {
+		if !utf8.ValidString(partText) || utf8.RuneCountInString(partText) > maxInstanceChars {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -108,8 +109,8 @@ func TestVertexClientGenaiSDKCachingAndQuotaHeader(t *testing.T) {
 		t.Fatalf("EmbedBatch(nil) = (%v, %v), want (nil, nil)", emptyOut, err)
 	}
 
-	longText := strings.Repeat("x", maxInstanceChars+50)
-	got, err := client.EmbedBatch(context.Background(), []string{"alpha", longText, "alpha"})
+	longMultibyte := strings.Repeat("あ", maxInstanceChars+50)
+	got, err := client.EmbedBatch(context.Background(), []string{"alpha", longMultibyte, "alpha"})
 	if err != nil {
 		t.Fatalf("EmbedBatch() failed: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestVertexClientGenaiSDKCachingAndQuotaHeader(t *testing.T) {
 		t.Errorf("HTTP calls = %d, want 3 (1x 503 retry + 2 unique texts)", calls.Load())
 	}
 
-	if _, err := client.EmbedBatch(context.Background(), []string{"alpha", longText}); err != nil {
+	if _, err := client.EmbedBatch(context.Background(), []string{"alpha", longMultibyte}); err != nil {
 		t.Fatalf("cached EmbedBatch() failed: %v", err)
 	}
 	if calls.Load() != 3 {
@@ -228,7 +229,27 @@ func TestVertexClientDefaultsHeadersAndErrorCases(t *testing.T) {
 	}
 }
 
-func TestTryNewEmbedderWithDepsAndEnvProject(t *testing.T) {
+func TestTryNewEmbedderProjectEnvAndMetadataResolution(t *testing.T) {
+	if isCloudBuildEnv(nil) || isCloudBuildEnv(func(string) string { return "" }) {
+		t.Errorf("isCloudBuildEnv(empty) = true, want false")
+	}
+	if !isCloudBuildEnv(func(k string) string {
+		if k == "BUILD_ID" {
+			return "build-123"
+		}
+		return ""
+	}) {
+		t.Errorf("isCloudBuildEnv(BUILD_ID) = false, want true")
+	}
+	if !isCloudBuildEnv(func(k string) string {
+		if k == "BUILDER_OUTPUT" {
+			return "/builder/outputs"
+		}
+		return ""
+	}) {
+		t.Errorf("isCloudBuildEnv(BUILDER_OUTPUT) = false, want true")
+	}
+
 	if got := resolveEnvProjectID(nil); got != "" {
 		t.Errorf("resolveEnvProjectID(nil) = %q, want empty", got)
 	}
@@ -236,42 +257,97 @@ func TestTryNewEmbedderWithDepsAndEnvProject(t *testing.T) {
 		t.Errorf("resolveEnvProjectID(empty env) = %q, want empty", got)
 	}
 	if got := resolveEnvProjectID(func(k string) string {
-		if k == "GOOGLE_CLOUD_PROJECT" {
-			return " my-proj "
+		if k == "PROJECT_ID" {
+			return " cb-proj "
 		}
 		return ""
-	}); got != "my-proj" {
-		t.Errorf("resolveEnvProjectID() = %q, want my-proj", got)
-	}
-
-	emb, reason, err := TryNewDefaultEmbedder(context.Background(), func(k string) string {
-		if k == "KHI_CODESIM_DISABLE" {
-			return "1"
-		}
-		return ""
-	})
-	if err != nil || emb != nil || !strings.Contains(reason, "KHI_CODESIM_DISABLE") {
-		t.Errorf("TryNewDefaultEmbedder(disabled) = (%v, %q, %v)", emb, reason, err)
+	}); got != "cb-proj" {
+		t.Errorf("resolveEnvProjectID(PROJECT_ID) = %q, want cb-proj", got)
 	}
 
 	cacheDir := t.TempDir()
 	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", filepath.Join(cacheDir, "nonexistent_adc.json"))
 
-	noProjEmb, noProjReason, err := tryNewEmbedderWithDeps(context.Background(), nil, buildMockGenaiDeps(filepath.Join(cacheDir, "a.db"), "", nil))
+	defEmb, defReason, err := TryNewDefaultEmbedder(context.Background(), EmbedderOptions{
+		ProjectID: " khi-ci-project ",
+		Getenv: func(k string) string {
+			if k == "CODEQUALITY_SIMILARITY_CACHE_DIR" {
+				return cacheDir
+			}
+			return ""
+		},
+	})
+	if err != nil || defEmb != nil || !strings.Contains(defReason, "Vertex AI client unavailable") {
+		t.Errorf("TryNewDefaultEmbedder(missing ADC) = (%v, %q, %v)", defEmb, defReason, err)
+	}
+
+	noProjEmb, noProjReason, err := tryNewEmbedderWithDeps(context.Background(), EmbedderOptions{}, buildMockGenaiDeps(filepath.Join(cacheDir, "a.db"), "", nil))
 	if err != nil || noProjEmb != nil || !strings.Contains(noProjReason, "no GCP project") {
 		t.Errorf("missing project = (%v, %q, %v)", noProjEmb, noProjReason, err)
 	}
 
-	noAuthEmb, noAuthReason, err := tryNewEmbedderWithDeps(context.Background(), nil, buildMockGenaiDeps(filepath.Join(cacheDir, "b.db"), "proj-a", nil))
-	if err != nil || noAuthEmb != nil || !strings.Contains(noAuthReason, "Vertex AI client unavailable") {
-		t.Errorf("missing ADC = (%v, %q, %v)", noAuthEmb, noAuthReason, err)
+	explicitEmb, explicitReason, err := tryNewEmbedderWithDeps(context.Background(), EmbedderOptions{ProjectID: " explicit-proj "}, buildMockGenaiDeps(filepath.Join(cacheDir, "b.db"), "", &http.Client{}))
+	if err != nil || explicitEmb == nil || explicitReason != "" {
+		t.Fatalf("explicit project client = (%v, %q, %v)", explicitEmb, explicitReason, err)
 	}
+	if gotProj := explicitEmb.(*VertexClient).cfg.ProjectID; gotProj != "explicit-proj" {
+		t.Errorf("explicit ProjectID = %q, want explicit-proj", gotProj)
+	}
+	_ = explicitEmb.(*VertexClient).Close()
 
-	okEmb, okReason, err := tryNewEmbedderWithDeps(context.Background(), nil, buildMockGenaiDeps(filepath.Join(cacheDir, "c.db"), "proj-a", &http.Client{}))
+	okEmb, okReason, err := tryNewEmbedderWithDeps(context.Background(), EmbedderOptions{}, buildMockGenaiDeps(filepath.Join(cacheDir, "c.db"), "proj-a", &http.Client{}))
 	if err != nil || okEmb == nil || okReason != "" {
 		t.Fatalf("valid client = (%v, %q, %v)", okEmb, okReason, err)
 	}
 	_ = okEmb.(*VertexClient).Close()
+}
+
+func TestQueryMetadataProjectID(t *testing.T) {
+	testCases := []struct {
+		name   string
+		status int
+		body   string
+		want   string
+	}{
+		{
+			name:   "resolves trimmed Cloud Build project ID with Metadata-Flavor Google",
+			status: http.StatusOK,
+			body:   "  example-ci-project \n",
+			want:   "example-ci-project",
+		},
+		{
+			name:   "returns empty on HTTP 404",
+			status: http.StatusNotFound,
+			body:   "not found",
+			want:   "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Metadata-Flavor") != "Google" || r.URL.Path != "/computeMetadata/v1/project/project-id" {
+					w.WriteHeader(http.StatusForbidden)
+					return
+				}
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			got := queryMetadataProjectID(context.Background(), srv.Client(), srv.URL)
+			if got != tc.want {
+				t.Errorf("queryMetadataProjectID() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	if got := queryMetadataProjectID(context.Background(), &http.Client{}, "://bad-url"); got != "" {
+		t.Errorf("queryMetadataProjectID(invalid URL) = %q, want empty", got)
+	}
+	if got := queryMetadataProjectID(context.Background(), &http.Client{}, "http://127.0.0.1:1"); got != "" {
+		t.Errorf("queryMetadataProjectID(unreachable) = %q, want empty", got)
+	}
 }
 
 func buildMockGenaiDeps(dbPath string, proj string, httpClient *http.Client) defaultEmbedderDeps {

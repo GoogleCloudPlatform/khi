@@ -100,13 +100,13 @@ When you want to run backend tests without Cloud Logging, run the following code
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
-To verify unified Go and TypeScript code and test quality rules (Go AST complexity/size/naming/clone budgets, uncovered executable lines, surviving mutants, redundant tests, and AST-normalized function similarity advisories) on the files you added or modified relative to `main` (`trunk`), run:
+To verify unified Go and TypeScript code and test quality rules (Go AST complexity/size/naming/clone budgets, uncovered executable lines, surviving mutants, and redundant tests) on the files you added or modified relative to `main` (`trunk`), run:
 
 ```shell
 make codequality
 ```
 
-During fast Go refactoring, you can run static AST quality and ratchet checks in under a second with `make codequality-fast`. You can also target a single language (`make codequality-go` or `make codequality-web`), run frontend Karma inside the builder container (`USE_CONTAINER=true`), specify a custom base revision (for example, `make codequality CODEQUALITY_BASE=@-` or `CODEQUALITY_BASE=origin/main~3`), run full-repo coverage (`CODEQUALITY_FULL=true`), or force/disable ANSI colors (`COLOR=always` / `COLOR=never`).
+During fast Go refactoring, you can run static AST quality and ratchet checks in under a second with `make codequality-fast`. You can also target a single language (`make codequality-go` or `make codequality-web`), run frontend Karma inside the builder container (`USE_CONTAINER=true`), opt in to Vertex AI `gemini-embedding-2` AST-normalized function similarity advisories (`CODEQUALITY_SIMILARITY=true` and optional `CODEQUALITY_SIMILARITY_PROJECT=<project-id>`, off by default locally to avoid unintended GCP billing and enabled in Cloud Build CI), specify a custom base revision (for example, `make codequality CODEQUALITY_BASE=@-` or `CODEQUALITY_BASE=origin/main~3`), run full-repo coverage (`CODEQUALITY_FULL=true`), or force/disable ANSI colors (`COLOR=always` / `COLOR=never`).
 
 Go quality rules use a unified hard-limit and no-worsening ratchet (`after <= before` on pre-existing legacy units). When a mutant survives or an uncovered branch is flagged in Go or TypeScript, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff`, asserting Angular signals/view models in `*.spec.ts`, or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// CODEQUALITY_ALLOW(<rule_id>, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is `dispatch`, `protocol`, `equivalent`, `perf`, `observability`, or `external` depending on the rule).
 

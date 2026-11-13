@@ -63,6 +63,7 @@ type cliFlags struct {
 	summaryFile        string
 	maxAnnotations     int
 	similarity         bool
+	similarityProject  string
 	failOnViolations   bool
 	tsFailOnViolations bool
 }
@@ -167,7 +168,8 @@ func parseFlags(args []string, errOut io.Writer, getenv func(string) string) (cl
 	fs.StringVar(&f.color, "color", "auto", "ANSI color mode: auto, always, or never")
 	fs.StringVar(&f.summaryFile, "summary-file", getenv("GITHUB_STEP_SUMMARY"), "GitHub step summary file path")
 	fs.IntVar(&f.maxAnnotations, "max-annotations", defaultMaxAnnotations, "maximum GitHub workflow annotations per language")
-	fs.BoolVar(&f.similarity, "similarity", true, "evaluate AST-normalized function similarity advisories for newly added units")
+	fs.BoolVar(&f.similarity, "similarity", parseSimilarityEnv(getenv), "evaluate AST-normalized function similarity advisories via Vertex AI (opt-in; also enabled via CODEQUALITY_SIMILARITY=true)")
+	fs.StringVar(&f.similarityProject, "similarity-project", parseSimilarityProjectEnv(getenv), "GCP project ID for Vertex AI similarity embeddings (also set via CODEQUALITY_SIMILARITY_PROJECT)")
 	fs.BoolVar(&f.failOnViolations, "fail-on-violations", true, "exit with code 1 when blocking violations are found")
 	fs.BoolVar(&f.tsFailOnViolations, "ts-fail-on-violations", false, "treat TypeScript findings as blocking errors instead of advisory warnings")
 
@@ -227,7 +229,7 @@ func executePipeline(ctx context.Context, flags cliFlags, repoRoot string, env c
 		return nil, "", err
 	}
 
-	simSession := newSimilaritySession(ctx, flags.similarity, env.embedFactory, env.getenv)
+	simSession := newSimilaritySession(ctx, flags, env.embedFactory, env.getenv)
 	defer simSession.Close()
 
 	penv := pipelineEnv{

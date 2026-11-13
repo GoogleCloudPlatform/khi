@@ -24,6 +24,8 @@ readonly BASE_BRANCH="${BASE_BRANCH:-main}"
 readonly CODEQUALITY_WORKERS="${CODEQUALITY_WORKERS:-0}"
 readonly CODEQUALITY_MAX="${CODEQUALITY_MAX:-0}"
 readonly CODEQUALITY_TIMEOUT="${CODEQUALITY_TIMEOUT:-10m}"
+readonly CODEQUALITY_SIMILARITY="${CODEQUALITY_SIMILARITY:-false}"
+readonly CODEQUALITY_SIMILARITY_PROJECT="${CODEQUALITY_SIMILARITY_PROJECT:-}"
 readonly SKIP_FETCH="${SKIP_FETCH:-false}"
 
 configure_git_and_fetch_base() {
@@ -127,10 +129,15 @@ main() {
   echo "=================================================================="
   echo "KHI Cloud Build Code Quality Gate"
   echo "PR: #${PR_NUMBER:-local} | Base: origin/${BASE_BRANCH} (${merge_base:0:12}) -> HEAD (${head_sha}) | CPUs: ${cpu_count}"
-  echo "Max Mutants: ${CODEQUALITY_MAX} | Timeout: ${CODEQUALITY_TIMEOUT}"
+  echo "Max Mutants: ${CODEQUALITY_MAX} | Timeout: ${CODEQUALITY_TIMEOUT} | Similarity: ${CODEQUALITY_SIMILARITY}"
   echo "=================================================================="
 
   prepare_workspace_artifacts "${merge_base}"
+
+  local -a similarity_args=("--similarity=${CODEQUALITY_SIMILARITY}")
+  if [[ -n "${CODEQUALITY_SIMILARITY_PROJECT}" ]]; then
+    similarity_args+=("--similarity-project=${CODEQUALITY_SIMILARITY_PROJECT}")
+  fi
 
   KHI_SKIP_CLOUD_LOGGING=true go run ./scripts/codequality \
     --lang=all \
@@ -139,6 +146,7 @@ main() {
     --workers="${CODEQUALITY_WORKERS}" \
     --max-mutants="${CODEQUALITY_MAX}" \
     --timeout="${CODEQUALITY_TIMEOUT}" \
+    "${similarity_args[@]}" \
     --color=never
 }
 

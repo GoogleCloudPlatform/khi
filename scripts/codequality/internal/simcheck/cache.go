@@ -63,7 +63,7 @@ type VectorCache struct {
 // DefaultCachePath resolves the shared cross-workspace SQLite cache path from environment or OS user cache dir.
 func DefaultCachePath(getenv func(string) string) (string, error) {
 	if getenv != nil {
-		if custom := strings.TrimSpace(getenv("KHI_CODESIM_CACHE_DIR")); custom != "" {
+		if custom := strings.TrimSpace(getenv("CODEQUALITY_SIMILARITY_CACHE_DIR")); custom != "" {
 			return filepath.Join(custom, "embeddings_v1.db"), nil
 		}
 	}

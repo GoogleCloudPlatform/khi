@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
@@ -28,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
-type embedderFactory func(ctx context.Context, getenv func(string) string) (simcheck.Embedder, string, error)
+type embedderFactory func(ctx context.Context, opts simcheck.EmbedderOptions) (simcheck.Embedder, string, error)
 
 type resolvedEmbedder struct {
 	embedder   simcheck.Embedder
@@ -49,13 +50,31 @@ type simLangRequest struct {
 	changedLines map[string]map[int]struct{}
 }
 
-func newSimilaritySession(ctx context.Context, enabled bool, factory embedderFactory, getenv func(string) string) *similaritySession {
-	s := &similaritySession{enabled: enabled}
+func parseSimilarityEnv(getenv func(string) string) bool {
+	if getenv == nil {
+		return false
+	}
+	val := strings.ToLower(strings.TrimSpace(getenv("CODEQUALITY_SIMILARITY")))
+	return val == "true" || val == "1"
+}
+
+func parseSimilarityProjectEnv(getenv func(string) string) string {
+	if getenv == nil {
+		return ""
+	}
+	return strings.TrimSpace(getenv("CODEQUALITY_SIMILARITY_PROJECT"))
+}
+
+func newSimilaritySession(ctx context.Context, flags cliFlags, factory embedderFactory, getenv func(string) string) *similaritySession {
+	s := &similaritySession{enabled: flags.similarity}
 	s.resolve = sync.OnceValues(func() (resolvedEmbedder, error) {
 		if factory == nil {
 			return resolvedEmbedder{skipReason: "embedding client not configured"}, nil
 		}
-		emb, reason, err := factory(ctx, getenv)
+		emb, reason, err := factory(ctx, simcheck.EmbedderOptions{
+			ProjectID: flags.similarityProject,
+			Getenv:    getenv,
+		})
 		if err != nil {
 			return resolvedEmbedder{}, err
 		}

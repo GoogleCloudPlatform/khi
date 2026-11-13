@@ -148,7 +148,7 @@ func TestInMemoryCacheAndDecodeBounds(t *testing.T) {
 
 func TestDefaultCachePath(t *testing.T) {
 	gotCustom, err := DefaultCachePath(func(k string) string {
-		if k == "KHI_CODESIM_CACHE_DIR" {
+		if k == "CODEQUALITY_SIMILARITY_CACHE_DIR" {
 			return " /tmp/custom-codesim-cache "
 		}
 		return ""
