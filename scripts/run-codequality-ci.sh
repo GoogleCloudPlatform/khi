@@ -24,6 +24,8 @@ readonly BASE_BRANCH="${BASE_BRANCH:-main}"
 readonly CODEQUALITY_WORKERS="${CODEQUALITY_WORKERS:-0}"
 readonly CODEQUALITY_MAX="${CODEQUALITY_MAX:-0}"
 readonly CODEQUALITY_TIMEOUT="${CODEQUALITY_TIMEOUT:-10m}"
+readonly CODEQUALITY_SIMILARITY="${CODEQUALITY_SIMILARITY:-false}"
+readonly CODEQUALITY_SIMILARITY_PROJECT="${CODEQUALITY_SIMILARITY_PROJECT:-}"
 readonly SKIP_FETCH="${SKIP_FETCH:-false}"
 
 configure_git_and_fetch_base() {
@@ -61,6 +63,7 @@ prepare_workspace_artifacts() {
   local has_go="false"
   local has_server_or_cmd="false"
   local has_ts="false"
+  local has_codequality="false"
 
   local path
   while IFS= read -r path; do
@@ -82,6 +85,12 @@ prepare_workspace_artifacts() {
         ;;
       web/src/*.ts)
         has_ts="true"
+        ;;
+    esac
+
+    case "${path}" in
+      scripts/codequality/*)
+        has_codequality="true"
         ;;
     esac
   done <<< "${changed_files}"
@@ -106,6 +115,11 @@ prepare_workspace_artifacts() {
     make generate-frontend
   fi
 
+  if [[ "${has_ts}" == "false" && "${has_codequality}" == "true" ]]; then
+    echo "Codequality tool changes detected; installing web dependencies for TypeScript AST tests..."
+    (cd ./web && npm ci)
+  fi
+
   if [[ "${has_go}" == "true" ]]; then
     echo "Backend Go changes detected; generating backend code..."
     touch scripts/make/build-proto.done
@@ -127,10 +141,15 @@ main() {
   echo "=================================================================="
   echo "KHI Cloud Build Code Quality Gate"
   echo "PR: #${PR_NUMBER:-local} | Base: origin/${BASE_BRANCH} (${merge_base:0:12}) -> HEAD (${head_sha}) | CPUs: ${cpu_count}"
-  echo "Max Mutants: ${CODEQUALITY_MAX} | Timeout: ${CODEQUALITY_TIMEOUT}"
+  echo "Max Mutants: ${CODEQUALITY_MAX} | Timeout: ${CODEQUALITY_TIMEOUT} | Similarity: ${CODEQUALITY_SIMILARITY}"
   echo "=================================================================="
 
   prepare_workspace_artifacts "${merge_base}"
+
+  local -a similarity_args=("--similarity=${CODEQUALITY_SIMILARITY}")
+  if [[ -n "${CODEQUALITY_SIMILARITY_PROJECT}" ]]; then
+    similarity_args+=("--similarity-project=${CODEQUALITY_SIMILARITY_PROJECT}")
+  fi
 
   KHI_SKIP_CLOUD_LOGGING=true go run ./scripts/codequality \
     --lang=all \
@@ -139,6 +158,7 @@ main() {
     --workers="${CODEQUALITY_WORKERS}" \
     --max-mutants="${CODEQUALITY_MAX}" \
     --timeout="${CODEQUALITY_TIMEOUT}" \
+    "${similarity_args[@]}" \
     --color=never
 }
 

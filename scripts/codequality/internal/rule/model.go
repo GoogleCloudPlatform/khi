@@ -220,6 +220,8 @@ type Report struct {
 	Coverage CoverageSummary
 	// Mutation holds aggregate mutation testing counts.
 	Mutation MutationSummary
+	// Similarity holds non-blocking semantic function similarity advisory results.
+	Similarity SimilaritySummary
 	// Findings lists all rule findings in deterministic order.
 	Findings []Finding
 	// Suppressed lists all findings suppressed via CODEQUALITY_ALLOW.

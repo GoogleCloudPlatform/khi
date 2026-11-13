@@ -15,6 +15,7 @@
 substitutions:
   _MAX_MUTANTS: "0"
   _TIMEOUT: "10m"
+  _SIMILARITY: "true"
 
 steps:
   - name: "gcr.io/kubernetes-history-inspector/builder:latest"
@@ -25,6 +26,8 @@ steps:
       - "PR_NUMBER=${_PR_NUMBER}"
       - "CODEQUALITY_MAX=${_MAX_MUTANTS}"
       - "CODEQUALITY_TIMEOUT=${_TIMEOUT}"
+      - "CODEQUALITY_SIMILARITY=${_SIMILARITY}"
+      - "CODEQUALITY_SIMILARITY_PROJECT=${PROJECT_ID}"
     args:
       - "codequality-ci"
 
