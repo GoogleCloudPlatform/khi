@@ -200,7 +200,7 @@ func checkDirConventions(repoRoot string, relPaths []string) ([]ConventionViolat
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %s: %w", relPath, err)
 		}
-		if isGeneratedAST(file) {
+		if IsGeneratedAST(file) {
 			continue
 		}
 		pkgName := file.Name.Name

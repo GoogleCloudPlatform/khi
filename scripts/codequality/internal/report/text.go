@@ -38,6 +38,9 @@ func RenderText(w io.Writer, rep *rule.Report, style gotestutil.TermStyle) {
 	if len(rep.Suppressed) > 0 {
 		renderSuppressedSummary(w, rep.Suppressed, style)
 	}
+	if len(rep.Similarity.Advisories) > 0 {
+		renderSimilarityAdvisories(w, rep.LanguageTitle(), rep.Similarity.Advisories, style)
+	}
 }
 
 // FormatBudgetValue formats a Finding's measured value, optional base value, and limit concisely.
@@ -63,6 +66,9 @@ func renderDashboardHeader(w io.Writer, rep *rule.Report, style gotestutil.TermS
 	}
 	if rep.Mutation.Enabled {
 		renderMutationLine(w, rep.Mutation, style)
+	}
+	if rep.Similarity.Enabled {
+		renderSimilarityHeaderLine(w, rep.Similarity, style)
 	}
 	renderVerdictLine(w, rep, style)
 }

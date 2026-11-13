@@ -119,7 +119,7 @@ func AnalyzeFile(relPath string, src []byte, minParamsForFlag int) (*FileMetrics
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", cleanPath, err)
 	}
-	if isGeneratedAST(file) {
+	if IsGeneratedAST(file) {
 		return nil, nil
 	}
 
@@ -133,7 +133,7 @@ func AnalyzeFile(relPath string, src []byte, minParamsForFlag int) (*FileMetrics
 		PackageName:     file.Name.Name,
 		PkgLine:         fset.Position(file.Name.Pos()).Line,
 		IsTest:          isTest,
-		CodeLines:       countTrueInRange(fileMask, 1, len(fileMask)-1),
+		CodeLines:       CountTrueInRange(fileMask, 1, len(fileMask)-1),
 		Directives:      directives,
 		DirectiveErrors: dirErrs,
 	}
@@ -171,7 +171,8 @@ func FormatFuncIdentity(fd *ast.FuncDecl) (string, string) {
 	return key, key
 }
 
-func isGeneratedAST(file *ast.File) bool {
+// IsGeneratedAST reports whether file contains a standard Go "Code generated ... DO NOT EDIT" comment.
+func IsGeneratedAST(file *ast.File) bool {
 	for _, cg := range file.Comments {
 		for _, c := range cg.List {
 			if strings.Contains(c.Text, "Code generated") && strings.Contains(c.Text, "DO NOT EDIT") {
@@ -180,6 +181,31 @@ func isGeneratedAST(file *ast.File) bool {
 		}
 	}
 	return false
+}
+
+// CountTrueInRange counts lines marked true in mask across the inclusive 1-based range [start, end].
+func CountTrueInRange(mask []bool, start int, end int) int {
+	n := 0
+	for ln := start; ln <= end; ln++ {
+		if mask[ln] {
+			n++
+		}
+	}
+	return n
+}
+
+// CountBlockStatements counts executable AST statements inside body, excluding block wrappers and labels.
+func CountBlockStatements(body *ast.BlockStmt) int {
+	count := 0
+	ast.Inspect(body, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.BlockStmt, *ast.LabeledStmt:
+		case ast.Stmt:
+			count++
+		}
+		return true
+	})
+	return count
 }
 
 func excludeHeaderAndImports(fset *token.FileSet, file *ast.File, codeMask []bool) []bool {
@@ -200,16 +226,6 @@ func excludeHeaderAndImports(fset *token.FileSet, file *ast.File, codeMask []boo
 	return out
 }
 
-func countTrueInRange(mask []bool, start int, end int) int {
-	n := 0
-	for ln := start; ln <= end; ln++ {
-		if mask[ln] {
-			n++
-		}
-	}
-	return n
-}
-
 func (a *fileAnalyzer) analyzeFuncDecl(fd *ast.FuncDecl) FuncMetrics {
 	startLine := a.fset.Position(fd.Pos()).Line
 	endLine := a.fset.Position(fd.End()).Line
@@ -228,8 +244,8 @@ func (a *fileAnalyzer) analyzeFuncDecl(fd *ast.FuncDecl) FuncMetrics {
 		DisplayName:       display,
 		StartLine:         startLine,
 		EndLine:           endLine,
-		CodeLines:         countTrueInRange(a.codeMask, startLine, endLine),
-		Statements:        countStatements(fd.Body),
+		CodeLines:         CountTrueInRange(a.codeMask, startLine, endLine),
+		Statements:        CountBlockStatements(fd.Body),
 		Cognitive:         comp.Cognitive,
 		MaxNesting:        comp.MaxNesting,
 		Params:            params,
@@ -272,19 +288,6 @@ func countFields(fl *ast.FieldList) int {
 		}
 	}
 	return total
-}
-
-func countStatements(body *ast.BlockStmt) int {
-	count := 0
-	ast.Inspect(body, func(n ast.Node) bool {
-		switch n.(type) {
-		case *ast.BlockStmt, *ast.LabeledStmt:
-		case ast.Stmt:
-			count++
-		}
-		return true
-	})
-	return count
 }
 
 func isGoTestEntryFunc(fd *ast.FuncDecl) bool {

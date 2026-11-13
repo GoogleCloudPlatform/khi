@@ -67,9 +67,10 @@ CODEQUALITY_FULL ?= false
 CODEQUALITY_WORKERS ?= 0
 CODEQUALITY_MAX ?= 80
 CODEQUALITY_TIMEOUT ?= 3m
+CODEQUALITY_SIMILARITY ?= true
 CODEQUALITY_COLOR ?= $(COLOR)
 
-CODEQUALITY_FLAGS := --color=$(CODEQUALITY_COLOR) --workers=$(CODEQUALITY_WORKERS) --max-mutants=$(CODEQUALITY_MAX) --timeout=$(CODEQUALITY_TIMEOUT) $(if $(CODEQUALITY_VCS),--vcs=$(CODEQUALITY_VCS),) $(if $(CODEQUALITY_BASE),--base=$(CODEQUALITY_BASE),) $(if $(CODEQUALITY_TARGET),--target=$(CODEQUALITY_TARGET),) $(if $(filter true 1,$(CODEQUALITY_FULL)),--full,)
+CODEQUALITY_FLAGS := --color=$(CODEQUALITY_COLOR) --similarity=$(CODEQUALITY_SIMILARITY) --workers=$(CODEQUALITY_WORKERS) --max-mutants=$(CODEQUALITY_MAX) --timeout=$(CODEQUALITY_TIMEOUT) $(if $(CODEQUALITY_VCS),--vcs=$(CODEQUALITY_VCS),) $(if $(CODEQUALITY_BASE),--base=$(CODEQUALITY_BASE),) $(if $(CODEQUALITY_TARGET),--target=$(CODEQUALITY_TARGET),) $(if $(filter true 1,$(CODEQUALITY_FULL)),--full,)
 
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
@@ -77,8 +78,8 @@ coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_
 	go tool cover -html=./go-cover.output -o=go-cover.html
 
 .PHONY: codequality-fast
-codequality-fast: ## Run fast Go AST structural complexity, size, naming, and ratchet checks on changed files
-	go run ./scripts/codequality --lang=go --fast --color=$(CODEQUALITY_COLOR) $(if $(CODEQUALITY_VCS),--vcs=$(CODEQUALITY_VCS),) $(if $(CODEQUALITY_BASE),--base=$(CODEQUALITY_BASE),) $(if $(CODEQUALITY_TARGET),--target=$(CODEQUALITY_TARGET),)
+codequality-fast: ## Run fast Go AST structural complexity, size, naming, ratchet, and function similarity checks on changed files
+	go run ./scripts/codequality --lang=go --fast --similarity=$(CODEQUALITY_SIMILARITY) --color=$(CODEQUALITY_COLOR) $(if $(CODEQUALITY_VCS),--vcs=$(CODEQUALITY_VCS),) $(if $(CODEQUALITY_BASE),--base=$(CODEQUALITY_BASE),) $(if $(CODEQUALITY_TARGET),--target=$(CODEQUALITY_TARGET),)
 
 .PHONY: codequality-ci
 codequality-ci: ## Run unified differential code quality checks for Cloud Build CI

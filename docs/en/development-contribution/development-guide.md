@@ -100,7 +100,7 @@ When you want to run backend tests without Cloud Logging, run the following code
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
-To verify unified Go and TypeScript code and test quality rules (Go AST complexity/size/naming/clone budgets, uncovered executable lines, surviving mutants, and redundant tests) on the files you added or modified relative to `main` (`trunk`), run:
+To verify unified Go and TypeScript code and test quality rules (Go AST complexity/size/naming/clone budgets, uncovered executable lines, surviving mutants, redundant tests, and AST-normalized function similarity advisories) on the files you added or modified relative to `main` (`trunk`), run:
 
 ```shell
 make codequality

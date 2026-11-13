@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/overlay"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/report"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/tscheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
@@ -61,23 +62,26 @@ type cliFlags struct {
 	color              string
 	summaryFile        string
 	maxAnnotations     int
+	similarity         bool
 	failOnViolations   bool
 	tsFailOnViolations bool
 }
 
 type cliEnv struct {
-	args   []string
-	stdout io.Writer
-	stderr io.Writer
-	getenv func(string) string
+	args         []string
+	stdout       io.Writer
+	stderr       io.Writer
+	getenv       func(string) string
+	embedFactory embedderFactory
 }
 
 type pipelineEnv struct {
-	flags    cliFlags
-	repoRoot string
-	diffRes  gotestutil.DiffResult
-	progress *report.ProgressReporter
-	errOut   io.Writer
+	flags      cliFlags
+	repoRoot   string
+	diffRes    gotestutil.DiffResult
+	progress   *report.ProgressReporter
+	errOut     io.Writer
+	simSession *similaritySession
 }
 
 type dynamicStageInput struct {
@@ -92,10 +96,11 @@ type dynamicStageInput struct {
 
 func main() {
 	code, err := runCLI(context.Background(), cliEnv{
-		args:   os.Args[1:],
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-		getenv: os.Getenv,
+		args:         os.Args[1:],
+		stdout:       os.Stdout,
+		stderr:       os.Stderr,
+		getenv:       os.Getenv,
+		embedFactory: simcheck.TryNewDefaultEmbedder,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "codequality: %v\n", err)
@@ -140,18 +145,6 @@ func runCLI(ctx context.Context, env cliEnv) (int, error) {
 	return 0, nil
 }
 
-func hasAnyBlockingReport(flags cliFlags, reports []*rule.Report) bool {
-	if !flags.failOnViolations {
-		return false
-	}
-	for _, rep := range reports {
-		if rep.HasBlockingIssues() {
-			return true
-		}
-	}
-	return false
-}
-
 func parseFlags(args []string, errOut io.Writer, getenv func(string) string) (cliFlags, error) {
 	var f cliFlags
 	fs := flag.NewFlagSet("codequality", flag.ContinueOnError)
@@ -174,6 +167,7 @@ func parseFlags(args []string, errOut io.Writer, getenv func(string) string) (cl
 	fs.StringVar(&f.color, "color", "auto", "ANSI color mode: auto, always, or never")
 	fs.StringVar(&f.summaryFile, "summary-file", getenv("GITHUB_STEP_SUMMARY"), "GitHub step summary file path")
 	fs.IntVar(&f.maxAnnotations, "max-annotations", defaultMaxAnnotations, "maximum GitHub workflow annotations per language")
+	fs.BoolVar(&f.similarity, "similarity", true, "evaluate AST-normalized function similarity advisories for newly added units")
 	fs.BoolVar(&f.failOnViolations, "fail-on-violations", true, "exit with code 1 when blocking violations are found")
 	fs.BoolVar(&f.tsFailOnViolations, "ts-fail-on-violations", false, "treat TypeScript findings as blocking errors instead of advisory warnings")
 
@@ -210,12 +204,7 @@ func runConventionsMode(repoRoot string, pkgs string, stdout io.Writer) (int, er
 	return 0, nil
 }
 
-func executePipeline(
-	ctx context.Context,
-	flags cliFlags,
-	repoRoot string,
-	env cliEnv,
-) ([]*rule.Report, string, error) {
+func executePipeline(ctx context.Context, flags cliFlags, repoRoot string, env cliEnv) ([]*rule.Report, string, error) {
 	errStyle := gotestutil.TermStyle{Enabled: gotestutil.ResolveColorEnabled(gotestutil.ColorAuto, env.stderr, env.getenv)}
 	progress := report.NewProgressReporter(report.ProgressConfig{
 		Writer:      env.stderr,
@@ -238,12 +227,16 @@ func executePipeline(
 		return nil, "", err
 	}
 
+	simSession := newSimilaritySession(ctx, flags.similarity, env.embedFactory, env.getenv)
+	defer simSession.Close()
+
 	penv := pipelineEnv{
-		flags:    flags,
-		repoRoot: repoRoot,
-		diffRes:  diffRes,
-		progress: progress,
-		errOut:   env.stderr,
+		flags:      flags,
+		repoRoot:   repoRoot,
+		diffRes:    diffRes,
+		progress:   progress,
+		errOut:     env.stderr,
+		simSession: simSession,
 	}
 	var reports []*rule.Report
 	if shouldRunGo(flags, diffRes) {
@@ -302,6 +295,11 @@ func executeGoPipeline(ctx context.Context, penv pipelineEnv) (*rule.Report, err
 	}
 
 	rep := newInitialGoReport(penv.diffRes, penv.flags.fast, astRes)
+	simSum, err := penv.simSession.evaluateGo(ctx, penv.repoRoot, penv.diffRes)
+	if err != nil {
+		return nil, err
+	}
+	rep.Similarity = simSum
 	if !penv.flags.fast {
 		if err := runDynamicStages(ctx, dynamicStageInput{
 			flags:      penv.flags,
@@ -321,7 +319,7 @@ func executeGoPipeline(ctx context.Context, penv pipelineEnv) (*rule.Report, err
 }
 
 func executeTSPipeline(ctx context.Context, penv pipelineEnv) (*rule.Report, error) {
-	return tscheck.Evaluate(ctx, tscheck.Options{
+	rep, err := tscheck.Evaluate(ctx, tscheck.Options{
 		RepoRoot:               penv.repoRoot,
 		BaseLabel:              penv.diffRes.BaseLabel,
 		TSCoveragePath:         penv.flags.tsCoverage,
@@ -334,6 +332,15 @@ func executeTSPipeline(ctx context.Context, penv pipelineEnv) (*rule.Report, err
 		LogWriter:              penv.errOut,
 		Progress:               penv.progress,
 	})
+	if err != nil {
+		return nil, err
+	}
+	simSum, err := penv.simSession.evaluateTS(ctx, penv.repoRoot, penv.diffRes)
+	if err != nil {
+		return nil, err
+	}
+	rep.Similarity = simSum
+	return rep, nil
 }
 
 func newInitialGoReport(diffRes gotestutil.DiffResult, fast bool, astRes *astcheck.Result) *rule.Report {
@@ -416,12 +423,7 @@ func newLazyOverlayBuilder(ctx context.Context, in dynamicStageInput, workDir st
 	})
 }
 
-func runCoverageStage(
-	ctx context.Context,
-	in dynamicStageInput,
-	workDir string,
-	ensureOverlay func() (*overlay.Snapshot, error),
-) (*covcheck.Result, error) {
+func runCoverageStage(ctx context.Context, in dynamicStageInput, workDir string, ensureOverlay func() (*overlay.Snapshot, error)) (*covcheck.Result, error) {
 	in.progress.Phase(2, 4, "Evaluating Go differential line coverage...")
 	return covcheck.Evaluate(ctx, covcheck.Options{
 		RepoRoot:               in.repoRoot,
@@ -440,13 +442,7 @@ func runCoverageStage(
 	})
 }
 
-func runMutationStage(
-	ctx context.Context,
-	in dynamicStageInput,
-	workDir string,
-	covRes *covcheck.Result,
-	ensureOverlay func() (*overlay.Snapshot, error),
-) (*mutcheck.Result, error) {
+func runMutationStage(ctx context.Context, in dynamicStageInput, workDir string, covRes *covcheck.Result, ensureOverlay func() (*overlay.Snapshot, error)) (*mutcheck.Result, error) {
 	return mutcheck.Evaluate(ctx, mutcheck.Options{
 		RepoRoot:               in.repoRoot,
 		WorkDir:                filepath.Join(workDir, "mut"),

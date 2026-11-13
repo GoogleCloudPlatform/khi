@@ -80,6 +80,9 @@ func RenderGitHubSummary(w io.Writer, rep *rule.Report) {
 	if len(rep.Findings) > 0 {
 		renderMarkdownFindings(w, rep.Findings, rep.CodeFence())
 	}
+	if len(rep.Similarity.Advisories) > 0 {
+		renderMarkdownSimilarityAdvisories(w, rep.LanguageTitle(), rep.Similarity.Advisories)
+	}
 }
 
 func emitAnnotation(w io.Writer, a annotationSpec) {
@@ -106,6 +109,9 @@ func renderSummaryMetricsTable(w io.Writer, rep *rule.Report) {
 	if rep.Mutation.Enabled {
 		fmt.Fprintf(w, "| Mutation Score | %.1f%% (%d/%d killed, %d survived) |\n",
 			rep.Mutation.Score(), rep.Mutation.DetectedCount(), rep.Mutation.TotalEvaluated(), rep.Mutation.Survived)
+	}
+	if rep.Similarity.Enabled {
+		renderMarkdownSimilarityMetric(w, rep.Similarity)
 	}
 	fmt.Fprintln(w)
 }

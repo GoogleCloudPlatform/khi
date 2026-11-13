@@ -45,6 +45,18 @@ func emitOutputs(req emitRequest) error {
 	return nil
 }
 
+func hasAnyBlockingReport(flags cliFlags, reports []*rule.Report) bool {
+	if !flags.failOnViolations {
+		return false
+	}
+	for _, rep := range reports {
+		if rep.HasBlockingIssues() {
+			return true
+		}
+	}
+	return false
+}
+
 func emitTextOutputs(req emitRequest) {
 	style := gotestutil.TermStyle{Enabled: gotestutil.ResolveColorEnabled(req.colorMode, req.env.stdout, req.env.getenv)}
 	if len(req.reports) == 0 {

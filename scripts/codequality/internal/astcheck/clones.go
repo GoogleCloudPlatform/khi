@@ -120,7 +120,7 @@ func ExtractCloneBlocks(relPath string, src []byte) []FuncCloneBlock {
 	cleanPath := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, cleanPath, src, parser.ParseComments)
-	if err != nil || isGeneratedAST(file) {
+	if err != nil || IsGeneratedAST(file) {
 		return nil
 	}
 
