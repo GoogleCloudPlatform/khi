@@ -210,12 +210,9 @@ func findCiliumCNIPodReference(message *logutil.ParseStructuredLogResult) (names
 	if !isCiliumCNILog(message) {
 		return "", "", false
 	}
-	namespace, err := message.StringField("k8sNamespace")
-	if err != nil || namespace == "" {
-		return "", "", false
-	}
-	name, err = message.StringField("k8sPodName")
-	if err != nil || name == "" {
+	namespace, _ = message.StringField("k8sNamespace")
+	name, _ = message.StringField("k8sPodName")
+	if namespace == "" || name == "" {
 		return "", "", false
 	}
 	return namespace, name, true

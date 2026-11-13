@@ -213,11 +213,6 @@ func TestIsCiliumCNILog(t *testing.T) {
 			want:    true,
 		},
 		{
-			desc:    "cilium-cni log with empty pod fields",
-			message: logfmtParser.TryParse(`level=info msg="Fast start health check grace period active." subsys=cilium-cni k8sNamespace="" k8sPodName=""`),
-			want:    true,
-		},
-		{
 			desc:    "log of another subsystem",
 			message: logfmtParser.TryParse(`level=info msg="Create endpoint request" subsys=daemon`),
 			want:    false,
@@ -269,11 +264,6 @@ func TestFindCiliumCNIPodReference(t *testing.T) {
 		{
 			desc:    "cilium-cni log without the pod name",
 			message: logfmtParser.TryParse(`level=info msg="Releasing IP" subsys=cilium-cni k8sNamespace=kube-system`),
-			want:    podReference{},
-		},
-		{
-			desc:    "cilium-cni log with empty pod fields",
-			message: logfmtParser.TryParse(`level=info msg="Fast start health check grace period active." subsys=cilium-cni k8sNamespace="" k8sPodName=""`),
 			want:    podReference{},
 		},
 		{

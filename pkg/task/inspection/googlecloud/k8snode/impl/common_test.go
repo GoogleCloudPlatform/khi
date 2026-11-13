@@ -141,6 +141,45 @@ func TestProcessK8sNodeLog(t *testing.T) {
 			},
 		},
 		{
+			desc:         "kubelet log with non-137 nonzero exitCode",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Container failed" pod="kube-system/podname" exitCode=1`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "kubelet",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`Container failed(exitCode=1) 【podname (Namespace: kube-system)】`).
+					HasSeverity(inspectioncore.SeverityWarning)
+			},
+		},
+		{
+			desc:         "kubelet log with zero exitCode",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Container exited" pod="kube-system/podname" exitCode=0`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "kubelet",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`Container exited(exitCode=0) 【podname (Namespace: kube-system)】`).
+					HasSeverity(inspectioncore.SeverityInfo)
+			},
+		},
+		{
+			desc:         "kubelet log with invalid pod klog field",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Syncing pod" pod="invalid-pod"`,
+			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
+				Component: "kubelet",
+				NodeName:  "node-1",
+			},
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary(`Syncing pod`).
+					HasSeverity(inspectioncore.SeverityInfo)
+			},
+		},
+		{
 			desc:         "kubelet log with pods klog field",
 			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "log with multiple pods" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pods=["kube-system/podname1","kube-system/podname2"]`,
 			inputNodeLogFieldSet: &k8snode.K8sNodeLogCommonFieldSet{
