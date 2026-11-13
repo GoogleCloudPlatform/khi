@@ -29,34 +29,44 @@ import (
 
 // StmtFingerprint pairs a normalized structural token with its 1-based source line.
 type StmtFingerprint struct {
+	// Token is the normalized structural statement fingerprint.
 	Token string
-	Line  int
+	// Line is the 1-based source line number of the statement.
+	Line int
 }
 
 // FuncCloneBlock holds the normalized statement sequence for one production Go function.
 type FuncCloneBlock struct {
-	File      string
-	FuncKey   string
-	FuncName  string
+	// File is the slash-separated relative path of the Go file.
+	File string
+	// FuncKey is the canonical function or method identifier.
+	FuncKey string
+	// FuncName is the human-readable function or method display name.
+	FuncName string
+	// StartLine is the 1-based starting line of the function declaration.
 	StartLine int
-	EndLine   int
-	Stmts     []StmtFingerprint
+	// EndLine is the 1-based ending line of the function declaration.
+	EndLine int
+	// Stmts holds the flattened sequence of statement fingerprints in the function body.
+	Stmts []StmtFingerprint
 }
 
 // CloneMatch describes the longest contiguous duplicated statement span found against another function.
 type CloneMatch struct {
+	// Statements is the count of contiguous matching normalized statements.
 	Statements int
+	// LocalStart is the starting line number in the target function.
 	LocalStart int
-	LocalEnd   int
-	PeerFile   string
-	PeerFunc   string
-	PeerStart  int
-	PeerEnd    int
-}
-
-type windowAnchor struct {
-	blockIdx int
-	stmtIdx  int
+	// LocalEnd is the ending line number in the target function.
+	LocalEnd int
+	// PeerFile is the relative file path containing the matching peer function.
+	PeerFile string
+	// PeerFunc is the display name of the matching peer function.
+	PeerFunc string
+	// PeerStart is the starting line number of the matching span in the peer function.
+	PeerStart int
+	// PeerEnd is the ending line number of the matching span in the peer function.
+	PeerEnd int
 }
 
 // CloneIndex indexes normalized statement windows across production Go functions for Type-2 clone lookup.
@@ -64,6 +74,11 @@ type CloneIndex struct {
 	minWindow int
 	blocks    []FuncCloneBlock
 	windows   map[string][]windowAnchor
+}
+
+type windowAnchor struct {
+	blockIdx int
+	stmtIdx  int
 }
 
 // NewCloneIndex builds a CloneIndex for minWindow consecutive statements from blocks.
@@ -82,13 +97,6 @@ func NewCloneIndex(minWindow int, blocks []FuncCloneBlock) *CloneIndex {
 	return idx
 }
 
-func (idx *CloneIndex) indexBlock(bIdx int, blk FuncCloneBlock) {
-	for i := 0; i+idx.minWindow <= len(blk.Stmts); i++ {
-		sig := joinWindowTokens(blk.Stmts[i : i+idx.minWindow])
-		idx.windows[sig] = append(idx.windows[sig], windowAnchor{blockIdx: bIdx, stmtIdx: i})
-	}
-}
-
 // FindMaxClone returns the longest contiguous duplicated statement span (>= minWindow) for target against peers.
 func (idx *CloneIndex) FindMaxClone(target FuncCloneBlock) (CloneMatch, bool) {
 	if len(idx.windows) == 0 || len(target.Stmts) < idx.minWindow {
@@ -105,37 +113,6 @@ func (idx *CloneIndex) FindMaxClone(target FuncCloneBlock) (CloneMatch, bool) {
 		}
 	}
 	return best, best.Statements >= idx.minWindow
-}
-
-func (idx *CloneIndex) measureMatch(target FuncCloneBlock, tStart int, anchor windowAnchor) CloneMatch {
-	peer := idx.blocks[anchor.blockIdx]
-	if peer.File == target.File && peer.FuncKey == target.FuncKey {
-		return CloneMatch{}
-	}
-	length := idx.minWindow
-	for tStart+length < len(target.Stmts) &&
-		anchor.stmtIdx+length < len(peer.Stmts) &&
-		target.Stmts[tStart+length].Token == peer.Stmts[anchor.stmtIdx+length].Token {
-		length++
-	}
-	return CloneMatch{
-		Statements: length,
-		LocalStart: target.Stmts[tStart].Line,
-		LocalEnd:   target.Stmts[tStart+length-1].Line,
-		PeerFile:   peer.File,
-		PeerFunc:   peer.FuncName,
-		PeerStart:  peer.Stmts[anchor.stmtIdx].Line,
-		PeerEnd:    peer.Stmts[anchor.stmtIdx+length-1].Line,
-	}
-}
-
-func joinWindowTokens(stmts []StmtFingerprint) string {
-	var b strings.Builder
-	for _, s := range stmts {
-		b.WriteString(s.Token)
-		b.WriteByte('\n')
-	}
-	return b.String()
 }
 
 // ExtractCloneBlocks parses src and returns normalized statement sequences for each production function in relPath.
@@ -168,6 +145,76 @@ func ExtractCloneBlocks(relPath string, src []byte) []FuncCloneBlock {
 		})
 	}
 	return blocks
+}
+
+// DiscoverProdGoFiles walks repoRoot and returns slash-separated relative paths for all target production Go files.
+func DiscoverProdGoFiles(repoRoot string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(repoRoot, func(fullPath string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(repoRoot, fullPath)
+		if err != nil {
+			return nil
+		}
+		slashRel := filepath.ToSlash(rel)
+		if d.IsDir() {
+			if shouldSkipWalkDir(slashRel) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if gotestutil.IsTargetGoFile(slashRel) {
+			files = append(files, slashRel)
+		}
+		return nil
+	})
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return files, nil
+}
+
+func (idx *CloneIndex) indexBlock(bIdx int, blk FuncCloneBlock) {
+	for i := 0; i+idx.minWindow <= len(blk.Stmts); i++ {
+		sig := joinWindowTokens(blk.Stmts[i : i+idx.minWindow])
+		idx.windows[sig] = append(idx.windows[sig], windowAnchor{blockIdx: bIdx, stmtIdx: i})
+	}
+}
+
+func (idx *CloneIndex) measureMatch(target FuncCloneBlock, tStart int, anchor windowAnchor) CloneMatch {
+	peer := idx.blocks[anchor.blockIdx]
+	if peer.File == target.File && peer.FuncKey == target.FuncKey {
+		return CloneMatch{}
+	}
+	length := idx.minWindow
+	for tStart+length < len(target.Stmts) &&
+		anchor.stmtIdx+length < len(peer.Stmts) &&
+		target.Stmts[tStart+length].Token == peer.Stmts[anchor.stmtIdx+length].Token {
+		length++
+	}
+	return CloneMatch{
+		Statements: length,
+		LocalStart: target.Stmts[tStart].Line,
+		LocalEnd:   target.Stmts[tStart+length-1].Line,
+		PeerFile:   peer.File,
+		PeerFunc:   peer.FuncName,
+		PeerStart:  peer.Stmts[anchor.stmtIdx].Line,
+		PeerEnd:    peer.Stmts[anchor.stmtIdx+length-1].Line,
+	}
+}
+
+func joinWindowTokens(stmts []StmtFingerprint) string {
+	var b strings.Builder
+	for _, s := range stmts {
+		b.WriteString(s.Token)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 func flattenBodyFingerprints(fset *token.FileSet, body *ast.BlockStmt) []StmtFingerprint {
@@ -286,38 +333,6 @@ func fingerprintCallee(fun ast.Expr) string {
 	default:
 		return "fn"
 	}
-}
-
-// DiscoverProdGoFiles walks repoRoot and returns slash-separated relative paths for all target production Go files.
-func DiscoverProdGoFiles(repoRoot string) ([]string, error) {
-	var files []string
-	err := filepath.WalkDir(repoRoot, func(fullPath string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		rel, err := filepath.Rel(repoRoot, fullPath)
-		if err != nil {
-			return nil
-		}
-		slashRel := filepath.ToSlash(rel)
-		if d.IsDir() {
-			if shouldSkipWalkDir(slashRel) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if gotestutil.IsTargetGoFile(slashRel) {
-			files = append(files, slashRel)
-		}
-		return nil
-	})
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return files, nil
 }
 
 func shouldSkipWalkDir(slashRel string) bool {

@@ -46,6 +46,22 @@ var airflowWorkerLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	},
 )
 
+// airflowWorkerLogToTimelineMapperTask is the task that maps Airflow worker logs to timeline events.
+var airflowWorkerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	composerairflow.AirflowWorkerLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: composerairflow.AirflowWorkerLogIngesterTaskID.Ref(),
+		GroupedLogs: composerairflow.AirflowWorkerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &workerLogToTimelineMapper{
+			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
+		}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*workerLogToTimelineMapper)(nil)
+
 type workerLogToTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 	environmentName coretask.Input[string]
@@ -55,8 +71,6 @@ type workerLogToTimelineMapper struct {
 func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	return mapWorkerLog(ctx, l, m.environmentName.Get(ctx)), struct{}{}, nil
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*workerLogToTimelineMapper)(nil)
 
 // mapWorkerLog maps an Airflow worker log to timeline changes for the given environment.
 func mapWorkerLog(ctx context.Context, l *log.Log, environmentName string) *khifilev6.TimelineChangeSet {
@@ -103,17 +117,3 @@ func mapWorkerLog(ctx context.Context, l *log.Log, environmentName string) *khif
 
 	return cs
 }
-
-// airflowWorkerLogToTimelineMapperTask is the task that maps Airflow worker logs to timeline events.
-var airflowWorkerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	composerairflow.AirflowWorkerLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: composerairflow.AirflowWorkerLogIngesterTaskID.Ref(),
-		GroupedLogs: composerairflow.AirflowWorkerLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &workerLogToTimelineMapper{
-			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
-		}
-	},
-)

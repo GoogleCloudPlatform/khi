@@ -27,8 +27,10 @@ import (
 
 // RequestFileUploadInput defines the input parameters for the request_file_upload tool.
 type RequestFileUploadInput struct {
+	// InspectionID is the unique identifier of the target inspection.
 	InspectionID string `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
-	FieldID      string `json:"fieldId" jsonschema:"The ID of a field with Type: file in the dry_run_inspection result."`
+	// FieldID is the ID of a file-type form field returned by dry_run_inspection.
+	FieldID string `json:"fieldId" jsonschema:"The ID of a field with Type: file in the dry_run_inspection result."`
 }
 
 func (h *InspectionHandler) handleRequestFileUpload(ctx context.Context, req *mcpsdk.CallToolRequest, in RequestFileUploadInput) (*mcpsdk.CallToolResult, any, error) {

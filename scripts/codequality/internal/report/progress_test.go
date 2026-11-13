@@ -22,9 +22,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
-	"github.com/google/go-cmp/cmp"
 )
 
 var elapsedPattern = regexp.MustCompile(`\d+\.\ds`)

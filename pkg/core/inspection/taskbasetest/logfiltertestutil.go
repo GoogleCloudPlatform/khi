@@ -29,9 +29,13 @@ import (
 // FilterTaskTestCase is a test case for testing a filter task.
 // It contains the log or log fields to be filtered and the expected result.
 type FilterTaskTestCase struct {
-	Description  string
-	Log          *log.Log
-	LogFields    []any
+	// Description names the subtest case.
+	Description string
+	// Log provides a preconstructed log entry for the test; if nil, a mock log is built from LogFields.
+	Log *log.Log
+	// LogFields specifies mock log fields used to construct a test log when Log is nil.
+	LogFields []any
+	// WantIncluded reports whether the test log is expected to pass the filter.
 	WantIncluded bool
 }
 

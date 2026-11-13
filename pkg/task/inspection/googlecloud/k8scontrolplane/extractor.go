@@ -29,6 +29,17 @@ import (
 )
 
 var (
+	// ComponentParserTypeScheduler identifies scheduler logs.
+	ComponentParserTypeScheduler ControlplaneComponentParserType = "scheduler"
+	// ComponentParserTypeControllerManager identifies controller-manager logs.
+	ComponentParserTypeControllerManager ControlplaneComponentParserType = "controller-manager"
+	// ComponentParserTypeHPAController identifies hpa-controller logs.
+	ComponentParserTypeHPAController ControlplaneComponentParserType = "hpa-controller"
+	// ComponentParserTypeOther identifies other control plane component logs.
+	ComponentParserTypeOther ControlplaneComponentParserType = "other"
+)
+
+var (
 	pathProjectID     = structured.CompileFieldPath("resource.labels.project_id")
 	pathClusterName   = structured.CompileFieldPath("resource.labels.cluster_name")
 	pathComponentName = structured.CompileFieldPath("resource.labels.component_name")
@@ -73,20 +84,6 @@ var (
 	pathSourceLine               = structured.CompileFieldPath("sourceLocation.line")
 )
 
-// ControlplaneComponentParserType defines the parser type for control plane components.
-type ControlplaneComponentParserType string
-
-var (
-	// ComponentParserTypeScheduler identifies scheduler logs.
-	ComponentParserTypeScheduler ControlplaneComponentParserType = "scheduler"
-	// ComponentParserTypeControllerManager identifies controller-manager logs.
-	ComponentParserTypeControllerManager ControlplaneComponentParserType = "controller-manager"
-	// ComponentParserTypeHPAController identifies hpa-controller logs.
-	ComponentParserTypeHPAController ControlplaneComponentParserType = "hpa-controller"
-	// ComponentParserTypeOther identifies other control plane component logs.
-	ComponentParserTypeOther ControlplaneComponentParserType = "other"
-)
-
 var componentNameToComponentParserTypeMap = map[string]ControlplaneComponentParserType{
 	"scheduler":          ComponentParserTypeScheduler,
 	"controller-manager": ComponentParserTypeControllerManager,
@@ -95,11 +92,161 @@ var componentNameToComponentParserTypeMap = map[string]ControlplaneComponentPars
 
 var itemsCaptureRegex = regexp.MustCompile(`\[(?P<apiVersionKind>[^,]+), namespace: (?P<namespace>[^,]*), name: (?P<name>[^,]+)`)
 
+// ControlplaneComponentParserType defines the parser type for control plane components.
+type ControlplaneComponentParserType string
+
 // K8sControlplaneComponentFieldSet contains component name and cluster info for a control plane log.
 type K8sControlplaneComponentFieldSet struct {
-	ProjectID     string
-	ClusterName   string
+	// ProjectID is the GCP project ID from the resource labels.
+	ProjectID string
+	// ClusterName is the GKE cluster name from the resource labels.
+	ClusterName string
+	// ComponentName is the control plane component name (e.g., scheduler, controller-manager).
 	ComponentName string
+}
+
+// K8sControlplaneCommonMessageFieldSet contains the common message string for a control plane log.
+type K8sControlplaneCommonMessageFieldSet struct {
+	// Message is the plain log message extracted from `jsonPayload.message`.
+	Message string
+}
+
+// K8sSchedulerComponentFieldSet contains scheduler-specific fields.
+type K8sSchedulerComponentFieldSet struct {
+	// PodName is the name of the Pod referenced by the scheduler log.
+	PodName string
+	// PodNamespace is the namespace of the Pod referenced by the scheduler log.
+	PodNamespace string
+}
+
+// K8sControllerManagerComponentFieldSet contains controller manager specific fields.
+type K8sControllerManagerComponentFieldSet struct {
+	// Controller is the resolved controller name for the log entry.
+	Controller string
+	// AssociatedResources lists the Kubernetes resources associated with the log entry.
+	AssociatedResources []*k8saudit.ResourceIdentity
+}
+
+// KindToKLogFieldPairData maps kind name and API version to klog field name.
+type KindToKLogFieldPairData struct {
+	// APIVersion is the Kubernetes API group/version for the resource kind.
+	APIVersion string
+	// KindName is the lowercase Kubernetes resource kind name.
+	KindName string
+	// KLogField is the structured klog field key that holds the resource identifier.
+	KLogField string
+	// IsNamespaced reports whether resources of this kind are namespaced.
+	IsNamespaced bool
+}
+
+// K8sControllerManagerComponentExtractor extracts controller-manager component fields from log entries.
+type K8sControllerManagerComponentExtractor struct {
+	// WellKnownSourceLocationToControllerMap maps source file names to controller names when not present in structured fields.
+	WellKnownSourceLocationToControllerMap map[string]string
+	// WellKnownKindToKLogFieldPairs defines known mappings from klog structured fields to Kubernetes resource kinds.
+	WellKnownKindToKLogFieldPairs []*KindToKLogFieldPairData
+	// StructuredLogParser overrides DefaultControlplaneLogParser when non-nil.
+	StructuredLogParser *logutil.SelectorLogParser[ControlplaneLogContext]
+}
+
+// HPATargetRef contains reference information for the scaling target workload.
+type HPATargetRef struct {
+	// APIVersion is the API version of the target workload.
+	APIVersion string
+	// Kind is the Kubernetes kind of the target workload.
+	Kind string
+	// Name is the name of the target workload.
+	Name string
+}
+
+// HPAPodCount contains pod counts associated with an HPA recommendation.
+type HPAPodCount struct {
+	// Ready is the number of ready pods observed by the HPA controller.
+	Ready int
+	// Total is the total number of pods observed by the HPA controller.
+	Total int
+	// Unready is the number of unready pods observed by the HPA controller.
+	Unready int
+	// Ignored is the number of pods ignored during HPA metric calculation.
+	Ignored int
+}
+
+// HPAAtomicRecommendation contains atomic recommendation details for a single metric.
+type HPAAtomicRecommendation struct {
+	// HPA is the `<namespace>/<name>` identifier of the HorizontalPodAutoscaler.
+	HPA string
+	// HPANamespace is the namespace of the HorizontalPodAutoscaler.
+	HPANamespace string
+	// HPAName is the name of the HorizontalPodAutoscaler.
+	HPAName string
+	// StartTime is the start timestamp of the metric evaluation cycle.
+	StartTime string
+	// MetricType is the HPA metric source type.
+	MetricType string
+	// MetricName is the name of the evaluated metric.
+	MetricName string
+	// SpecTargetAvgValue is the configured target average value as a quantity string.
+	SpecTargetAvgValue string
+	// SpecTargetAvgUtil is the configured target average utilization percentage, or -1 if unset.
+	SpecTargetAvgUtil int
+	// SpecTargetValue is the configured target value as a quantity string.
+	SpecTargetValue string
+	// StatusAvgValue is the observed current average value as a quantity string.
+	StatusAvgValue string
+	// StatusAvgUtil is the observed current average utilization percentage, or -1 if unset.
+	StatusAvgUtil int
+	// StatusValue is the observed current metric value as a quantity string.
+	StatusValue string
+	// NewestSampleAgeSeconds is the age in seconds of the newest metric sample.
+	NewestSampleAgeSeconds float64
+	// NewestSampleTime is the timestamp of the newest metric sample.
+	NewestSampleTime string
+	// PodCount holds the pod readiness counts for the recommendation.
+	PodCount HPAPodCount
+	// Dampening describes the dampening applied to this atomic recommendation.
+	Dampening string
+	// Override describes any override applied to this atomic recommendation.
+	Override string
+	// Replicas is the recommended replica count for this metric.
+	Replicas int
+}
+
+// HPAFinalRecommendation contains merged final recommendation details for an HPA.
+type HPAFinalRecommendation struct {
+	// HPA is the `<namespace>/<name>` identifier of the HorizontalPodAutoscaler.
+	HPA string
+	// HPANamespace is the namespace of the HorizontalPodAutoscaler.
+	HPANamespace string
+	// HPAName is the name of the HorizontalPodAutoscaler.
+	HPAName string
+	// StartTime is the start timestamp of the HPA reconciliation cycle.
+	StartTime string
+	// ActuationTime is the timestamp when the scaling actuation occurred.
+	ActuationTime string
+	// ActuationLatencySeconds is the latency in seconds between start and actuation.
+	ActuationLatencySeconds float64
+	// ConfiguredSize is the current configured replica count before scaling.
+	ConfiguredSize int
+	// Replicas is the final recommended replica count.
+	Replicas int
+	// LeadingMetricIndex is the index of the metric that drove the final recommendation.
+	LeadingMetricIndex int
+	// TargetRef identifies the workload targeted by the HPA.
+	TargetRef HPATargetRef
+	// TopLevelLimit describes any top-level limit applied to the final recommendation.
+	TopLevelLimit string
+	// TopLevelOverride describes any top-level override applied to the final recommendation.
+	TopLevelOverride string
+}
+
+// K8sHPAControllerFieldSet contains extracted fields from an HPA controller log entry.
+type K8sHPAControllerFieldSet struct {
+	// AtomicRecommendation holds per-metric recommendation details when present.
+	AtomicRecommendation *HPAAtomicRecommendation
+	// FinalRecommendation holds merged recommendation details when present.
+	FinalRecommendation *HPAFinalRecommendation
+	// Message holds the fallback log message when no structured recommendation is present.
+	Message string
 }
 
 // ComponentParserType returns ControlplaneComponentParserType enum value which determines which control plane component parser processes this log.
@@ -137,38 +284,12 @@ func ExtractK8sControlplaneComponent(reader *structured.NodeReader) (K8sControlp
 	return result, nil
 }
 
-// K8sControlplaneCommonMessageFieldSet contains the common message string for a control plane log.
-type K8sControlplaneCommonMessageFieldSet struct {
-	Message string
-}
-
 // ExtractK8sControlplaneCommonMessage extracts the message from a NodeReader.
 func ExtractK8sControlplaneCommonMessage(reader *structured.NodeReader) (string, error) {
 	if mock, ok := structured.GetMock[K8sControlplaneCommonMessageFieldSet](reader); ok {
 		return mock.Message, nil
 	}
 	return reader.ReadStringOrDefault(pathMessage, ""), nil
-}
-
-// reconstructKLogLine rebuilds a full klog formatted line from the structured fields of a control plane log.
-func reconstructKLogLine(reader *structured.NodeReader) string {
-	message := reader.ReadStringOrDefault(pathMessage, "")
-	// Return a message that already has a klog header as is to avoid an extra allocation and keep its original thread ID.
-	if logutil.HasKLogHeader(message) {
-		return message
-	}
-	severity, _ := gcpcommon.ExtractGCPSeverity(reader)
-	timestamp, _ := reader.ReadTimestamp(pathTimestamp)
-	file := reader.ReadStringOrDefault(pathSourceFile, "")
-	// sourceLocation.line is an int64 field, which protojson serializes as a string.
-	line, _ := strconv.Atoi(reader.ReadStringOrDefault(pathSourceLine, ""))
-	return logutil.FormatKLogString(severity, timestamp, 0, file, line, message)
-}
-
-// K8sSchedulerComponentFieldSet contains scheduler-specific fields.
-type K8sSchedulerComponentFieldSet struct {
-	PodName      string
-	PodNamespace string
 }
 
 // HasPodField returns whether the PodName and PodNamespace are present.
@@ -204,12 +325,6 @@ func ExtractK8sSchedulerComponent(reader *structured.NodeReader, parser *logutil
 	return result, nil
 }
 
-// K8sControllerManagerComponentFieldSet contains controller manager specific fields.
-type K8sControllerManagerComponentFieldSet struct {
-	Controller          string
-	AssociatedResources []*k8saudit.ResourceIdentity
-}
-
 // AssociatedResourceTimelines resolves and returns the timeline paths for all associated resources in the fieldset.
 func (k *K8sControllerManagerComponentFieldSet) AssociatedResourceTimelines(ctx context.Context, clusterName string) []*khifilev6.TimelinePath {
 	var result []*khifilev6.TimelinePath
@@ -217,21 +332,6 @@ func (k *K8sControllerManagerComponentFieldSet) AssociatedResourceTimelines(ctx 
 		result = append(result, k8saudit.MustResourceTimeline(ctx, clusterName, resource))
 	}
 	return result
-}
-
-// KindToKLogFieldPairData maps kind name and API version to klog field name.
-type KindToKLogFieldPairData struct {
-	APIVersion   string
-	KindName     string
-	KLogField    string
-	IsNamespaced bool
-}
-
-// K8sControllerManagerComponentExtractor extracts controller-manager component fields from log entries.
-type K8sControllerManagerComponentExtractor struct {
-	WellKnownSourceLocationToControllerMap map[string]string
-	WellKnownKindToKLogFieldPairs          []*KindToKLogFieldPairData
-	StructuredLogParser                    *logutil.SelectorLogParser[ControlplaneLogContext]
 }
 
 // Extract extracts K8sControllerManagerComponentFieldSet from a NodeReader.
@@ -411,13 +511,6 @@ func (k *K8sControllerManagerComponentExtractor) ReadResourceAssociationFromItem
 	return result
 }
 
-// HPATargetRef contains reference information for the scaling target workload.
-type HPATargetRef struct {
-	APIVersion string
-	Kind       string
-	Name       string
-}
-
 // HasTarget returns whether TargetRef has valid kind and name.
 func (t HPATargetRef) HasTarget() bool {
 	return t.Kind != "" && t.Name != ""
@@ -431,59 +524,6 @@ func (t HPATargetRef) HasValidResourceIdentity() bool {
 // String returns the formatted resource representation "<Kind>/<Name>".
 func (t HPATargetRef) String() string {
 	return fmt.Sprintf("%s/%s", t.Kind, t.Name)
-}
-
-// HPAPodCount contains pod counts associated with an HPA recommendation.
-type HPAPodCount struct {
-	Ready   int
-	Total   int
-	Unready int
-	Ignored int
-}
-
-// HPAAtomicRecommendation contains atomic recommendation details for a single metric.
-type HPAAtomicRecommendation struct {
-	HPA                    string
-	HPANamespace           string
-	HPAName                string
-	StartTime              string
-	MetricType             string
-	MetricName             string
-	SpecTargetAvgValue     string
-	SpecTargetAvgUtil      int
-	SpecTargetValue        string
-	StatusAvgValue         string
-	StatusAvgUtil          int
-	StatusValue            string
-	NewestSampleAgeSeconds float64
-	NewestSampleTime       string
-	PodCount               HPAPodCount
-	Dampening              string
-	Override               string
-	Replicas               int
-}
-
-// HPAFinalRecommendation contains merged final recommendation details for an HPA.
-type HPAFinalRecommendation struct {
-	HPA                     string
-	HPANamespace            string
-	HPAName                 string
-	StartTime               string
-	ActuationTime           string
-	ActuationLatencySeconds float64
-	ConfiguredSize          int
-	Replicas                int
-	LeadingMetricIndex      int
-	TargetRef               HPATargetRef
-	TopLevelLimit           string
-	TopLevelOverride        string
-}
-
-// K8sHPAControllerFieldSet contains extracted fields from an HPA controller log entry.
-type K8sHPAControllerFieldSet struct {
-	AtomicRecommendation *HPAAtomicRecommendation
-	FinalRecommendation  *HPAFinalRecommendation
-	Message              string
 }
 
 // Summary returns a human-readable summary of the HPA controller log entry.
@@ -573,14 +613,6 @@ func (k *K8sHPAControllerFieldSet) Summary() string {
 	return k.Message
 }
 
-func splitNamespaceAndName(fqdn string) (string, string) {
-	parts := strings.Split(fqdn, "/")
-	if len(parts) == 2 {
-		return parts[0], parts[1]
-	}
-	return "", fqdn
-}
-
 // ExtractK8sHPAControllerComponent extracts K8sHPAControllerFieldSet from a NodeReader.
 func ExtractK8sHPAControllerComponent(reader *structured.NodeReader) (K8sHPAControllerFieldSet, error) {
 	if mock, ok := structured.GetMock[K8sHPAControllerFieldSet](reader); ok {
@@ -647,4 +679,27 @@ func ExtractK8sHPAControllerComponent(reader *structured.NodeReader) (K8sHPACont
 
 	result.Message = reader.ReadStringOrDefault(pathMessage, "")
 	return result, nil
+}
+
+// reconstructKLogLine rebuilds a full klog formatted line from the structured fields of a control plane log.
+func reconstructKLogLine(reader *structured.NodeReader) string {
+	message := reader.ReadStringOrDefault(pathMessage, "")
+	// Return a message that already has a klog header as is to avoid an extra allocation and keep its original thread ID.
+	if logutil.HasKLogHeader(message) {
+		return message
+	}
+	severity, _ := gcpcommon.ExtractGCPSeverity(reader)
+	timestamp, _ := reader.ReadTimestamp(pathTimestamp)
+	file := reader.ReadStringOrDefault(pathSourceFile, "")
+	// sourceLocation.line is an int64 field, which protojson serializes as a string.
+	line, _ := strconv.Atoi(reader.ReadStringOrDefault(pathSourceLine, ""))
+	return logutil.FormatKLogString(severity, timestamp, 0, file, line, message)
+}
+
+func splitNamespaceAndName(fqdn string) (string, string) {
+	parts := strings.Split(fqdn, "/")
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "", fqdn
 }

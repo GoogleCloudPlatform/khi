@@ -18,7 +18,7 @@ import (
 	"context"
 )
 
-// TokenResolver resolve the new token
+// TokenResolver resolves a new token.
 type TokenResolver interface {
 	// Resolve returns the token newly resolved.
 	Resolve(ctx context.Context) (*Token, error)

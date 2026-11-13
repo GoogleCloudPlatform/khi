@@ -24,9 +24,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"github.com/google/go-cmp/cmp"
 )
 
 const testMaxSizeBytes = 8

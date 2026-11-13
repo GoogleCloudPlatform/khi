@@ -16,6 +16,9 @@ GOLANGCILINT_VERSION := v2.15.0
 GOLANGCILINT_CMD ?= $(shell command -v golangci-lint)
 CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 NODE_MAX_OLD_SPACE_SIZE ?= 12288
+COMMA := ,
+LINT_PKGS ?= ./...
+LINT_PKG_ARGS = $(subst $(COMMA), ,$(LINT_PKGS))
 
 .PHONY: lint-web
 lint-web: $(GENERATE_FRONTEND_DUMMY)## Run frontend linter
@@ -28,14 +31,15 @@ ifeq ($(GOLANGCILINT_CMD),)
 	ifeq ($(CONTAINER_CMD),)
 		$(error "lint-go requires golangci-lint,docker or podman, but neither was found.")
 	else
-		$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
+		$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml $(LINT_PKG_ARGS)
 	endif
 else
 	@if ! $(GOLANGCILINT_CMD) version | grep -q "$(subst v,,$(GOLANGCILINT_VERSION))"; then \
 		printf "\e[0;33mWarning: local golangci-lint version ($$($(GOLANGCILINT_CMD) version)) does not match $(GOLANGCILINT_VERSION). Results may differ from CI.\e[0m\n"; \
 	fi
-	$(GOLANGCILINT_CMD) run --config=.golangci.yaml
+	$(GOLANGCILINT_CMD) run --config=.golangci.yaml $(LINT_PKG_ARGS)
 endif
+	go run ./scripts/codequality --lang=go --conventions --pkgs=$(LINT_PKGS)
 
 .PHONY: format-go
 format-go: ## Format backend source code
@@ -43,10 +47,10 @@ ifeq ($(GOLANGCILINT_CMD),)
 	ifeq ($(CONTAINER_CMD),)
 		$(error "format-go requires golangci-lint,docker or podman, but neither was found.")
 	else
-		$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml --fix
+		$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml --fix $(LINT_PKG_ARGS)
 	endif
 else
-	$(GOLANGCILINT_CMD) run --config=.golangci.yaml --fix
+	$(GOLANGCILINT_CMD) run --config=.golangci.yaml --fix $(LINT_PKG_ARGS)
 endif
 
 .PHONY: format-web

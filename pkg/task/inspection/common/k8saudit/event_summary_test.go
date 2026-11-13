@@ -17,8 +17,9 @@ package k8saudit
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 )
 
 func TestFormatEventSummary(t *testing.T) {

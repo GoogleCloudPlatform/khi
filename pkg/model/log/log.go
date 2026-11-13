@@ -25,8 +25,10 @@ import (
 // It provides direct access to its fields and basic metadata such as timestamp and instance ID.
 type Log struct {
 	*structured.NodeReader
+	// Timestamp is the parsed timestamp of the log entry.
 	Timestamp time.Time
-	ID        uint32
+	// ID is the temporary parser-side identifier assigned to the log entry.
+	ID uint32
 }
 
 // NewLog returns a log instance from NodeReader instance using the given ID Generator.

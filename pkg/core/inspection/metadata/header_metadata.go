@@ -20,38 +20,49 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
+var _ Metadata = (*HeaderMetadata)(nil)
+
 // HeaderMetadata is a metadata type shown for users in the inspection list page.
 type HeaderMetadata struct {
-	InspectionType         string `json:"inspectionType"`
-	InspectionName         string `json:"inspectionName"`
+	// InspectionType is the identifier of the inspection type.
+	InspectionType string `json:"inspectionType"`
+	// InspectionName is the human-readable name of the inspection.
+	InspectionName string `json:"inspectionName"`
+	// InspectionTypeIconPath is the asset path to the icon representing the inspection type.
 	InspectionTypeIconPath string `json:"inspectionTypeIconPath"`
-	StartTimeUnixSeconds   int64  `json:"startTimeUnixSeconds"`
-	EndTimeUnixSeconds     int64  `json:"endTimeUnixSeconds"`
-	InspectTimeUnixSeconds int64  `json:"inspectTimeUnixSeconds"`
-	// KHI frontend uses this metadata value for the default value of khi file name on download.
+	// StartTimeUnixSeconds is the inspection range start time in Unix seconds.
+	StartTimeUnixSeconds int64 `json:"startTimeUnixSeconds"`
+	// EndTimeUnixSeconds is the inspection range end time in Unix seconds.
+	EndTimeUnixSeconds int64 `json:"endTimeUnixSeconds"`
+	// InspectTimeUnixSeconds is the timestamp when the inspection was executed, in Unix seconds.
+	InspectTimeUnixSeconds int64 `json:"inspectTimeUnixSeconds"`
+	// SuggestedFileName is the default KHI file name suggested to the frontend on download.
 	SuggestedFileName string `json:"suggestedFilename"`
-	FileSize          int    `json:"fileSize,omitempty"`
+	// FileSize is the serialized size of the inspection result file in bytes.
+	FileSize int `json:"fileSize,omitempty"`
 }
-
-var _ Metadata = (*HeaderMetadata)(nil)
 
 // Labels implements Metadata.
 func (*HeaderMetadata) Labels() *typedmap.ReadonlyTypedMap {
 	return NewLabelSet(IncludeInRunResult(), IncludeInTaskList(), IncludeInResultBinary())
 }
 
+// ToSerializable implements Metadata.
 func (h *HeaderMetadata) ToSerializable() interface{} {
 	return h
 }
 
+// SetStartTime records the inspection range start time.
 func (h *HeaderMetadata) SetStartTime(startTime time.Time) {
 	h.StartTimeUnixSeconds = startTime.Unix()
 }
 
+// SetEndTime records the inspection range end time.
 func (h *HeaderMetadata) SetEndTime(endTime time.Time) {
 	h.EndTimeUnixSeconds = endTime.Unix()
 }
 
+// SetInspectionTime records the time when the inspection ran.
 func (h *HeaderMetadata) SetInspectionTime(inspectionTime time.Time) {
 	h.InspectTimeUnixSeconds = inspectionTime.Unix()
 }

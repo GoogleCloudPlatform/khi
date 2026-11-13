@@ -54,12 +54,29 @@ var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// logToTimelineMapperTask adds revisions/events regarding logs.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	multicloudapiaudit.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: multicloudapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: multicloudapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &multiCloudAuditTimelineMapper{}
+	},
+	inspectioncore.FeatureTaskLabel(`Multi-Cloud API Logs`,
+		`Gather Anthos Multi-Cloud audit logs to visualize cluster lifecycle events (creation, deletion, and upgrades) on timelines.`,
+		5000,
+		true,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*multiCloudAuditTimelineMapper)(nil)
+
 // multiCloudAuditTimelineMapper maps grouped logs to resource timelines and operations in KHI V6 format.
 type multiCloudAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
-
-var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*multiCloudAuditTimelineMapper)(nil)
 
 // ProcessLogByGroup maps grouped logs to resource timelines and operations in KHI V6 format.
 func (m *multiCloudAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
@@ -101,20 +118,3 @@ func (m *multiCloudAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 
 	return cs, tracker, nil
 }
-
-// logToTimelineMapperTask adds revisions/events regarding logs.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	multicloudapiaudit.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: multicloudapiaudit.LogIngesterTaskID.Ref(),
-		GroupedLogs: multicloudapiaudit.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
-		return &multiCloudAuditTimelineMapper{}
-	},
-	inspectioncore.FeatureTaskLabel(`Multi-Cloud API Logs`,
-		`Gather Anthos Multi-Cloud audit logs to visualize cluster lifecycle events (creation, deletion, and upgrades) on timelines.`,
-		5000,
-		true,
-	),
-)

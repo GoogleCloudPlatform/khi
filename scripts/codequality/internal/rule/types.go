@@ -14,18 +14,12 @@
 
 package rule
 
-// RuleStage identifies whether a quality rule runs statically on ASTs or dynamically via test execution.
-type RuleStage string
-
 const (
 	// StageAST identifies fast static AST structural and naming rules.
 	StageAST RuleStage = "AST"
 	// StageDynamic identifies test-execution coverage, mutation, and redundancy rules.
 	StageDynamic RuleStage = "DYNAMIC"
 )
-
-// RuleID uniquely identifies a quantitative Go quality rule enforced by codequality.
-type RuleID string
 
 const (
 	// RuleFuncCognitive bounds production function cognitive complexity.
@@ -62,9 +56,6 @@ const (
 	RuleTestRedundancy RuleID = "test_redundancy"
 )
 
-// AllowCategory classifies why a HARD_LIMIT violation is legitimately suppressed via CODEQUALITY_ALLOW.
-type AllowCategory string
-
 const (
 	// CategoryDispatch marks flat command/token/event dispatchers whose branch count tracks an enum or schema.
 	CategoryDispatch AllowCategory = "dispatch"
@@ -79,19 +70,6 @@ const (
 	// CategoryExternal marks OS, subprocess, or external I/O boundaries verified outside unit tests.
 	CategoryExternal AllowCategory = "external"
 )
-
-// AllAllowCategories lists valid AllowCategory values in deterministic reporting order.
-var AllAllowCategories = []AllowCategory{
-	CategoryDispatch,
-	CategoryProtocol,
-	CategoryEquivalent,
-	CategoryPerf,
-	CategoryObservability,
-	CategoryExternal,
-}
-
-// MutantOperator identifies the category of AST mutation applied to a Go expression or statement.
-type MutantOperator string
 
 const (
 	// OperatorROR represents Relational Operator Replacement (<, <=, >, >=, ==, !=).
@@ -109,41 +87,6 @@ const (
 	// OperatorSBR represents Statement and Side-Effect Removal (=, +=, -=, ++, --).
 	OperatorSBR MutantOperator = "SBR"
 )
-
-// IsValid reports whether o is a recognized MutantOperator code.
-func (o MutantOperator) IsValid() bool {
-	switch o {
-	case OperatorROR, OperatorLCR, OperatorBCR, OperatorAOR, OperatorUOI, OperatorBLR, OperatorSBR:
-		return true
-	default:
-		return false
-	}
-}
-
-// Label returns a concise human-readable description of what o mutates.
-func (o MutantOperator) Label() string {
-	switch o {
-	case OperatorROR:
-		return "boundary/comparison"
-	case OperatorLCR:
-		return "logical &&/||"
-	case OperatorBCR:
-		return "branch forced true/false"
-	case OperatorAOR:
-		return "arithmetic/concat"
-	case OperatorUOI:
-		return "negation/sign"
-	case OperatorBLR:
-		return "return bool flipped"
-	case OperatorSBR:
-		return "statement skipped"
-	default:
-		return string(o)
-	}
-}
-
-// MutantStatus represents the evaluation outcome of a candidate mutant.
-type MutantStatus string
 
 const (
 	// MutantPending indicates the mutant is awaiting test execution.
@@ -164,15 +107,14 @@ const (
 	MutantCompileSkipped MutantStatus = "COMPILE_SKIPPED"
 )
 
-// RuleSpec defines static metadata, default threshold, allowed suppression categories, and remediation hints for a RuleID.
-type RuleSpec struct {
-	ID                RuleID
-	Stage             RuleStage
-	Label             string
-	DefaultLimit      int
-	AllowedCategories []AllowCategory
-	Why               string
-	Fix               string
+// AllAllowCategories lists valid AllowCategory values in deterministic reporting order.
+var AllAllowCategories = []AllowCategory{
+	CategoryDispatch,
+	CategoryProtocol,
+	CategoryEquivalent,
+	CategoryPerf,
+	CategoryObservability,
+	CategoryExternal,
 }
 
 var ruleSpecs = []RuleSpec{
@@ -322,6 +264,47 @@ var ruleSpecs = []RuleSpec{
 	},
 }
 
+// RuleStage identifies whether a quality rule runs statically on ASTs or dynamically via test execution.
+type RuleStage string
+
+// RuleID uniquely identifies a quantitative Go quality rule enforced by codequality.
+type RuleID string
+
+// AllowCategory classifies why a HARD_LIMIT violation is legitimately suppressed via CODEQUALITY_ALLOW.
+type AllowCategory string
+
+// MutantOperator identifies the category of AST mutation applied to a Go expression or statement.
+type MutantOperator string
+
+// MutantStatus represents the evaluation outcome of a candidate mutant.
+type MutantStatus string
+
+// RuleSpec defines static metadata, default threshold, allowed suppression categories, and remediation hints for a RuleID.
+type RuleSpec struct {
+	// ID is the unique identifier for the rule.
+	ID RuleID
+	// Stage indicates whether the rule runs in AST or DYNAMIC stage.
+	Stage RuleStage
+	// Label is the short human-readable display name of the rule.
+	Label string
+	// DefaultLimit is the default upper defect or complexity bound.
+	DefaultLimit int
+	// AllowedCategories lists permitted CODEQUALITY_ALLOW categories for this rule.
+	AllowedCategories []AllowCategory
+	// Why explains the rationale for enforcing the rule.
+	Why string
+	// Fix provides actionable remediation guidance for violations.
+	Fix string
+}
+
+// Thresholds configures upper defect/cost limits across all codequality rules.
+type Thresholds struct {
+	// Limits maps RuleIDs to configured upper bounds.
+	Limits map[RuleID]int
+	// MinParamsForFlagCheck is the minimum parameter count before checking for control-flow bool flags.
+	MinParamsForFlagCheck int
+}
+
 // AllRuleSpecs returns a copy of all registered quality RuleSpecs in canonical display order.
 func AllRuleSpecs() []RuleSpec {
 	out := make([]RuleSpec, len(ruleSpecs))
@@ -339,22 +322,6 @@ func LookupRuleSpec(id RuleID) (RuleSpec, bool) {
 	return RuleSpec{}, false
 }
 
-// AllowsCategory reports whether cat is permitted in CODEQUALITY_ALLOW for spec.
-func (s RuleSpec) AllowsCategory(cat AllowCategory) bool {
-	for _, allowed := range s.AllowedCategories {
-		if allowed == cat {
-			return true
-		}
-	}
-	return false
-}
-
-// Thresholds configures upper defect/cost limits across all codequality rules.
-type Thresholds struct {
-	Limits                map[RuleID]int
-	MinParamsForFlagCheck int
-}
-
 // DefaultThresholds returns the standard KHI Go quality limits.
 func DefaultThresholds() Thresholds {
 	limits := make(map[RuleID]int, len(ruleSpecs))
@@ -365,6 +332,48 @@ func DefaultThresholds() Thresholds {
 		Limits:                limits,
 		MinParamsForFlagCheck: 3,
 	}
+}
+
+// IsValid reports whether o is a recognized MutantOperator code.
+func (o MutantOperator) IsValid() bool {
+	switch o {
+	case OperatorROR, OperatorLCR, OperatorBCR, OperatorAOR, OperatorUOI, OperatorBLR, OperatorSBR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Label returns a concise human-readable description of what o mutates.
+func (o MutantOperator) Label() string {
+	switch o {
+	case OperatorROR:
+		return "boundary/comparison"
+	case OperatorLCR:
+		return "logical &&/||"
+	case OperatorBCR:
+		return "branch forced true/false"
+	case OperatorAOR:
+		return "arithmetic/concat"
+	case OperatorUOI:
+		return "negation/sign"
+	case OperatorBLR:
+		return "return bool flipped"
+	case OperatorSBR:
+		return "statement skipped"
+	default:
+		return string(o)
+	}
+}
+
+// AllowsCategory reports whether cat is permitted in CODEQUALITY_ALLOW for spec.
+func (s RuleSpec) AllowsCategory(cat AllowCategory) bool {
+	for _, allowed := range s.AllowedCategories {
+		if allowed == cat {
+			return true
+		}
+	}
+	return false
 }
 
 // Limit returns the configured upper limit for id, falling back to its RuleSpec default.

@@ -105,6 +105,7 @@ type cliOutcomeCheck struct {
 	wantCode   int
 	err        error
 	wantErr    bool
+	wantErrSub string
 	stdout     string
 	stderr     string
 	wantStdout string
@@ -118,8 +119,83 @@ func assertCLIOutcome(t *testing.T, c cliOutcomeCheck) {
 	if (c.err != nil) != c.wantErr {
 		t.Errorf("err = %v, wantErr %v", c.err, c.wantErr)
 	}
+	if c.wantErrSub != "" && (c.err == nil || !strings.Contains(c.err.Error(), c.wantErrSub)) {
+		t.Errorf("err = %v, want substring %q", c.err, c.wantErrSub)
+	}
 	if c.wantStdout != "" && !strings.Contains(c.stdout, c.wantStdout) {
 		t.Errorf("stdout missing %q:\n%s", c.wantStdout, c.stdout)
+	}
+}
+
+func TestRunCLIConventionsMode(t *testing.T) {
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{
+		"go.mod": "module example.com/convmod\n\ngo 1.24\n",
+		"pkg/clean/clean.go": `package clean
+
+// PublicType is documented.
+type PublicType struct {
+	// Value holds the value.
+	Value int
+}
+`,
+		"pkg/bad/bad.go": `package bad
+
+type BadType struct {
+	Missing int
+}
+`,
+		"pkg/broken/broken.go": "package broken\nfunc (",
+	})
+
+	testCases := []struct {
+		name       string
+		args       []string
+		wantCode   int
+		wantErr    bool
+		wantErrSub string
+		wantStdout string
+	}{
+		{
+			name:     "clean package passes with exit code 0",
+			args:     []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/clean"},
+			wantCode: 0,
+		},
+		{
+			name:       "violation prints formatted line and exits 1",
+			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/bad"},
+			wantCode:   1,
+			wantStdout: "pkg/bad/bad.go:4:2: exported struct field BadType.Missing must have a GoDoc comment (exported-member-doc)",
+		},
+		{
+			name:       "parse error returns exit code 2",
+			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/broken"},
+			wantCode:   2,
+			wantErr:    true,
+			wantErrSub: "failed to parse pkg/broken/broken.go",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code, err := runCLI(context.Background(), cliEnv{
+				args:   tc.args,
+				stdout: &stdout,
+				stderr: &stderr,
+				getenv: func(string) string { return "" },
+			})
+			assertCLIOutcome(t, cliOutcomeCheck{
+				code:       code,
+				wantCode:   tc.wantCode,
+				err:        err,
+				wantErr:    tc.wantErr,
+				wantErrSub: tc.wantErrSub,
+				stdout:     stdout.String(),
+				stderr:     stderr.String(),
+				wantStdout: tc.wantStdout,
+			})
+		})
 	}
 }
 

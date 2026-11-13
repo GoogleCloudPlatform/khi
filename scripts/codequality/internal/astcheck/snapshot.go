@@ -16,6 +16,11 @@ package astcheck
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/scanner"
+	"go/token"
+	"hash/fnv"
 	"path"
 	"slices"
 	"strings"
@@ -26,11 +31,6 @@ import (
 // BaseReader reads a repository-relative file at the base revision.
 type BaseReader func(relPath string) ([]byte, bool, error)
 
-type locatedFunc struct {
-	file string
-	fn   FuncMetrics
-}
-
 // BaseSnapshot caches parsed AST metrics and clone blocks for touched packages at the base revision.
 type BaseSnapshot struct {
 	readBase    BaseReader
@@ -38,10 +38,16 @@ type BaseSnapshot struct {
 	fileExisted map[string]bool
 	fileByPath  map[string]*FileMetrics
 	funcByPkg   map[string]locatedFunc
+	hashByPkg   map[string]uint64
 	trunByKey   map[string]TRunMetrics
 	clonesByKey map[string]FuncCloneBlock
 	peerLoaded  map[string]bool
 	baseBlocks  []FuncCloneBlock
+}
+
+type locatedFunc struct {
+	file string
+	fn   FuncMetrics
 }
 
 // LoadBaseSnapshot parses base-revision AST metrics for prodFiles, testFiles, and deletedGoFiles in touched packages.
@@ -58,6 +64,7 @@ func LoadBaseSnapshot(
 		fileExisted: make(map[string]bool),
 		fileByPath:  make(map[string]*FileMetrics),
 		funcByPkg:   make(map[string]locatedFunc),
+		hashByPkg:   make(map[string]uint64),
 		trunByKey:   make(map[string]TRunMetrics),
 		clonesByKey: make(map[string]FuncCloneBlock),
 		peerLoaded:  make(map[string]bool),
@@ -76,41 +83,23 @@ func LoadBaseSnapshot(
 	return snap, nil
 }
 
-func (s *BaseSnapshot) ingestBaseFile(relPath string) error {
-	s.peerLoaded[relPath] = true
-	src, exists, err := s.readBase(relPath)
-	if err != nil || !exists {
-		return err
-	}
-	s.fileExisted[relPath] = true
-	fm, err := AnalyzeFile(relPath, src, s.thresholds.MinParamsForFlagCheck)
-	if err != nil || fm == nil {
+// ExtractFuncTokenHashes parses src and returns comment-insensitive FNV-1a token hashes keyed by FuncMetrics.Key.
+func ExtractFuncTokenHashes(relPath string, src []byte) map[string]uint64 {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, relPath, src, 0)
+	if err != nil {
 		return nil
 	}
-	s.recordFileMetrics(relPath, src, fm)
-	return nil
-}
-
-func (s *BaseSnapshot) recordFileMetrics(relPath string, src []byte, fm *FileMetrics) {
-	s.fileByPath[relPath] = fm
-	dir := path.Dir(relPath)
-	for _, fn := range fm.Funcs {
-		pkgKey := fmt.Sprintf("%s|%v|%s", dir, fm.IsTest, fn.Key)
-		if existing, ok := s.funcByPkg[pkgKey]; !ok || fn.Cognitive > existing.fn.Cognitive {
-			s.funcByPkg[pkgKey] = locatedFunc{file: relPath, fn: fn}
+	out := make(map[string]uint64)
+	for _, decl := range file.Decls {
+		fd, ok := decl.(*ast.FuncDecl)
+		if !ok || fd.Body == nil {
+			continue
 		}
+		key, _ := FormatFuncIdentity(fd)
+		out[key] = hashFuncTokens(fset, src, fd)
 	}
-	for _, tr := range fm.TRuns {
-		trKey := fmt.Sprintf("%s|%s|%s", relPath, tr.ParentFunc, tr.SubtestLabel)
-		s.trunByKey[trKey] = tr
-	}
-	if !fm.IsTest {
-		blocks := ExtractCloneBlocks(relPath, src)
-		for _, blk := range blocks {
-			s.clonesByKey[relPath+"|"+blk.FuncKey] = blk
-		}
-		s.baseBlocks = append(s.baseBlocks, blocks...)
-	}
+	return out
 }
 
 // HasFile reports whether relPath existed at the base revision.
@@ -145,6 +134,13 @@ func (s *BaseSnapshot) LookupFuncLocation(relPath string, funcKey string) (strin
 	return loc.file, loc.fn, ok
 }
 
+// LookupFuncHash returns the comment-insensitive token hash for funcKey at base in the package of relPath.
+func (s *BaseSnapshot) LookupFuncHash(relPath string, funcKey string) (uint64, bool) {
+	pkgKey := fmt.Sprintf("%s|%s", path.Dir(relPath), funcKey)
+	h, ok := s.hashByPkg[pkgKey]
+	return h, ok
+}
+
 // LookupTRun looks up a subtest closure at base by file, parent function, and label.
 func (s *BaseSnapshot) LookupTRun(relPath string, parentFunc string, subtestLabel string) (TRunMetrics, bool) {
 	trKey := fmt.Sprintf("%s|%s|%s", relPath, parentFunc, subtestLabel)
@@ -165,6 +161,64 @@ func (s *BaseSnapshot) MeasureBaseCloneOverlap(relPath string, funcKey string, p
 	idx := NewCloneIndex(minWindow, s.baseBlocks)
 	baseMatch, _ := idx.FindMaxClone(baseBlk)
 	return baseMatch.Statements, true
+}
+
+func (s *BaseSnapshot) ingestBaseFile(relPath string) error {
+	s.peerLoaded[relPath] = true
+	src, exists, err := s.readBase(relPath)
+	if err != nil || !exists {
+		return err
+	}
+	s.fileExisted[relPath] = true
+	fm, err := AnalyzeFile(relPath, src, s.thresholds.MinParamsForFlagCheck)
+	if err != nil || fm == nil {
+		return nil
+	}
+	s.recordFileMetrics(relPath, src, fm)
+	return nil
+}
+
+func (s *BaseSnapshot) recordFileMetrics(relPath string, src []byte, fm *FileMetrics) {
+	s.fileByPath[relPath] = fm
+	dir := path.Dir(relPath)
+	for _, fn := range fm.Funcs {
+		pkgKey := fmt.Sprintf("%s|%v|%s", dir, fm.IsTest, fn.Key)
+		if existing, ok := s.funcByPkg[pkgKey]; !ok || fn.Cognitive > existing.fn.Cognitive {
+			s.funcByPkg[pkgKey] = locatedFunc{file: relPath, fn: fn}
+		}
+	}
+	for _, tr := range fm.TRuns {
+		trKey := fmt.Sprintf("%s|%s|%s", relPath, tr.ParentFunc, tr.SubtestLabel)
+		s.trunByKey[trKey] = tr
+	}
+	if !fm.IsTest {
+		for funcKey, h := range ExtractFuncTokenHashes(relPath, src) {
+			s.hashByPkg[fmt.Sprintf("%s|%s", dir, funcKey)] = h
+		}
+		blocks := ExtractCloneBlocks(relPath, src)
+		for _, blk := range blocks {
+			s.clonesByKey[relPath+"|"+blk.FuncKey] = blk
+		}
+		s.baseBlocks = append(s.baseBlocks, blocks...)
+	}
+}
+
+func hashFuncTokens(fset *token.FileSet, src []byte, fd *ast.FuncDecl) uint64 {
+	startOff := fset.Position(fd.Pos()).Offset
+	endOff := fset.Position(fd.End()).Offset
+	subFset := token.NewFileSet()
+	subFile := subFset.AddFile("", subFset.Base(), endOff-startOff)
+	var sc scanner.Scanner
+	sc.Init(subFile, src[startOff:endOff], nil, 0)
+	h := fnv.New64a()
+	for {
+		_, tok, lit := sc.Scan()
+		if tok == token.EOF {
+			break
+		}
+		_, _ = fmt.Fprintf(h, "%d:%s\x00", tok, lit)
+	}
+	return h.Sum64()
 }
 
 func collectDirectories(prodFiles []string, testFiles []string) map[string]struct{} {

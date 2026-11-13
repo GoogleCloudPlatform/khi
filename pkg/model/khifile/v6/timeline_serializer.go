@@ -48,10 +48,9 @@ func extractTimelineItems(registry *TimelineRegistry) []*pb.TimelineItems {
 	return items
 }
 
-// extractTimelines iterates over the TimelinePathPool to generate Timeline protobufs.
-// It assigns TimelineItemsId appropriately by checking if the builder exists.
 // extractTimelines iterates over the TimelinePathPool to generate Timeline protobufs
-// sorted in parent-to-child (pre-order tree traversal) order.
+// sorted in parent-to-child (pre-order tree traversal) order, assigning TimelineItemsId
+// when a builder with items exists.
 func extractTimelines(pool *TimelinePathPool, registry *TimelineRegistry) []*pb.Timeline {
 	sortedPaths := sortTimelinePaths(pool.Paths(), registry)
 

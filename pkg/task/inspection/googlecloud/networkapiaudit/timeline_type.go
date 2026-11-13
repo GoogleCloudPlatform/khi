@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeNetworkEndpointGroup is the registered timeline style TimelineType for Network Endpoint Groups.
 	TimelineTypeNetworkEndpointGroup = style.MustRegisterTimelineType(
 		"neg",
 		"Associated NEG serving status",

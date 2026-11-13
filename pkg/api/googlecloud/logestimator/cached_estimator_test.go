@@ -22,8 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
 type mockMetricLogCountFetcher struct {

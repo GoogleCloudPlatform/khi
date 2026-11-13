@@ -28,7 +28,9 @@ type PatternFinder[T any] interface {
 	// AddPattern adds a pattern to the finder.
 	// It returns ErrPatternAlreadyExists if the pattern has already been added.
 	AddPattern(pattern string, outcome T) error
+	// GetPattern retrieves the outcome associated with pattern, or returns ErrPatternNotFound.
 	GetPattern(pattern string) (T, error)
+	// DeletePattern removes pattern from the finder and returns its outcome, or ErrPatternNotFound.
 	DeletePattern(pattern string) (T, error)
 
 	// Match checks if any registered pattern is a prefix of the searchTarget.

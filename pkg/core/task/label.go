@@ -19,40 +19,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
+var _ LabelOpt = (*taskResultRetentionLabelOptImpl)(nil)
+
 // TaskLabelKey is a key of labels given to task.
 type TaskLabelKey[LabelValueType any] = typedmap.TypedKey[LabelValueType]
 
-// NewTaskLabelKey returns the key used in labels with type annotation,
-func NewTaskLabelKey[T any](key string) TaskLabelKey[T] {
-	return typedmap.NewTypedKey[T](key)
-}
-
-// Construct the LabelSet with required fields.
-func NewLabelSet(labelOpts ...LabelOpt) *typedmap.ReadonlyTypedMap {
-	typedMap := typedmap.NewTypedMap()
-	for _, lo := range labelOpts {
-		lo.Write(typedMap)
-	}
-	return typedMap.AsReadonly()
-}
-
 // LabelOpt implementations wraps setting values to the task albels.
 type LabelOpt interface {
+	// Write applies the label option to the given TypedMap.
 	Write(labels *typedmap.TypedMap)
 }
 
 type selectionPrioirtyLabelOpt struct {
 	priority int
-}
-
-func (s *selectionPrioirtyLabelOpt) Write(ls *typedmap.TypedMap) {
-	typedmap.Set(ls, LabelKeyTaskSelectionPriority, s.priority)
-}
-
-func WithSelectionPriority(priority int) LabelOpt {
-	return &selectionPrioirtyLabelOpt{
-		priority: priority,
-	}
 }
 
 // labelValueOpt stores a label value associating to a label key.
@@ -61,9 +40,31 @@ type labelValueOpt[T any] struct {
 	value    T
 }
 
-// Write implements LabelOpt interface
-func (o *labelValueOpt[T]) Write(labels *typedmap.TypedMap) {
-	typedmap.Set(labels, o.labelKey, o.value)
+type requiredTaskLabelImpl struct{}
+
+type taskResultRetentionLabelOptImpl struct {
+	retain bool
+}
+
+// NewTaskLabelKey returns the key used in labels with type annotation.
+func NewTaskLabelKey[T any](key string) TaskLabelKey[T] {
+	return typedmap.NewTypedKey[T](key)
+}
+
+// NewLabelSet constructs the LabelSet by applying the given label options.
+func NewLabelSet(labelOpts ...LabelOpt) *typedmap.ReadonlyTypedMap {
+	typedMap := typedmap.NewTypedMap()
+	for _, lo := range labelOpts {
+		lo.Write(typedMap)
+	}
+	return typedMap.AsReadonly()
+}
+
+// WithSelectionPriority returns a LabelOpt that sets the task selection priority.
+func WithSelectionPriority(priority int) LabelOpt {
+	return &selectionPrioirtyLabelOpt{
+		priority: priority,
+	}
 }
 
 // WithLabelValue creates a LabelOpt to store a single value associated to a label key.
@@ -72,12 +73,6 @@ func WithLabelValue[T any](labelKey TaskLabelKey[T], value T) LabelOpt {
 		labelKey: labelKey,
 		value:    value,
 	}
-}
-
-type requiredTaskLabelImpl struct{}
-
-func (r *requiredTaskLabelImpl) Write(label *typedmap.TypedMap) {
-	typedmap.Set(label, LabelKeyRequiredTask, true)
 }
 
 // NewRequiredTaskLabel returns a LabelOpt to mark the task is always included in the result task graph.
@@ -96,17 +91,6 @@ func WithFeatureGate(featureTaskRef taskid.UntypedTaskReference) LabelOpt {
 	return WithLabelValue(LabelKeyFeatureGateTaskRef, featureTaskRef)
 }
 
-type taskResultRetentionLabelOptImpl struct {
-	retain bool
-}
-
-// Write implements LabelOpt.
-func (r *taskResultRetentionLabelOptImpl) Write(label *typedmap.TypedMap) {
-	typedmap.Set(label, LabelKeyTaskResultRetention, r.retain)
-}
-
-var _ LabelOpt = (*taskResultRetentionLabelOptImpl)(nil)
-
 // NewTaskResultRetentionLabel returns a LabelOpt to specify whether the task result should be retained after all dependent tasks finish.
 func NewTaskResultRetentionLabel(retain bool) LabelOpt {
 	return &taskResultRetentionLabelOptImpl{
@@ -122,4 +106,22 @@ func WithTitle(title string) LabelOpt {
 // WithDescription returns a LabelOpt to attach a human-readable description to the task.
 func WithDescription(description string) LabelOpt {
 	return WithLabelValue(LabelKeyTaskDescription, description)
+}
+
+func (s *selectionPrioirtyLabelOpt) Write(ls *typedmap.TypedMap) {
+	typedmap.Set(ls, LabelKeyTaskSelectionPriority, s.priority)
+}
+
+// Write implements LabelOpt interface.
+func (o *labelValueOpt[T]) Write(labels *typedmap.TypedMap) {
+	typedmap.Set(labels, o.labelKey, o.value)
+}
+
+func (r *requiredTaskLabelImpl) Write(label *typedmap.TypedMap) {
+	typedmap.Set(label, LabelKeyRequiredTask, true)
+}
+
+// Write implements LabelOpt.
+func (r *taskResultRetentionLabelOptImpl) Write(label *typedmap.TypedMap) {
+	typedmap.Set(label, LabelKeyTaskResultRetention, r.retain)
 }

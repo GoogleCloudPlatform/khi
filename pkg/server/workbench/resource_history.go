@@ -31,12 +31,17 @@ var ErrRevisionNotFound = errors.New("revision not found")
 // ResourceRevision describes a single revision of a resource timeline without its manifest body.
 type ResourceRevision struct {
 	// Index is the 0-based position of the revision among all revisions of the timeline, oldest first.
-	Index     int
-	Time      time.Time
-	Verb      string
-	State     string
+	Index int
+	// Time is the revision timestamp in UTC.
+	Time time.Time
+	// Verb is the action verb label for the revision.
+	Verb string
+	// State is the resource state label for the revision.
+	State string
+	// Principal is the acting principal string for the revision.
 	Principal string
-	LogID     uint32
+	// LogID is the 1-based identifier of the associated log entry.
+	LogID uint32
 	// HasBody reports whether a resource manifest body was recorded for this revision.
 	HasBody bool
 }
@@ -44,6 +49,7 @@ type ResourceRevision struct {
 // ResourceRevisionSummary is a ResourceRevision with the line change counts from its previous revision.
 type ResourceRevisionSummary struct {
 	ResourceRevision
+	// Changes holds the added and deleted line counts from the previous revision.
 	Changes LineChangeCount
 }
 
@@ -61,11 +67,14 @@ type ResourceRevisionsQuery struct {
 
 // ResourceRevisionsResult contains a window of revisions within the requested time range.
 type ResourceRevisionsResult struct {
+	// TimelineID is the queried timeline identifier.
 	TimelineID uint32
-	Segments   []TimelineSegment
+	// Segments holds the hierarchical path segments of the timeline.
+	Segments []TimelineSegment
 	// MatchedCount is the number of revisions within the time range across all windows.
 	MatchedCount int
-	Revisions    []ResourceRevisionSummary
+	// Revisions holds the revision summaries in the requested window.
+	Revisions []ResourceRevisionSummary
 }
 
 // RevisionSelector identifies a revision either by its index or by a point in time.
@@ -77,6 +86,64 @@ type RevisionSelector struct {
 	time   time.Time
 }
 
+// ResourceManifest contains the selected revision and its truncated manifest YAML.
+type ResourceManifest struct {
+	// TimelineID is the queried timeline identifier.
+	TimelineID uint32
+	// Segments holds the hierarchical path segments of the timeline.
+	Segments []TimelineSegment
+	// Revision holds the metadata of the selected revision.
+	Revision ResourceRevision
+	// Body holds the potentially truncated manifest YAML.
+	Body BodyChunk
+}
+
+// ResourceDiff contains the unified diff between a revision and its previous revision.
+type ResourceDiff struct {
+	// TimelineID is the queried timeline identifier.
+	TimelineID uint32
+	// Segments holds the hierarchical path segments of the timeline.
+	Segments []TimelineSegment
+	// Revision holds the metadata of the target revision.
+	Revision ResourceRevision
+	// Previous is the revision before Revision, or nil when Revision is the initial revision.
+	Previous *ResourceRevision
+	// Changes counts the lines over the whole diff, even when Diff is truncated.
+	Changes LineChangeCount
+	// Diff holds the potentially truncated unified diff text.
+	Diff BodyChunk
+}
+
+// RevisionPair holds the untruncated manifest YAMLs and metadata of a revision and its predecessor.
+type RevisionPair struct {
+	// TimelineID is the queried timeline identifier.
+	TimelineID uint32
+	// Segments holds the hierarchical path segments of the timeline.
+	Segments []TimelineSegment
+	// Revision holds the metadata of the target revision.
+	Revision ResourceRevision
+	// Previous holds the metadata of the preceding revision, or nil for the initial revision.
+	Previous *ResourceRevision
+	// NextRevisionTime is the timestamp of the following revision, or nil if none exists.
+	NextRevisionTime *time.Time
+	// PreviousBody is the untruncated manifest YAML of the preceding revision.
+	PreviousBody string
+	// Body is the untruncated manifest YAML of the target revision.
+	Body string
+}
+
+// RevisionBounds holds the metadata of a revision, its timeline path segments, and the next revision's timestamp when one exists.
+type RevisionBounds struct {
+	// TimelineID is the queried timeline identifier.
+	TimelineID uint32
+	// Segments holds the hierarchical path segments of the timeline.
+	Segments []TimelineSegment
+	// Revision holds the metadata of the target revision.
+	Revision ResourceRevision
+	// NextRevisionTime is the timestamp of the following revision, or nil if none exists.
+	NextRevisionTime *time.Time
+}
+
 // RevisionAtIndex returns a selector for the revision at the 0-based index among all revisions of the timeline.
 func RevisionAtIndex(index int) RevisionSelector {
 	return RevisionSelector{index: index}
@@ -85,45 +152,6 @@ func RevisionAtIndex(index int) RevisionSelector {
 // RevisionAtTime returns a selector for the revision effective at t, i.e. the latest revision changed at or before t.
 func RevisionAtTime(t time.Time) RevisionSelector {
 	return RevisionSelector{byTime: true, time: t}
-}
-
-// ResourceManifest contains the selected revision and its truncated manifest YAML.
-type ResourceManifest struct {
-	TimelineID uint32
-	Segments   []TimelineSegment
-	Revision   ResourceRevision
-	Body       BodyChunk
-}
-
-// ResourceDiff contains the unified diff between a revision and its previous revision.
-type ResourceDiff struct {
-	TimelineID uint32
-	Segments   []TimelineSegment
-	Revision   ResourceRevision
-	// Previous is the revision before Revision, or nil when Revision is the initial revision.
-	Previous *ResourceRevision
-	// Changes counts the lines over the whole diff, even when Diff is truncated.
-	Changes LineChangeCount
-	Diff    BodyChunk
-}
-
-// RevisionPair holds the untruncated manifest YAMLs and metadata of a revision and its predecessor.
-type RevisionPair struct {
-	TimelineID       uint32
-	Segments         []TimelineSegment
-	Revision         ResourceRevision
-	Previous         *ResourceRevision
-	NextRevisionTime *time.Time
-	PreviousBody     string
-	Body             string
-}
-
-// RevisionBounds holds the metadata of a revision, its timeline path segments, and the next revision's timestamp when one exists.
-type RevisionBounds struct {
-	TimelineID       uint32
-	Segments         []TimelineSegment
-	Revision         ResourceRevision
-	NextRevisionTime *time.Time
 }
 
 // GetResourceRevisions returns the revisions of a timeline within the query time range, oldest first,

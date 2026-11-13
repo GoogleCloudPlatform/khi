@@ -22,8 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 func createMockRunnableTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error), labelOpts ...LabelOpt) UntypedTask {

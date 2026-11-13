@@ -28,38 +28,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generateGCPNetworkAPIStructuredQuery generates a structured query slice for network API logs.
-func generateGCPNetworkAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, negNames []string) []*logestimator.StructuredLogQuery {
-	if taskMode == inspectioncore.TaskModeDryRun {
-		return []*logestimator.StructuredLogQuery{
-			{
-				ResourceTypes: []string{"gce_network"},
-				Filters: []logestimator.LoggingMonitoringMatcher{
-					logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
-					logestimator.Comment("neg name filters to be determined after audit log query"),
-				},
-			},
+// listLogEntriesTask queries GCP network logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	networkapiaudit.ListLogEntriesTaskID,
+	"GCP network log",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &networkAuditQuerySource{
+			clusterIdentity: coretask.Use(b, networkapiaudit.ClusterIdentityTaskID.Ref()),
+			negs:            coretask.Use(b, k8scommon.NEGNamesInventoryTaskID.Ref()),
 		}
-	}
+	},
+)
 
-	nodeNamesWithNetworkEndpointGroups := []string{}
-	for _, negName := range negNames {
-		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
-	}
-	result := []*logestimator.StructuredLogQuery{}
-	groups := gcpqueryutil.SplitToChildGroups(nodeNamesWithNetworkEndpointGroups, 10)
-	for _, group := range groups {
-		negNameFilter := fmt.Sprintf("protoPayload.resourceName:(%s)", strings.Join(group, " OR "))
-		result = append(result, &logestimator.StructuredLogQuery{
-			ResourceTypes: []string{"gce_network"},
-			Filters: []logestimator.LoggingMonitoringMatcher{
-				logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
-				logestimator.CustomFilter(negNameFilter),
-			},
-		})
-	}
-	return result
-}
+var _ gcpcommon.StructuredLogQuerySource = (*networkAuditQuerySource)(nil)
 
 // networkAuditQuerySource generates log queries for GCE Network API audit logs.
 type networkAuditQuerySource struct {
@@ -96,16 +77,35 @@ func (s *networkAuditQuerySource) TimePartitionCount() int {
 	return 1
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*networkAuditQuerySource)(nil)
-
-// listLogEntriesTask queries GCP network logs from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	networkapiaudit.ListLogEntriesTaskID,
-	"GCP network log",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &networkAuditQuerySource{
-			clusterIdentity: coretask.Use(b, networkapiaudit.ClusterIdentityTaskID.Ref()),
-			negs:            coretask.Use(b, k8scommon.NEGNamesInventoryTaskID.Ref()),
+// generateGCPNetworkAPIStructuredQuery generates a structured query slice for network API logs.
+func generateGCPNetworkAPIStructuredQuery(taskMode inspectioncore.InspectionTaskModeType, negNames []string) []*logestimator.StructuredLogQuery {
+	if taskMode == inspectioncore.TaskModeDryRun {
+		return []*logestimator.StructuredLogQuery{
+			{
+				ResourceTypes: []string{"gce_network"},
+				Filters: []logestimator.LoggingMonitoringMatcher{
+					logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
+					logestimator.Comment("neg name filters to be determined after audit log query"),
+				},
+			},
 		}
-	},
-)
+	}
+
+	nodeNamesWithNetworkEndpointGroups := []string{}
+	for _, negName := range negNames {
+		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
+	}
+	result := []*logestimator.StructuredLogQuery{}
+	groups := gcpqueryutil.SplitToChildGroups(nodeNamesWithNetworkEndpointGroups, 10)
+	for _, group := range groups {
+		negNameFilter := fmt.Sprintf("protoPayload.resourceName:(%s)", strings.Join(group, " OR "))
+		result = append(result, &logestimator.StructuredLogQuery{
+			ResourceTypes: []string{"gce_network"},
+			Filters: []logestimator.LoggingMonitoringMatcher{
+				logestimator.CustomFilter(`-protoPayload.methodName:("list" OR "get" OR "watch")`),
+				logestimator.CustomFilter(negNameFilter),
+			},
+		})
+	}
+	return result
+}

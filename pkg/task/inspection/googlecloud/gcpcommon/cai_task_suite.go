@@ -21,6 +21,8 @@ import (
 	"log/slog"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
@@ -31,30 +33,9 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// SnapshotToCAIRawLog converts a CAIAssetSnapshot to a raw Log entity, optionally preprocessing the unmarshaled JSON map.
-func SnapshotToCAIRawLog(idGen *id.Generator, s *CAIAssetSnapshot, preprocessRawMap func(map[string]any)) (*log.Log, error) {
-	jsonBytes, err := protojson.Marshal(s.TemporalAsset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal temporal asset to JSON: %w", err)
-	}
-	var m map[string]any
-	if err := json.Unmarshal(jsonBytes, &m); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal temporal asset JSON: %w", err)
-	}
-	if preprocessRawMap != nil {
-		preprocessRawMap(m)
-	}
-	node, nodeErr := structured.FromGoValue(m, &structured.AlphabeticalGoMapKeyOrderProvider{})
-	if nodeErr != nil {
-		return nil, fmt.Errorf("failed to convert temporal asset map to structured node: %w", nodeErr)
-	}
-
-	reader := structured.NewNodeReader(node)
-	return log.NewLogWithTimestamp(idGen, reader, s.StartTime()), nil
-}
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*caiTimelineMapper[any])(nil)
 
 // CAIAssetSearchTarget defines the search scope and discovery function for querying Cloud Asset Inventory.
 type CAIAssetSearchTarget struct {
@@ -103,11 +84,44 @@ type CAITaskSuiteConfig[Identity any] struct {
 
 // CAITaskSuite bundles the 5 tasks constituting a Cloud Asset Inventory inspection pipeline.
 type CAITaskSuite struct {
-	FetcherTask        coretask.Task[[]*CAIAssetSnapshot]
-	RawLogTask         coretask.Task[[]*log.Log]
-	LogGrouperTask     coretask.Task[inspectiontaskbase.LogGroupMap]
-	LogIngesterTask    coretask.Task[struct{}]
+	// FetcherTask fetches TemporalAsset snapshots from Cloud Asset Inventory.
+	FetcherTask coretask.Task[[]*CAIAssetSnapshot]
+	// RawLogTask converts fetched TemporalAsset snapshots into raw Log entities.
+	RawLogTask coretask.Task[[]*log.Log]
+	// LogGrouperTask groups raw CAI snapshot logs by resource identity key.
+	LogGrouperTask coretask.Task[inspectiontaskbase.LogGroupMap]
+	// LogIngesterTask populates LogChangeSet metadata for each CAI snapshot log.
+	LogIngesterTask coretask.Task[struct{}]
+	// TimelineMapperTask stages initial timeline revisions for assets active at query start time.
 	TimelineMapperTask coretask.Task[struct{}]
+}
+
+// CAIActiveAssetState holds the parsed identity and resource body for an asset active at queryStartTime.
+type CAIActiveAssetState[Identity any] struct {
+	// Identity identifies the resource parsed from the CAI snapshot.
+	Identity Identity
+	// ResourceBody holds the structured resource payload from the snapshot.
+	ResourceBody structured.Node
+	// ObservedTime is the timestamp when this active snapshot window began.
+	ObservedTime time.Time
+}
+
+type caiTimelineMapper[Identity any] struct {
+	inspectiontaskbase.StatelessMapperBase
+	startTime          coretask.Input[time.Time]
+	extractIdentity    func(reader *structured.NodeReader) (Identity, bool)
+	mapInitialRevision CAIInitialRevisionMapper[Identity]
+}
+
+// DefineCAITaskSuite constructs a CAITaskSuite from the given configuration.
+func DefineCAITaskSuite[Identity any](cfg CAITaskSuiteConfig[Identity]) *CAITaskSuite {
+	return &CAITaskSuite{
+		FetcherTask:        defineCAIFetcherTask(cfg),
+		RawLogTask:         defineCAIRawLogTask(cfg),
+		LogGrouperTask:     defineCAILogGrouperTask(cfg),
+		LogIngesterTask:    defineCAILogIngesterTask(cfg),
+		TimelineMapperTask: defineCAITimelineMapperTask(cfg),
+	}
 }
 
 // Tasks returns all 5 tasks in the suite.
@@ -121,15 +135,100 @@ func (s *CAITaskSuite) Tasks() []coretask.UntypedTask {
 	}
 }
 
-// DefineCAITaskSuite constructs a CAITaskSuite from the given configuration.
-func DefineCAITaskSuite[Identity any](cfg CAITaskSuiteConfig[Identity]) *CAITaskSuite {
-	return &CAITaskSuite{
-		FetcherTask:        defineCAIFetcherTask(cfg),
-		RawLogTask:         defineCAIRawLogTask(cfg),
-		LogGrouperTask:     defineCAILogGrouperTask(cfg),
-		LogIngesterTask:    defineCAILogIngesterTask(cfg),
-		TimelineMapperTask: defineCAITimelineMapperTask(cfg),
+// SnapshotToCAIRawLog converts a CAIAssetSnapshot to a raw Log entity, optionally preprocessing the unmarshaled JSON map.
+func SnapshotToCAIRawLog(idGen *id.Generator, s *CAIAssetSnapshot, preprocessRawMap func(map[string]any)) (*log.Log, error) {
+	jsonBytes, err := protojson.Marshal(s.TemporalAsset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal temporal asset to JSON: %w", err)
 	}
+	var m map[string]any
+	if err := json.Unmarshal(jsonBytes, &m); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal temporal asset JSON: %w", err)
+	}
+	if preprocessRawMap != nil {
+		preprocessRawMap(m)
+	}
+	node, nodeErr := structured.FromGoValue(m, &structured.AlphabeticalGoMapKeyOrderProvider{})
+	if nodeErr != nil {
+		return nil, fmt.Errorf("failed to convert temporal asset map to structured node: %w", nodeErr)
+	}
+
+	reader := structured.NewNodeReader(node)
+	return log.NewLogWithTimestamp(idGen, reader, s.StartTime()), nil
+}
+
+// ExtractCAIActiveAssetStates filters CAI snapshot logs to those active at queryStartTime,
+// deduplicating by identityKey so that the most recently observed active snapshot wins.
+func ExtractCAIActiveAssetStates[Identity any](
+	ctx context.Context,
+	logs []*log.Log,
+	queryStartTime time.Time,
+	extractIdentity func(reader *structured.NodeReader) (Identity, bool),
+	identityKey func(Identity) string,
+	extractBody func(reader *structured.NodeReader) structured.Node,
+) []CAIActiveAssetState[Identity] {
+	var results []CAIActiveAssetState[Identity]
+	indexByKey := make(map[string]int)
+
+	_ = progress.ForEach(ctx, logs, func(_ int, l *log.Log) error {
+		state, ok := parseActiveAssetState(l, queryStartTime, extractIdentity, extractBody)
+		if !ok {
+			return nil
+		}
+
+		key := identityKey(state.Identity)
+		if idx, found := indexByKey[key]; found {
+			if results[idx].ObservedTime.After(state.ObservedTime) {
+				return nil
+			}
+			results[idx] = state
+			return nil
+		}
+
+		indexByKey[key] = len(results)
+		results = append(results, state)
+		return nil
+	}, progress.WithUnit("logs"))
+
+	return results
+}
+
+// DefineCAIInitialResourceStateProviderTask defines an inspection task that provides initial resource states
+// from CAI snapshots active at queryStartTime.
+func DefineCAIInitialResourceStateProviderTask[Identity any, Provider any](
+	taskID taskid.TaskImplementationID[Provider],
+	suiteTaskIDs CAITaskIDSet,
+	extractIdentity func(reader *structured.NodeReader) (Identity, bool),
+	identityKey func(Identity) string,
+	extractBody func(reader *structured.NodeReader) structured.Node,
+	buildProvider func(activeStates []CAIActiveAssetState[Identity]) Provider,
+) coretask.Task[Provider] {
+	return inspectiontaskbase.DefineInspectionTask(
+		taskID,
+		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[Provider] {
+			logs := coretask.UseOptional(b, suiteTaskIDs.RawLog.Ref(coretask.FromActiveGraph))
+			queryStartTime := coretask.Use(b, InputStartTimeTaskID.Ref())
+
+			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (Provider, error) {
+				if taskMode == inspectioncore.TaskModeDryRun {
+					return buildProvider(nil), nil
+				}
+				rawLogs, ok := logs.Get(ctx)
+				if !ok {
+					return buildProvider(nil), nil
+				}
+				states := ExtractCAIActiveAssetStates(ctx, rawLogs, queryStartTime.Get(ctx), extractIdentity, identityKey, extractBody)
+				return buildProvider(states), nil
+			}
+		},
+		coretask.WithSelectionPriority(1000),
+	)
+}
+
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (m *caiTimelineMapper[Identity]) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapCAILogToTimeline(ctx, l, m.startTime.Get(ctx), m.extractIdentity, m.mapInitialRevision)
+	return cs, struct{}{}, err
 }
 
 func defineCAIFetcherTask[Identity any](cfg CAITaskSuiteConfig[Identity]) coretask.Task[[]*CAIAssetSnapshot] {
@@ -270,21 +369,6 @@ func defineCAITimelineMapperTask[Identity any](cfg CAITaskSuiteConfig[Identity])
 	)
 }
 
-type caiTimelineMapper[Identity any] struct {
-	inspectiontaskbase.StatelessMapperBase
-	startTime          coretask.Input[time.Time]
-	extractIdentity    func(reader *structured.NodeReader) (Identity, bool)
-	mapInitialRevision CAIInitialRevisionMapper[Identity]
-}
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*caiTimelineMapper[any])(nil)
-
-// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
-func (m *caiTimelineMapper[Identity]) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	cs, err := mapCAILogToTimeline(ctx, l, m.startTime.Get(ctx), m.extractIdentity, m.mapInitialRevision)
-	return cs, struct{}{}, err
-}
-
 // mapCAILogToTimeline processes a CAI snapshot log entry and stages a timeline revision if the asset was active at queryStartTime.
 func mapCAILogToTimeline[Identity any](
 	ctx context.Context,
@@ -322,13 +406,6 @@ func mapCAILogToTimeline[Identity any](
 	return cs, nil
 }
 
-// CAIActiveAssetState holds the parsed identity and resource body for an asset active at queryStartTime.
-type CAIActiveAssetState[Identity any] struct {
-	Identity     Identity
-	ResourceBody structured.Node
-	ObservedTime time.Time
-}
-
 func parseActiveAssetState[Identity any](
 	l *log.Log,
 	queryStartTime time.Time,
@@ -358,72 +435,4 @@ func parseActiveAssetState[Identity any](
 		ResourceBody: body,
 		ObservedTime: observedTime,
 	}, true
-}
-
-// ExtractCAIActiveAssetStates filters CAI snapshot logs to those active at queryStartTime,
-// deduplicating by identityKey so that the most recently observed active snapshot wins.
-func ExtractCAIActiveAssetStates[Identity any](
-	ctx context.Context,
-	logs []*log.Log,
-	queryStartTime time.Time,
-	extractIdentity func(reader *structured.NodeReader) (Identity, bool),
-	identityKey func(Identity) string,
-	extractBody func(reader *structured.NodeReader) structured.Node,
-) []CAIActiveAssetState[Identity] {
-	var results []CAIActiveAssetState[Identity]
-	indexByKey := make(map[string]int)
-
-	_ = progress.ForEach(ctx, logs, func(_ int, l *log.Log) error {
-		state, ok := parseActiveAssetState(l, queryStartTime, extractIdentity, extractBody)
-		if !ok {
-			return nil
-		}
-
-		key := identityKey(state.Identity)
-		if idx, found := indexByKey[key]; found {
-			if results[idx].ObservedTime.After(state.ObservedTime) {
-				return nil
-			}
-			results[idx] = state
-			return nil
-		}
-
-		indexByKey[key] = len(results)
-		results = append(results, state)
-		return nil
-	}, progress.WithUnit("logs"))
-
-	return results
-}
-
-// DefineCAIInitialResourceStateProviderTask defines an inspection task that provides initial resource states
-// from CAI snapshots active at queryStartTime.
-func DefineCAIInitialResourceStateProviderTask[Identity any, Provider any](
-	taskID taskid.TaskImplementationID[Provider],
-	suiteTaskIDs CAITaskIDSet,
-	extractIdentity func(reader *structured.NodeReader) (Identity, bool),
-	identityKey func(Identity) string,
-	extractBody func(reader *structured.NodeReader) structured.Node,
-	buildProvider func(activeStates []CAIActiveAssetState[Identity]) Provider,
-) coretask.Task[Provider] {
-	return inspectiontaskbase.DefineInspectionTask(
-		taskID,
-		func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[Provider] {
-			logs := coretask.UseOptional(b, suiteTaskIDs.RawLog.Ref(coretask.FromActiveGraph))
-			queryStartTime := coretask.Use(b, InputStartTimeTaskID.Ref())
-
-			return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (Provider, error) {
-				if taskMode == inspectioncore.TaskModeDryRun {
-					return buildProvider(nil), nil
-				}
-				rawLogs, ok := logs.Get(ctx)
-				if !ok {
-					return buildProvider(nil), nil
-				}
-				states := ExtractCAIActiveAssetStates(ctx, rawLogs, queryStartTime.Get(ctx), extractIdentity, identityKey, extractBody)
-				return buildProvider(states), nil
-			}
-		},
-		coretask.WithSelectionPriority(1000),
-	)
 }

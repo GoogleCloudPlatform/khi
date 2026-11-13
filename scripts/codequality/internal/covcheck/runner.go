@@ -31,19 +31,28 @@ import (
 
 // PlanRequest specifies how to choose Go packages for coverage execution.
 type PlanRequest struct {
-	RepoRoot  string
+	// RepoRoot is the repository root directory path.
+	RepoRoot string
+	// ProdFiles lists modified production Go file paths.
 	ProdFiles []string
-	Full      bool
+	// Full enables whole-repository coverage planning.
+	Full bool
 }
 
 // RunRequest configures a `go test -coverprofile` execution.
 type RunRequest struct {
-	RepoRoot    string
-	ModulePath  string
-	Packages    []string
-	WorkDir     string
+	// RepoRoot is the repository root directory path.
+	RepoRoot string
+	// ModulePath is the Go module path declared in go.mod.
+	ModulePath string
+	// Packages lists Go package specifiers to execute tests on.
+	Packages []string
+	// WorkDir is the temporary directory storing the generated coverprofile.
+	WorkDir string
+	// ProfileName is the coverprofile filename created inside WorkDir.
 	ProfileName string
-	ErrOut      io.Writer
+	// ErrOut receives test command output on failure.
+	ErrOut io.Writer
 }
 
 // PlanPackages returns sorted Go package specifiers (e.g. "./pkg/foo") for req.
@@ -70,26 +79,6 @@ func PlanPackages(req PlanRequest) []string {
 	}
 	slices.Sort(out)
 	return out
-}
-
-func formatPkgSpec(relDir string) string {
-	if relDir == "." {
-		return "."
-	}
-	return "./" + relDir
-}
-
-func dirHasGoFiles(dir string) bool {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return false
-	}
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") {
-			return true
-		}
-	}
-	return false
 }
 
 // RunCoverProfile runs go test with -coverprofile on req.Packages and returns parsed CoverBlocks per file.
@@ -119,4 +108,24 @@ func RunCoverProfile(ctx context.Context, req RunRequest) (map[string][]gotestut
 		return nil, fmt.Errorf("go test coverage failed (%s): %w", strings.Join(args, " "), err)
 	}
 	return gotestutil.LoadCoverProfileIfPresent(profilePath, req.ModulePath)
+}
+
+func formatPkgSpec(relDir string) string {
+	if relDir == "." {
+		return "."
+	}
+	return "./" + relDir
+}
+
+func dirHasGoFiles(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") {
+			return true
+		}
+	}
+	return false
 }

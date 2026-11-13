@@ -14,18 +14,20 @@
 
 package index
 
+var indexTagGenerators []IndexTagGenerator = make([]IndexTagGenerator, 0)
+
 // IndexTagGenerator generates list of tags to be injected in the index.html.
 type IndexTagGenerator interface {
 	// GenerateTags returns the tags injected in the header.
 	GenerateTags() []string
 }
 
-var indexTagGenerators []IndexTagGenerator = make([]IndexTagGenerator, 0)
-
+// AddTagGenerator registers an IndexTagGenerator to include its tags in index.html.
 func AddTagGenerator(generator IndexTagGenerator) {
 	indexTagGenerators = append(indexTagGenerators, generator)
 }
 
+// GenerateTags collects and returns all HTML header tags produced by registered tag generators.
 func GenerateTags() []string {
 	result := make([]string, 0)
 	for _, generator := range indexTagGenerators {

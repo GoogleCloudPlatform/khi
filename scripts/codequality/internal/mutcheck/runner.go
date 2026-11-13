@@ -41,9 +41,13 @@ const (
 
 // ProgressHooks reports compilation, subtest tracing, and mutant execution progress.
 type ProgressHooks interface {
+	// Phase updates the current pipeline phase label and step progress.
 	Phase(step int, totalSteps int, message string)
+	// SubtestProgress reports progress while tracing leaf subtest polarities.
 	SubtestProgress(pkgLabel string, done int, total int)
+	// StartMutantPool announces the start of parallel mutant execution.
 	StartMutantPool(total int, workers int)
+	// RecordMutantResult records one completed mutant evaluation status.
 	RecordMutantResult(status rule.MutantStatus)
 }
 
@@ -59,6 +63,13 @@ type compileRequest struct {
 	maxMutantID int
 	pkgWorkDir  string
 	logWriter   io.Writer
+}
+
+type baselineRequest struct {
+	binPath   string
+	pkgAbsDir string
+	tracePath string
+	verbose   bool
 }
 
 func compilePackageWithFallback(ctx context.Context, req compileRequest) (string, error) {
@@ -186,13 +197,6 @@ func runGoTestCompile(ctx context.Context, repoRoot string, overlayPath string, 
 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	return nil
-}
-
-type baselineRequest struct {
-	binPath   string
-	pkgAbsDir string
-	tracePath string
-	verbose   bool
 }
 
 func runBaselineTestBinary(ctx context.Context, req baselineRequest) (time.Duration, []byte, error) {

@@ -19,6 +19,8 @@ import (
 	"log/slog"
 )
 
+var _ slog.Handler = (*SeverityFilter)(nil)
+
 // SeverityFilter is a slog.Handler that filters log records based on a minimum severity level.
 type SeverityFilter struct {
 	childLogHandler slog.Handler
@@ -62,5 +64,3 @@ func (s *SeverityFilter) WithGroup(name string) slog.Handler {
 		minSeverity:     s.minSeverity,
 	}
 }
-
-var _ slog.Handler = (*SeverityFilter)(nil)

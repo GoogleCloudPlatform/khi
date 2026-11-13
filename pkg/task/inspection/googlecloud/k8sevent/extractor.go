@@ -41,17 +41,28 @@ var (
 
 // KubernetesEventFieldSet contains the parsed fields for a Kubernetes event log.
 type KubernetesEventFieldSet struct {
-	ProjectID    string
-	ClusterName  string
-	APIVersion   string
+	// ProjectID is the GCP project ID from the resource labels.
+	ProjectID string
+	// ClusterName is the GKE cluster name from the resource labels.
+	ClusterName string
+	// APIVersion is the normalized API group/version of the involved Kubernetes object.
+	APIVersion string
+	// ResourceKind is the lowercase kind of the involved Kubernetes object.
 	ResourceKind string
-	Namespace    string
-	Resource     string
-	ResourceUID  string
-	FieldPath    string
-	Reason       string
-	Message      string
-	SourceHost   string
+	// Namespace is the namespace of the involved object, or "cluster-scope" if non-namespaced.
+	Namespace string
+	// Resource is the name of the involved Kubernetes object.
+	Resource string
+	// ResourceUID is the UID of the involved Kubernetes object.
+	ResourceUID string
+	// FieldPath is the subobject path within the involved object (e.g., container field path).
+	FieldPath string
+	// Reason is the short machine-understandable reason for the event.
+	Reason string
+	// Message is the human-readable description of the event, falling back to action or textPayload.
+	Message string
+	// SourceHost is the hostname of the node reporting the event.
+	SourceHost string
 }
 
 // ExtractKubernetesEvent extracts KubernetesEventFieldSet from a NodeReader.

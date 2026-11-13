@@ -30,6 +30,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
+// defaultTimelineTypeDescriptions maps the labels of the built-in timeline types to their descriptions.
+// Descriptions in the style chunk of a loaded file take precedence, and these fill in the ones it lacks.
+var defaultTimelineTypeDescriptions = sync.OnceValue(func() map[string]string {
+	descMap := make(map[string]string)
+	for _, tt := range style.GenerateChunkWithoutIconAtlas().GetTimelineTypes() {
+		if tt.GetLabel() != "" && tt.GetDescription() != "" {
+			descMap[tt.GetLabel()] = tt.GetDescription()
+		}
+	}
+	return descMap
+})
+
+var _ cel.StyleResolver = (*styleMaps)(nil)
+
 // IndexedTimeline is an alias for cel.TimelineData.
 type IndexedTimeline = cel.TimelineData
 
@@ -38,16 +52,37 @@ type IndexedLog = cel.LogData
 
 // SearchIndex encapsulates the indexed timelines and logs of a Workbench session.
 type SearchIndex struct {
-	Timelines        []*cel.TimelineData
-	TimelineMap      map[uint32]*cel.TimelineData
-	Logs             []cel.LogData
-	InternPool       *khifilev6model.ReadonlyInternPool
-	TrigramIndex     *cel.TrigramIndex
-	StyleResolver    cel.StyleResolver
+	// Timelines holds all indexed timelines in the workbench.
+	Timelines []*cel.TimelineData
+	// TimelineMap maps timeline IDs to their indexed TimelineData.
+	TimelineMap map[uint32]*cel.TimelineData
+	// Logs holds all indexed log entries indexed by ID - 1.
+	Logs []cel.LogData
+	// InternPool provides string and struct resolution for indexed entries.
+	InternPool *khifilev6model.ReadonlyInternPool
+	// TrigramIndex accelerates substring and regular expression log searches.
+	TrigramIndex *cel.TrigramIndex
+	// StyleResolver resolves log type and severity labels from style IDs.
+	StyleResolver cel.StyleResolver
+	// LogTimelineIndex maps log IDs to their associated timeline IDs.
 	LogTimelineIndex *LogTimelineCSRIndex
 	// FilterVocabulary lists the timeline types and log types in the index for filter CEL.
 	FilterVocabulary FilterVocabulary
 	maxTimelineID    uint32
+}
+
+// styleMaps holds lookup maps derived from the style chunk.
+// The style chunk does not change while the workbench is open, so BuildBaseSearchIndex builds them once when the workbench loads.
+type styleMaps struct {
+	severityOrderMap     map[uint32]uint32
+	logTypeLabelMap      map[uint32]string
+	timelineTypeLabelMap map[uint32]string
+	verbLabelMap         map[uint32]string
+	stateLabelMap        map[uint32]string
+	// severityMap maps severity IDs to their definitions in the style chunk.
+	severityMap map[uint32]*pbv6.Severity
+	// timelineTypeDescriptionMap maps timeline type labels to their descriptions.
+	timelineTypeDescriptionMap map[string]string
 }
 
 // GetLog retrieves a log entry by its 1-based log ID in O(1) time.
@@ -73,38 +108,6 @@ func (s *SearchIndex) MaxTimelineID() uint32 {
 	}
 	return s.maxTimelineID
 }
-
-// styleMaps holds lookup maps derived from the style chunk.
-// The style chunk does not change while the workbench is open, so BuildBaseSearchIndex builds them once when the workbench loads.
-type styleMaps struct {
-	severityOrderMap     map[uint32]uint32
-	logTypeLabelMap      map[uint32]string
-	timelineTypeLabelMap map[uint32]string
-	verbLabelMap         map[uint32]string
-	stateLabelMap        map[uint32]string
-	// severityMap maps severity IDs to their definitions in the style chunk.
-	severityMap map[uint32]*pbv6.Severity
-	// timelineTypeDescriptionMap maps timeline type labels to their descriptions.
-	timelineTypeDescriptionMap map[string]string
-}
-
-// ResolveLogType returns the log type label corresponding to the given ID.
-func (s *styleMaps) ResolveLogType(id uint32) string {
-	if s == nil || s.logTypeLabelMap == nil {
-		return ""
-	}
-	return s.logTypeLabelMap[id]
-}
-
-// ResolveSeverity returns the severity order value corresponding to the given ID.
-func (s *styleMaps) ResolveSeverity(id uint32) uint32 {
-	if s == nil || s.severityOrderMap == nil {
-		return 0
-	}
-	return s.severityOrderMap[id]
-}
-
-var _ cel.StyleResolver = (*styleMaps)(nil)
 
 // BuildBaseSearchIndex constructs the base in-memory SearchIndex containing timelines, logs, and hierarchy mappings.
 func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
@@ -260,18 +263,6 @@ func (w *Workbench) BuildAsyncIndexesWithProgress(ctx context.Context, targetInd
 
 	return nil
 }
-
-// defaultTimelineTypeDescriptions maps the labels of the built-in timeline types to their descriptions.
-// Descriptions in the style chunk of a loaded file take precedence, and these fill in the ones it lacks.
-var defaultTimelineTypeDescriptions = sync.OnceValue(func() map[string]string {
-	descMap := make(map[string]string)
-	for _, tt := range style.GenerateChunkWithoutIconAtlas().GetTimelineTypes() {
-		if tt.GetLabel() != "" && tt.GetDescription() != "" {
-			descMap[tt.GetLabel()] = tt.GetDescription()
-		}
-	}
-	return descMap
-})
 
 func (w *Workbench) buildStyleMaps() *styleMaps {
 	s := &styleMaps{
@@ -510,4 +501,20 @@ func (w *Workbench) linkTimelineHierarchy(timelines []*cel.TimelineData, timelin
 			}
 		}
 	}
+}
+
+// ResolveLogType returns the log type label corresponding to the given ID.
+func (s *styleMaps) ResolveLogType(id uint32) string {
+	if s == nil || s.logTypeLabelMap == nil {
+		return ""
+	}
+	return s.logTypeLabelMap[id]
+}
+
+// ResolveSeverity returns the severity order value corresponding to the given ID.
+func (s *styleMaps) ResolveSeverity(id uint32) uint32 {
+	if s == nil || s.severityOrderMap == nil {
+		return 0
+	}
+	return s.severityOrderMap[id]
 }

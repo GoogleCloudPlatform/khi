@@ -24,8 +24,9 @@ import (
 	"sync"
 
 	"cloud.google.com/go/errorreporting"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
 	"google.golang.org/api/option"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
 )
 
 // DefaultErrorReporter is the default reporter to be used for reporting an error on panic.
@@ -34,7 +35,12 @@ var DefaultErrorReporter *Reporter = &Reporter{
 	writer:   &ConsoleReportWriter{},
 }
 
-// Reporter is an interface to record the error.
+var (
+	_ ReportWriter = &ConsoleReportWriter{}
+	_ ReportWriter = &CloudErrorReportWriter{}
+)
+
+// Reporter records errors with attached metadata using a ReportWriter.
 type Reporter struct {
 	metadata     map[string]string
 	metadataLock sync.RWMutex
@@ -48,12 +54,31 @@ type ReportWriter interface {
 	WriteReportSync(ctx context.Context, err error)
 }
 
+// ConsoleReportWriter reports error through stderr.
+type ConsoleReportWriter struct {
+}
+
+// CloudErrorReportWriter sends error over Cloud Error Reporting on GCP.
+type CloudErrorReportWriter struct {
+	client *errorreporting.Client
+}
+
+// NewReporter returns a new Reporter with the given ReportWriter.
+func NewReporter(reportWriter ReportWriter) *Reporter {
+	return &Reporter{
+		metadata: map[string]string{},
+		writer:   reportWriter,
+	}
+}
+
+// GetMetadata returns a copy of the current metadata map.
 func (r *Reporter) GetMetadata() map[string]string {
 	defer r.metadataLock.RUnlock()
 	r.metadataLock.RLock()
 	return maps.Clone(r.metadata)
 }
 
+// SetMetadataEntry sets a metadata key-value pair included in subsequent error reports.
 func (r *Reporter) SetMetadataEntry(key string, value string) {
 	r.metadataLock.Lock()
 	defer r.metadataLock.Unlock()
@@ -81,39 +106,9 @@ func (r *Reporter) getErrorMessageWithMetadata(err error) error {
 	return errors.New(message)
 }
 
-// ConsoleReportWriter reports error through stderr.
-type ConsoleReportWriter struct {
-}
-
+// WriteReportSync implements ReportWriter.
 func (r *ConsoleReportWriter) WriteReportSync(ctx context.Context, err error) {
 	slog.ErrorContext(ctx, err.Error())
-}
-
-var _ ReportWriter = &ConsoleReportWriter{}
-
-// CloudErrorReportWriter sends error over Cloud Error Reporting on GCP.
-type CloudErrorReportWriter struct {
-	client *errorreporting.Client
-}
-
-// WriteReportSync implements Reporter.
-func (c *CloudErrorReportWriter) WriteReportSync(ctx context.Context, err error) {
-	writeError := c.client.ReportSync(ctx, errorreporting.Entry{
-		Error: err,
-	})
-	if writeError != nil {
-		slog.ErrorContext(ctx, fmt.Sprintf("Failed to write the error to Cloud Error Reporting due to an error:%v", writeError))
-	}
-}
-
-var _ ReportWriter = &CloudErrorReportWriter{}
-
-// NewReporter returns a new Reporter with the given ReportWriter.
-func NewReporter(reportWriter ReportWriter) *Reporter {
-	return &Reporter{
-		metadata: map[string]string{},
-		writer:   reportWriter,
-	}
 }
 
 // NewCloudErrorReportWriter returns a new instance of CloudErrorReporter.
@@ -126,4 +121,14 @@ func NewCloudErrorReportWriter(projectId string, apiKey string) (*CloudErrorRepo
 		return nil, err
 	}
 	return &CloudErrorReportWriter{client: client}, nil
+}
+
+// WriteReportSync implements Reporter.
+func (c *CloudErrorReportWriter) WriteReportSync(ctx context.Context, err error) {
+	writeError := c.client.ReportSync(ctx, errorreporting.Entry{
+		Error: err,
+	})
+	if writeError != nil {
+		slog.ErrorContext(ctx, fmt.Sprintf("Failed to write the error to Cloud Error Reporting due to an error:%v", writeError))
+	}
 }

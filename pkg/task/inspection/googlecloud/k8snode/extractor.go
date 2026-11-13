@@ -22,6 +22,15 @@ import (
 )
 
 var (
+	// Containerd identifies containerd logs.
+	Containerd K8sNodeParserType = "containerd"
+	// Kubelet identifies kubelet logs.
+	Kubelet K8sNodeParserType = "kubelet"
+	// Other identifies other node component logs.
+	Other K8sNodeParserType = "other"
+)
+
+var (
 	pathUpperMESSAGE     = structured.CompileFieldPath("jsonPayload.MESSAGE")
 	pathLowerMessage     = structured.CompileFieldPath("jsonPayload.message")
 	pathSyslogIdentifier = structured.CompileFieldPath("jsonPayload.SYSLOG_IDENTIFIER")
@@ -32,20 +41,14 @@ var (
 // K8sNodeParserType defines the parser category for node logs.
 type K8sNodeParserType string
 
-var (
-	// Containerd identifies containerd logs.
-	Containerd K8sNodeParserType = "containerd"
-	// Kubelet identifies kubelet logs.
-	Kubelet K8sNodeParserType = "kubelet"
-	// Other identifies other node component logs.
-	Other K8sNodeParserType = "other"
-)
-
 // K8sNodeLogCommonFieldSet contains the common parsed metadata from a Kubernetes node log.
 type K8sNodeLogCommonFieldSet struct {
-	Message   *logutil.ParseStructuredLogResult
+	// Message holds the structured parse result of the node log message.
+	Message *logutil.ParseStructuredLogResult
+	// Component is the node component name (e.g., kubelet, containerd) extracted from SYSLOG_IDENTIFIER or logName.
 	Component string
-	NodeName  string
+	// NodeName is the name of the Kubernetes node that emitted the log.
+	NodeName string
 }
 
 // ExtractK8sNodeParserType extracts the K8sNodeParserType from a NodeReader without parsing the log message.

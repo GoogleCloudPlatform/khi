@@ -29,6 +29,31 @@ import (
 // DefaultRetryPolicy is the default retry policy widely used to access Google Cloud API.
 var DefaultRetryPolicy = gax.WithRetry(NewDefaultRetryer)
 
+// NeverTimeout is gax.CallOption that never reaches the timeout.
+var NeverTimeout = gax.WithTimeout(1<<63 - 1)
+
+var _ gax.Retryer = (*defaultRetryer)(nil)
+
+var _ gax.Retryer = (*retryWithCountBudget)(nil)
+
+// defaultRetryer wraps a gax.Retryer to customize the retry behavior for specific codes like Unauthenticated.
+type defaultRetryer struct {
+	gax.Retryer
+	ctx context.Context
+}
+
+// retryWithCountBudget retries for specific error codes but with count limit.
+type retryWithCountBudget struct {
+	gax.Retryer
+	codes            []codes.Code
+	initialDuration  time.Duration
+	multiplier       float32
+	resetDuration    time.Duration
+	retryCount       int
+	retryCountBudget int
+	lastRetry        time.Time
+}
+
 // NewDefaultRetryer returns the default retryer.
 func NewDefaultRetryer() gax.Retryer {
 	return NewDefaultRetryerWithContext(context.Background())
@@ -53,13 +78,19 @@ func NewDefaultRetryerWithContext(ctx context.Context) gax.Retryer {
 	return &defaultRetryer{Retryer: r, ctx: ctx}
 }
 
-// defaultRetryer wraps a gax.Retryer to customize the retry behavior for specific codes like Unauthenticated.
-type defaultRetryer struct {
-	gax.Retryer
-	ctx context.Context
+// NewRetryWithCountBudget returns the instance of retryWithCountBudget.
+func NewRetryWithCountBudget(codes []codes.Code, initialDuration time.Duration, multiplier float32, resetDuration time.Duration, retryCountBudget int, parentRetrier gax.Retryer) *retryWithCountBudget {
+	return &retryWithCountBudget{
+		Retryer:          parentRetrier,
+		codes:            codes,
+		initialDuration:  initialDuration,
+		multiplier:       multiplier,
+		resetDuration:    resetDuration,
+		retryCount:       0,
+		retryCountBudget: retryCountBudget,
+		lastRetry:        time.Time{},
+	}
 }
-
-var _ gax.Retryer = (*defaultRetryer)(nil)
 
 // Retry overrides the underlying gax.Retryer's Retry method to filter Unauthenticated errors.
 func (r *defaultRetryer) Retry(err error) (time.Duration, bool) {
@@ -76,35 +107,6 @@ func (r *defaultRetryer) Retry(err error) (time.Duration, bool) {
 		slog.DebugContext(r.ctx, "retrying Google Cloud API call due to transient error", "error", err, "pause", pause)
 	}
 	return pause, shouldRetry
-}
-
-// NeverTimeout is gax.CallOption that never reaches the timeout.
-var NeverTimeout = gax.WithTimeout(1<<63 - 1)
-
-// retryWithCountBudget retries for specific error codes but with count limit.
-type retryWithCountBudget struct {
-	gax.Retryer
-	codes            []codes.Code
-	initialDuration  time.Duration
-	multiplier       float32
-	resetDuration    time.Duration
-	retryCount       int
-	retryCountBudget int
-	lastRetry        time.Time
-}
-
-// NewRetryWithCountBudget returns the instance of retryWithCountBudget.
-func NewRetryWithCountBudget(codes []codes.Code, initialDuration time.Duration, multiplier float32, resetDuration time.Duration, retryCountBudget int, parentRetrier gax.Retryer) *retryWithCountBudget {
-	return &retryWithCountBudget{
-		Retryer:          parentRetrier,
-		codes:            codes,
-		initialDuration:  initialDuration,
-		multiplier:       multiplier,
-		resetDuration:    resetDuration,
-		retryCount:       0,
-		retryCountBudget: retryCountBudget,
-		lastRetry:        time.Time{},
-	}
 }
 
 // Retry implements gax.Retryer.
@@ -133,5 +135,3 @@ func (r *retryWithCountBudget) Retry(err error) (pause time.Duration, shouldRetr
 		return 0, false
 	}
 }
-
-var _ gax.Retryer = (*retryWithCountBudget)(nil)

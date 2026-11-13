@@ -27,20 +27,30 @@ import (
 
 // AnalyzeInput bundles per-subtest polarity traces and per-mutant failure sets for one Go package.
 type AnalyzeInput struct {
-	ChangedFuncs         []ChangedTestFunc
-	LeafOrder            []string
-	PolarityByLeaf       map[string]map[string]struct{}
-	MutantRuns           map[int]VerboseTestResult
+	// ChangedFuncs lists Test* functions modified in the diff.
+	ChangedFuncs []ChangedTestFunc
+	// LeafOrder lists executed leaf subtest names in execution order.
+	LeafOrder []string
+	// PolarityByLeaf maps leaf test names to executed polarity token sets.
+	PolarityByLeaf map[string]map[string]struct{}
+	// MutantRuns maps mutant IDs to verbose test execution results.
+	MutantRuns map[int]VerboseTestResult
+	// BudgetSkippedMutants holds mutant IDs skipped due to budget or timeout limits.
 	BudgetSkippedMutants map[int]struct{}
 }
 
 // FuncRedundancy groups subsumed test/subtest details under their enclosing top-level Test* function.
 type FuncRedundancy struct {
-	File     string
+	// File is the slash-separated relative path of the test file.
+	File string
+	// FuncName is the enclosing top-level Test* function name.
 	FuncName string
-	Line     int
-	EndLine  int
-	Details  []rule.RedundantDetail
+	// Line is the 1-based starting line of the test function.
+	Line int
+	// EndLine is the 1-based ending line of the test function.
+	EndLine int
+	// Details holds redundant subtest details within this test function.
+	Details []rule.RedundantDetail
 }
 
 type leafDescriptor struct {

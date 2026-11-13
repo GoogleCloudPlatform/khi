@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeControlPlaneComponent is the registered timeline style LogType for Kubernetes control plane component logs.
 	LogTypeControlPlaneComponent = style.MustRegisterLogType("KCP log", "Kubernetes Control Plane Component Logs", style.MustForceConvertSRGBHex("#FF3333"), style.ColorWhite)
 )

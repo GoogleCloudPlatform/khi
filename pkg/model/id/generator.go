@@ -20,9 +20,6 @@ import (
 	"golang.org/x/sys/cpu"
 )
 
-// Namespace represents a namespace for generating unique IDs.
-type Namespace uint32
-
 // ServerStringIDBase is the base offset for server-only string IDs to prevent collisions with client string IDs.
 const ServerStringIDBase uint32 = 0x80000000
 
@@ -48,15 +45,18 @@ const (
 	namespaceMax
 )
 
-type nsCounter struct {
-	value atomic.Uint32
-	_     cpu.CacheLinePad
-}
+// Namespace represents a namespace for generating unique IDs.
+type Namespace uint32
 
 // Generator generates unique IDs for different namespaces.
 // It is safe for concurrent use.
 type Generator struct {
 	counters [namespaceMax]nsCounter
+}
+
+type nsCounter struct {
+	value atomic.Uint32
+	_     cpu.CacheLinePad
 }
 
 // NewGenerator creates a new Generator initialized with starting counter values.

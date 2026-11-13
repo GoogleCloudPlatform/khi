@@ -27,6 +27,50 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// listLogEntriesTask queries the Kubernetes container logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	k8scontainer.ListLogEntriesTaskID,
+	"K8s container logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &containerLogQuerySource{
+			clusterIdentity:  coretask.Use(b, k8scontainer.ClusterIdentityTaskID.Ref()),
+			namespacesFilter: coretask.Use(b, k8scontainer.InputContainerQueryNamespacesTaskID.Ref()),
+			podNamesFilter:   coretask.Use(b, k8scontainer.InputContainerQueryPodNamesTaskID.Ref()),
+		}
+	},
+)
+
+var _ gcpcommon.StructuredLogQuerySource = (*containerLogQuerySource)(nil)
+
+// containerLogQuerySource builds the Cloud Logging query for the Kubernetes container logs of the cluster.
+type containerLogQuerySource struct {
+	clusterIdentity  coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	namespacesFilter coretask.Input[*gcpqueryutil.SetFilterParseResult]
+	podNamesFilter   coretask.Input[*gcpqueryutil.SetFilterParseResult]
+}
+
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *containerLogQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
+}
+
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *containerLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	namespacesFilter := s.namespacesFilter.Get(ctx)
+	podNamesFilter := s.podNamesFilter.Get(ctx)
+
+	return []*logestimator.StructuredLogQuery{
+		generateK8sContainerStructuredQuery(cluster, namespacesFilter, podNamesFilter),
+	}, nil
+}
+
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *containerLogQuerySource) TimePartitionCount() int {
+	return 10
+}
+
 // generateK8sContainerStructuredQuery constructs a StructuredLogQuery for Kubernetes container logs.
 func generateK8sContainerStructuredQuery(
 	cluster k8scommon.GoogleCloudClusterIdentity,
@@ -94,47 +138,3 @@ func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) l
 	}
 	return logestimator.ResourceLabel("pod_name", logestimator.ContainsAny(podNamesFilter.Additives...))
 }
-
-// containerLogQuerySource builds the Cloud Logging query for the Kubernetes container logs of the cluster.
-type containerLogQuerySource struct {
-	clusterIdentity  coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	namespacesFilter coretask.Input[*gcpqueryutil.SetFilterParseResult]
-	podNamesFilter   coretask.Input[*gcpqueryutil.SetFilterParseResult]
-}
-
-// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
-func (s *containerLogQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := s.clusterIdentity.Get(ctx)
-	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
-}
-
-// Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *containerLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
-	cluster := s.clusterIdentity.Get(ctx)
-	namespacesFilter := s.namespacesFilter.Get(ctx)
-	podNamesFilter := s.podNamesFilter.Get(ctx)
-
-	return []*logestimator.StructuredLogQuery{
-		generateK8sContainerStructuredQuery(cluster, namespacesFilter, podNamesFilter),
-	}, nil
-}
-
-// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *containerLogQuerySource) TimePartitionCount() int {
-	return 10
-}
-
-var _ gcpcommon.StructuredLogQuerySource = (*containerLogQuerySource)(nil)
-
-// listLogEntriesTask queries the Kubernetes container logs of the cluster from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	k8scontainer.ListLogEntriesTaskID,
-	"K8s container logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &containerLogQuerySource{
-			clusterIdentity:  coretask.Use(b, k8scontainer.ClusterIdentityTaskID.Ref()),
-			namespacesFilter: coretask.Use(b, k8scontainer.InputContainerQueryNamespacesTaskID.Ref()),
-			podNamesFilter:   coretask.Use(b, k8scontainer.InputContainerQueryPodNamesTaskID.Ref()),
-		}
-	},
-)

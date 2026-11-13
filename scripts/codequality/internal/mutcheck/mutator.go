@@ -24,36 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
-// Mutant describes a single candidate logic change extracted from a Go function.
-type Mutant struct {
-	ID                  int
-	File                string
-	FuncKey             string
-	FuncDisplay         string
-	Line                int
-	Operator            rule.MutantOperator
-	OriginalExpr        string
-	MutatedExpr         string
-	OriginalLine        string
-	MutatedLine         string
-	SuppressionCategory rule.AllowCategory
-	Status              rule.MutantStatus
-}
-
-// ToDetail converts m into a report-ready rule.MutantDetail.
-func (m *Mutant) ToDetail() rule.MutantDetail {
-	return rule.MutantDetail{
-		Operator:     m.Operator,
-		Line:         m.Line,
-		OriginalExpr: m.OriginalExpr,
-		MutatedExpr:  m.MutatedExpr,
-		OriginalLine: m.OriginalLine,
-		MutatedLine:  m.MutatedLine,
-	}
-}
-
-type siteKind int
-
 const (
 	siteOrderedCmp siteKind = iota
 	siteEqCmp
@@ -65,37 +35,118 @@ const (
 	siteStmtSkip
 )
 
+// Mutant describes a single candidate logic change extracted from a Go function.
+type Mutant struct {
+	// ID is the unique 1-based mutant identifier.
+	ID int
+	// File is the slash-separated relative path containing the mutant.
+	File string
+	// FuncKey is the canonical function or method identifier.
+	FuncKey string
+	// FuncDisplay is the human-readable function or method display name.
+	FuncDisplay string
+	// Line is the 1-based source line number of the mutated expression or statement.
+	Line int
+	// Operator is the mutation operator category applied.
+	Operator rule.MutantOperator
+	// OriginalExpr is the compact original expression text.
+	OriginalExpr string
+	// MutatedExpr is the compact mutated expression text.
+	MutatedExpr string
+	// OriginalLine is the trimmed original source line.
+	OriginalLine string
+	// MutatedLine is the rendered mutated source line.
+	MutatedLine string
+	// SuppressionCategory is the CODEQUALITY_ALLOW category if suppressed.
+	SuppressionCategory rule.AllowCategory
+	// Status is the current evaluation outcome of the mutant.
+	Status rule.MutantStatus
+}
+
 // MutationSite represents one AST span in a Go file that expands into Super-Mutant runtime code.
 type MutationSite struct {
-	StartOffset  int
-	EndOffset    int
-	Kind         siteKind
-	Op           token.Token
+	// StartOffset is the byte offset where the AST span starts.
+	StartOffset int
+	// EndOffset is the byte offset where the AST span ends.
+	EndOffset int
+	// Kind identifies the site category for runtime code generation.
+	Kind siteKind
+	// Op is the binary token operator for binary sites.
+	Op token.Token
+	// AddKeepRight indicates whether an addition site keeps the right operand when mutating.
 	AddKeepRight bool
-	BoolVal      bool
-	LeftStart    int
-	LeftEnd      int
-	RightStart   int
-	RightEnd     int
-	Mutants      []*Mutant
+	// BoolVal stores the original boolean literal value for BLR sites.
+	BoolVal bool
+	// LeftStart is the byte start offset of the left operand.
+	LeftStart int
+	// LeftEnd is the byte end offset of the left operand.
+	LeftEnd int
+	// RightStart is the byte start offset of the right operand.
+	RightStart int
+	// RightEnd is the byte end offset of the right operand.
+	RightEnd int
+	// Mutants lists candidate mutants anchored at this site.
+	Mutants []*Mutant
 }
 
 // FilePlan holds parsed metadata, extracted mutants, and active Super-Mutant sites for a single Go file.
 type FilePlan struct {
-	File        string
+	// File is the slash-separated relative path of the Go file.
+	File string
+	// PackageName is the declared Go package name.
 	PackageName string
-	Source      []byte
-	Sites       []MutationSite
-	Mutants     []*Mutant
+	// Source holds the raw Go source bytes.
+	Source []byte
+	// Sites holds Super-Mutant AST spans ordered for overlay rewriting.
+	Sites []MutationSite
+	// Mutants lists all candidate mutants extracted from the file.
+	Mutants []*Mutant
 }
 
 // PlanOptions configures which lines, directives, and exclusion rules apply when extracting mutants.
 type PlanOptions struct {
-	TargetLines  map[int]struct{}
+	// TargetLines specifies 1-based changed lines eligible for mutation.
+	TargetLines map[int]struct{}
+	// CoveredLines specifies 1-based lines covered by baseline tests.
 	CoveredLines map[int]struct{}
-	Directives   []rule.Directive
-	Rules        []rule.ExclusionRule
+	// Directives holds CODEQUALITY_ALLOW directives parsed from the file.
+	Directives []rule.Directive
+	// Rules overrides the default AST boilerplate exclusion rules when non-nil.
+	Rules []rule.ExclusionRule
+	// NextMutantID points to the shared monotonic mutant ID counter.
 	NextMutantID *int
+}
+
+type siteKind int
+
+type funcWalker struct {
+	fset            *token.FileSet
+	file            *ast.File
+	src             []byte
+	lineStarts      []int
+	stmtListMembers map[ast.Stmt]struct{}
+	opts            PlanOptions
+	rules           []rule.ExclusionRule
+	nextID          *int
+	plan            *FilePlan
+	curFuncKey      string
+	curFuncDisplay  string
+	curFuncLine     int
+}
+
+type siteProposal struct {
+	line           int
+	op             rule.MutantOperator
+	kind           siteKind
+	site           MutationSite
+	specs          [][2]string
+	customMutLines []string
+}
+
+type binarySpecResult struct {
+	op    rule.MutantOperator
+	kind  siteKind
+	specs [][2]string
 }
 
 // PlanFileMutations parses src and extracts all candidate mutants on opts.TargetLines.
@@ -147,28 +198,16 @@ func PlanFileMutations(filePath string, src []byte, opts PlanOptions) (*FilePlan
 	return plan, nil
 }
 
-type funcWalker struct {
-	fset            *token.FileSet
-	file            *ast.File
-	src             []byte
-	lineStarts      []int
-	stmtListMembers map[ast.Stmt]struct{}
-	opts            PlanOptions
-	rules           []rule.ExclusionRule
-	nextID          *int
-	plan            *FilePlan
-	curFuncKey      string
-	curFuncDisplay  string
-	curFuncLine     int
-}
-
-type siteProposal struct {
-	line           int
-	op             rule.MutantOperator
-	kind           siteKind
-	site           MutationSite
-	specs          [][2]string
-	customMutLines []string
+// ToDetail converts m into a report-ready rule.MutantDetail.
+func (m *Mutant) ToDetail() rule.MutantDetail {
+	return rule.MutantDetail{
+		Operator:     m.Operator,
+		Line:         m.Line,
+		OriginalExpr: m.OriginalExpr,
+		MutatedExpr:  m.MutatedExpr,
+		OriginalLine: m.OriginalLine,
+		MutatedLine:  m.MutatedLine,
+	}
 }
 
 func (w *funcWalker) walkNode(node ast.Node, ancestors []ast.Node) {
@@ -294,12 +333,6 @@ func (w *funcWalker) extractBinarySite(n *ast.BinaryExpr) {
 		return
 	}
 	w.register(siteProposal{line: opLine, op: specRes.op, kind: specRes.kind, site: base, specs: specRes.specs})
-}
-
-type binarySpecResult struct {
-	op    rule.MutantOperator
-	kind  siteKind
-	specs [][2]string
 }
 
 func buildBinaryMutantSpecs(

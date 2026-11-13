@@ -17,10 +17,11 @@ package covcheck
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestAnalyzeFileLinesAndMeasureFuncUncovered(t *testing.T) {

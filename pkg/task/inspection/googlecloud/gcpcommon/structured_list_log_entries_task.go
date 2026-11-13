@@ -26,6 +26,9 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -41,9 +44,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
+
+// LogEstimatorCacheKey is the key to retrieve or store CachedStructuredLogEstimator in the InspectionSharedMap.
+var LogEstimatorCacheKey = typedmap.NewTypedKey[*logestimator.CachedStructuredLogEstimator]("googlecloud.logestimator.cache")
+
+// maxResourceNameCountPerRequest is the maximum allowed count of resource names per single entries.list. The default quota is 100.
+var maxResourceNameCountPerRequest = 100
 
 // StructuredLogQuerySource provides the resource names, queries, and time partitions of a Cloud Logging task driven by StructuredLogQuery.
 type StructuredLogQuerySource interface {
@@ -55,6 +62,12 @@ type StructuredLogQuerySource interface {
 
 	// TimePartitionCount returns the number of time partitions to gather logs in parallel.
 	TimePartitionCount() int
+}
+
+// resourceContainerLogQueryGroup groups resource names under a common Google Cloud resource container.
+type resourceContainerLogQueryGroup struct {
+	container     googlecloud.ResourceContainer
+	resourceNames []string
 }
 
 // DefineStructuredListLogEntriesTask defines a task that queries logs from Cloud Logging using the StructuredLogQuery list of the source returned by bind.
@@ -128,9 +141,6 @@ func resolveTimePartitionCount(source StructuredLogQuerySource) (int, error) {
 	}
 	return timePartitionCount, nil
 }
-
-// LogEstimatorCacheKey is the key to retrieve or store CachedStructuredLogEstimator in the InspectionSharedMap.
-var LogEstimatorCacheKey = typedmap.NewTypedKey[*logestimator.CachedStructuredLogEstimator]("googlecloud.logestimator.cache")
 
 // getOrInitLogEstimatorCache gets the cached estimator from InspectionSharedMap or initializes a new one.
 func getOrInitLogEstimatorCache(ctx context.Context) *logestimator.CachedStructuredLogEstimator {
@@ -346,9 +356,6 @@ func summaryQueryID(taskID string, queryIndex, totalQueryCount int) string {
 	return fmt.Sprintf("%s#%04d", taskID, queryIndex)
 }
 
-// maxResourceNameCountPerRequest is the maximum allowed count of resource names per single entries.list. The default quota is 100.
-var maxResourceNameCountPerRequest = 100
-
 func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, tracker *progress.RatioTracker, baseLogCount int, listCallIndex int, totalListCalls int) {
 	wg.Add(1)
 	go func() {
@@ -397,12 +404,6 @@ func setErrorMetadataForFetchLogError(ctx context.Context, err error) error {
 		Message: err.Error(),
 	})
 	return err
-}
-
-// resourceContainerLogQueryGroup groups resource names under a common Google Cloud resource container.
-type resourceContainerLogQueryGroup struct {
-	container     googlecloud.ResourceContainer
-	resourceNames []string
 }
 
 // groupResourceNamesByContainer groups a list of resource names by their Google Cloud resource container.

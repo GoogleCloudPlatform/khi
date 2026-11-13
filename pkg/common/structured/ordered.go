@@ -14,6 +14,8 @@
 
 package structured
 
+var _ Node = (*OrderedMapNode)(nil)
+
 // OrderedMapNode wraps a map Node and customizes its Children() iteration order.
 type OrderedMapNode struct {
 	inner        Node
@@ -102,5 +104,3 @@ func (o *OrderedMapNode) Children() NodeChildrenIterator {
 func (o *OrderedMapNode) Unwrap() Node {
 	return o.inner
 }
-
-var _ Node = (*OrderedMapNode)(nil)

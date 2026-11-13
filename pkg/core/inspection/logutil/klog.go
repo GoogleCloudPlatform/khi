@@ -26,12 +26,36 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// KLogHeaderDateFieldKey is the field key used to store the date from a klog header.
+const KLogHeaderDateFieldKey = "@date"
+
+// KLogHeaderTimeFieldKey is the field key used to store the time from a klog header.
+const KLogHeaderTimeFieldKey = "@time"
+
+// KLogHeaderThreadIDFieldKey is the field key used to store the thread ID from a klog header.
+const KLogHeaderThreadIDFieldKey = "@threadid"
+
+// KLogHeaderSourceLocationFieldKey is the field key used to store the source file and line from a klog header.
+const KLogHeaderSourceLocationFieldKey = "@source"
+
+// klogTimestampLayout is the Go time layout of the klog header timestamp (mmdd hh:mm:ss.uuuuuu).
+const klogTimestampLayout = "0102 15:04:05.000000"
+
+var klogTimestampRegex = regexp.MustCompile(`^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d{6})\s+(\d+)\s+([^:]+:\d+)]\s+(.*)$`)
+
+var _ StructuredLogParser = (*KLogTextParser)(nil)
+
 // KLogTextParser parses given klog formatted string.
-// Example klog:  I0929 08:20:24.205299    1949 kubelet_getters.go:219] "Pod status updated" pod="kube-system/kube-proxy-gke-p0-gke-basic-1-default-6400229f-0hgr" status="Running"
+// Example klog:  I0929 08:20:24.205299    1949 kubelet_getters.go:219] "Pod status updated" pod="kube-system/kube-proxy-gke-p0-gke-basic-1-default-6400229f-0hgr" status="Running".
 type KLogTextParser struct {
 	workers *sync.Pool
 }
 
+type klogTextParserWorker struct {
+	builder strings.Builder
+}
+
+// NewKLogTextParser creates a new KLogTextParser instance.
 func NewKLogTextParser() *KLogTextParser {
 	return &KLogTextParser{
 		workers: &sync.Pool{
@@ -49,21 +73,34 @@ func (k *KLogTextParser) TryParse(message string) *ParseStructuredLogResult {
 	return worker.parse(message)
 }
 
-var _ StructuredLogParser = (*KLogTextParser)(nil)
+// FormatKLogString reconstructs a klog format line from structured log fields.
+func FormatKLogString(severity *pb.Severity, timestamp time.Time, threadID int, file string, line int, message string) string {
+	letter := toKLogSeverityLetter(severity)
 
-// Special header field keys stored in fields.
-const KLogHeaderDateFieldKey = "@date"
-const KLogHeaderTimeFieldKey = "@time"
-const KLogHeaderThreadIDFieldKey = "@threadid"
-const KLogHeaderSourceLocationFieldKey = "@source"
+	if file == "" {
+		file = "unknown"
+	}
 
-var klogTimestampRegex = regexp.MustCompile(`^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d{6})\s+(\d+)\s+([^:]+:\d+)]\s+(.*)$`)
+	ts := timestamp.UTC().Format(klogTimestampLayout)
+	return fmt.Sprintf("%s%s %d %s:%d] %s", letter, ts, threadID, file, line, message)
+}
 
-// klogTimestampLayout is the Go time layout of the klog header timestamp (mmdd hh:mm:ss.uuuuuu).
-const klogTimestampLayout = "0102 15:04:05.000000"
-
-type klogTextParserWorker struct {
-	builder strings.Builder
+// HasKLogHeader reports whether the message starts with a klog header prefix (e.g. "I0929 ").
+func HasKLogHeader(message string) bool {
+	if len(message) < 6 {
+		return false
+	}
+	switch message[0] {
+	case 'I', 'W', 'E', 'F':
+	default:
+		return false
+	}
+	for i := 1; i <= 4; i++ {
+		if message[i] < '0' || message[i] > '9' {
+			return false
+		}
+	}
+	return message[5] == ' '
 }
 
 func newKLogTextParserWorker() *klogTextParserWorker {
@@ -239,34 +276,4 @@ func toKLogSeverityLetter(severity *pb.Severity) string {
 	default:
 		return "I" // klog has no unknown level; use I so the line still matches klogTimestampRegex.
 	}
-}
-
-// FormatKLogString reconstructs a klog format line from structured log fields.
-func FormatKLogString(severity *pb.Severity, timestamp time.Time, threadID int, file string, line int, message string) string {
-	letter := toKLogSeverityLetter(severity)
-
-	if file == "" {
-		file = "unknown"
-	}
-
-	ts := timestamp.UTC().Format(klogTimestampLayout)
-	return fmt.Sprintf("%s%s %d %s:%d] %s", letter, ts, threadID, file, line, message)
-}
-
-// HasKLogHeader reports whether the message starts with a klog header prefix (e.g. "I0929 ").
-func HasKLogHeader(message string) bool {
-	if len(message) < 6 {
-		return false
-	}
-	switch message[0] {
-	case 'I', 'W', 'E', 'F':
-	default:
-		return false
-	}
-	for i := 1; i <= 4; i++ {
-		if message[i] < '0' || message[i] > '9' {
-			return false
-		}
-	}
-	return message[5] == ' '
 }

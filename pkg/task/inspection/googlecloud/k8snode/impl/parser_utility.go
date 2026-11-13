@@ -31,6 +31,15 @@ import (
 // nodeLogUIDStarterRunes defines the delimiter runes that precede Kubernetes resource UIDs in node logs.
 var nodeLogUIDStarterRunes = []rune{'"', '=', '/', ':'}
 
+// containerReference is an occurrence of a container ID inside a node log message, resolved down
+// to the container and the pod that owns it.
+type containerReference struct {
+	// Container is the container identity registered for the matched container ID.
+	Container *k8saudit.ContainerIdentity
+	// Pod is the pod that owns the container.
+	Pod *k8snode.PodSandboxIDInfo
+}
+
 // readGoStructFromString finds the struct part of a specific structName in the given string and returns its fields as a map.
 func readGoStructFromString(message string, structName string) map[string]string {
 	splitted := strings.Split(message, structName)
@@ -82,15 +91,6 @@ func readQuotedFieldFromString(message string, key string) string {
 		pos = realIdx + 1
 	}
 	return ""
-}
-
-// containerReference is an occurrence of a container ID inside a node log message, resolved down
-// to the container and the pod that owns it.
-type containerReference struct {
-	// Container is the container identity registered for the matched container ID.
-	Container *k8saudit.ContainerIdentity
-	// Pod is the pod that owns the container.
-	Pod *k8snode.PodSandboxIDInfo
 }
 
 // findPodAndContainerReferences collects the pod sandboxes and the containers whose IDs are

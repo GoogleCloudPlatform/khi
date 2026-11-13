@@ -24,27 +24,33 @@ import (
 	"strings"
 
 	"cloud.google.com/go/auth"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // DryRunInspectionInput defines the input parameters for the dry_run_inspection tool.
 type DryRunInspectionInput struct {
-	InspectionID string         `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
-	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
-	FieldID      string         `json:"fieldId,omitempty" jsonschema:"Optional field ID to expand without truncating its suggestions or options."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
+	// Parameters holds key-value form parameter overrides for the dry run.
+	Parameters map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
+	// FieldID optionally selects one field whose suggestions or options are rendered without truncation.
+	FieldID string `json:"fieldId,omitempty" jsonschema:"Optional field ID to expand without truncating its suggestions or options."`
 }
 
 // RunInspectionInput defines the input parameters for the run_inspection tool.
 type RunInspectionInput struct {
-	InspectionID string         `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
-	Parameters   map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
+	// Parameters holds key-value form parameter overrides for the inspection run.
+	Parameters map[string]any `json:"parameters,omitempty" jsonschema:"Key-value map of form parameters. Pass text fields as strings, set fields as arrays of strings, and checkbox fields as booleans. File fields cannot be set here; upload the file with request_file_upload. Time range parameters should be in UTC RFC3339 format. Wider time ranges increase execution time and memory usage."`
 }
 
 type queryData struct {
@@ -74,36 +80,22 @@ type invalidParameterError struct {
 	Key string
 }
 
-func (e *invalidParameterError) Error() string {
-	return fmt.Sprintf("parameter %q must be a string, boolean, or an array of strings", e.Key)
+// dryRunResult is the outcome of a successful dry run.
+type dryRunResult struct {
+	// renderData is the render model of dry_run_inspection.
+	renderData *dryRunData
+	// formFields are the form fields that the dry run returned, before they are converted for rendering.
+	formFields []inspectionmetadata.ParameterFormField
+	// preparedParams are the parameters that the dry run used, which run_inspection passes to the run.
+	preparedParams map[string]any
 }
 
-// convertMCPParameters sanitizes parameter types from JSON decoding into types expected by tasks.
-// Strings, booleans, and slices of strings are supported. Nil values are skipped.
-// Other types return an invalidParameterError for the first invalid key in sorted order.
-func convertMCPParameters(params map[string]any) (map[string]any, error) {
-	result := make(map[string]any, len(params))
-	for _, k := range slices.Sorted(maps.Keys(params)) {
-		switch val := params[k].(type) {
-		case nil:
-			continue
-		case string, bool:
-			result[k] = val
-		case []any:
-			strs := make([]string, len(val))
-			for i, elem := range val {
-				s, ok := elem.(string)
-				if !ok {
-					return nil, &invalidParameterError{Key: k}
-				}
-				strs[i] = s
-			}
-			result[k] = strs
-		default:
-			return nil, &invalidParameterError{Key: k}
-		}
-	}
-	return result, nil
+type inspectionIDData struct {
+	ID string
+}
+
+type googleCloudAuthErrorData struct {
+	RetryTool string
 }
 
 // prepareParameters validates and converts input parameters and injects the registered inspection name if omitted.
@@ -127,16 +119,6 @@ func (h *InspectionHandler) prepareParameters(id string, rawParams map[string]an
 	}
 
 	return preparedParams, nil, nil
-}
-
-// dryRunResult is the outcome of a successful dry run.
-type dryRunResult struct {
-	// renderData is the render model of dry_run_inspection.
-	renderData *dryRunData
-	// formFields are the form fields that the dry run returned, before they are converted for rendering.
-	formFields []inspectionmetadata.ParameterFormField
-	// preparedParams are the parameters that the dry run used, which run_inspection passes to the run.
-	preparedParams map[string]any
 }
 
 // dryRun prepares rawParams with prepareParameters and runs a dry run of runner, shared by dry_run_inspection,
@@ -217,10 +199,6 @@ func (h *InspectionHandler) handleDryRunInspection(ctx context.Context, req *mcp
 	return h.templates.ToolResult("dry_run_inspection.md.tmpl", *dryRunOutcome.renderData)
 }
 
-type inspectionIDData struct {
-	ID string
-}
-
 func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk.CallToolRequest, in RunInspectionInput) (*mcpsdk.CallToolResult, any, error) {
 	runner := h.server.GetInspection(in.InspectionID)
 	if runner == nil {
@@ -264,6 +242,44 @@ func (h *InspectionHandler) handleRunInspection(ctx context.Context, req *mcpsdk
 	})
 }
 
+func (h *InspectionHandler) googleCloudAuthErrorResult(retryTool string) (*mcpsdk.CallToolResult, any, error) {
+	return h.templates.ErrorToolResult("google_cloud_auth_error.md.tmpl", googleCloudAuthErrorData{
+		RetryTool: retryTool,
+	})
+}
+
+func (e *invalidParameterError) Error() string {
+	return fmt.Sprintf("parameter %q must be a string, boolean, or an array of strings", e.Key)
+}
+
+// convertMCPParameters sanitizes parameter types from JSON decoding into types expected by tasks.
+// Strings, booleans, and slices of strings are supported. Nil values are skipped.
+// Other types return an invalidParameterError for the first invalid key in sorted order.
+func convertMCPParameters(params map[string]any) (map[string]any, error) {
+	result := make(map[string]any, len(params))
+	for _, k := range slices.Sorted(maps.Keys(params)) {
+		switch val := params[k].(type) {
+		case nil:
+			continue
+		case string, bool:
+			result[k] = val
+		case []any:
+			strs := make([]string, len(val))
+			for i, elem := range val {
+				s, ok := elem.(string)
+				if !ok {
+					return nil, &invalidParameterError{Key: k}
+				}
+				strs[i] = s
+			}
+			result[k] = strs
+		default:
+			return nil, &invalidParameterError{Key: k}
+		}
+	}
+	return result, nil
+}
+
 // toQueryData converts QueryItem pointers from dry run metadata into queryData for template rendering.
 func toQueryData(queries []*inspectionmetadata.QueryItem) []queryData {
 	result := make([]queryData, 0, len(queries))
@@ -299,14 +315,4 @@ func isGoogleCloudAuthError(err error) bool {
 	// credentials.DetectDefault reports missing Application Default Credentials only as a formatted error
 	// without a type or sentinel, so this case can only be detected by its message.
 	return strings.Contains(err.Error(), "could not find default credentials")
-}
-
-type googleCloudAuthErrorData struct {
-	RetryTool string
-}
-
-func (h *InspectionHandler) googleCloudAuthErrorResult(retryTool string) (*mcpsdk.CallToolResult, any, error) {
-	return h.templates.ErrorToolResult("google_cloud_auth_error.md.tmpl", googleCloudAuthErrorData{
-		RetryTool: retryTool,
-	})
 }

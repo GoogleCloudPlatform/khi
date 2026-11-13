@@ -28,25 +28,6 @@ func CompareAlphabetical(a, b *TimelinePath, prioritizedNames map[string]int) in
 	return compareAlphabeticalNames(a.Name.Resolve(), b.Name.Resolve(), prioritizedNames)
 }
 
-func compareAlphabeticalNames(aName, bName string, prioritizedNames map[string]int) int {
-	if len(prioritizedNames) > 0 {
-		aIdx, aOk := prioritizedNames[aName]
-		bIdx, bOk := prioritizedNames[bName]
-
-		if aOk && bOk {
-			return aIdx - bIdx
-		}
-		if aOk {
-			return -1
-		}
-		if bOk {
-			return 1
-		}
-	}
-
-	return strings.Compare(aName, bName)
-}
-
 // CompareChronological compares two timeline paths chronologically by finding their oldest event or revision.
 func CompareChronological(a, b *TimelinePath, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, maxDepth int32) int {
 	aTime, aOk := FindOldestTime(a, registry, parentToChildren, 0, maxDepth)
@@ -134,6 +115,54 @@ func CompareGroupedChronologicalWithMap(a, b *TimelinePath, registry *TimelineRe
 	return strings.Compare(aTokens[k], bTokens[k])
 }
 
+// FindOldestTime finds the oldest time in a timeline path and its descendants up to maxDepth.
+func FindOldestTime(path *TimelinePath, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, currentDepth int, maxDepth int32) (time.Time, bool) {
+	var oldest time.Time
+	found := false
+
+	updateOldest := func(t time.Time) {
+		if !found || t.Before(oldest) {
+			oldest = t
+			found = true
+		}
+	}
+
+	if builder, exists := registry.GetBuilderIfExists(path); exists {
+		if t, ok := builder.FindOldestTime(); ok {
+			updateOldest(t)
+		}
+	}
+
+	if maxDepth <= 0 || currentDepth < int(maxDepth) {
+		for _, child := range parentToChildren[path] {
+			if childTime, childOk := FindOldestTime(child, registry, parentToChildren, currentDepth+1, maxDepth); childOk {
+				updateOldest(childTime)
+			}
+		}
+	}
+
+	return oldest, found
+}
+
+func compareAlphabeticalNames(aName, bName string, prioritizedNames map[string]int) int {
+	if len(prioritizedNames) > 0 {
+		aIdx, aOk := prioritizedNames[aName]
+		bIdx, bOk := prioritizedNames[bName]
+
+		if aOk && bOk {
+			return aIdx - bIdx
+		}
+		if aOk {
+			return -1
+		}
+		if bOk {
+			return 1
+		}
+	}
+
+	return strings.Compare(aName, bName)
+}
+
 // findPrefixOldestTime finds the oldest timestamp among all descendant timelines matching the given name prefix.
 // It serves as a fallback search mechanism when pre-calculated prefix maps are not available.
 func findPrefixOldestTime(prefix string, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, delimiter string) (time.Time, bool) {
@@ -166,35 +195,6 @@ func findPrefixOldestTime(prefix string, registry *TimelineRegistry, parentToChi
 	for _, root := range parentToChildren[nil] {
 		visit(root)
 	}
-	return oldest, found
-}
-
-// FindOldestTime finds the oldest time in a timeline path and its descendants up to maxDepth.
-func FindOldestTime(path *TimelinePath, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, currentDepth int, maxDepth int32) (time.Time, bool) {
-	var oldest time.Time
-	found := false
-
-	updateOldest := func(t time.Time) {
-		if !found || t.Before(oldest) {
-			oldest = t
-			found = true
-		}
-	}
-
-	if builder, exists := registry.GetBuilderIfExists(path); exists {
-		if t, ok := builder.FindOldestTime(); ok {
-			updateOldest(t)
-		}
-	}
-
-	if maxDepth <= 0 || currentDepth < int(maxDepth) {
-		for _, child := range parentToChildren[path] {
-			if childTime, childOk := FindOldestTime(child, registry, parentToChildren, currentDepth+1, maxDepth); childOk {
-				updateOldest(childTime)
-			}
-		}
-	}
-
 	return oldest, found
 }
 

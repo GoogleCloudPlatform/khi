@@ -42,6 +42,17 @@ var phaseToState = map[string]*pb.RevisionState{
 	"Unknown":   k8saudit.RevisionStatePodPhaseUnknown,
 }
 
+// Explicit interface compliance assertion.
+var _ k8saudit.ManifestLogToTimelineMapper[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSetting)(nil)
+
+// podPhaseLogToTimelineMapperTask is the task to generate pod phase history.
+var podPhaseLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*podPhaseTaskState](
+	k8saudit.PodPhaseLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*podPhaseTaskState] {
+		return &podPhaseLogToTimelineMapperTaskSetting{}
+	},
+)
+
 type podPhaseTaskState struct {
 	// lastPhase is the last phase of the pod.
 	lastPhase string
@@ -55,14 +66,6 @@ type podPhaseTaskState struct {
 	uidToCreationTimestampMap map[string]time.Time
 }
 
-func newPodPhaseTaskState() *podPhaseTaskState {
-	return &podPhaseTaskState{
-		uidToNodeNameMap:          map[string]string{},
-		parentPathToUIDMap:        map[string]*common.TimeSeries[string]{},
-		uidToCreationTimestampMap: map[string]time.Time{},
-	}
-}
-
 // podPhaseLogToTimelineMapperTaskSetting handles pod phase timeline generation.
 // This mapper runs in 2 passes during PreProcessLog to associate pod UIDs with node names,
 // even when scheduling (binding) logs and pod status logs appear out of order or when pod logs are missing:
@@ -71,6 +74,20 @@ func newPodPhaseTaskState() *podPhaseTaskState {
 //     stores the mapping from UID to node name. A 2-pass approach is necessary because a chronological log stream
 //     might process "binding" logs (which lack pod UID) before "pod" logs (where the UID is first observed).
 type podPhaseLogToTimelineMapperTaskSetting struct {
+}
+
+// MustPodPhaseTimelinePath resolves TimelinePath for PodPhase under Node timeline.
+func MustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namespace, podName, uid string) *khifilev6.TimelinePath {
+	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
+	kind := k8saudit.MustK8sKindTimeline(ctx, api, "node")
+	nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, nodeName)
+
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	return builder.TimelineAccumulator.GetPath(nodePath, khifilev6.PathSegment{
+		Name: fmt.Sprintf("%s/%s[%s]", namespace, podName, uid),
+		Type: k8saudit.TimelineTypePodPhase,
+	})
 }
 
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
@@ -115,15 +132,6 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx con
 		}
 	}
 	return result, nil
-}
-
-// resolveUID returns the active pod UID at time t.
-func (c *podPhaseLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeries[string], t time.Time) string {
-	uid, ok := ts.Get(t)
-	if ok && uid != "" {
-		return uid
-	}
-	return ""
 }
 
 // PreProcessLog implements k8saudit.ManifestLogToTimelineMapper.
@@ -305,27 +313,19 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 	}
 }
 
-// MustPodPhaseTimelinePath resolves TimelinePath for PodPhase under Node timeline.
-func MustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namespace, podName, uid string) *khifilev6.TimelinePath {
-	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
-	kind := k8saudit.MustK8sKindTimeline(ctx, api, "node")
-	nodePath := k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, nodeName)
-
-	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-	return builder.TimelineAccumulator.GetPath(nodePath, khifilev6.PathSegment{
-		Name: fmt.Sprintf("%s/%s[%s]", namespace, podName, uid),
-		Type: k8saudit.TimelineTypePodPhase,
-	})
+// resolveUID returns the active pod UID at time t.
+func (c *podPhaseLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeries[string], t time.Time) string {
+	uid, ok := ts.Get(t)
+	if ok && uid != "" {
+		return uid
+	}
+	return ""
 }
 
-// Explicit interface compliance assertion.
-var _ k8saudit.ManifestLogToTimelineMapper[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSetting)(nil)
-
-// podPhaseLogToTimelineMapperTask is the task to generate pod phase history.
-var podPhaseLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*podPhaseTaskState](
-	k8saudit.PodPhaseLogToTimelineMapperTaskID,
-	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*podPhaseTaskState] {
-		return &podPhaseLogToTimelineMapperTaskSetting{}
-	},
-)
+func newPodPhaseTaskState() *podPhaseTaskState {
+	return &podPhaseTaskState{
+		uidToNodeNameMap:          map[string]string{},
+		parentPathToUIDMap:        map[string]*common.TimeSeries[string]{},
+		uidToCreationTimestampMap: map[string]time.Time{},
+	}
+}

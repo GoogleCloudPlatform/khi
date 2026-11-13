@@ -23,19 +23,38 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
+var _ Metadata = (*QueryMetadata)(nil)
+
+// QueryItem represents a single log query recorded during inspection.
 type QueryItem struct {
-	Id             string                            `json:"id"`
-	Name           string                            `json:"name"`
-	Query          string                            `json:"query"`
-	EstimatedCount *int64                            `json:"estimatedCount,omitempty"`
-	Incomplete     bool                              `json:"incomplete,omitempty"`
-	Pending        bool                              `json:"pending,omitempty"`
-	Preset         logestimator.EstimatedCountPreset `json:"preset,omitempty"`
+	// Id is the unique identifier of the query.
+	Id string `json:"id"`
+	// Name is the human-readable display name of the query.
+	Name string `json:"name"`
+	// Query is the query string sent to the logging backend.
+	Query string `json:"query"`
+	// EstimatedCount is the estimated number of matching log entries, if available.
+	EstimatedCount *int64 `json:"estimatedCount,omitempty"`
+	// Incomplete indicates whether the query string could not be fully constructed.
+	Incomplete bool `json:"incomplete,omitempty"`
+	// Pending indicates whether the query estimation is still in progress.
+	Pending bool `json:"pending,omitempty"`
+	// Preset is the fallback estimation tier when an exact count is unavailable.
+	Preset logestimator.EstimatedCountPreset `json:"preset,omitempty"`
 }
 
+// QueryMetadata stores the set of log queries executed or planned by an inspection.
 type QueryMetadata struct {
+	// Queries holds the list of recorded query items.
 	Queries []*QueryItem
 	lock    sync.Mutex
+}
+
+// NewQueryMetadata creates a new empty QueryMetadata instance.
+func NewQueryMetadata() *QueryMetadata {
+	return &QueryMetadata{
+		Queries: []*QueryItem{},
+	}
 }
 
 // Labels implements Metadata.
@@ -99,12 +118,4 @@ func (q *QueryMetadata) setQueryInternal(id string, name string, queryString str
 		Pending:        pending,
 		Preset:         preset,
 	})
-}
-
-var _ Metadata = (*QueryMetadata)(nil)
-
-func NewQueryMetadata() *QueryMetadata {
-	return &QueryMetadata{
-		Queries: []*QueryItem{},
-	}
 }

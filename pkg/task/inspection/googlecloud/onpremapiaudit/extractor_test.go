@@ -17,8 +17,9 @@ package onpremapiaudit
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 func TestExtractOnPremAPIAuditResource(t *testing.T) {

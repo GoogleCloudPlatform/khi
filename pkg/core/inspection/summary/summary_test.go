@@ -17,10 +17,11 @@ package summary
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestCollector_SnapshotOrdering(t *testing.T) {

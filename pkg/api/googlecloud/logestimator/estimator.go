@@ -26,21 +26,71 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
 // MetricLogCountFetcher is a function or client capable of querying Cloud Monitoring for log entry counts.
 type MetricLogCountFetcher interface {
+	// QueryMetricCount queries Cloud Monitoring for log entry counts matching the given filter and interval.
 	QueryMetricCount(ctx context.Context, container googlecloud.ResourceContainer, metricFilter string, startTime, endTime time.Time) (int64, error)
 }
 
 // MonitoringClientFetcher implements MetricLogCountFetcher using *monitoring.MetricClient.
 type MonitoringClientFetcher struct {
+	// Client is the Cloud Monitoring metric client used to list time series.
 	Client *monitoring.MetricClient
+}
+
+// LogSamplingProbeFetcher is an interface for probing Cloud Logging sample logs.
+type LogSamplingProbeFetcher interface {
+	// ProbeLogTimestamps returns timestamps of matching log entries (up to maxEntries, ordered by timestamp desc).
+	ProbeLogTimestamps(ctx context.Context, container googlecloud.ResourceContainer, filter string, maxEntries int32) ([]time.Time, error)
+}
+
+// LoggingClientProbeFetcher implements LogSamplingProbeFetcher using *logging.Client.
+type LoggingClientProbeFetcher struct {
+	// Client is the Cloud Logging client used to list log entries.
+	Client *logging.Client
+}
+
+// StructuredLogEstimator estimates log volume for StructuredLogQuery.
+type StructuredLogEstimator struct {
+	// MetricFetcher queries Cloud Monitoring metrics for log entry counts.
+	MetricFetcher MetricLogCountFetcher
+	// ProbeFetcher samples recent Cloud Logging entries when custom filter estimation is required.
+	ProbeFetcher LogSamplingProbeFetcher
+	// CallOptionInjector injects call options such as quota project headers into RPC contexts.
+	CallOptionInjector *googlecloud.CallOptionInjector
+	// TargetSamples specifies the maximum number of log entries fetched per sampling probe.
+	TargetSamples int32
+}
+
+// NewStructuredLogEstimator creates a StructuredLogEstimator with defaults.
+func NewStructuredLogEstimator(metricFetcher MetricLogCountFetcher, probeFetcher LogSamplingProbeFetcher, callOptionInjector *googlecloud.CallOptionInjector) *StructuredLogEstimator {
+	return &StructuredLogEstimator{
+		MetricFetcher:      metricFetcher,
+		ProbeFetcher:       probeFetcher,
+		CallOptionInjector: callOptionInjector,
+		TargetSamples:      50,
+	}
+}
+
+// NewStructuredLogEstimatorFromClients constructs a StructuredLogEstimator directly from Google Cloud SDK clients.
+func NewStructuredLogEstimatorFromClients(loggingClient *logging.Client, metricClient *monitoring.MetricClient, callOptionInjector *googlecloud.CallOptionInjector) *StructuredLogEstimator {
+	var metricFetcher MetricLogCountFetcher
+	if metricClient != nil {
+		metricFetcher = &MonitoringClientFetcher{Client: metricClient}
+	}
+	var probeFetcher LogSamplingProbeFetcher
+	if loggingClient != nil {
+		probeFetcher = &LoggingClientProbeFetcher{Client: loggingClient}
+	}
+	return NewStructuredLogEstimator(metricFetcher, probeFetcher, callOptionInjector)
 }
 
 // QueryMetricCount queries Cloud Monitoring for logging.googleapis.com/log_entry_count.
@@ -82,17 +132,6 @@ func (f *MonitoringClientFetcher) QueryMetricCount(ctx context.Context, containe
 	return totalCount, nil
 }
 
-// LogSamplingProbeFetcher is an interface for probing Cloud Logging sample logs.
-type LogSamplingProbeFetcher interface {
-	// ProbeLogTimestamps returns timestamps of matching log entries (up to maxEntries, ordered by timestamp desc).
-	ProbeLogTimestamps(ctx context.Context, container googlecloud.ResourceContainer, filter string, maxEntries int32) ([]time.Time, error)
-}
-
-// LoggingClientProbeFetcher implements LogSamplingProbeFetcher using *logging.Client.
-type LoggingClientProbeFetcher struct {
-	Client *logging.Client
-}
-
 // ProbeLogTimestamps queries recent matching log entries from Cloud Logging to extract timestamps.
 func (f *LoggingClientProbeFetcher) ProbeLogTimestamps(ctx context.Context, container googlecloud.ResourceContainer, filter string, maxEntries int32) ([]time.Time, error) {
 	req := &loggingpb.ListLogEntriesRequest{
@@ -117,37 +156,6 @@ func (f *LoggingClientProbeFetcher) ProbeLogTimestamps(ctx context.Context, cont
 		}
 	}
 	return timestamps, nil
-}
-
-// StructuredLogEstimator estimates log volume for StructuredLogQuery.
-type StructuredLogEstimator struct {
-	MetricFetcher      MetricLogCountFetcher
-	ProbeFetcher       LogSamplingProbeFetcher
-	CallOptionInjector *googlecloud.CallOptionInjector
-	TargetSamples      int32
-}
-
-// NewStructuredLogEstimator creates a StructuredLogEstimator with defaults.
-func NewStructuredLogEstimator(metricFetcher MetricLogCountFetcher, probeFetcher LogSamplingProbeFetcher, callOptionInjector *googlecloud.CallOptionInjector) *StructuredLogEstimator {
-	return &StructuredLogEstimator{
-		MetricFetcher:      metricFetcher,
-		ProbeFetcher:       probeFetcher,
-		CallOptionInjector: callOptionInjector,
-		TargetSamples:      50,
-	}
-}
-
-// NewStructuredLogEstimatorFromClients constructs a StructuredLogEstimator directly from Google Cloud SDK clients.
-func NewStructuredLogEstimatorFromClients(loggingClient *logging.Client, metricClient *monitoring.MetricClient, callOptionInjector *googlecloud.CallOptionInjector) *StructuredLogEstimator {
-	var metricFetcher MetricLogCountFetcher
-	if metricClient != nil {
-		metricFetcher = &MonitoringClientFetcher{Client: metricClient}
-	}
-	var probeFetcher LogSamplingProbeFetcher
-	if loggingClient != nil {
-		probeFetcher = &LoggingClientProbeFetcher{Client: loggingClient}
-	}
-	return NewStructuredLogEstimator(metricFetcher, probeFetcher, callOptionInjector)
 }
 
 // Estimate estimates the total log volume for the given StructuredLogQuery over the time interval.

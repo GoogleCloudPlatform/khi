@@ -25,6 +25,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+const (
+	// DefaultSuggestedChunkSize is the recommended chunk payload size (25MB).
+	DefaultSuggestedChunkSize = chunkedupload.DefaultSuggestedChunkSize
+	// DefaultMaxChunkSize is the maximum allowed single chunk payload (32MB).
+	DefaultMaxChunkSize = chunkedupload.DefaultMaxChunkSize
+	// DefaultSessionTTL is the duration after which an inactive import session expires.
+	DefaultSessionTTL = chunkedupload.DefaultSessionTTL
+)
+
 var (
 	// ErrSessionNotFound is returned when an import session token is not found or has expired.
 	ErrSessionNotFound = chunkedupload.ErrSessionNotFound
@@ -38,15 +47,6 @@ var (
 	ErrChunkSizeTooLarge = chunkedupload.ErrChunkSizeTooLarge
 )
 
-const (
-	// DefaultSuggestedChunkSize is the recommended chunk payload size (25MB).
-	DefaultSuggestedChunkSize = chunkedupload.DefaultSuggestedChunkSize
-	// DefaultMaxChunkSize is the maximum allowed single chunk payload (32MB).
-	DefaultMaxChunkSize = chunkedupload.DefaultMaxChunkSize
-	// DefaultSessionTTL is the duration after which an inactive import session expires.
-	DefaultSessionTTL = chunkedupload.DefaultSessionTTL
-)
-
 // ByteRange represents an uploaded byte interval [Start, End).
 type ByteRange = chunkedupload.ByteRange
 
@@ -55,9 +55,12 @@ type ImportSession = chunkedupload.ChunkSession
 
 // FinalizedImport represents the result of a completed and validated inspection import.
 type FinalizedImport struct {
-	InspectionID   string
+	// InspectionID is the assigned identifier of the imported inspection.
+	InspectionID string
+	// InspectionName is the display name extracted from the imported KHI header.
 	InspectionName string
-	FileSize       int64
+	// FileSize is the final size of the persisted KHI file in bytes.
+	FileSize int64
 }
 
 // ImportSessionManager manages the lifecycle of chunked upload sessions and registers imported inspections.

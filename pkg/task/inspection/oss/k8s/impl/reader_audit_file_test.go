@@ -20,12 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	ossk8s "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/oss/k8s"
-	"github.com/google/go-cmp/cmp"
 )
 
 type mockUploadStoreProvider struct {

@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
 // UnaryClientInterceptor returns a grpc.UnaryClientInterceptor that throttles RPCs using an AdaptiveRateLimiter.

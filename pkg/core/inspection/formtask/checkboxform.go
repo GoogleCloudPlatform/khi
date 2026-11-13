@@ -41,6 +41,20 @@ type CheckboxFormReadonlyProvider = func(ctx context.Context) (bool, error)
 // CheckboxFormHintGenerator generates a hint message and its severity type for the checkbox field.
 type CheckboxFormHintGenerator = func(ctx context.Context, value bool) (string, inspectionmetadata.ParameterHintType, error)
 
+// CheckboxFormSpec holds the optional settings of a checkbox form defined with DefineCheckboxForm.
+// Callbacks may read inputs declared on the Binder passed to the bind function.
+// A nil callback uses the default.
+type CheckboxFormSpec struct {
+	// Readonly reports whether the field is read only. Defaults to false.
+	Readonly CheckboxFormReadonlyProvider
+	// DefaultValue generates the default checked state. Defaults to false.
+	DefaultValue CheckboxFormDefaultValueGenerator
+	// Validator validates the checked state. Defaults to a validator that accepts any value.
+	Validator CheckboxFormValidator
+	// Hint generates a hint message for the form field. Defaults to no hint.
+	Hint CheckboxFormHintGenerator
+}
+
 // checkboxFormTask holds the settings of a checkbox form task defined with DefineCheckboxForm.
 type checkboxFormTask struct {
 	formTaskBase[bool]
@@ -48,6 +62,17 @@ type checkboxFormTask struct {
 	validator        CheckboxFormValidator
 	readonlyProvider CheckboxFormReadonlyProvider
 	hintGenerator    CheckboxFormHintGenerator
+}
+
+// DefineCheckboxForm defines a checkbox form task with a Binder.
+// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
+// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
+func DefineCheckboxForm(id taskid.TaskImplementationID[bool], priority int, label string, description string, bind func(b *coretask.Binder) CheckboxFormSpec, labelOpts ...coretask.LabelOpt) coretask.Task[bool] {
+	form := newCheckboxFormTask(id, priority, label, description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (bool, error) {
+		form.applySpec(bind(b))
+		return form.run
+	}, form.formLabelOpts(labelOpts)...)
 }
 
 // newCheckboxFormTask creates a checkbox form task with the default settings described in CheckboxFormSpec.
@@ -147,20 +172,6 @@ func (b *checkboxFormTask) run(ctx context.Context) (bool, error) {
 	return currentValue, nil
 }
 
-// CheckboxFormSpec holds the optional settings of a checkbox form defined with DefineCheckboxForm.
-// Callbacks may read inputs declared on the Binder passed to the bind function.
-// A nil callback uses the default.
-type CheckboxFormSpec struct {
-	// Readonly reports whether the field is read only. Defaults to false.
-	Readonly CheckboxFormReadonlyProvider
-	// DefaultValue generates the default checked state. Defaults to false.
-	DefaultValue CheckboxFormDefaultValueGenerator
-	// Validator validates the checked state. Defaults to a validator that accepts any value.
-	Validator CheckboxFormValidator
-	// Hint generates a hint message for the form field. Defaults to no hint.
-	Hint CheckboxFormHintGenerator
-}
-
 func (b *checkboxFormTask) applySpec(spec CheckboxFormSpec) {
 	if spec.Readonly != nil {
 		b.readonlyProvider = spec.Readonly
@@ -174,15 +185,4 @@ func (b *checkboxFormTask) applySpec(spec CheckboxFormSpec) {
 	if spec.Hint != nil {
 		b.hintGenerator = spec.Hint
 	}
-}
-
-// DefineCheckboxForm defines a checkbox form task with a Binder.
-// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
-// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
-func DefineCheckboxForm(id taskid.TaskImplementationID[bool], priority int, label string, description string, bind func(b *coretask.Binder) CheckboxFormSpec, labelOpts ...coretask.LabelOpt) coretask.Task[bool] {
-	form := newCheckboxFormTask(id, priority, label, description)
-	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (bool, error) {
-		form.applySpec(bind(b))
-		return form.run
-	}, form.formLabelOpts(labelOpts)...)
 }

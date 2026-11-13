@@ -14,11 +14,20 @@
 
 package grouper
 
-// BasicGrouper implements Grouper
+// BasicGrouper implements Grouper.
 type BasicGrouper[T any, K comparable] struct {
+	// GroupingFunc extracts the grouping key from each input element.
 	GroupingFunc func(input T) K
 }
 
+// NewBasicGrouper creates a BasicGrouper using the given groupingFunction.
+func NewBasicGrouper[T any, K comparable](groupingFunction func(input T) K) *BasicGrouper[T, K] {
+	return &BasicGrouper[T, K]{
+		GroupingFunc: groupingFunction,
+	}
+}
+
+// Group partitions input elements into slices keyed by GroupingFunc.
 func (b *BasicGrouper[T, K]) Group(input []T) map[K][]T {
 	result := map[K][]T{}
 	for _, v := range input {
@@ -29,10 +38,4 @@ func (b *BasicGrouper[T, K]) Group(input []T) map[K][]T {
 		result[key] = append(result[key], v)
 	}
 	return result
-}
-
-func NewBasicGrouper[T any, K comparable](groupingFunction func(input T) K) *BasicGrouper[T, K] {
-	return &BasicGrouper[T, K]{
-		GroupingFunc: groupingFunction,
-	}
 }

@@ -17,8 +17,9 @@ package redundancy
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
 func TestDiscoverChangedTSSpecs(t *testing.T) {

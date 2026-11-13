@@ -24,11 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 )
 
-// ParameterInputType represents the type of parameter form field.
-type ParameterInputType string
-
 const (
-	// Group is a type of ParameetrInputType. This contains multiple children fields.
+	// Group is a type of ParameterInputType. This contains multiple children fields.
 	Group ParameterInputType = "group"
 	// Text is a type of ParameterInputType. This represents the text type input field.
 	Text ParameterInputType = "text"
@@ -42,9 +39,6 @@ const (
 	Callout ParameterInputType = "callout"
 )
 
-// ParameterHintType represents the types of hint message shown at the bottom of parameter forms.
-type ParameterHintType string
-
 const (
 	// None is a type of ParameterHintType. Frontend will suppress hint when this type is given.
 	None ParameterHintType = "none"
@@ -52,12 +46,9 @@ const (
 	Error ParameterHintType = "error"
 	// Warning is a type of ParameterHintType. User may need be cautious about the field, but user can navigate the form to the next step with a field having this type hint.
 	Warning ParameterHintType = "warning"
-	// Info is a type of ParameterHintType. It's a supplemntal hint just for helping user.
+	// Info is a type of ParameterHintType. It's a supplemental hint just for helping user.
 	Info ParameterHintType = "info"
 )
-
-// TextFormValidationTimingType defines when a text form field's validation should be triggered.
-type TextFormValidationTimingType string
 
 const (
 	// Change indicates that validation should occur whenever the field's value changes.
@@ -65,6 +56,17 @@ const (
 	// Blur indicates that validation should occur when the field loses focus.
 	Blur TextFormValidationTimingType = "blur"
 )
+
+var _ Metadata = (*FormFieldSetMetadata)(nil)
+
+// ParameterInputType represents the type of parameter form field.
+type ParameterInputType string
+
+// ParameterHintType represents the types of hint message shown at the bottom of parameter forms.
+type ParameterHintType string
+
+// TextFormValidationTimingType defines when a text form field's validation should be triggered.
+type TextFormValidationTimingType string
 
 // ParameterFormField is an interface that all specific form field types must implement.
 // It serves as a marker interface for different parameter input types.
@@ -110,7 +112,7 @@ type TextParameterFormField struct {
 	Readonly bool `json:"readonly"`
 	// Default is the default value of this field.
 	Default string `json:"default"`
-	// Suggestion is the auto complete drop down values.
+	// Suggestions is the auto complete drop down values.
 	Suggestions []string `json:"suggestions"`
 	// ValidationTiming specifies when the validation for this text field should be triggered.
 	ValidationTiming TextFormValidationTimingType `json:"validationTiming"`
@@ -172,17 +174,24 @@ type FormFieldSetMetadata struct {
 	fields     []ParameterFormField
 }
 
-var _ Metadata = (*FormFieldSetMetadata)(nil)
+// NewFormFieldSetMetadata creates and returns a new empty FormFieldSetMetadata instance.
+func NewFormFieldSetMetadata() *FormFieldSetMetadata {
+	return &FormFieldSetMetadata{
+		fields: make([]ParameterFormField, 0),
+	}
+}
 
 // Labels implements Metadata.
 func (*FormFieldSetMetadata) Labels() *typedmap.ReadonlyTypedMap {
 	return NewLabelSet(IncludeInDryRunResult())
 }
 
+// ToSerializable implements Metadata.
 func (f *FormFieldSetMetadata) ToSerializable() interface{} {
 	return f.fields
 }
 
+// SetField registers a new form field and keeps fields sorted by descending priority and ascending ID.
 func (f *FormFieldSetMetadata) SetField(newField ParameterFormField) error {
 	f.fieldsLock.Lock()
 	defer f.fieldsLock.Unlock()
@@ -287,12 +296,5 @@ func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldB
 		return v.ParameterFormFieldBase
 	default:
 		return ParameterFormFieldBase{}
-	}
-}
-
-// NewFormFieldSetMetadata creates and returns a new empty FormFieldSetMetadata instance.
-func NewFormFieldSetMetadata() *FormFieldSetMetadata {
-	return &FormFieldSetMetadata{
-		fields: make([]ParameterFormField, 0),
 	}
 }

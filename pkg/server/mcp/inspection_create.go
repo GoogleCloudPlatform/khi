@@ -20,21 +20,26 @@ import (
 	"slices"
 	"strings"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // CreateInspectionInput defines the input parameters for the create_inspection tool.
 type CreateInspectionInput struct {
+	// InspectionTypeID is the identifier of the inspection type to create (for example, "gcp-gke").
 	InspectionTypeID string `json:"inspectionTypeId" jsonschema:"The ID of the inspection type to create (for example 'gcp-gke')."`
-	Name             string `json:"name,omitempty" jsonschema:"Optional display name for the inspection."`
+	// Name is an optional custom display name for the created inspection.
+	Name string `json:"name,omitempty" jsonschema:"Optional display name for the inspection."`
 }
 
 // UpdateInspectionFeaturesInput defines the input parameters for the update_inspection_features tool.
 type UpdateInspectionFeaturesInput struct {
-	InspectionID      string   `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The unique identifier of the inspection."`
+	// EnabledFeatureIDs is the complete set of feature IDs to enable for the inspection.
 	EnabledFeatureIDs []string `json:"enabledFeatureIds" jsonschema:"The complete list of all feature IDs to enable for this inspection."`
 }
 
@@ -51,18 +56,6 @@ type inspectionFeaturesData struct {
 	TypeName string
 	TypeID   string
 	Features []featureRow
-}
-
-func inspectionNotFoundResult(id string) (*mcpsdk.CallToolResult, any, error) {
-	return mdtemplate.ErrorResult("INSPECTION_NOT_FOUND",
-		fmt.Sprintf("Inspection %s not found.", md.Code(id)),
-		"Read `khi://inspections` to see existing inspections.")
-}
-
-func inspectionAlreadyStartedResult(id string) (*mcpsdk.CallToolResult, any, error) {
-	return mdtemplate.ErrorResult("INSPECTION_ALREADY_STARTED",
-		fmt.Sprintf("Inspection %s has already been started.", md.Code(id)),
-		"Create a new inspection with `create_inspection`.")
 }
 
 // inspectionFeaturesResult renders the inspection header and the current enabled state of every feature.
@@ -186,4 +179,16 @@ func (h *InspectionHandler) handleUpdateInspectionFeatures(ctx context.Context, 
 	}
 
 	return h.inspectionFeaturesResult(in.InspectionID, runner)
+}
+
+func inspectionNotFoundResult(id string) (*mcpsdk.CallToolResult, any, error) {
+	return mdtemplate.ErrorResult("INSPECTION_NOT_FOUND",
+		fmt.Sprintf("Inspection %s not found.", md.Code(id)),
+		"Read `khi://inspections` to see existing inspections.")
+}
+
+func inspectionAlreadyStartedResult(id string) (*mcpsdk.CallToolResult, any, error) {
+	return mdtemplate.ErrorResult("INSPECTION_ALREADY_STARTED",
+		fmt.Sprintf("Inspection %s has already been started.", md.Code(id)),
+		"Create a new inspection with `create_inspection`.")
 }

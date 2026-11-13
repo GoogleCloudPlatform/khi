@@ -26,18 +26,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
-var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-
 const (
 	progressBarWidth    = 16
 	defaultTickInterval = 120 * time.Millisecond
 )
 
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
 // ProgressConfig configures terminal progress output.
 type ProgressConfig struct {
-	Writer       io.Writer
-	Interactive  bool
-	Style        gotestutil.TermStyle
+	// Writer receives formatted progress lines or spinner updates.
+	Writer io.Writer
+	// Interactive enables ANSI spinner rendering when true.
+	Interactive bool
+	// Style controls ANSI color formatting.
+	Style gotestutil.TermStyle
+	// TickInterval sets the interactive spinner refresh interval.
 	TickInterval time.Duration
 }
 
@@ -76,29 +80,6 @@ func NewProgressReporter(cfg ProgressConfig) *ProgressReporter {
 		go p.spinLoop()
 	}
 	return p
-}
-
-func (p *ProgressReporter) spinLoop() {
-	defer close(p.doneCh)
-	ticker := time.NewTicker(cmp.Or(p.tickInterval, defaultTickInterval))
-	defer ticker.Stop()
-	for {
-		select {
-		case <-p.stopCh:
-			return
-		case <-ticker.C:
-			p.tickSpinner()
-		}
-	}
-}
-
-func (p *ProgressReporter) tickSpinner() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if !p.stopped && p.statusText != "" {
-		p.frameIdx = (p.frameIdx + 1) % len(spinnerFrames)
-		p.renderInteractiveLocked()
-	}
 }
 
 // Phase updates the high-level pipeline step status.
@@ -190,22 +171,6 @@ func (p *ProgressReporter) RecordMutantResult(status rule.MutantStatus) {
 	p.emitNonTTYMilestoneLocked()
 }
 
-func (p *ProgressReporter) emitNonTTYMilestoneLocked() {
-	if p.mutTotal < 8 {
-		return
-	}
-	pct := (p.mutDone * 100) / p.mutTotal
-	if pct < p.nextMilestonePct {
-		return
-	}
-	elapsed := time.Since(p.startTime).Seconds()
-	fmt.Fprintf(p.w, "  ... %d/%d (%d%%) — %d killed, %d survived (%.1fs)\n",
-		p.mutDone, p.mutTotal, pct, p.mutKilled, p.mutSurvived, elapsed)
-	for p.nextMilestonePct <= pct {
-		p.nextMilestonePct += 25
-	}
-}
-
 // Finish stops any active spinner and clears transient status output.
 func (p *ProgressReporter) Finish() {
 	if p == nil || p.w == nil {
@@ -229,6 +194,45 @@ func (p *ProgressReporter) Finish() {
 	}
 	if interactive {
 		fmt.Fprintf(p.w, "\r\x1b[K%s\n", p.style.Dim(fmt.Sprintf("✓ Completed in %.1fs", elapsed)))
+	}
+}
+
+func (p *ProgressReporter) spinLoop() {
+	defer close(p.doneCh)
+	ticker := time.NewTicker(cmp.Or(p.tickInterval, defaultTickInterval))
+	defer ticker.Stop()
+	for {
+		select {
+		case <-p.stopCh:
+			return
+		case <-ticker.C:
+			p.tickSpinner()
+		}
+	}
+}
+
+func (p *ProgressReporter) tickSpinner() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.stopped && p.statusText != "" {
+		p.frameIdx = (p.frameIdx + 1) % len(spinnerFrames)
+		p.renderInteractiveLocked()
+	}
+}
+
+func (p *ProgressReporter) emitNonTTYMilestoneLocked() {
+	if p.mutTotal < 8 {
+		return
+	}
+	pct := (p.mutDone * 100) / p.mutTotal
+	if pct < p.nextMilestonePct {
+		return
+	}
+	elapsed := time.Since(p.startTime).Seconds()
+	fmt.Fprintf(p.w, "  ... %d/%d (%d%%) — %d killed, %d survived (%.1fs)\n",
+		p.mutDone, p.mutTotal, pct, p.mutKilled, p.mutSurvived, elapsed)
+	for p.nextMilestonePct <= pct {
+		p.nextMilestonePct += 25
 	}
 }
 

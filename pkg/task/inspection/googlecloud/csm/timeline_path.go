@@ -24,15 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// getK8sNamespacedResourceTimeline constructs a standard namespaced resource timeline path using common K8s contract helpers.
-func getK8sNamespacedResourceTimeline(ctx context.Context, clusterName string, apiVersion string, kind string, namespace string, name string) *khifilev6.TimelinePath {
-	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, apiVersion)
-	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, kind)
-	namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, namespace)
-	return k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, name)
-}
-
 // MustCSMServerAccessTimeline returns the timeline path for CSM Server Access under a Pod.
 func MustCSMServerAccessTimeline(ctx context.Context, clusterName string, podNamespace string, podName string, containerName string) *khifilev6.TimelinePath {
 	podPath := getK8sNamespacedResourceTimeline(ctx, clusterName, "core/v1", "pod", podNamespace, podName)
@@ -86,4 +77,13 @@ func MustCSMControlPlaneTimeline(ctx context.Context) *khifilev6.TimelinePath {
 	projectTimeline := gcpcommon.MustGCPProjectTimeline(ctx, "Google Managed")
 	typeTimeline := gcpcommon.MustGCPResourceTypeTimeline(ctx, projectTimeline, "Control Plane")
 	return gcpcommon.MustGCPResourceTimeline(ctx, typeTimeline, "istio_control_plane")
+}
+
+// getK8sNamespacedResourceTimeline constructs a standard namespaced resource timeline path using common K8s contract helpers.
+func getK8sNamespacedResourceTimeline(ctx context.Context, clusterName string, apiVersion string, kind string, namespace string, name string) *khifilev6.TimelinePath {
+	clusterTimeline := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	apiVersionTimeline := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterTimeline, apiVersion)
+	kindTimeline := k8saudit.MustK8sKindTimeline(ctx, apiVersionTimeline, kind)
+	namespaceTimeline := k8saudit.MustK8sNamespaceTimeline(ctx, kindTimeline, namespace)
+	return k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, name)
 }

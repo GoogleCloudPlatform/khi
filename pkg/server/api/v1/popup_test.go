@@ -23,12 +23,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 )
 
 type testForm struct {

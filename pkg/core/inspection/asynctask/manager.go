@@ -19,9 +19,6 @@ import (
 	"sync"
 )
 
-// TaskStatus represents the lifecycle state of an asynchronous background task.
-type TaskStatus int
-
 const (
 	// StatusPending indicates the task is queued but has not yet started.
 	StatusPending TaskStatus = iota
@@ -36,17 +33,17 @@ const (
 	StatusFailed
 )
 
+// TaskStatus represents the lifecycle state of an asynchronous background task.
+type TaskStatus int
+
 // AsyncTaskResult contains the current execution status, value, or error of an asynchronous task.
 type AsyncTaskResult[T any] struct {
+	// Status indicates the current lifecycle state of the asynchronous task.
 	Status TaskStatus
-	Value  T
-	Error  error
-}
-
-type taskFlight[K comparable, T any] struct {
-	inputKey K
-	cancel   context.CancelFunc
-	done     chan struct{}
+	// Value holds the result returned by the worker when Status is StatusCompleted.
+	Value T
+	// Error holds the error returned by the worker when Status is StatusFailed.
+	Error error
 }
 
 // AsyncTaskManager coordinates background tasks for inspection task slots.
@@ -56,6 +53,12 @@ type AsyncTaskManager[K comparable, T any] struct {
 	mu       sync.Mutex
 	cache    map[string]map[K]AsyncTaskResult[T]
 	inFlight map[string]*taskFlight[K, T]
+}
+
+type taskFlight[K comparable, T any] struct {
+	inputKey K
+	cancel   context.CancelFunc
+	done     chan struct{}
 }
 
 // NewAsyncTaskManager creates a new AsyncTaskManager instance.

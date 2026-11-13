@@ -18,8 +18,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
 func TestRenderGitHubAnnotations(t *testing.T) {

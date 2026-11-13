@@ -29,12 +29,27 @@ import (
 
 // CoverBlock represents a single statement block entry from a Go coverprofile.
 type CoverBlock struct {
-	StartLine     int
-	StartCol      int
-	EndLine       int
-	EndCol        int
+	// StartLine is the 1-based starting line number of the block.
+	StartLine int
+	// StartCol is the 1-based starting column number of the block.
+	StartCol int
+	// EndLine is the 1-based ending line number of the block.
+	EndLine int
+	// EndCol is the 1-based ending column number of the block.
+	EndCol int
+	// NumStatements is the number of statements in the block.
 	NumStatements int
-	Count         int
+	// Count is the execution hit count of the block.
+	Count int
+}
+
+type blockKey struct {
+	file      string
+	startLine int
+	startCol  int
+	endLine   int
+	endCol    int
+	numStmt   int
 }
 
 // ResolveRepoRoot locates the Go module root starting from explicit or the current working directory.
@@ -92,15 +107,6 @@ func LoadCoverProfileIfPresent(profilePath string, modulePath string) (map[strin
 	defer f.Close()
 
 	return ParseCoverProfile(f, modulePath)
-}
-
-type blockKey struct {
-	file      string
-	startLine int
-	startCol  int
-	endLine   int
-	endCol    int
-	numStmt   int
 }
 
 // ParseCoverProfile parses a Go coverprofile stream, merging duplicate block entries for eligible production Go files.

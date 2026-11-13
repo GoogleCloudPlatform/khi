@@ -22,9 +22,6 @@ import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 )
 
-// EstimatedCountPreset represents a predefined rough estimation tier.
-type EstimatedCountPreset int
-
 const (
 	// EstimatedCountPresetNone indicates that standard numeric estimation should be performed.
 	EstimatedCountPresetNone EstimatedCountPreset = iota
@@ -33,15 +30,8 @@ const (
 	EstimatedCountPresetFew
 )
 
-// String returns the string representation of the preset.
-func (p EstimatedCountPreset) String() string {
-	switch p {
-	case EstimatedCountPresetFew:
-		return "few"
-	default:
-		return ""
-	}
-}
+// EstimatedCountPreset represents a predefined rough estimation tier.
+type EstimatedCountPreset int
 
 // StructuredLogQuery represents a decomposed Cloud Logging and Cloud Monitoring query.
 type StructuredLogQuery struct {
@@ -62,6 +52,40 @@ type StructuredLogQuery struct {
 	// Preset specifies a predefined rough estimation tier (e.g. EstimatedCountPresetFew)
 	// that bypasses Cloud Monitoring and probe queries.
 	Preset EstimatedCountPreset
+}
+
+// LogProbeClient is an interface for probing Cloud Logging.
+type LogProbeClient interface {
+	// FetchProbe retrieves up to pageSize log entries matching the given filter.
+	FetchProbe(ctx context.Context, filter string, pageSize int32) ([]*loggingpb.LogEntry, error)
+}
+
+// EstimateResult represents the volume estimate.
+type EstimateResult struct {
+	// MetricCount is the base count obtained from Cloud Monitoring metric.
+	MetricCount int64 `json:"metricCount"`
+
+	// EstimatedCount is the estimated total count after applying custom filters.
+	EstimatedCount int64 `json:"estimatedCount"`
+
+	// CustomFilterRatio is the ratio r (0.0 to 1.0) applied to MetricCount.
+	CustomFilterRatio float64 `json:"customFilterRatio"`
+
+	// IsExact is true if no custom filter ratio estimation was required.
+	IsExact bool `json:"isExact"`
+
+	// Preset indicates a rough estimation tier if defined on the query.
+	Preset EstimatedCountPreset `json:"preset,omitempty"`
+}
+
+// String returns the string representation of the preset.
+func (p EstimatedCountPreset) String() string {
+	switch p {
+	case EstimatedCountPresetFew:
+		return "few"
+	default:
+		return ""
+	}
 }
 
 // GenerateCloudLoggingQuery generates the Cloud Logging filter string.
@@ -179,27 +203,4 @@ func (q *StructuredLogQuery) GenerateMonitoringMetricFilters() []string {
 	}
 
 	return filters
-}
-
-// LogProbeClient is an interface for probing Cloud Logging.
-type LogProbeClient interface {
-	FetchProbe(ctx context.Context, filter string, pageSize int32) ([]*loggingpb.LogEntry, error)
-}
-
-// EstimateResult represents the volume estimate.
-type EstimateResult struct {
-	// MetricCount is the base count obtained from Cloud Monitoring metric.
-	MetricCount int64 `json:"metricCount"`
-
-	// EstimatedCount is the estimated total count after applying custom filters.
-	EstimatedCount int64 `json:"estimatedCount"`
-
-	// CustomFilterRatio is the ratio r (0.0 to 1.0) applied to MetricCount.
-	CustomFilterRatio float64 `json:"customFilterRatio"`
-
-	// IsExact is true if no custom filter ratio estimation was required.
-	IsExact bool `json:"isExact"`
-
-	// Preset indicates a rough estimation tier if defined on the query.
-	Preset EstimatedCountPreset `json:"preset,omitempty"`
 }

@@ -26,26 +26,38 @@ import (
 
 // LogSliceOptions configures multi-window slicing of a structured log YAML body.
 type LogSliceOptions struct {
-	Windows        []SliceWindow
+	// Windows specifies search spots and context line counts to retain in the log body.
+	Windows []SliceWindow
+	// IncludeSummary controls whether the parser-distilled summary line is prepended when Windows is non-empty.
 	IncludeSummary *bool
-	MaxLines       int
+	// MaxLines caps the total number of body lines returned across all windows.
+	MaxLines int
 }
 
 // LogSliceResult holds the sliced lines and total expanded line count for a log entry.
 type LogSliceResult struct {
+	// TotalLines is the total line count of the expanded YAML log body.
 	TotalLines int
-	Lines      []ExcerptLine
+	// Lines contains the sliced excerpt lines including summary and omitted-gap markers.
+	Lines []ExcerptLine
 }
 
 // LogExcerptSlice combines log metadata and linked timelines with sliced log lines.
 type LogExcerptSlice struct {
-	LogID           uint32
-	Time            time.Time
-	Severity        *khifilev6.Severity
-	LogType         string
-	Summary         string
+	// LogID is the unique identifier of the log entry.
+	LogID uint32
+	// Time is the timestamp of the log entry.
+	Time time.Time
+	// Severity is the severity level of the log entry.
+	Severity *khifilev6.Severity
+	// LogType is the KHI log type identifier.
+	LogType string
+	// Summary is the parser-distilled single-line summary of the log entry.
+	Summary string
+	// LinkedTimelines lists the timelines associated with this log entry.
 	LinkedTimelines []workbench.LinkedTimeline
-	Slice           LogSliceResult
+	// Slice contains the sliced log lines and total line count.
+	Slice LogSliceResult
 }
 
 // SliceLogDetail fetches the untruncated YAML body for logID from wb and slices it according to opts.

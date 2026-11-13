@@ -17,12 +17,13 @@ package options
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/ratelimit"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/ratelimit"
 )
 
 // mockTokenSource is a simple implementation of oauth2.TokenSource for testing.

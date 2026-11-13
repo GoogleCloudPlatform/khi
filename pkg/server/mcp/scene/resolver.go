@@ -22,10 +22,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/RoaringBitmap/roaring/v2"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
 const (

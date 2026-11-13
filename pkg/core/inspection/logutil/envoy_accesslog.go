@@ -84,6 +84,8 @@ var envoyAccessLogRegex = regexp.MustCompile(
 	`^\[(?P<startTime>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<path>\S+)\s+(?P<protocol>[^"]+)"\s+(?P<statusCode>\d{3})\s+(?P<responseFlags>\S+)\s+(?P<responseCodeDetails>\S+)\s+(?P<connTerminationDetails>\S+)\s+"(?P<upstreamFailureReason>[^"]*)"\s+(?P<bytesReceived>\S+)\s+(?P<bytesSent>\S+)\s+(?P<duration>\S+)\s+(?P<upstreamServiceTime>\S+)\s+"(?P<xForwardedFor>[^"]*)"\s+"(?P<userAgent>[^"]*)"\s+"(?P<requestId>[^"]*)"\s+"(?P<authority>[^"]*)"\s+"(?P<upstreamHost>[^"]*)"\s+(?P<upstreamCluster>\S+)\s+(?P<upstreamLocalAddress>\S+)\s+(?P<downstreamLocalAddress>\S+)\s+(?P<downstreamRemoteAddress>\S+)\s+(?P<requestedServerName>\S+)\s+(?P<routeName>\S+)`,
 )
 
+var _ StructuredLogParser = (*EnvoyAccessLogTextParser)(nil)
+
 // EnvoyAccessLogTextParser parses access log lines formatted in the default Istio text format.
 type EnvoyAccessLogTextParser struct{}
 
@@ -167,8 +169,6 @@ func (p *EnvoyAccessLogTextParser) TryParse(message string) *ParseStructuredLogR
 		Fields: parsedFields,
 	}
 }
-
-var _ StructuredLogParser = (*EnvoyAccessLogTextParser)(nil)
 
 func buildEnvoyRequestURL(authority, path string) string {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {

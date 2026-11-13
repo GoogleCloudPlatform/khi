@@ -25,10 +25,34 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// Set wraps a parsed set of markdown text templates.
+type Set struct {
+	tmpl *template.Template
+}
+
+// PageResult contains the paginated slice of items and pagination metadata.
+type PageResult[T any] struct {
+	// Items contains the items for the current page.
+	Items []T
+	// Start is the 1-based display index of the first item on the current page, or 0 if Items is empty.
+	Start int
+	// End is the 1-based inclusive display index of the last item on the current page, or 0 if Items is empty.
+	End int
+	// Total is the total number of items across all pages.
+	Total int
+	// NextPageToken is the opaque token for fetching the next page, or empty on the final page.
+	NextPageToken string
+}
+
+type pageTokenPayload struct {
+	Offset int `json:"offset"`
+}
 
 // FormatTime formats t in UTC RFC3339, or returns an empty string if t is zero.
 func FormatTime(t time.Time) string {
@@ -63,11 +87,6 @@ func DefaultFuncMap() template.FuncMap {
 		"timelinePath":  workbench.FormatTimelinePath,
 		"appliedFilter": FormatAppliedFilter,
 	}
-}
-
-// Set wraps a parsed set of markdown text templates.
-type Set struct {
-	tmpl *template.Template
 }
 
 // Parse parses templates from fsys matching pattern with extraFuncs and DefaultFuncMap.
@@ -195,10 +214,6 @@ func CELErrorResult(field, expression string, err error) (*mcp.CallToolResult, a
 	}, nil, nil
 }
 
-type pageTokenPayload struct {
-	Offset int `json:"offset"`
-}
-
 // EncodePageToken serializes offset into a base64url encoded page token.
 func EncodePageToken(offset int) string {
 	data, _ := json.Marshal(pageTokenPayload{Offset: offset})
@@ -222,20 +237,6 @@ func DecodePageToken(token string) (int, error) {
 		return 0, fmt.Errorf("invalid negative page token offset: %d", payload.Offset)
 	}
 	return payload.Offset, nil
-}
-
-// PageResult contains the paginated slice of items and pagination metadata.
-type PageResult[T any] struct {
-	// Items contains the items for the current page.
-	Items []T
-	// Start is the 1-based display index of the first item on the current page, or 0 if Items is empty.
-	Start int
-	// End is the 1-based inclusive display index of the last item on the current page, or 0 if Items is empty.
-	End int
-	// Total is the total number of items across all pages.
-	Total int
-	// NextPageToken is the opaque token for fetching the next page, or empty on the final page.
-	NextPageToken string
 }
 
 // NormalizePageSize uses defaultPageSize when pageSize is nonpositive,

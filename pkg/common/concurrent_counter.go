@@ -14,21 +14,24 @@
 
 package common
 
-// A thread-safe counter data structure
+// ConcurrentCounter provides a thread-safe string-keyed integer counter.
 type ConcurrentCounter struct {
 	counts *ShardingMap[int]
 }
 
+// NewConcurrentCounter creates a ConcurrentCounter backed by the given shardingMap.
 func NewConcurrentCounter(shardingMap *ShardingMap[int]) *ConcurrentCounter {
 	return &ConcurrentCounter{
 		counts: shardingMap,
 	}
 }
 
+// NewDefaultConcurrentCounter creates a ConcurrentCounter with a new ShardingMap using shardingProvider.
 func NewDefaultConcurrentCounter(shardingProvider MapShardingProvider) *ConcurrentCounter {
 	return NewConcurrentCounter(NewShardingMap[int](shardingProvider))
 }
 
+// Get returns the current count for key, or 0 if not present.
 func (c *ConcurrentCounter) Get(key string) int {
 	shard := c.counts.AcquireShardReadonly(key)
 	defer c.counts.ReleaseShardReadonly(key)
@@ -39,6 +42,7 @@ func (c *ConcurrentCounter) Get(key string) int {
 	}
 }
 
+// Incr increments the count for key by 1 and returns the updated value.
 func (c *ConcurrentCounter) Incr(key string) int {
 	shard := c.counts.AcquireShard(key)
 	defer c.counts.ReleaseShard(key)

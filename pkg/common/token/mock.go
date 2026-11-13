@@ -21,12 +21,22 @@ import (
 	"time"
 )
 
+var (
+	_ TokenResolver = &SpyTokenResolver{}
+	_ TokenResolver = &MockErrorTokenResolver{}
+)
+
+// SpyTokenResolver is a mock TokenResolver that returns predefined tokens with an optional delay.
 type SpyTokenResolver struct {
 	tokenResponse      []*Token
 	callCount          int
 	delayInMillisecond int
 }
 
+// MockErrorTokenResolver is a mock TokenResolver that always returns an error.
+type MockErrorTokenResolver struct{}
+
+// NewSpyTokenResolverWithDelay creates a SpyTokenResolver that sleeps for delayInMillisecond before returning each token.
 func NewSpyTokenResolverWithDelay(delayInMillisecond int, tokenResponse ...*Token) *SpyTokenResolver {
 	return &SpyTokenResolver{
 		tokenResponse:      tokenResponse,
@@ -34,12 +44,14 @@ func NewSpyTokenResolverWithDelay(delayInMillisecond int, tokenResponse ...*Toke
 	}
 }
 
+// NewSpyTokenResolver creates a SpyTokenResolver that returns the given tokenResponse sequence.
 func NewSpyTokenResolver(tokenResponse ...*Token) *SpyTokenResolver {
 	return &SpyTokenResolver{
 		tokenResponse: tokenResponse,
 	}
 }
 
+// Resolve implements TokenResolver.
 func (m *SpyTokenResolver) Resolve(ctx context.Context) (*Token, error) {
 	if m.callCount < len(m.tokenResponse) {
 		m.callCount++
@@ -50,10 +62,7 @@ func (m *SpyTokenResolver) Resolve(ctx context.Context) (*Token, error) {
 	}
 }
 
-var _ TokenResolver = &SpyTokenResolver{}
-
-type MockErrorTokenResolver struct{}
-
+// NewMockErrorTokenResolver creates a MockErrorTokenResolver.
 func NewMockErrorTokenResolver() *MockErrorTokenResolver {
 	return &MockErrorTokenResolver{}
 }
@@ -62,5 +71,3 @@ func NewMockErrorTokenResolver() *MockErrorTokenResolver {
 func (m *MockErrorTokenResolver) Resolve(ctx context.Context) (*Token, error) {
 	return nil, errors.New("test error")
 }
-
-var _ TokenResolver = &MockErrorTokenResolver{}

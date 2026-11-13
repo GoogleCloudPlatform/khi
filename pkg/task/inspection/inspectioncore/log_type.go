@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeUnknown is the fallback log type style for logs whose type is unrecognized.
 	LogTypeUnknown = style.MustRegisterLogType("unknown", "Unknown Logs", style.ColorBlack, style.ColorWhite)
 )

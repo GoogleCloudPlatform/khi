@@ -43,6 +43,15 @@ var tailTask = coretask.DefineTailTask(
 	),
 )
 
+// logIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	k8scontrolplane.LogIngesterTaskID,
+	k8scontrolplane.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processK8sControlPlaneLog
+	},
+)
+
 // processK8sControlPlaneLog sets the log type, timestamp, severity and summary of a Kubernetes control plane component log.
 func processK8sControlPlaneLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
@@ -71,12 +80,3 @@ func processK8sControlPlaneLog(ctx context.Context, l *log.Log) (*khifilev6.LogC
 
 	return cs, nil
 }
-
-// logIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
-var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
-	k8scontrolplane.LogIngesterTaskID,
-	k8scontrolplane.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		return processK8sControlPlaneLog
-	},
-)

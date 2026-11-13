@@ -30,6 +30,14 @@ type MetadataLabelsKey[T any] = typedmap.TypedKey[T]
 // MetadataKey is a type-safe key for metadata.
 type MetadataKey[T Metadata] = typedmap.TypedKey[T]
 
+// Metadata represents serializable data with labels.
+type Metadata interface {
+	// ToSerializable converts the metadata into a JSON-serializable representation.
+	ToSerializable() interface{}
+	// Labels returns the read-only label map associated with the metadata.
+	Labels() *typedmap.ReadonlyTypedMap
+}
+
 // NewMetadataLabelsKey creates a type-safe metadata key.
 func NewMetadataLabelsKey[T any](key string) MetadataLabelsKey[T] {
 	return typedmap.NewTypedKey[T](key)
@@ -40,14 +48,7 @@ func NewMetadataKey[T Metadata](key string) MetadataKey[T] {
 	return typedmap.NewTypedKey[T](key)
 }
 
-// Metadata represents serializable data with labels.
-type Metadata interface {
-	// Converts to serializable format
-	ToSerializable() interface{}
-	// Returns associated labels
-	Labels() *typedmap.ReadonlyTypedMap
-}
-
+// GetSerializableSubsetMapFromMetadataSet returns a map of serialized metadata entries matching the given label filter.
 func GetSerializableSubsetMapFromMetadataSet[T any](metadataSet *typedmap.ReadonlyTypedMap, filter filter.TypedMapFilter[T]) (map[string]interface{}, error) {
 	result := map[string]interface{}{}
 	for _, key := range metadataSet.Keys() {

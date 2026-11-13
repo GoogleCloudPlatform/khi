@@ -16,6 +16,8 @@ package legacy
 
 import "golang.org/x/oauth2"
 
+var _ oauth2.TokenSource = (*rawTokenTokenSource)(nil)
+
 // rawTokenTokenSource is an oauth2.TokenSource that always returns the same access token.
 //
 // Using this authentication method is highly discouraged, this is only for keeping compatibility after supporting authentication via ADC.
@@ -37,5 +39,3 @@ func (r *rawTokenTokenSource) Token() (*oauth2.Token, error) {
 		AccessToken: r.AccessToken,
 	}, nil
 }
-
-var _ oauth2.TokenSource = (*rawTokenTokenSource)(nil)

@@ -22,6 +22,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
+type annotationSpec struct {
+	level   string
+	file    string
+	line    int
+	title   string
+	message string
+}
+
 // RenderGitHubAnnotations emits GitHub Actions ::error or ::warning workflow commands up to maxAnnotations.
 func RenderGitHubAnnotations(w io.Writer, rep *rule.Report, maxAnnotations int) {
 	level := "error"
@@ -52,26 +60,6 @@ func RenderGitHubAnnotations(w io.Writer, rep *rule.Report, maxAnnotations int) 
 	}
 }
 
-type annotationSpec struct {
-	level   string
-	file    string
-	line    int
-	title   string
-	message string
-}
-
-func emitAnnotation(w io.Writer, a annotationSpec) {
-	fmt.Fprintf(
-		w,
-		"::%s file=%s,line=%d,title=%s::%s\n",
-		a.level,
-		gotestutil.EscapeAnnotationProperty(a.file),
-		max(a.line, 1),
-		gotestutil.EscapeAnnotationProperty(a.title),
-		gotestutil.EscapeAnnotationData(a.message),
-	)
-}
-
 // RenderGitHubSummary writes a Markdown summary suitable for GITHUB_STEP_SUMMARY.
 func RenderGitHubSummary(w io.Writer, rep *rule.Report) {
 	verdict := "✅ PASS"
@@ -92,6 +80,18 @@ func RenderGitHubSummary(w io.Writer, rep *rule.Report) {
 	if len(rep.Findings) > 0 {
 		renderMarkdownFindings(w, rep.Findings, rep.CodeFence())
 	}
+}
+
+func emitAnnotation(w io.Writer, a annotationSpec) {
+	fmt.Fprintf(
+		w,
+		"::%s file=%s,line=%d,title=%s::%s\n",
+		a.level,
+		gotestutil.EscapeAnnotationProperty(a.file),
+		max(a.line, 1),
+		gotestutil.EscapeAnnotationProperty(a.title),
+		gotestutil.EscapeAnnotationData(a.message),
+	)
 }
 
 func renderSummaryMetricsTable(w io.Writer, rep *rule.Report) {

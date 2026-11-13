@@ -17,9 +17,10 @@ package formtask
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestFormTaskBase_SetupBaseFormField(t *testing.T) {

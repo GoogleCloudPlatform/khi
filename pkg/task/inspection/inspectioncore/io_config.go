@@ -24,11 +24,11 @@ import (
 
 // IOConfig holds configuration for file input/output operations.
 type IOConfig struct {
-	// ApplicationRoot is the project root folder
+	// ApplicationRoot is the project root folder.
 	ApplicationRoot string
-	// DataDestination is the folder to save khi files
+	// DataDestination is the folder to save khi files.
 	DataDestination string
-	// TemporaryFolder is the working folder for temporary files
+	// TemporaryFolder is the working folder for temporary files.
 	TemporaryFolder string
 }
 

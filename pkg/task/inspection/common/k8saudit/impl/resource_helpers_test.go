@@ -18,8 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 func TestGetDeletionGracePeriodSeconds(t *testing.T) {

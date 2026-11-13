@@ -28,42 +28,77 @@ import (
 
 // FuncMetrics holds static AST structural measurements for a single Go function or method.
 type FuncMetrics struct {
-	Key               string
-	DisplayName       string
-	StartLine         int
-	EndLine           int
-	CodeLines         int
-	Statements        int
-	Cognitive         int
-	MaxNesting        int
-	Params            int
-	Results           int
+	// Key is the canonical function or method identifier.
+	Key string
+	// DisplayName is the human-readable function or method signature label.
+	DisplayName string
+	// StartLine is the 1-based starting line of the function declaration.
+	StartLine int
+	// EndLine is the 1-based ending line of the function declaration.
+	EndLine int
+	// CodeLines is the number of non-blank, non-comment lines in the function body.
+	CodeLines int
+	// Statements is the total AST statement count in the function body.
+	Statements int
+	// Cognitive is the cognitive complexity score of the function.
+	Cognitive int
+	// MaxNesting is the maximum control-flow nesting depth in the function.
+	MaxNesting int
+	// Params is the number of input parameters.
+	Params int
+	// Results is the number of return values.
+	Results int
+	// ControlFlagParams lists boolean parameters used directly in control-flow conditions.
 	ControlFlagParams []string
-	Hotspots          []rule.Hotspot
-	IsTestEntry       bool
+	// Hotspots lists complexity hotspot locations inside the function.
+	Hotspots []rule.Hotspot
+	// IsTestEntry reports whether the function is a Go test entry point.
+	IsTestEntry bool
 }
 
 // TRunMetrics holds cognitive complexity measurements for a single t.Run or b.Run closure body.
 type TRunMetrics struct {
-	ParentFunc   string
+	// ParentFunc is the enclosing test function name.
+	ParentFunc string
+	// SubtestLabel is the extracted subtest name or expression label.
 	SubtestLabel string
-	StartLine    int
-	EndLine      int
-	Cognitive    int
-	Hotspots     []rule.Hotspot
+	// StartLine is the 1-based starting line of the subtest call.
+	StartLine int
+	// EndLine is the 1-based ending line of the subtest call.
+	EndLine int
+	// Cognitive is the cognitive complexity score of the subtest body.
+	Cognitive int
+	// Hotspots lists complexity hotspot locations inside the subtest body.
+	Hotspots []rule.Hotspot
 }
 
 // FileMetrics holds parsed AST metrics, subtests, and CODEQUALITY_ALLOW directives for a Go file.
 type FileMetrics struct {
-	File            string
-	PackageName     string
-	PkgLine         int
-	IsTest          bool
-	CodeLines       int
-	Funcs           []FuncMetrics
-	TRuns           []TRunMetrics
-	Directives      []rule.Directive
+	// File is the slash-separated path relative to the repository root.
+	File string
+	// PackageName is the declared Go package name.
+	PackageName string
+	// PkgLine is the 1-based line number of the package clause.
+	PkgLine int
+	// IsTest reports whether the file is a *_test.go file.
+	IsTest bool
+	// CodeLines is the non-blank, non-comment, non-import code line count.
+	CodeLines int
+	// Funcs holds metrics for all functions with bodies in the file.
+	Funcs []FuncMetrics
+	// TRuns holds metrics for all t.Run/b.Run subtests in the file.
+	TRuns []TRunMetrics
+	// Directives holds valid CODEQUALITY_ALLOW directives parsed from the file.
+	Directives []rule.Directive
+	// DirectiveErrors holds syntax or validation errors for directives in the file.
 	DirectiveErrors []rule.DirectiveError
+}
+
+type fileAnalyzer struct {
+	fset             *token.FileSet
+	codeMask         []bool
+	isTest           bool
+	minParamsForFlag int
 }
 
 // OverlapsLines reports whether the inclusive interval [startLine, endLine] contains any line in changed.
@@ -122,6 +157,20 @@ func AnalyzeFile(relPath string, src []byte, minParamsForFlag int) (*FileMetrics
 	return out, nil
 }
 
+// FormatFuncIdentity returns the stable lookup key ("Type.Method" or "Func") and display name ("(*Type).Method").
+func FormatFuncIdentity(fd *ast.FuncDecl) (string, string) {
+	name := fd.Name.Name
+	if fd.Recv == nil || len(fd.Recv.List) == 0 {
+		return name, name
+	}
+	recvType, isPtr := unwrapReceiverName(fd.Recv.List[0].Type)
+	key := recvType + "." + name
+	if isPtr {
+		return key, fmt.Sprintf("(*%s).%s", recvType, name)
+	}
+	return key, key
+}
+
 func isGeneratedAST(file *ast.File) bool {
 	for _, cg := range file.Comments {
 		for _, c := range cg.List {
@@ -161,13 +210,6 @@ func countTrueInRange(mask []bool, start int, end int) int {
 	return n
 }
 
-type fileAnalyzer struct {
-	fset             *token.FileSet
-	codeMask         []bool
-	isTest           bool
-	minParamsForFlag int
-}
-
 func (a *fileAnalyzer) analyzeFuncDecl(fd *ast.FuncDecl) FuncMetrics {
 	startLine := a.fset.Position(fd.Pos()).Line
 	endLine := a.fset.Position(fd.End()).Line
@@ -196,20 +238,6 @@ func (a *fileAnalyzer) analyzeFuncDecl(fd *ast.FuncDecl) FuncMetrics {
 		Hotspots:          comp.Hotspots,
 		IsTestEntry:       a.isTest && isGoTestEntryFunc(fd),
 	}
-}
-
-// FormatFuncIdentity returns the stable lookup key ("Type.Method" or "Func") and display name ("(*Type).Method").
-func FormatFuncIdentity(fd *ast.FuncDecl) (string, string) {
-	name := fd.Name.Name
-	if fd.Recv == nil || len(fd.Recv.List) == 0 {
-		return name, name
-	}
-	recvType, isPtr := unwrapReceiverName(fd.Recv.List[0].Type)
-	key := recvType + "." + name
-	if isPtr {
-		return key, fmt.Sprintf("(*%s).%s", recvType, name)
-	}
-	return key, key
 }
 
 func unwrapReceiverName(expr ast.Expr) (string, bool) {

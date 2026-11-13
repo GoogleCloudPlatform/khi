@@ -28,16 +28,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
-// FieldPathSeparator is the separator used for field paths in InternedStruct.
+// fieldPathSeparator is the separator used for field paths in InternedStruct.
 // \x00 is hardly included in YAML fields. So \x00 is a good separator.
 const fieldPathSeparator = "\x00"
-
-type internScratch struct {
-	pathIDs         []uint32
-	flattenedValues []structured.Node
-	pathBuf         []byte
-	keyBuf          []byte
-}
 
 var internScratchPool = sync.Pool{
 	New: func() any {
@@ -50,27 +43,26 @@ var internScratchPool = sync.Pool{
 	},
 }
 
-func getInternScratch() *internScratch {
-	s := internScratchPool.Get().(*internScratch)
-	s.pathIDs = s.pathIDs[:0]
-	s.flattenedValues = s.flattenedValues[:0]
-	s.pathBuf = s.pathBuf[:0]
-	s.keyBuf = s.keyBuf[:0]
-	return s
+type internScratch struct {
+	pathIDs         []uint32
+	flattenedValues []structured.Node
+	pathBuf         []byte
+	keyBuf          []byte
 }
 
-func putInternScratch(s *internScratch) {
-	if cap(s.pathIDs) > 4096 || cap(s.flattenedValues) > 4096 || cap(s.pathBuf) > 65536 || cap(s.keyBuf) > 65536 {
-		return
-	}
-	for i := range s.flattenedValues {
-		s.flattenedValues[i] = nil
-	}
-	s.pathIDs = s.pathIDs[:0]
-	s.flattenedValues = s.flattenedValues[:0]
-	s.pathBuf = s.pathBuf[:0]
-	s.keyBuf = s.keyBuf[:0]
-	internScratchPool.Put(s)
+// flatStructSpan locates a struct's field-path set and contiguous value entries within the owning pool's FlatStructStore.
+type flatStructSpan struct {
+	pool       flatSpanPool
+	store      *FlatStructStore
+	fieldSetID uint32
+	offset     uint32
+	count      uint32
+}
+
+// flatSpanPool extends ReadonlyPool with direct FlatStructStore span lookup so path slices never escape through interface calls.
+type flatSpanPool interface {
+	ReadonlyPool
+	resolveFlatStructSpan(structID uint32) (flatStructSpan, bool)
 }
 
 // ToInternedStruct converts a structured.Node to an InternStructRef.
@@ -124,6 +116,101 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (InternStructRef, 
 	pool.stageStruct(newID)
 
 	return InternStructRef{pool: pool, id: newID}, nil
+}
+
+// FromInternedStruct converts an InternedStruct back to a structured.Node.
+func FromInternedStruct(s *pb.InternedStruct, pool ReadonlyPool) (structured.Node, error) {
+	if s == nil {
+		return nil, fmt.Errorf("InternedStruct is nil")
+	}
+	if s.FieldPathSetId == nil {
+		return nil, fmt.Errorf("FieldPathSetId is nil")
+	}
+
+	fieldSetIDs := pool.ResolveFieldSetFromID(*s.FieldPathSetId)
+	keys := make([]string, len(fieldSetIDs))
+	for i, id := range fieldSetIDs {
+		keys[i] = pool.ResolveStringFromID(id)
+	}
+
+	if len(keys) != len(s.Values) {
+		return nil, fmt.Errorf("length mismatch: keys=%d, values=%d", len(keys), len(s.Values))
+	}
+
+	var values []structured.Node
+	for _, val := range s.Values {
+		node, err := FromInternedValue(val, pool)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, node)
+	}
+
+	return unflattenNodes(keys, values)
+}
+
+// FromInternedValue converts an InternedValue back to a structured.Node.
+func FromInternedValue(v *pb.InternedValue, pool ReadonlyPool) (structured.Node, error) {
+	if v == nil {
+		return nil, fmt.Errorf("InternedValue is nil")
+	}
+	switch kind := v.Kind.(type) {
+	case *pb.InternedValue_NullValue:
+		return structured.NewStandardScalarNode[any](nil), nil
+	case *pb.InternedValue_BoolValue:
+		return structured.NewStandardScalarNode(kind.BoolValue), nil
+	case *pb.InternedValue_StringValue:
+		return structured.NewStandardScalarNode(pool.ResolveStringFromID(kind.StringValue)), nil
+	case *pb.InternedValue_Int64Value:
+		return structured.NewStandardScalarNode(int(kind.Int64Value)), nil
+	case *pb.InternedValue_DoubleValue:
+		return structured.NewStandardScalarNode(kind.DoubleValue), nil
+	case *pb.InternedValue_TimestampValue:
+		return structured.NewStandardScalarNode(kind.TimestampValue.AsTime()), nil
+	case *pb.InternedValue_ListValue:
+		elements := make([]structured.Node, 0, len(kind.ListValue.GetValues()))
+		for _, elem := range kind.ListValue.GetValues() {
+			node, err := FromInternedValue(elem, pool)
+			if err != nil {
+				return nil, err
+			}
+			elements = append(elements, node)
+		}
+		return structured.NewStandardSequenceNode(elements), nil
+	case *pb.InternedValue_StructId:
+		resolved := pool.ResolveStructFromID(kind.StructId)
+		if resolved == nil {
+			return nil, fmt.Errorf("struct id %d not found in pool", kind.StructId)
+		}
+		return FromInternedStruct(resolved, pool)
+	case *pb.InternedValue_StructValue:
+		return FromInternedStruct(kind.StructValue, pool)
+	default:
+		return nil, fmt.Errorf("unknown InternedValue kind: %T", kind)
+	}
+}
+
+func getInternScratch() *internScratch {
+	s := internScratchPool.Get().(*internScratch)
+	s.pathIDs = s.pathIDs[:0]
+	s.flattenedValues = s.flattenedValues[:0]
+	s.pathBuf = s.pathBuf[:0]
+	s.keyBuf = s.keyBuf[:0]
+	return s
+}
+
+func putInternScratch(s *internScratch) {
+	if cap(s.pathIDs) > 4096 || cap(s.flattenedValues) > 4096 || cap(s.pathBuf) > 65536 || cap(s.keyBuf) > 65536 {
+		return
+	}
+	for i := range s.flattenedValues {
+		s.flattenedValues[i] = nil
+	}
+	s.pathIDs = s.pathIDs[:0]
+	s.flattenedValues = s.flattenedValues[:0]
+	s.pathBuf = s.pathBuf[:0]
+	s.keyBuf = s.keyBuf[:0]
+	internScratchPool.Put(s)
 }
 
 // traverseLeafNodes walks through the map AST recursively and invokes onLeaf for each leaf node
@@ -226,37 +313,6 @@ func appendNodeKey(buf []byte, node structured.Node, pool *InternPool) ([]byte, 
 	}
 }
 
-// FromInternedStruct converts an InternedStruct back to a structured.Node.
-func FromInternedStruct(s *pb.InternedStruct, pool ReadonlyPool) (structured.Node, error) {
-	if s == nil {
-		return nil, fmt.Errorf("InternedStruct is nil")
-	}
-	if s.FieldPathSetId == nil {
-		return nil, fmt.Errorf("FieldPathSetId is nil")
-	}
-
-	fieldSetIDs := pool.ResolveFieldSetFromID(*s.FieldPathSetId)
-	keys := make([]string, len(fieldSetIDs))
-	for i, id := range fieldSetIDs {
-		keys[i] = pool.ResolveStringFromID(id)
-	}
-
-	if len(keys) != len(s.Values) {
-		return nil, fmt.Errorf("length mismatch: keys=%d, values=%d", len(keys), len(s.Values))
-	}
-
-	var values []structured.Node
-	for _, val := range s.Values {
-		node, err := FromInternedValue(val, pool)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, node)
-	}
-
-	return unflattenNodes(keys, values)
-}
-
 // unflattenNodes reconstructs a nested map structure from flattened keys and values.
 //
 // Algorithm:
@@ -321,62 +377,6 @@ func unflattenNodes(keys []string, values []structured.Node) (structured.Node, e
 	}
 
 	return structured.NewStandardMap(uniqueKeys, childNodes), nil
-}
-
-// FromInternedValue converts an InternedValue back to a structured.Node.
-func FromInternedValue(v *pb.InternedValue, pool ReadonlyPool) (structured.Node, error) {
-	if v == nil {
-		return nil, fmt.Errorf("InternedValue is nil")
-	}
-	switch kind := v.Kind.(type) {
-	case *pb.InternedValue_NullValue:
-		return structured.NewStandardScalarNode[any](nil), nil
-	case *pb.InternedValue_BoolValue:
-		return structured.NewStandardScalarNode(kind.BoolValue), nil
-	case *pb.InternedValue_StringValue:
-		return structured.NewStandardScalarNode(pool.ResolveStringFromID(kind.StringValue)), nil
-	case *pb.InternedValue_Int64Value:
-		return structured.NewStandardScalarNode(int(kind.Int64Value)), nil
-	case *pb.InternedValue_DoubleValue:
-		return structured.NewStandardScalarNode(kind.DoubleValue), nil
-	case *pb.InternedValue_TimestampValue:
-		return structured.NewStandardScalarNode(kind.TimestampValue.AsTime()), nil
-	case *pb.InternedValue_ListValue:
-		elements := make([]structured.Node, 0, len(kind.ListValue.GetValues()))
-		for _, elem := range kind.ListValue.GetValues() {
-			node, err := FromInternedValue(elem, pool)
-			if err != nil {
-				return nil, err
-			}
-			elements = append(elements, node)
-		}
-		return structured.NewStandardSequenceNode(elements), nil
-	case *pb.InternedValue_StructId:
-		resolved := pool.ResolveStructFromID(kind.StructId)
-		if resolved == nil {
-			return nil, fmt.Errorf("struct id %d not found in pool", kind.StructId)
-		}
-		return FromInternedStruct(resolved, pool)
-	case *pb.InternedValue_StructValue:
-		return FromInternedStruct(kind.StructValue, pool)
-	default:
-		return nil, fmt.Errorf("unknown InternedValue kind: %T", kind)
-	}
-}
-
-// flatStructSpan locates a struct's field-path set and contiguous value entries within the owning pool's FlatStructStore.
-type flatStructSpan struct {
-	pool       flatSpanPool
-	store      *FlatStructStore
-	fieldSetID uint32
-	offset     uint32
-	count      uint32
-}
-
-// flatSpanPool extends ReadonlyPool with direct FlatStructStore span lookup so path slices never escape through interface calls.
-type flatSpanPool interface {
-	ReadonlyPool
-	resolveFlatStructSpan(structID uint32) (flatStructSpan, bool)
 }
 
 // resolveStructStringField walks FlatStructStore spans iteratively to resolve the string value at segments without heap allocations.

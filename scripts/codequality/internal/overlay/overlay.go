@@ -31,13 +31,20 @@ type BaseReader func(relPath string) ([]byte, bool, error)
 
 // Config specifies the repository paths and changed/deleted file sets to reconstruct at base.
 type Config struct {
-	RepoRoot            string
-	WorkDir             string
-	ProdFiles           []string
-	TestFiles           []string
-	DeletedGoFiles      []string
+	// RepoRoot is the repository root directory path.
+	RepoRoot string
+	// WorkDir is the temporary directory where the base mirror is constructed.
+	WorkDir string
+	// ProdFiles lists changed production Go file paths relative to RepoRoot.
+	ProdFiles []string
+	// TestFiles lists changed Go test file paths relative to RepoRoot.
+	TestFiles []string
+	// DeletedGoFiles lists Go file paths deleted in the target revision.
+	DeletedGoFiles []string
+	// OtherChangedGoFiles lists other modified Go files excluded from quality checks.
 	OtherChangedGoFiles []string
-	ReadBaseFile        BaseReader
+	// ReadBaseFile reads file contents at the base revision.
+	ReadBaseFile BaseReader
 }
 
 // Snapshot holds a reconstructed base repository mirror where go test, go:embed, and cmd/cover execute hermetically.
@@ -48,6 +55,12 @@ type Snapshot struct {
 
 type overlayJSON struct {
 	Replace map[string]string `json:"Replace"`
+}
+
+type treeMirror struct {
+	absRoot    string
+	baseRoot   string
+	changedSet map[string]struct{}
 }
 
 // Build constructs a hermetic regular-file base-revision workspace inside cfg.WorkDir.
@@ -93,10 +106,51 @@ func Build(cfg Config) (*Snapshot, error) {
 	return snap, nil
 }
 
-type treeMirror struct {
-	absRoot    string
-	baseRoot   string
-	changedSet map[string]struct{}
+// WriteOverlayJSON marshals replace into a Go -overlay JSON file named fileName inside dir.
+func WriteOverlayJSON(dir string, fileName string, replace map[string]string) (string, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create overlay directory: %w", err)
+	}
+	data, err := json.MarshalIndent(overlayJSON{Replace: replace}, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal overlay json: %w", err)
+	}
+	outPath := filepath.Join(dir, fileName)
+	if err := os.WriteFile(outPath, data, 0o600); err != nil {
+		return "", fmt.Errorf("failed to write overlay json: %w", err)
+	}
+	return outPath, nil
+}
+
+// RepoRoot returns the absolute path to the reconstructed base workspace root.
+func (s *Snapshot) RepoRoot() string {
+	return s.baseRoot
+}
+
+// BaseSource returns the base file bytes for relPath if relPath existed at the base revision.
+func (s *Snapshot) BaseSource(relPath string) ([]byte, bool) {
+	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
+	src, ok := s.baseSources[clean]
+	return src, ok
+}
+
+func (s *Snapshot) stageBaseFile(relPath string, readBase BaseReader) error {
+	src, exists, err := readBase(relPath)
+	if err != nil {
+		return fmt.Errorf("failed to read base file %s: %w", relPath, err)
+	}
+	if !exists {
+		return nil
+	}
+	dstAbs := filepath.Join(s.baseRoot, filepath.FromSlash(relPath))
+	if err := os.MkdirAll(filepath.Dir(dstAbs), 0o755); err != nil {
+		return fmt.Errorf("failed to create base dir for %s: %w", relPath, err)
+	}
+	if err := os.WriteFile(dstAbs, src, 0o600); err != nil {
+		return fmt.Errorf("failed to write base file %s: %w", relPath, err)
+	}
+	s.baseSources[relPath] = src
+	return nil
 }
 
 func (m *treeMirror) mirrorDir(relDir string) error {
@@ -152,53 +206,6 @@ func copyRegularFile(srcPath string, dstPath string) error {
 		return fmt.Errorf("failed to write %s: %w", dstPath, err)
 	}
 	return nil
-}
-
-func (s *Snapshot) stageBaseFile(relPath string, readBase BaseReader) error {
-	src, exists, err := readBase(relPath)
-	if err != nil {
-		return fmt.Errorf("failed to read base file %s: %w", relPath, err)
-	}
-	if !exists {
-		return nil
-	}
-	dstAbs := filepath.Join(s.baseRoot, filepath.FromSlash(relPath))
-	if err := os.MkdirAll(filepath.Dir(dstAbs), 0o755); err != nil {
-		return fmt.Errorf("failed to create base dir for %s: %w", relPath, err)
-	}
-	if err := os.WriteFile(dstAbs, src, 0o600); err != nil {
-		return fmt.Errorf("failed to write base file %s: %w", relPath, err)
-	}
-	s.baseSources[relPath] = src
-	return nil
-}
-
-// RepoRoot returns the absolute path to the reconstructed base workspace root.
-func (s *Snapshot) RepoRoot() string {
-	return s.baseRoot
-}
-
-// BaseSource returns the base file bytes for relPath if relPath existed at the base revision.
-func (s *Snapshot) BaseSource(relPath string) ([]byte, bool) {
-	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
-	src, ok := s.baseSources[clean]
-	return src, ok
-}
-
-// WriteOverlayJSON marshals replace into a Go -overlay JSON file named fileName inside dir.
-func WriteOverlayJSON(dir string, fileName string, replace map[string]string) (string, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("failed to create overlay directory: %w", err)
-	}
-	data, err := json.MarshalIndent(overlayJSON{Replace: replace}, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal overlay json: %w", err)
-	}
-	outPath := filepath.Join(dir, fileName)
-	if err := os.WriteFile(outPath, data, 0o600); err != nil {
-		return "", fmt.Errorf("failed to write overlay json: %w", err)
-	}
-	return outPath, nil
 }
 
 func collectUniquePaths(groups ...[]string) []string {

@@ -18,8 +18,10 @@ import "strings"
 
 // LineRange represents an inclusive 1-based [StartLine, EndLine] interval of uncovered source lines.
 type LineRange struct {
+	// StartLine is the 1-based inclusive start line of the range.
 	StartLine int
-	EndLine   int
+	// EndLine is the 1-based inclusive end line of the range.
+	EndLine int
 }
 
 // SplitSourceLines splits content into 1-based line strings without trailing CR/LF characters.
@@ -53,18 +55,6 @@ func BuildLineRanges(uncovered []int, codeLines []bool) []LineRange {
 	return append(ranges, cur)
 }
 
-func canMergeUncoveredLines(prevLine int, nextLine int, codeLines []bool) bool {
-	if nextLine-prevLine > 3 {
-		return false
-	}
-	for ln := prevLine + 1; ln < nextLine; ln++ {
-		if ln < len(codeLines) && codeLines[ln] {
-			return false
-		}
-	}
-	return true
-}
-
 // BuildUncoveredSpans builds UncoveredSpan snippets (including a leading header '{' line when present) from uncovered line numbers.
 func BuildUncoveredSpans(relFile string, rawLines []string, codeLines []bool, uncovered []int) []UncoveredSpan {
 	ranges := BuildLineRanges(uncovered, codeLines)
@@ -80,6 +70,18 @@ func BuildUncoveredSpans(relFile string, rawLines []string, codeLines []bool, un
 		spans = append(spans, buildSingleSpan(relFile, rawLines, rg, uncovSet))
 	}
 	return spans
+}
+
+func canMergeUncoveredLines(prevLine int, nextLine int, codeLines []bool) bool {
+	if nextLine-prevLine > 3 {
+		return false
+	}
+	for ln := prevLine + 1; ln < nextLine; ln++ {
+		if ln < len(codeLines) && codeLines[ln] {
+			return false
+		}
+	}
+	return true
 }
 
 func buildSingleSpan(relFile string, rawLines []string, rg LineRange, uncovSet map[int]struct{}) UncoveredSpan {

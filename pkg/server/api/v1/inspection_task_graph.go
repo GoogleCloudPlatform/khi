@@ -21,19 +21,11 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 )
-
-// InspectionTaskGraphServer implements the apiv1connect.InspectionTaskGraphServiceHandler interface.
-type InspectionTaskGraphServer struct {
-	inspectionServer    *coreinspection.InspectionTaskServer
-	streamCycleDuration time.Duration
-	updateInterval      time.Duration
-}
-
-var _ apiv1connect.InspectionTaskGraphServiceHandler = (*InspectionTaskGraphServer)(nil)
 
 const (
 	// DefaultStreamCycleDuration is the default duration before a watch stream closes and prompts the client to reconnect.
@@ -41,6 +33,15 @@ const (
 	// DefaultUpdateInterval is the default interval between task graph snapshot emissions.
 	DefaultUpdateInterval = 1 * time.Second
 )
+
+var _ apiv1connect.InspectionTaskGraphServiceHandler = (*InspectionTaskGraphServer)(nil)
+
+// InspectionTaskGraphServer implements the apiv1connect.InspectionTaskGraphServiceHandler interface.
+type InspectionTaskGraphServer struct {
+	inspectionServer    *coreinspection.InspectionTaskServer
+	streamCycleDuration time.Duration
+	updateInterval      time.Duration
+}
 
 // NewInspectionTaskGraphServer creates a new InspectionTaskGraphServer with the given stream intervals.
 func NewInspectionTaskGraphServer(

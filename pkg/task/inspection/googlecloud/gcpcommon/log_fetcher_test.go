@@ -22,9 +22,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestLogFetcherImpl_FetchLogs(t *testing.T) {

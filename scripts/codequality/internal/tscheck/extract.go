@@ -27,95 +27,145 @@ import (
 
 // TSMutant describes a single candidate logic change extracted from a TypeScript file.
 type TSMutant struct {
-	ID                  int
-	File                string
-	Line                int
-	Operator            rule.MutantOperator
-	OriginalExpr        string
-	MutatedExpr         string
-	OriginalLine        string
-	MutatedLine         string
+	// ID is the unique 1-based mutant identifier.
+	ID int
+	// File is the slash-separated relative path of the TypeScript file.
+	File string
+	// Line is the 1-based source line number of the mutation.
+	Line int
+	// Operator identifies the mutation operator category.
+	Operator rule.MutantOperator
+	// OriginalExpr is the compact original expression text.
+	OriginalExpr string
+	// MutatedExpr is the compact mutated expression text.
+	MutatedExpr string
+	// OriginalLine is the trimmed original source line.
+	OriginalLine string
+	// MutatedLine is the rendered mutated source line.
+	MutatedLine string
+	// SuppressionCategory is the CODEQUALITY_ALLOW category if suppressed.
 	SuppressionCategory rule.AllowCategory
-	Status              rule.MutantStatus
-}
-
-// ToDetail converts m into a report-ready rule.MutantDetail.
-func (m *TSMutant) ToDetail() rule.MutantDetail {
-	return rule.MutantDetail{
-		Operator:     m.Operator,
-		Line:         m.Line,
-		OriginalExpr: m.OriginalExpr,
-		MutatedExpr:  m.MutatedExpr,
-		OriginalLine: m.OriginalLine,
-		MutatedLine:  m.MutatedLine,
-	}
+	// Status is the current evaluation outcome of the mutant.
+	Status rule.MutantStatus
 }
 
 // RawTSCandidate represents one expression replacement variant returned by mutate_ts.js.
 type RawTSCandidate struct {
-	OrigExpr           string `json:"origExpr"`
-	MutExpr            string `json:"mutExpr"`
+	// OrigExpr is the original expression text.
+	OrigExpr string `json:"origExpr"`
+	// MutExpr is the mutated expression text.
+	MutExpr string `json:"mutExpr"`
+	// ReplacementPreview is the preview snippet used for diff rendering.
 	ReplacementPreview string `json:"replacementPreview"`
 }
 
 // RawTSExtracted represents one AST mutation site returned by mutate_ts.js.
 type RawTSExtracted struct {
-	Kind         string           `json:"kind"`
-	Op           string           `json:"op"`
-	AddKeepRight bool             `json:"addKeepRight"`
-	BoolVal      bool             `json:"boolVal"`
-	Operator     string           `json:"operator"`
-	Line         int              `json:"line"`
-	StartOffset  int              `json:"startOffset"`
-	EndOffset    int              `json:"endOffset"`
-	LeftStart    int              `json:"leftStart"`
-	LeftEnd      int              `json:"leftEnd"`
-	RightStart   int              `json:"rightStart"`
-	RightEnd     int              `json:"rightEnd"`
-	Candidates   []RawTSCandidate `json:"candidates"`
+	// Kind classifies the TypeScript mutation site kind.
+	Kind string `json:"kind"`
+	// Op is the operator token string.
+	Op string `json:"op"`
+	// AddKeepRight indicates whether an addition site keeps the right operand when mutating.
+	AddKeepRight bool `json:"addKeepRight"`
+	// BoolVal stores the original boolean literal value for BLR sites.
+	BoolVal bool `json:"boolVal"`
+	// Operator is the MutantOperator name returned by the extractor.
+	Operator string `json:"operator"`
+	// Line is the 1-based source line number of the site.
+	Line int `json:"line"`
+	// StartOffset is the byte offset where the AST span starts.
+	StartOffset int `json:"startOffset"`
+	// EndOffset is the byte offset where the AST span ends.
+	EndOffset int `json:"endOffset"`
+	// LeftStart is the byte start offset of the left operand.
+	LeftStart int `json:"leftStart"`
+	// LeftEnd is the byte end offset of the left operand.
+	LeftEnd int `json:"leftEnd"`
+	// RightStart is the byte start offset of the right operand.
+	RightStart int `json:"rightStart"`
+	// RightEnd is the byte end offset of the right operand.
+	RightEnd int `json:"rightEnd"`
+	// Candidates lists mutation candidates at this site.
+	Candidates []RawTSCandidate `json:"candidates"`
 }
 
 // RawTSFileExtraction holds JSON output per TypeScript or *.spec.ts file from mutate_ts.js.
 type RawTSFileExtraction struct {
-	Comments  []rule.RawComment          `json:"comments"`
-	Sites     []RawTSExtracted           `json:"sites"`
+	// Comments holds raw comments extracted from the file.
+	Comments []rule.RawComment `json:"comments"`
+	// Sites holds candidate AST mutation sites extracted from the file.
+	Sites []RawTSExtracted `json:"sites"`
+	// SpecCases holds Jasmine spec case metadata extracted from *.spec.ts files.
 	SpecCases []redundancy.RawTSSpecCase `json:"specCases"`
 }
 
 // TSMutationSite represents an active AST span in a TypeScript file to render into Super-Mutant code.
 type TSMutationSite struct {
-	Kind         string
-	Op           string
+	// Kind classifies the TypeScript mutation site kind.
+	Kind string
+	// Op is the operator token string.
+	Op string
+	// AddKeepRight indicates whether an addition site keeps the right operand when mutating.
 	AddKeepRight bool
-	BoolVal      bool
-	StartOffset  int
-	EndOffset    int
-	LeftStart    int
-	LeftEnd      int
-	RightStart   int
-	RightEnd     int
-	Mutants      []*TSMutant
+	// BoolVal stores the original boolean literal value for BLR sites.
+	BoolVal bool
+	// StartOffset is the byte offset where the AST span starts.
+	StartOffset int
+	// EndOffset is the byte offset where the AST span ends.
+	EndOffset int
+	// LeftStart is the byte start offset of the left operand.
+	LeftStart int
+	// LeftEnd is the byte end offset of the left operand.
+	LeftEnd int
+	// RightStart is the byte start offset of the right operand.
+	RightStart int
+	// RightEnd is the byte end offset of the right operand.
+	RightEnd int
+	// Mutants lists candidate mutants anchored at this site.
+	Mutants []*TSMutant
 }
 
 // TSFilePlan holds extracted mutants, suppressions, and directive errors for one TypeScript file.
 type TSFilePlan struct {
-	File            string
-	Source          []byte
-	Mutants         []*TSMutant
-	Suppressed      []rule.SuppressedItem
+	// File is the slash-separated relative path of the TypeScript file.
+	File string
+	// Source holds the raw TypeScript source bytes.
+	Source []byte
+	// Mutants lists all candidate mutants extracted from the file.
+	Mutants []*TSMutant
+	// Suppressed lists findings suppressed by CODEQUALITY_ALLOW.
+	Suppressed []rule.SuppressedItem
+	// DirectiveErrors lists invalid or unused CODEQUALITY_ALLOW directive errors.
 	DirectiveErrors []rule.DirectiveError
 }
 
 // PlanTSFileInput bundles parameters for planning TypeScript mutations on a single file.
 type PlanTSFileInput struct {
-	FilePath      string
-	Source        []byte
-	Extraction    RawTSFileExtraction
-	ChangedLines  map[int]struct{}
-	CoveredLines  map[int]struct{}
+	// FilePath is the slash-separated relative path of the TypeScript file.
+	FilePath string
+	// Source holds the raw TypeScript source bytes.
+	Source []byte
+	// Extraction holds the raw AST extraction output from mutate_ts.js.
+	Extraction RawTSFileExtraction
+	// ChangedLines maps 1-based modified line numbers in the target file.
+	ChangedLines map[int]struct{}
+	// CoveredLines maps 1-based covered line numbers from Istanbul coverage.
+	CoveredLines map[int]struct{}
+	// HasTSCoverage reports whether Istanbul coverage data is available.
 	HasTSCoverage bool
-	NextID        *int
-	NextProbeID   *int
+	// NextID points to the shared monotonic mutant ID counter.
+	NextID *int
+	// NextProbeID points to the shared monotonic branch probe ID counter.
+	NextProbeID *int
+}
+
+type tsSitePlanner struct {
+	in          PlanTSFileInput
+	directives  []rule.Directive
+	lineStarts  []int
+	seenSpans   map[[2]int]struct{}
+	fp          *TSFilePlan
+	activeSites []TSMutationSite
 }
 
 // InvokeTSMutatorScript runs mutate_ts.js via Node to extract TypeScript AST sites, comments, and Jasmine specs.
@@ -168,13 +218,16 @@ func PlanTSFileMutations(in PlanTSFileInput) (*TSFilePlan, []TSMutationSite) {
 	return fp, p.activeSites
 }
 
-type tsSitePlanner struct {
-	in          PlanTSFileInput
-	directives  []rule.Directive
-	lineStarts  []int
-	seenSpans   map[[2]int]struct{}
-	fp          *TSFilePlan
-	activeSites []TSMutationSite
+// ToDetail converts m into a report-ready rule.MutantDetail.
+func (m *TSMutant) ToDetail() rule.MutantDetail {
+	return rule.MutantDetail{
+		Operator:     m.Operator,
+		Line:         m.Line,
+		OriginalExpr: m.OriginalExpr,
+		MutatedExpr:  m.MutatedExpr,
+		OriginalLine: m.OriginalLine,
+		MutatedLine:  m.MutatedLine,
+	}
 }
 
 func (p *tsSitePlanner) processRawSite(raw RawTSExtracted) {

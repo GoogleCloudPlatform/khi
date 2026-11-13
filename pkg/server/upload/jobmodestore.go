@@ -20,6 +20,8 @@ import (
 	"sync"
 )
 
+var _ Store = (*JobModeStore)(nil)
+
 // JobModeStore is a Store implementation for job mode. Job mode does not run
 // the web server, so files cannot be uploaded from a browser; instead this
 // store resolves file form inputs from local file paths given in the
@@ -83,5 +85,3 @@ func (s *JobModeStore) GetCompletedResult(ctx context.Context, token UploadToken
 	}
 	return s.GetResult(token, req)
 }
-
-var _ Store = (*JobModeStore)(nil)

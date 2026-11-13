@@ -43,23 +43,29 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 ## General Coding Rules
 
-1. **Comments**:
+1. **Comments and GoDoc**:
    - All comments must be written in English.
-   - Add GoDoc comments for all public types, functions, and methods.
+   - Add GoDoc comments on all exported symbols (`const`, `var`, `type`, `func`, and methods) AND on all exported struct fields and exported interface methods of exported types.
+   - Start GoDoc comments on exported declarations with the exact declared symbol name followed by a third-person singular verb (e.g., `// ParseFilter parses ...`), and end every GoDoc/declaration comment with a period (`.`).
    - Add GoDoc comments for private types, functions, and methods when their names are not self-explanatory or usage is not intuitive.
-   - Add `var _ Interface = (*Implementation)(nil);` after the type definition to show that it's implementing the interface explicitly.
 
-2. **Error and Test Assertion Messages**:
+2. **Imports and Declaration Ordering**:
+   - **Import sections (`gci`)**: Group imports in three blank-line-separated sections: (1) Go standard library, (2) third-party/external packages, and (3) `github.com/GoogleCloudPlatform/khi/...` internal packages.
+   - **Top-level declaration order (`decorder` + `decl-visibility-order`)**: Order top-level declarations strictly as `const -> var -> type -> func`. Within each kind (`const`, `var`, `type`), place exported declarations before unexported declarations (never reorder specs inside a single `const (...)` block where `iota` is used).
+   - **Interface implementation assertions**: Place compile-time interface checks (`var _ Interface = (*Implementation)(nil)`) in the `var` section *before* `type` declarations (not after the `type` definition).
+   - **Function and method order (`funcorder` + `decl-visibility-order`)**: Order functions as: (1) `init()`, (2) exported standalone functions and exported-receiver groups (`New*`/`new*` constructors -> exported methods -> unexported methods on the exported receiver), and (3) unexported-receiver groups and unexported standalone helpers.
+
+3. **Error and Test Assertion Messages**:
    - Do not capitalize the first character of messages in `fmt.Errorf`, `t.Error`, `t.Errorf`, `t.Fatal`, `t.Fatalf`, etc. (e.g., use lowercase "failed to ..." instead of "Failed to ...").
    - This rule does not apply if the message starts with a capitalized name, such as a method name or proper acronym (e.g. `MyFunction() mismatch (-want +got)`).
 
-3. **Backward Compatibility and Refactoring**:
+4. **Backward Compatibility and Refactoring**:
    - Internal Go code in KHI requires **no backward compatibility**. When modifying functions, methods, interfaces, or structs, do **NOT** retain deprecated shims, wrappers, or aliases, and do **NOT** introduce unnecessary variadic parameters or defensive nil fallbacks solely to preserve old call sites.
    - Always update all call sites across the monorepo directly.
    - Updating test call sites, constructors, and assertions to adapt to refactored signatures is expected and required.
    - Refer to the `backward-compatibility-policy` skill for concrete anti-patterns and details.
 
-4. **Multiline String Literals**:
+5. **Multiline String Literals**:
    - When a string literal contains line breaks, such as YAML, JSON, or Markdown fixtures and expected multi-line output in tests, write it as a raw string literal enclosed in backquotes that keeps the real line breaks.
    - Do **NOT** embed `\n` escape sequences in the middle of a string literal, and do not join fixed lines with `"\n"` to build multi-line content.
    - Exceptions:

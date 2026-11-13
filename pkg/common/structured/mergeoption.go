@@ -18,26 +18,6 @@ import (
 	"strings"
 )
 
-// keyItem represents a node used as a key for merge or patch merge directives.
-// It must be hashable as a string value, but also needs to retain its type.
-type keyItem struct {
-	StringKey    string
-	OriginalNode Node
-}
-
-// newkeyItemFromScalarNode returns keyItem instance from a scalar node.
-// It may returns error when the scalar type is not convertible to a string value.
-func newkeyItemFromScalarNode(node Node) (keyItem, error) {
-	stringKey, err := getScalarAsString(node)
-	if err != nil {
-		return keyItem{}, err
-	}
-	return keyItem{
-		StringKey:    stringKey,
-		OriginalNode: node,
-	}, nil
-}
-
 // MergeConfiguration contains configurations of merging a previous node and patch node.
 // This configuration is modified throughout walking every nodes during the merging.
 type MergeConfiguration struct {
@@ -70,6 +50,26 @@ type MergeConfiguration struct {
 	setElementOrderListForChildren                  map[string][]keyItem
 }
 
+// MergeMapOrderStrategy defines the key ordering strategy when merging two map nodes.
+type MergeMapOrderStrategy interface {
+	// GetMergedKeyOrder returns the order of keys after merging.
+	// prevKeys is the keys of previous map.
+	// patchKeys is the keys of patch map.
+	// directiveKeys is the keys only found in the strategic patch merge directives. These fields are missing in prev and patch, but the existence is inferred from the directives.
+	GetMergedKeyOrder(prevKeys []string, patchKeys []string, directiveKeys []string) ([]string, error)
+}
+
+// DefaultMergeMapOrderStrategy preserves previous key order and appends new keys from the patch and directives.
+type DefaultMergeMapOrderStrategy struct {
+}
+
+// keyItem represents a node used as a key for merge or patch merge directives.
+// It must be hashable as a string value, but also needs to retain its type.
+type keyItem struct {
+	StringKey    string
+	OriginalNode Node
+}
+
 // GetArrayMergeStrategyAndKey returns the strategy of merging a sequence of maps and the key field name used for merging.
 func (c *MergeConfiguration) GetArrayMergeStrategyAndKey(fieldPath []string) (strategy MergeArrayStrategy, mergeKey string, err error) {
 	joinedFieldPath := strings.Join(fieldPath[:len(fieldPath)-1], ".") // Remove the last `[]` and construct string represented field path.
@@ -81,17 +81,6 @@ func (c *MergeConfiguration) GetArrayMergeStrategyAndKey(fieldPath []string) (st
 		}
 	}
 	return
-}
-
-type MergeMapOrderStrategy interface {
-	// GetMergedKeyOrder returns the order of keys after merging.
-	// prevKeys is the keys of previous map.
-	// patchKeys is the keys of patch map.
-	// directiveKeys is the keys only found in the strategic patch merge directives. These fields are missing in prev and patch, but the existence is inferred from the directives.
-	GetMergedKeyOrder(prevKeys []string, patchKeys []string, directiveKeys []string) ([]string, error)
-}
-
-type DefaultMergeMapOrderStrategy struct {
 }
 
 // GetMergedKeyOrder implements MergeMapOrderStrategy.
@@ -113,4 +102,17 @@ func (d *DefaultMergeMapOrderStrategy) GetMergedKeyOrder(prevKeys []string, patc
 		}
 	}
 	return result, nil
+}
+
+// newkeyItemFromScalarNode returns keyItem instance from a scalar node.
+// It may returns error when the scalar type is not convertible to a string value.
+func newkeyItemFromScalarNode(node Node) (keyItem, error) {
+	stringKey, err := getScalarAsString(node)
+	if err != nil {
+		return keyItem{}, err
+	}
+	return keyItem{
+		StringKey:    stringKey,
+		OriginalNode: node,
+	}, nil
 }

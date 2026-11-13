@@ -14,8 +14,6 @@
 
 package tscheck
 
-type tsScanMode int
-
 const (
 	tsModeCode tsScanMode = iota
 	tsModeLineComment
@@ -24,6 +22,8 @@ const (
 	tsModeDoubleQuote
 	tsModeTemplate
 )
+
+type tsScanMode int
 
 type tsTokenScanner struct {
 	src      []byte

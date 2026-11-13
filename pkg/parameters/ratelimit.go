@@ -23,6 +23,8 @@ import (
 // RateLimit is the singleton instance of RateLimitParameters.
 var RateLimit *RateLimitParameters = &RateLimitParameters{}
 
+var _ ParameterStore = (*RateLimitParameters)(nil)
+
 // RateLimitParameters stores parameters related to API rate limiting.
 type RateLimitParameters struct {
 	// LoggingInitialQPS is the starting request rate in QPS for Cloud Logging.
@@ -57,5 +59,3 @@ func (r *RateLimitParameters) PostProcess() error {
 	}
 	return nil
 }
-
-var _ ParameterStore = (*RateLimitParameters)(nil)

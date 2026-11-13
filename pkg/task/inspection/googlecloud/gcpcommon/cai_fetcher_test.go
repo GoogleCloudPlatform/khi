@@ -26,10 +26,6 @@ import (
 	"time"
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -39,6 +35,11 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 )
 
 var defaultCAISearchResults = []*assetpb.ResourceSearchResult{

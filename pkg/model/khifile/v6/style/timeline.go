@@ -34,6 +34,52 @@ var (
 	cachedIconAtlas *pb.IconAtlas
 )
 
+var (
+	mu             sync.RWMutex
+	locked         bool
+	severities     []*pb.Severity
+	verbs          []*pb.Verb
+	logTypes       []*pb.LogType
+	revisionStates []*pb.RevisionState
+	timelineTypes  []*pb.TimelineType
+)
+
+var (
+	_ TimelineSortOpt = (*alphabeticalSortOpt)(nil)
+	_ TimelineSortOpt = (*chronologicalSortOpt)(nil)
+	_ TimelineSortOpt = (*groupedChronologicalSortOpt)(nil)
+)
+
+// Color represents a color with high dynamic range (HDR) capabilities.
+type Color struct {
+	// R is the red channel component in [0.0, 1.0].
+	R float32
+	// G is the green channel component in [0.0, 1.0].
+	G float32
+	// B is the blue channel component in [0.0, 1.0].
+	B float32
+	// A is the alpha channel component in [0.0, 1.0].
+	A float32
+}
+
+// TimelineSortOpt is an interface to configure the sorting policy of a timeline type.
+type TimelineSortOpt interface {
+	// ApplyToTimelineType applies the sort policy configuration to the given TimelineType.
+	ApplyToTimelineType(t *pb.TimelineType)
+}
+
+type alphabeticalSortOpt struct {
+	prioritizedNames []string
+}
+
+type chronologicalSortOpt struct {
+	chronologicalSearchDepth int32
+}
+
+type groupedChronologicalSortOpt struct {
+	delimiter string
+}
+
 // GetIconAtlas returns the embedded IconAtlas instance cached globally.
 func GetIconAtlas() *pb.IconAtlas {
 	iconAtlasOnce.Do(func() {
@@ -66,40 +112,12 @@ func GetIconAtlas() *pb.IconAtlas {
 	return cachedIconAtlas
 }
 
-var (
-	mu             sync.RWMutex
-	locked         bool
-	severities     []*pb.Severity
-	verbs          []*pb.Verb
-	logTypes       []*pb.LogType
-	revisionStates []*pb.RevisionState
-	timelineTypes  []*pb.TimelineType
-)
-
-// reset clears the registry. This is primarily intended for testing to avoid test pollution
-// across different packages testing plugin loading.
-func reset() {
-	mu.Lock()
-	defer mu.Unlock()
-	severities = nil
-	verbs = nil
-	logTypes = nil
-	revisionStates = nil
-	timelineTypes = nil
-	locked = false
-}
-
 // LockRegistry locks the timeline style registry, preventing any further style registrations.
 // This must be called after task registration has completed.
 func LockRegistry() {
 	mu.Lock()
 	defer mu.Unlock()
 	locked = true
-}
-
-// Color represents a color with high dynamic range (HDR) capabilities.
-type Color struct {
-	R, G, B, A float32
 }
 
 // Verify checks if R, G, B, and A are within [0.0, 1.0] range.
@@ -129,27 +147,6 @@ func (c Color) toProto() *pb.HDRColor4 {
 	}
 }
 
-// TimelineSortOpt is an interface to configure the sorting policy of a timeline type.
-type TimelineSortOpt interface {
-	// ApplyToTimelineType applies the sort policy configuration to the given TimelineType.
-	ApplyToTimelineType(t *pb.TimelineType)
-}
-
-type alphabeticalSortOpt struct {
-	prioritizedNames []string
-}
-
-// ApplyToTimelineType applies the alphabetical sort policy configuration to the given TimelineType.
-func (o *alphabeticalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
-	t.SortPolicyConfig = &pb.TimelineType_AlphabeticalPolicy{
-		AlphabeticalPolicy: &pb.AlphabeticalSortPolicy{
-			PrioritizedNames: o.prioritizedNames,
-		},
-	}
-}
-
-var _ TimelineSortOpt = (*alphabeticalSortOpt)(nil)
-
 // AlphabeticalSortPolicy returns a TimelineSortOpt that configures a timeline type to sort its child timelines alphabetically.
 // prioritizedNames is a list of timeline names that should appear first in the specified order.
 func AlphabeticalSortPolicy(prioritizedNames ...string) TimelineSortOpt {
@@ -158,21 +155,6 @@ func AlphabeticalSortPolicy(prioritizedNames ...string) TimelineSortOpt {
 	}
 }
 
-type chronologicalSortOpt struct {
-	chronologicalSearchDepth int32
-}
-
-// ApplyToTimelineType applies the chronological sort policy configuration to the given TimelineType.
-func (o *chronologicalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
-	t.SortPolicyConfig = &pb.TimelineType_ChronologicalPolicy{
-		ChronologicalPolicy: &pb.ChronologicalSortPolicy{
-			ChronologicalSearchDepth: proto.Int32(o.chronologicalSearchDepth),
-		},
-	}
-}
-
-var _ TimelineSortOpt = (*chronologicalSortOpt)(nil)
-
 // ChronologicalSortPolicy returns a TimelineSortOpt that configures a timeline type to sort its child timelines chronologically.
 // chronologicalSearchDepth defines the maximum recursion depth for searching child timelines to find the oldest log entry.
 func ChronologicalSortPolicy(chronologicalSearchDepth int32) TimelineSortOpt {
@@ -180,21 +162,6 @@ func ChronologicalSortPolicy(chronologicalSearchDepth int32) TimelineSortOpt {
 		chronologicalSearchDepth: chronologicalSearchDepth,
 	}
 }
-
-type groupedChronologicalSortOpt struct {
-	delimiter string
-}
-
-// ApplyToTimelineType applies the grouped chronological sort policy configuration to the given TimelineType.
-func (o *groupedChronologicalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
-	t.SortPolicyConfig = &pb.TimelineType_GroupedChronologicalPolicy{
-		GroupedChronologicalPolicy: &pb.GroupedChronologicalSortPolicy{
-			Delimiter: proto.String(o.delimiter),
-		},
-	}
-}
-
-var _ TimelineSortOpt = (*groupedChronologicalSortOpt)(nil)
 
 // GroupedChronologicalSortPolicy returns a TimelineSortOpt that configures a timeline type to sort its child timelines hierarchically by grouping tokens with a delimiter and ordering them chronologically.
 func GroupedChronologicalSortPolicy(delimiter string) TimelineSortOpt {
@@ -388,4 +355,44 @@ func GenerateChunkWithoutIconAtlas() *pb.TimelineStyleChunk {
 		TimelineTypes:  slices.Clone(timelineTypes),
 		IconAtlas:      nil,
 	}
+}
+
+// ApplyToTimelineType applies the alphabetical sort policy configuration to the given TimelineType.
+func (o *alphabeticalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
+	t.SortPolicyConfig = &pb.TimelineType_AlphabeticalPolicy{
+		AlphabeticalPolicy: &pb.AlphabeticalSortPolicy{
+			PrioritizedNames: o.prioritizedNames,
+		},
+	}
+}
+
+// ApplyToTimelineType applies the chronological sort policy configuration to the given TimelineType.
+func (o *chronologicalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
+	t.SortPolicyConfig = &pb.TimelineType_ChronologicalPolicy{
+		ChronologicalPolicy: &pb.ChronologicalSortPolicy{
+			ChronologicalSearchDepth: proto.Int32(o.chronologicalSearchDepth),
+		},
+	}
+}
+
+// ApplyToTimelineType applies the grouped chronological sort policy configuration to the given TimelineType.
+func (o *groupedChronologicalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
+	t.SortPolicyConfig = &pb.TimelineType_GroupedChronologicalPolicy{
+		GroupedChronologicalPolicy: &pb.GroupedChronologicalSortPolicy{
+			Delimiter: proto.String(o.delimiter),
+		},
+	}
+}
+
+// reset clears the registry. This is primarily intended for testing to avoid test pollution
+// across different packages testing plugin loading.
+func reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	severities = nil
+	verbs = nil
+	logTypes = nil
+	revisionStates = nil
+	timelineTypes = nil
+	locked = false
 }

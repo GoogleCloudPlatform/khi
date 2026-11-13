@@ -20,19 +20,28 @@ import (
 	"sync"
 )
 
-type MergeArrayStrategy string
-
+// MergeStrategyMerge merges array elements by matching on a configured merge key.
 const MergeStrategyMerge MergeArrayStrategy = "merge"
+
+// MergeStrategyReplace replaces the previous array with the patch array.
 const MergeStrategyReplace MergeArrayStrategy = "replace"
 
 var warnShownPath = sync.Map{}
 
+// MergeArrayStrategy defines how arrays at a given field path are merged during strategic merge patching.
+type MergeArrayStrategy string
+
+// MergeConfigResolver resolves array merge strategies and merge keys by field path, falling back to an optional parent resolver.
 type MergeConfigResolver struct {
-	Parent          *MergeConfigResolver
+	// Parent specifies an optional fallback resolver consulted when a field path is not defined locally.
+	Parent *MergeConfigResolver
+	// MergeStrategies maps dot-separated field paths to their array merge strategies.
 	MergeStrategies map[string]MergeArrayStrategy
-	MergeKeys       map[string]string
+	// MergeKeys maps dot-separated field paths to the key field name used when merging arrays of maps.
+	MergeKeys map[string]string
 }
 
+// GetMergeArrayStrategy returns the merge strategy for fieldPath, defaulting to MergeStrategyReplace if undefined.
 func (r *MergeConfigResolver) GetMergeArrayStrategy(fieldPath string) MergeArrayStrategy {
 	if strategy, found := r.MergeStrategies[fieldPath]; found {
 		return strategy
@@ -48,6 +57,7 @@ func (r *MergeConfigResolver) GetMergeArrayStrategy(fieldPath string) MergeArray
 	}
 }
 
+// GetMergeKey returns the merge key field name for fieldPath, or an error if none is configured.
 func (r *MergeConfigResolver) GetMergeKey(fieldPath string) (string, error) {
 	if key, found := r.MergeKeys[fieldPath]; found {
 		return key, nil

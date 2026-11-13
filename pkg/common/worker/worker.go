@@ -26,6 +26,7 @@ type Pool struct {
 	waitGroup *sync.WaitGroup
 }
 
+// NewPool creates a Pool allowing up to maxParallelCount concurrent goroutines.
 func NewPool(maxParallelCount int) *Pool {
 	return &Pool{
 		semaphore: make(chan struct{}, maxParallelCount),
@@ -33,6 +34,7 @@ func NewPool(maxParallelCount int) *Pool {
 	}
 }
 
+// Run schedules f to execute in the pool, blocking if maxParallelCount goroutines are already running.
 func (t *Pool) Run(f func()) {
 	t.waitGroup.Add(1)
 	t.semaphore <- struct{}{}
@@ -46,6 +48,7 @@ func (t *Pool) Run(f func()) {
 	}()
 }
 
+// Wait blocks until all goroutines started via Run have completed.
 func (t *Pool) Wait() {
 	t.waitGroup.Wait()
 }

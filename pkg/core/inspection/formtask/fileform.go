@@ -93,6 +93,13 @@ func DefineFileForm(id taskid.TaskImplementationID[upload.UploadResult], priorit
 	}, form.formLabelOpts(labelOpts)...)
 }
 
+// GenerateUploadIDWithTaskContext generates the upload ID from form ID and task ID.
+func GenerateUploadIDWithTaskContext(ctx context.Context, formId string) string {
+	inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
+	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
+	return strings.ReplaceAll(fmt.Sprintf("%s_%s_%s", inspectionID, taskID.ReferenceIDString(), formId), "/", "_")
+}
+
 // setFormHintsFromUploadResult sets the appropriate hint and hint type on a form field
 // based on the upload result status and any errors encountered during the upload process.
 func setFormHintsFromUploadResult(result upload.UploadResult, field inspectionmetadata.FileParameterFormField) inspectionmetadata.FileParameterFormField {
@@ -112,11 +119,4 @@ func setFormHintsFromUploadResult(result upload.UploadResult, field inspectionme
 		field.Pending = true
 	}
 	return field
-}
-
-// GenerateUploadIDWithTaskContext generates the upload ID from form ID and task ID.
-func GenerateUploadIDWithTaskContext(ctx context.Context, formId string) string {
-	inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)
-	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
-	return strings.ReplaceAll(fmt.Sprintf("%s_%s_%s", inspectionID, taskID.ReferenceIDString(), formId), "/", "_")
 }

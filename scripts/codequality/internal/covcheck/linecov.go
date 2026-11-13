@@ -28,18 +28,26 @@ import (
 
 // LineState records whether a 1-based source line is executable, covered by tests, or excluded boilerplate.
 type LineState struct {
-	Executable  bool
-	Covered     bool
+	// Executable reports whether the line belongs to an executable Go statement.
+	Executable bool
+	// Covered reports whether tests executed the line.
+	Covered bool
+	// Boilerplate reports whether the line is excluded as non-domain boilerplate.
 	Boilerplate bool
 }
 
 // FileAnalysis holds split raw lines and per-line coverage states for a Go source file.
 type FileAnalysis struct {
+	// RawLines contains 0-indexed raw lines of the source file.
 	RawLines []string
+	// CodeMask marks 1-based substantive executable lines.
 	CodeMask []bool
-	States   []LineState
-	FileAST  *ast.File
-	Fset     *token.FileSet
+	// States holds 1-based per-line coverage and boilerplate states.
+	States []LineState
+	// FileAST is the parsed Go AST for the file.
+	FileAST *ast.File
+	// Fset is the token.FileSet for FileAST.
+	Fset *token.FileSet
 }
 
 // AnalyzeFileLines maps coverprofile blocks onto 1-based source lines and marks AST boilerplate lines.

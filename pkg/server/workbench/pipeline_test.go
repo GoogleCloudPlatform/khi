@@ -19,10 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/sparsebitset"
-	"github.com/google/go-cmp/cmp"
 )
 
 func createSampleWorkbench() *Workbench {

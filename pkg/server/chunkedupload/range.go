@@ -21,8 +21,10 @@ import (
 
 // ByteRange represents an uploaded byte interval [Start, End).
 type ByteRange struct {
+	// Start is the inclusive starting byte offset of the range.
 	Start int64
-	End   int64
+	// End is the exclusive ending byte offset of the range.
+	End int64
 }
 
 // ValidateReceivedRanges validates that the given byte ranges completely cover [0, expectedTotalSize)

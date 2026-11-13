@@ -20,7 +20,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// OriginalMessageFieldKey is the field key used to store the original unparsed log message.
 const OriginalMessageFieldKey = "@original"
+
+// MainMessageStructuredFieldKey is the key used to store the main log message in a structured log result.
+const MainMessageStructuredFieldKey = "@msg"
+
+// SeverityStructuredFieldKey is the key used to store the log severity in a structured log result.
+const SeverityStructuredFieldKey = "@severity"
 
 // commonSeverityStringNotation maps string notation of severity found in logs to the severity types used in KHI.
 var commonSeverityStringNotation = map[string]*pb.Severity{
@@ -39,17 +46,33 @@ var commonSeverityStringNotation = map[string]*pb.Severity{
 	"panic":   inspectioncore.SeverityFatal,
 }
 
-// MainMessageStructuredFieldKey is the key used to store the main log message in a structured log result.
-const MainMessageStructuredFieldKey = "@msg"
-
-// SeverityStructuredFieldKey is the key used to store the log severity in a structured log result.
-const SeverityStructuredFieldKey = "@severity"
+var (
+	_ StructuredLogParser = (*FallbackRawTextLogParser)(nil)
+	_ StructuredLogParser = (*MultiTextLogParser)(nil)
+)
 
 // ParseStructuredLogResult represents the result of parsing a structured log message.
 type ParseStructuredLogResult struct {
+	// Fields stores the parsed key-value pairs extracted from the log message.
 	Fields map[string]any
 }
 
+// StructuredLogParser is the interface to parse string represented structured logs like klog.
+type StructuredLogParser interface {
+	// TryParse attempts to parse the given message into *ParseStructuredLogResult.
+	// It returns nil when the given message is not in the format.
+	TryParse(message string) *ParseStructuredLogResult
+}
+
+// FallbackRawTextLogParser uses the given message directly as the result of main message of parsing structured message.
+type FallbackRawTextLogParser struct{}
+
+// MultiTextLogParser tries multiple StructuredLogParser implementations in order until one succeeds.
+type MultiTextLogParser struct {
+	parsers []StructuredLogParser
+}
+
+// Raw returns the original unparsed log message, or an empty string if unavailable.
 func (p *ParseStructuredLogResult) Raw() string {
 	if value, found := p.Fields[OriginalMessageFieldKey]; found {
 		if valueStr, ok := value.(string); ok {
@@ -90,16 +113,6 @@ func (p *ParseStructuredLogResult) StringField(field string) (string, error) {
 	}
 }
 
-// StructuredLogParser is the interface to parse string represented structured logs like klog.
-type StructuredLogParser interface {
-	// TryParse attempts to parse the given message into *ParseStructuredLogResult.
-	// It returns nil when the given message is not in the format.
-	TryParse(message string) *ParseStructuredLogResult
-}
-
-// FallbackRawTextLogParser uses the given message directly as the result of main message of parsing structured message.
-type FallbackRawTextLogParser struct{}
-
 // TryParse implements StructuredLogParser.
 func (f *FallbackRawTextLogParser) TryParse(message string) *ParseStructuredLogResult {
 	return &ParseStructuredLogResult{
@@ -110,12 +123,7 @@ func (f *FallbackRawTextLogParser) TryParse(message string) *ParseStructuredLogR
 	}
 }
 
-var _ StructuredLogParser = (*FallbackRawTextLogParser)(nil)
-
-type MultiTextLogParser struct {
-	parsers []StructuredLogParser
-}
-
+// NewMultiTextLogParser creates a MultiTextLogParser that delegates to the given parsers in order.
 func NewMultiTextLogParser(parsers ...StructuredLogParser) *MultiTextLogParser {
 	return &MultiTextLogParser{
 		parsers: parsers,
@@ -132,5 +140,3 @@ func (m *MultiTextLogParser) TryParse(message string) *ParseStructuredLogResult 
 	}
 	return nil
 }
-
-var _ StructuredLogParser = (*MultiTextLogParser)(nil)

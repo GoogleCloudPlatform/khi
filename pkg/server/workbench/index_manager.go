@@ -24,12 +24,13 @@ import (
 	"path/filepath"
 	"sync"
 
+	"golang.org/x/sync/singleflight"
+	"google.golang.org/protobuf/proto"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"golang.org/x/sync/singleflight"
-	"google.golang.org/protobuf/proto"
 )
 
 // InspectionIndexManager coordinates persistent disk caching, memory caching, and background generation of TrigramIndex instances.
@@ -284,6 +285,19 @@ func (m *InspectionIndexManager) DeleteIndex(inspectionID string) {
 	}
 }
 
+// InvalidateInspectionIndex evicts the cached TrigramIndex from memory and disk for the inspection.
+func (m *InspectionIndexManager) InvalidateInspectionIndex(inspectionID string) {
+	m.mu.Lock()
+	delete(m.memoryCache, inspectionID)
+	delete(m.latestEvent, inspectionID)
+	m.mu.Unlock()
+
+	if m.dataDir != "" {
+		_ = os.Remove(filepath.Join(m.dataDir, inspectionID+".trigram"))
+		_ = os.Remove(filepath.Join(m.dataDir, inspectionID+".trigram.tmp"))
+	}
+}
+
 func (m *InspectionIndexManager) broadcast(event IndexProgressEvent) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -453,17 +467,4 @@ func (m *InspectionIndexManager) loadTrigramIndexFromDisk(inspectionID string) (
 		return nil, fmt.Errorf("failed to read trigram index from %s: %w", filePath, err)
 	}
 	return idx, nil
-}
-
-// InvalidateInspectionIndex evicts the cached TrigramIndex from memory and disk for the inspection.
-func (m *InspectionIndexManager) InvalidateInspectionIndex(inspectionID string) {
-	m.mu.Lock()
-	delete(m.memoryCache, inspectionID)
-	delete(m.latestEvent, inspectionID)
-	m.mu.Unlock()
-
-	if m.dataDir != "" {
-		_ = os.Remove(filepath.Join(m.dataDir, inspectionID+".trigram"))
-		_ = os.Remove(filepath.Join(m.dataDir, inspectionID+".trigram.tmp"))
-	}
 }

@@ -22,13 +22,26 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 )
 
+// clusterResourceInitialStateProviderTask supplies the audit log parser with the resource manifests CAI
+// observed before the inspection window.
+var clusterResourceInitialStateProviderTask = gcpcommon.DefineCAIInitialResourceStateProviderTask(
+	taskid.NewImplementationID(k8saudit.InitialResourceStateProviderRef, "cai"),
+	caik8s.ClusterResourceTaskIDs,
+	extractK8sIdentity,
+	initialResourceStateKey,
+	extractK8sResourceBody,
+	func(states []gcpcommon.CAIActiveAssetState[*k8saudit.ResourceIdentity]) k8saudit.InitialResourceStateProvider {
+		return buildCAIInitialResourceStateProvider(states)
+	},
+)
+
+var _ k8saudit.InitialResourceStateProvider = (*caiInitialResourceStateProvider)(nil)
+
 // caiInitialResourceStateProvider serves the manifests Cloud Asset Inventory reported for the moment
 // the inspection window opened.
 type caiInitialResourceStateProvider struct {
 	bodiesByIdentity map[string]*structured.NodeReader
 }
-
-var _ k8saudit.InitialResourceStateProvider = (*caiInitialResourceStateProvider)(nil)
 
 // InitialResourceState implements k8saudit.InitialResourceStateProvider.
 func (p *caiInitialResourceStateProvider) InitialResourceState(identity *k8saudit.ResourceIdentity) (*structured.NodeReader, bool) {
@@ -55,16 +68,3 @@ func initialResourceStateKey(identity *k8saudit.ResourceIdentity) string {
 	clusterScoped.Namespace = k8saudit.ClusterScopeNamespace
 	return clusterScoped.String()
 }
-
-// clusterResourceInitialStateProviderTask supplies the audit log parser with the resource manifests CAI
-// observed before the inspection window.
-var clusterResourceInitialStateProviderTask = gcpcommon.DefineCAIInitialResourceStateProviderTask(
-	taskid.NewImplementationID(k8saudit.InitialResourceStateProviderRef, "cai"),
-	caik8s.ClusterResourceTaskIDs,
-	extractK8sIdentity,
-	initialResourceStateKey,
-	extractK8sResourceBody,
-	func(states []gcpcommon.CAIActiveAssetState[*k8saudit.ResourceIdentity]) k8saudit.InitialResourceStateProvider {
-		return buildCAIInitialResourceStateProvider(states)
-	},
-)

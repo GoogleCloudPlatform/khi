@@ -24,8 +24,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"google.golang.org/protobuf/proto"
+
+	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 const (
@@ -38,8 +39,24 @@ const (
 
 // MaskRule specifies a substring replacement rule applied across KHI metadata and string pools.
 type MaskRule struct {
-	Target      string
+	// Target is the sensitive substring to be replaced.
+	Target string
+	// Replacement is the substitute string inserted in place of Target.
 	Replacement string
+}
+
+// MaskReplacer performs longest-match-first single-pass substring masking while preserving null field-path delimiters.
+type MaskReplacer struct {
+	replacer *strings.Replacer
+}
+
+// MaskExportProgressCallback receives progress updates in the [0.0, 1.0] range during masked KHI archive export.
+type MaskExportProgressCallback func(progress float64, message string) error
+
+// maskCountingReader wraps an io.Reader and tracks the total number of compressed bytes read.
+type maskCountingReader struct {
+	r         io.Reader
+	bytesRead int64
 }
 
 // DefaultMaskReplacement formats the 1-based sequential placeholder string ("<masked_1>", "<masked_2>", ...)
@@ -49,11 +66,6 @@ func DefaultMaskReplacement(index int) string {
 		index = 1
 	}
 	return fmt.Sprintf("<masked_%d>", index)
-}
-
-// MaskReplacer performs longest-match-first single-pass substring masking while preserving null field-path delimiters.
-type MaskReplacer struct {
-	replacer *strings.Replacer
 }
 
 // NewMaskReplacer constructs a MaskReplacer from the provided rules, ordering targets by descending rune length.
@@ -123,76 +135,6 @@ func (m *MaskReplacer) Replace(value string) string {
 		}
 	}
 	return strings.Join(segments, "\x00")
-}
-
-// formatMaskedInspectionName masks an inspection title and appends a "(Masked)" suffix when rules are active.
-func formatMaskedInspectionName(rawName string, replacer *MaskReplacer) string {
-	masked := strings.TrimSpace(replacer.Replace(rawName))
-	if !replacer.HasRules() {
-		return masked
-	}
-	if masked == "" {
-		return "Masked Inspection"
-	}
-	if strings.HasSuffix(masked, "(Masked)") {
-		return masked
-	}
-	return masked + " (Masked)"
-}
-
-// sanitizeSuggestedFilename strips angle brackets from "<masked_N>" placeholders and replaces filesystem-unsafe characters.
-func sanitizeSuggestedFilename(name string) string {
-	var b strings.Builder
-	b.Grow(len(name))
-	for _, r := range name {
-		switch {
-		case r == '<' || r == '>':
-			continue
-		case r < 0x20 || strings.ContainsRune(`:"/\|?*`, r):
-			b.WriteByte('_')
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return strings.TrimSpace(b.String())
-}
-
-// formatMaskedSuggestedFilename masks a suggested .khi filename and ensures a filesystem-safe, non-empty "-masked.khi" filename.
-func formatMaskedSuggestedFilename(rawFilename string, replacer *MaskReplacer) string {
-	if !replacer.HasRules() {
-		return strings.TrimSpace(rawFilename)
-	}
-	masked := sanitizeSuggestedFilename(replacer.Replace(rawFilename))
-	if masked == "" || strings.EqualFold(masked, ".khi") {
-		return "masked-inspection.khi"
-	}
-	lower := strings.ToLower(masked)
-	if strings.HasSuffix(lower, "-masked.khi") {
-		return masked
-	}
-	if strings.HasSuffix(lower, ".khi") {
-		base := strings.TrimSpace(masked[:len(masked)-4])
-		if base == "" {
-			return "masked-inspection.khi"
-		}
-		return base + "-masked.khi"
-	}
-	return masked + "-masked.khi"
-}
-
-// MaskExportProgressCallback receives progress updates in the [0.0, 1.0] range during masked KHI archive export.
-type MaskExportProgressCallback func(progress float64, message string) error
-
-// maskCountingReader wraps an io.Reader and tracks the total number of compressed bytes read.
-type maskCountingReader struct {
-	r         io.Reader
-	bytesRead int64
-}
-
-func (c *maskCountingReader) Read(p []byte) (int, error) {
-	n, err := c.r.Read(p)
-	c.bytesRead += int64(n)
-	return n, err
 }
 
 // ExportMaskedKHIFile streams a source KHI v6 archive into w while rewriting metadata and interned string pools.
@@ -296,6 +238,67 @@ func ExportMaskedKHIFile(
 	}
 
 	return emitProgress(1.0, "Completed masked KHI archive stream.")
+}
+
+func (c *maskCountingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// formatMaskedInspectionName masks an inspection title and appends a "(Masked)" suffix when rules are active.
+func formatMaskedInspectionName(rawName string, replacer *MaskReplacer) string {
+	masked := strings.TrimSpace(replacer.Replace(rawName))
+	if !replacer.HasRules() {
+		return masked
+	}
+	if masked == "" {
+		return "Masked Inspection"
+	}
+	if strings.HasSuffix(masked, "(Masked)") {
+		return masked
+	}
+	return masked + " (Masked)"
+}
+
+// sanitizeSuggestedFilename strips angle brackets from "<masked_N>" placeholders and replaces filesystem-unsafe characters.
+func sanitizeSuggestedFilename(name string) string {
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range name {
+		switch {
+		case r == '<' || r == '>':
+			continue
+		case r < 0x20 || strings.ContainsRune(`:"/\|?*`, r):
+			b.WriteByte('_')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+// formatMaskedSuggestedFilename masks a suggested .khi filename and ensures a filesystem-safe, non-empty "-masked.khi" filename.
+func formatMaskedSuggestedFilename(rawFilename string, replacer *MaskReplacer) string {
+	if !replacer.HasRules() {
+		return strings.TrimSpace(rawFilename)
+	}
+	masked := sanitizeSuggestedFilename(replacer.Replace(rawFilename))
+	if masked == "" || strings.EqualFold(masked, ".khi") {
+		return "masked-inspection.khi"
+	}
+	lower := strings.ToLower(masked)
+	if strings.HasSuffix(lower, "-masked.khi") {
+		return masked
+	}
+	if strings.HasSuffix(lower, ".khi") {
+		base := strings.TrimSpace(masked[:len(masked)-4])
+		if base == "" {
+			return "masked-inspection.khi"
+		}
+		return base + "-masked.khi"
+	}
+	return masked + "-masked.khi"
 }
 
 // writeMaskedMetadataChunk rewrites inspection titles, suggested filenames, and query strings in a metadata chunk.

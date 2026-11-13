@@ -17,9 +17,10 @@ package inspectioncore
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/google/go-cmp/cmp"
 )
 
 // TestFeatureTaskLabels tests FeatureTaskLabel.

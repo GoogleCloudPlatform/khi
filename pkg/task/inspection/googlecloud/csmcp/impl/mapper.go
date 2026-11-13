@@ -58,6 +58,22 @@ var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// logToTimelineMapperTask is the task that maps in-cluster Control Plane Logs to timelines.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	csmcp.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontainer.LogIngesterTaskID.Ref(),
+		GroupedLogs: csmcp.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] {
+		return &csmcpTimelineMapper{
+			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+		}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] = (*csmcpTimelineMapper)(nil)
+
 // csmcpTimelineMapper maps Istiod discovery logs to the CSM control plane timelines of the pods they mention.
 type csmcpTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*commoncsmcp.TimelineState]
@@ -68,8 +84,6 @@ type csmcpTimelineMapper struct {
 func (m *csmcpTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.TimelineState) (*khifilev6.TimelineChangeSet, *commoncsmcp.TimelineState, error) {
 	return mapCSMCPLog(ctx, l, prevGroupData, m.clusterIdentity.Get(ctx))
 }
-
-var _ inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] = (*csmcpTimelineMapper)(nil)
 
 // mapCSMCPLog maps an Istiod discovery log to the pod and connection timelines of the pods it mentions.
 // It uses the cluster name in the log when clusterIdentity has no cluster name.
@@ -105,17 +119,3 @@ func mapCSMCPLog(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.Tim
 
 	return cs, nextGroupData, nil
 }
-
-// logToTimelineMapperTask is the task that maps in-cluster Control Plane Logs to timelines.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	csmcp.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8scontainer.LogIngesterTaskID.Ref(),
-		GroupedLogs: csmcp.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] {
-		return &csmcpTimelineMapper{
-			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
-		}
-	},
-)

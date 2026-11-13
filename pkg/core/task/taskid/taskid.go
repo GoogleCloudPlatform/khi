@@ -34,6 +34,13 @@ import (
 // This dual-ID system allows tasks to depend on a common interface (via TaskReference)
 // while the actual implementation used (TaskImplementationID) can vary based on context.
 
+var (
+	_ TaskReference[any]          = (*taskReferenceImpl[any])(nil)
+	_ PointToPointDescriptor      = (*taskReferenceImpl[any])(nil)
+	_ TaskImplementationID[any]   = (*taskImplementationIDImpl[any])(nil)
+	_ UntypedTaskImplementationID = (*taskImplementationIDImpl[any])(nil)
+)
+
 // UntypedTaskReference defines the interface for task references without type information.
 // This allows the task system to handle references generically when exact types are not needed.
 type UntypedTaskReference interface {
@@ -84,8 +91,49 @@ type taskReferenceImpl[TaskResult any] struct {
 	config DependencyConfig
 }
 
-var _ TaskReference[any] = (*taskReferenceImpl[any])(nil)
-var _ PointToPointDescriptor = (*taskReferenceImpl[any])(nil)
+// taskImplementationIDImpl implements the TaskImplementationID interface for a specific result type.
+type taskImplementationIDImpl[TaskResult any] struct {
+	referenceId        string
+	implementationHash string
+}
+
+// NewTaskReference creates a new TaskReference with the specified ID.
+// This function is used to create references to tasks that can be used in dependencies.
+// The ID cannot contain '#' as it would be confused with an implementation hash.
+// Typically used to define the interface of a task that other tasks can depend on.
+func NewTaskReference[TaskResult any](id string, opts ...ReferenceOption) TaskReference[TaskResult] {
+	if strings.Contains(id, "#") {
+		panic(fmt.Sprintf("reference id %s is invalid. It cannot contain '#' in reference ID\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", id))
+	}
+	cfg := NewDefaultPointToPointConfig()
+	for _, opt := range opts {
+		ApplyReferenceOption(&cfg, opt)
+	}
+	return taskReferenceImpl[TaskResult]{id: id, config: cfg}
+}
+
+// NewDefaultImplementationID creates a new TaskImplementationID with the "default" implementation hash.
+// This is a convenience function for creating standard task implementations.
+// The ID cannot contain '#' as the function will append "#default" to create the full implementation ID.
+// Typically used when there is only one common implementation of a task reference.
+func NewDefaultImplementationID[TaskResult any](id string) TaskImplementationID[TaskResult] {
+	if strings.Contains(id, "#") {
+		panic(fmt.Sprintf("task id %s is invalid. It cannot contain '#' in NewDefaultImplementationID. Use NewImplementationID instead to use a custom implementation hash.\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", id))
+	}
+	return taskImplementationIDImpl[TaskResult]{referenceId: id, implementationHash: "default"}
+}
+
+// NewImplementationID creates a new TaskImplementationID with a custom implementation hash.
+// This function is used when multiple different implementations of the same task reference are needed.
+// The implementation hash distinguishes between different implementations that produce the same type of result.
+// For example, a log parser task could have different implementations for different log formats,
+// but all implementations would share the same TaskReference.
+func NewImplementationID[TaskResult any](baseReference TaskReference[TaskResult], implementationHash string) TaskImplementationID[TaskResult] {
+	if strings.Contains(implementationHash, "#") {
+		panic(fmt.Sprintf("implementation hash %s is invalid. It cannot contain '#' in NewImplementationID.\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", implementationHash))
+	}
+	return taskImplementationIDImpl[TaskResult]{referenceId: baseReference.String(), implementationHash: implementationHash}
+}
 
 // DescriptorCardinality returns whether this dependency is point-to-point or fan-in.
 func (t taskReferenceImpl[TaskResult]) DescriptorCardinality() EdgeCardinality {
@@ -128,14 +176,15 @@ func (t taskReferenceImpl[TaskResult]) Ref(opts ...ReferenceOption) TaskReferenc
 	return taskReferenceImpl[TaskResult]{id: t.id, config: cfg}
 }
 
-// taskImplementationIDImpl implements the TaskImplementationID interface for a specific result type.
-type taskImplementationIDImpl[TaskResult any] struct {
-	referenceId        string
-	implementationHash string
+// ReferenceIDString returns the reference ID portion of the task reference.
+// For taskReferenceImpl, this is the same as String().
+func (t taskReferenceImpl[TaskResult]) ReferenceIDString() string {
+	return t.String()
 }
 
-var _ TaskImplementationID[any] = (*taskImplementationIDImpl[any])(nil)
-var _ UntypedTaskImplementationID = (*taskImplementationIDImpl[any])(nil)
+func (t taskReferenceImpl[TaskResult]) isTaskReference() bool {
+	return true
+}
 
 // String returns the full string representation of the implementation ID in the format "referenceId#implementationHash".
 func (t taskImplementationIDImpl[TaskResult]) String() string {
@@ -148,16 +197,6 @@ func (t taskImplementationIDImpl[TaskResult]) Ref(opts ...ReferenceOption) TaskR
 	return NewTaskReference[TaskResult](t.referenceId, opts...)
 }
 
-// ReferenceIDString returns the reference ID portion of the task reference.
-// For taskReferenceImpl, this is the same as String().
-func (t taskReferenceImpl[TaskResult]) ReferenceIDString() string {
-	return t.String()
-}
-
-func (t taskReferenceImpl[TaskResult]) isTaskReference() bool {
-	return true
-}
-
 // ReferenceIDString returns only the reference ID portion of the implementation ID, without the hash.
 func (t taskImplementationIDImpl[TaskResult]) ReferenceIDString() string {
 	return t.referenceId
@@ -167,42 +206,4 @@ func (t taskImplementationIDImpl[TaskResult]) ReferenceIDString() string {
 // This allows working with references without knowledge of their specific result types.
 func (t taskImplementationIDImpl[TaskResult]) GetUntypedReference() UntypedTaskReference {
 	return t.Ref()
-}
-
-// NewTaskReference creates a new TaskReference with the specified ID.
-// This function is used to create references to tasks that can be used in dependencies.
-// The ID cannot contain '#' as it would be confused with an implementation hash.
-// Typically used to define the interface of a task that other tasks can depend on.
-func NewTaskReference[TaskResult any](id string, opts ...ReferenceOption) TaskReference[TaskResult] {
-	if strings.Contains(id, "#") {
-		panic(fmt.Sprintf("reference id %s is invalid. It cannot contain '#' in reference ID\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", id))
-	}
-	cfg := NewDefaultPointToPointConfig()
-	for _, opt := range opts {
-		ApplyReferenceOption(&cfg, opt)
-	}
-	return taskReferenceImpl[TaskResult]{id: id, config: cfg}
-}
-
-// NewDefaultImplementationID creates a new TaskImplementationID with the "default" implementation hash.
-// This is a convenience function for creating standard task implementations.
-// The ID cannot contain '#' as the function will append "#default" to create the full implementation ID.
-// Typically used when there is only one common implementation of a task reference.
-func NewDefaultImplementationID[TaskResult any](id string) TaskImplementationID[TaskResult] {
-	if strings.Contains(id, "#") {
-		panic(fmt.Sprintf("task id %s is invalid. It cannot contain '#' in NewDefaultImplementationID. Use NewImplementationID instead to use a custom implementation hash.\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", id))
-	}
-	return taskImplementationIDImpl[TaskResult]{referenceId: id, implementationHash: "default"}
-}
-
-// NewImplementationID creates a new TaskImplementationID with a custom implementation hash.
-// This function is used when multiple different implementations of the same task reference are needed.
-// The implementation hash distinguishes between different implementations that produce the same type of result.
-// For example, a log parser task could have different implementations for different log formats,
-// but all implementations would share the same TaskReference.
-func NewImplementationID[TaskResult any](baseReference TaskReference[TaskResult], implementationHash string) TaskImplementationID[TaskResult] {
-	if strings.Contains(implementationHash, "#") {
-		panic(fmt.Sprintf("implementation hash %s is invalid. It cannot contain '#' in NewImplementationID.\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", implementationHash))
-	}
-	return taskImplementationIDImpl[TaskResult]{referenceId: baseReference.String(), implementationHash: implementationHash}
 }

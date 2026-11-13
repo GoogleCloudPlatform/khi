@@ -21,17 +21,21 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/ttlcleaner"
 )
 
 var jobIDGenerator = idgenerator.NewPrefixIDGenerator("job-")
 
+var _ ttlcleaner.ExpirableTarget[string] = (*AsyncJobManager[any, any])(nil)
+
 // JobRunner defines the signature of a long-running operation that reports progress and returns a result.
 type JobRunner[P any, R any] func(ctx context.Context, onProgress func(P) error) (R, error)
 
 // Job represents an asynchronous in-flight or completed operation.
 type Job[P any, R any] struct {
+	// ID is the unique identifier assigned to this job.
 	ID             string
 	mu             sync.RWMutex
 	cancel         context.CancelFunc
@@ -55,7 +59,50 @@ type AsyncJobManager[P any, R any] struct {
 	cleaner        *ttlcleaner.TTLCleaner[string]
 }
 
-var _ ttlcleaner.ExpirableTarget[string] = (*AsyncJobManager[any, any])(nil)
+// PollStatus represents the output returned to a polling RPC caller.
+type PollStatus[P any, R any] struct {
+	// JobID is the unique identifier of the tracked job.
+	JobID string
+	// IsDone reports whether the job has finished execution.
+	IsDone bool
+	// Progress holds the latest progress value reported by the job.
+	Progress P
+	// HasProgress reports whether at least one progress update has been recorded.
+	HasProgress bool
+	// Result holds the final return value when IsDone is true and Err is nil.
+	Result R
+	// Err holds the error returned by the job when execution fails.
+	Err error
+}
+
+// StreamJob executes a JobRunner synchronously within a streaming RPC, forwarding progress and the final result.
+func StreamJob[P any, R any, Resp any](
+	ctx context.Context,
+	stream *connect.ServerStream[Resp],
+	runner JobRunner[P, R],
+	mapProgress func(P) *Resp,
+	mapResult func(R) *Resp,
+) error {
+	res, err := runner(ctx, func(progress P) error {
+		return stream.Send(mapProgress(progress))
+	})
+	if err != nil {
+		return err
+	}
+	return stream.Send(mapResult(res))
+}
+
+// NewAsyncJobManager creates a new initialized AsyncJobManager.
+func NewAsyncJobManager[P any, R any](abandonTimeout time.Duration, retentionTTL time.Duration) *AsyncJobManager[P, R] {
+	m := &AsyncJobManager[P, R]{
+		jobs:           make(map[string]*Job[P, R]),
+		abandonTimeout: abandonTimeout,
+		retentionTTL:   retentionTTL,
+	}
+	m.cleaner = ttlcleaner.NewTTLCleaner[string](m, 10*time.Second)
+	m.cleaner.Start()
+	return m
+}
 
 // Expirations returns a snapshot of active job expiration timestamps.
 // If an in-progress job hasn't received any poll requests within abandonTimeout, its context is canceled.
@@ -86,18 +133,6 @@ func (m *AsyncJobManager[P, R]) Evict(key string) error {
 	return nil
 }
 
-// NewAsyncJobManager creates a new initialized AsyncJobManager.
-func NewAsyncJobManager[P any, R any](abandonTimeout time.Duration, retentionTTL time.Duration) *AsyncJobManager[P, R] {
-	m := &AsyncJobManager[P, R]{
-		jobs:           make(map[string]*Job[P, R]),
-		abandonTimeout: abandonTimeout,
-		retentionTTL:   retentionTTL,
-	}
-	m.cleaner = ttlcleaner.NewTTLCleaner[string](m, 10*time.Second)
-	m.cleaner.Start()
-	return m
-}
-
 // Cancel terminates a running job if it exists and returns true if canceled.
 func (m *AsyncJobManager[P, R]) Cancel(jobID string) bool {
 	m.mu.Lock()
@@ -118,33 +153,6 @@ func (m *AsyncJobManager[P, R]) Close() {
 		job.cancel()
 	}
 	m.jobs = make(map[string]*Job[P, R])
-}
-
-// StreamJob executes a JobRunner synchronously within a streaming RPC, forwarding progress and the final result.
-func StreamJob[P any, R any, Resp any](
-	ctx context.Context,
-	stream *connect.ServerStream[Resp],
-	runner JobRunner[P, R],
-	mapProgress func(P) *Resp,
-	mapResult func(R) *Resp,
-) error {
-	res, err := runner(ctx, func(progress P) error {
-		return stream.Send(mapProgress(progress))
-	})
-	if err != nil {
-		return err
-	}
-	return stream.Send(mapResult(res))
-}
-
-// PollStatus represents the output returned to a polling RPC caller.
-type PollStatus[P any, R any] struct {
-	JobID       string
-	IsDone      bool
-	Progress    P
-	HasProgress bool
-	Result      R
-	Err         error
 }
 
 // Poll handles starting a new job or retrieving the status of an existing job.

@@ -20,9 +20,10 @@ import (
 	"math"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2"
+
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"github.com/RoaringBitmap/roaring/v2"
 )
 
 // DefaultMaxTimelineNodes is the default maximum number of timeline nodes returned by SearchTimelines.
@@ -30,40 +31,58 @@ const DefaultMaxTimelineNodes = 200
 
 // TimelineTypeDescription describes a timeline type present in a TimelineTreeResult.
 type TimelineTypeDescription struct {
-	Type        string
+	// Type is the timeline type label.
+	Type string
+	// Description explains the timeline type.
 	Description string
 }
 
 // TimelineTreeNode represents a single node in the pre-order timeline hierarchy.
 type TimelineTreeNode struct {
-	ID            uint32
-	Depth         int
-	Type          string
-	Name          string
-	EventCount    int
+	// ID is the unique timeline identifier.
+	ID uint32
+	// Depth is the 0-based depth of the node in the filtered tree.
+	Depth int
+	// Type is the timeline type label.
+	Type string
+	// Name is the timeline display name.
+	Name string
+	// EventCount is the number of matched events directly on this timeline.
+	EventCount int
+	// RevisionCount is the number of matched revisions directly on this timeline.
 	RevisionCount int
 	// SeverityCounts holds the number of matched logs per severity across the timeline and its filtered descendants, from the most severe.
 	SeverityCounts []SeverityCount
 	// StateSummary summarizes the effective revision state transitions of the timeline within the applied time range.
-	StateSummary    RevisionStateSummary
+	StateSummary RevisionStateSummary
+	// OmittedChildren is the number of direct filtered children omitted by depth or node limits.
 	OmittedChildren int
-	FirstMatchTime  time.Time
-	LastMatchTime   time.Time
+	// FirstMatchTime is the earliest matched entry timestamp on this timeline.
+	FirstMatchTime time.Time
+	// LastMatchTime is the latest matched entry timestamp on this timeline.
+	LastMatchTime time.Time
 }
 
 // TimelineTreeResult contains the filtered timeline tree, summary counts, and timeline type descriptions.
 type TimelineTreeResult struct {
+	// MatchedTimelineCount is the total number of matched timelines before truncation.
 	MatchedTimelineCount int
 	// DirectMatchCount is the number of timelines in the tree that have matched events/revisions or are leaf matches.
 	DirectMatchCount int
 	// AncestorNodeCount is the number of internal ancestor nodes without their own matched events/revisions kept to form the tree.
 	AncestorNodeCount int
+	// ReturnedNodeCount is the number of nodes included in Nodes.
 	ReturnedNodeCount int
-	MaxDepth          int
-	MaxNodes          int
-	Applied           AppliedFilter
-	TimelineTypes     []TimelineTypeDescription
-	Nodes             []TimelineTreeNode
+	// MaxDepth is the applied maximum tree depth.
+	MaxDepth int
+	// MaxNodes is the applied maximum node count.
+	MaxNodes int
+	// Applied holds the resolved filter configuration.
+	Applied AppliedFilter
+	// TimelineTypes lists descriptions for the timeline types present in Nodes.
+	TimelineTypes []TimelineTypeDescription
+	// Nodes holds the selected timeline nodes in pre-order traversal.
+	Nodes []TimelineTreeNode
 	// FilterVocabulary lists the values that filter CEL can match in the inspection.
 	FilterVocabulary FilterVocabulary
 }
@@ -79,27 +98,6 @@ type nodeMetrics struct {
 	aggSeverityCounts severityCounter
 	firstNs           int64
 	lastNs            int64
-}
-
-func (m *nodeMetrics) updateTime(ts int64) {
-	if ts <= 0 {
-		return
-	}
-	if m.firstNs == -1 || ts < m.firstNs {
-		m.firstNs = ts
-	}
-	if m.lastNs == -1 || ts > m.lastNs {
-		m.lastNs = ts
-	}
-}
-
-// recordLog adds the log linked to a matched entry to the timeline's matched log set.
-func (m *nodeMetrics) recordLog(logID uint32) {
-	// Entries without a linked log have no severity.
-	if logID == 0 {
-		return
-	}
-	m.ownLogIDs.Add(logID)
 }
 
 // SearchTimelines filters timelines and builds a breadth-first truncated, pre-order rendered timeline hierarchy tree.
@@ -160,6 +158,27 @@ func (w *Workbench) SearchTimelines(ctx context.Context, filter Filter, maxDepth
 	res.TimelineTypes = timelineTypes
 	res.Nodes = nodes
 	return res, nil
+}
+
+func (m *nodeMetrics) updateTime(ts int64) {
+	if ts <= 0 {
+		return
+	}
+	if m.firstNs == -1 || ts < m.firstNs {
+		m.firstNs = ts
+	}
+	if m.lastNs == -1 || ts > m.lastNs {
+		m.lastNs = ts
+	}
+}
+
+// recordLog adds the log linked to a matched entry to the timeline's matched log set.
+func (m *nodeMetrics) recordLog(logID uint32) {
+	// Entries without a linked log have no severity.
+	if logID == 0 {
+		return
+	}
+	m.ownLogIDs.Add(logID)
 }
 
 func collectFilteredTimelineHierarchy(index *SearchIndex, filterOut *FilterOutput) ([]uint32, map[uint32][]uint32, map[uint32]*nodeMetrics) {

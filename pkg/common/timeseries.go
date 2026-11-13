@@ -21,13 +21,16 @@ import (
 
 // TimeSeriesEntry represents a value associated with a specific timestamp.
 type TimeSeriesEntry[V comparable] struct {
-	T   time.Time
+	// T is the timestamp associated with the value.
+	T time.Time
+	// Val is the value recorded at timestamp T.
 	Val V
 }
 
 // TimeSeries tracks the value of a single variable over time.
 // It is useful for cases where a value can change at different points in time.
 type TimeSeries[V comparable] struct {
+	// Entries stores the time series entries in chronological order.
 	Entries []TimeSeriesEntry[V]
 }
 

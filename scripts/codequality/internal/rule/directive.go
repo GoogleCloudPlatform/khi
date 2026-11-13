@@ -25,20 +25,40 @@ const minDirectiveReasonLen = 8
 
 // RawComment holds a 1-based line number and raw comment text (starting with // or /*).
 type RawComment struct {
-	Line int    `json:"line"`
+	// Line is the 1-based source line number of the comment.
+	Line int `json:"line"`
+	// Text is the raw comment text including comment delimiters.
 	Text string `json:"text"`
 }
 
 // Directive represents a validated // CODEQUALITY_ALLOW(...) suppression comment.
 type Directive struct {
-	CommentLine  int
-	TargetLine   int
-	Rule         RuleID
-	Category     AllowCategory
+	// CommentLine is the 1-based line number containing the directive comment.
+	CommentLine int
+	// TargetLine is the 1-based line number of the first code line following the comment.
+	TargetLine int
+	// Rule is the suppressed RuleID.
+	Rule RuleID
+	// Category is the justification AllowCategory.
+	Category AllowCategory
+	// AllOperators indicates whether the directive applies to all mutant operators.
 	AllOperators bool
-	Operators    map[MutantOperator]struct{}
-	Reason       string
-	Used         bool
+	// Operators specifies the subset of mutant operators suppressed when AllOperators is false.
+	Operators map[MutantOperator]struct{}
+	// Reason is the human-written explanation for the suppression.
+	Reason string
+	// Used records whether the directive matched at least one violation during evaluation.
+	Used bool
+}
+
+// UnusedScope defines which file, stages, and target source lines were evaluated during a run.
+type UnusedScope struct {
+	// File is the slash-separated relative path of the evaluated file.
+	File string
+	// IncludeDynamic indicates whether StageDynamic rules were evaluated.
+	IncludeDynamic bool
+	// EvaluatedLines contains 1-based line numbers covered by the evaluation.
+	EvaluatedLines map[int]struct{}
 }
 
 // ParseDirectives extracts and validates all CODEQUALITY_ALLOW comments in a Go AST file.
@@ -60,6 +80,77 @@ func ParseDirectives(relPath string, fset *token.FileSet, file *ast.File, src []
 func ParseDirectivesFromComments(relPath string, comments []RawComment, src []byte) ([]Directive, []DirectiveError) {
 	codeMask := buildRawSourceCodeMask(src, comments)
 	return parseDirectivesWithMask(relPath, comments, codeMask)
+}
+
+// BuildCodeLineMask returns a 1-indexed boolean slice marking lines that contain non-comment, non-blank Go source.
+func BuildCodeLineMask(fset *token.FileSet, file *ast.File, src []byte) []bool {
+	stripped := make([]byte, len(src))
+	copy(stripped, src)
+	tf := fset.File(file.Pos())
+	for _, cg := range file.Comments {
+		for _, c := range cg.List {
+			blankCommentSpan(tf, stripped, c)
+		}
+	}
+	lines := strings.Split(string(stripped), "\n")
+	mask := make([]bool, len(lines)+1)
+	for i, line := range lines {
+		mask[i+1] = strings.TrimSpace(line) != ""
+	}
+	return mask
+}
+
+// MatchDeclDirective finds and marks used a CODEQUALITY_ALLOW directive for id targeting declStartLine.
+func MatchDeclDirective(directives []Directive, id RuleID, declStartLine int) *Directive {
+	for i := range directives {
+		d := &directives[i]
+		if d.Rule == id && (d.TargetLine == declStartLine || d.CommentLine == declStartLine) {
+			d.Used = true
+			return d
+		}
+	}
+	return nil
+}
+
+// MatchLineDirective finds and marks used a CODEQUALITY_ALLOW directive for id targeting line (and op when non-empty).
+func MatchLineDirective(directives []Directive, id RuleID, line int, op MutantOperator) *Directive {
+	for i := range directives {
+		d := &directives[i]
+		if d.Rule != id || (d.TargetLine != line && d.CommentLine != line) {
+			continue
+		}
+		if op != "" && !d.AllOperators {
+			if _, ok := d.Operators[op]; !ok {
+				continue
+			}
+		}
+		d.Used = true
+		return d
+	}
+	return nil
+}
+
+// CollectUnusedDirectives returns errors for unused directives within scope.
+func CollectUnusedDirectives(directives []Directive, scope UnusedScope) []DirectiveError {
+	var errs []DirectiveError
+	for _, d := range directives {
+		if d.Used {
+			continue
+		}
+		spec, _ := LookupRuleSpec(d.Rule)
+		if !scope.IncludeDynamic && spec.Stage == StageDynamic {
+			continue
+		}
+		if _, inScope := scope.EvaluatedLines[d.TargetLine]; !inScope {
+			continue
+		}
+		errs = append(errs, DirectiveError{
+			File:    scope.File,
+			Line:    d.CommentLine,
+			Message: fmt.Sprintf("unused CODEQUALITY_ALLOW(%s, %s): target has no suppressible HARD_LIMIT violation", d.Rule, d.Category),
+		})
+	}
+	return errs
 }
 
 func parseDirectivesWithMask(relPath string, comments []RawComment, codeMask []bool) ([]Directive, []DirectiveError) {
@@ -95,24 +186,6 @@ func buildRawSourceCodeMask(src []byte, comments []RawComment) []bool {
 		}
 		trimmed := strings.TrimSpace(line)
 		mask[ln] = trimmed != "" && !strings.HasPrefix(trimmed, "//")
-	}
-	return mask
-}
-
-// BuildCodeLineMask returns a 1-indexed boolean slice marking lines that contain non-comment, non-blank Go source.
-func BuildCodeLineMask(fset *token.FileSet, file *ast.File, src []byte) []bool {
-	stripped := make([]byte, len(src))
-	copy(stripped, src)
-	tf := fset.File(file.Pos())
-	for _, cg := range file.Comments {
-		for _, c := range cg.List {
-			blankCommentSpan(tf, stripped, c)
-		}
-	}
-	lines := strings.Split(string(stripped), "\n")
-	mask := make([]bool, len(lines)+1)
-	for i, line := range lines {
-		mask[i+1] = strings.TrimSpace(line) != ""
 	}
 	return mask
 }
@@ -264,64 +337,4 @@ func isForbiddenInvariantCategory(raw string) bool {
 	default:
 		return false
 	}
-}
-
-// MatchDeclDirective finds and marks used a CODEQUALITY_ALLOW directive for id targeting declStartLine.
-func MatchDeclDirective(directives []Directive, id RuleID, declStartLine int) *Directive {
-	for i := range directives {
-		d := &directives[i]
-		if d.Rule == id && (d.TargetLine == declStartLine || d.CommentLine == declStartLine) {
-			d.Used = true
-			return d
-		}
-	}
-	return nil
-}
-
-// MatchLineDirective finds and marks used a CODEQUALITY_ALLOW directive for id targeting line (and op when non-empty).
-func MatchLineDirective(directives []Directive, id RuleID, line int, op MutantOperator) *Directive {
-	for i := range directives {
-		d := &directives[i]
-		if d.Rule != id || (d.TargetLine != line && d.CommentLine != line) {
-			continue
-		}
-		if op != "" && !d.AllOperators {
-			if _, ok := d.Operators[op]; !ok {
-				continue
-			}
-		}
-		d.Used = true
-		return d
-	}
-	return nil
-}
-
-// UnusedScope defines which file, stages, and target source lines were evaluated during a run.
-type UnusedScope struct {
-	File           string
-	IncludeDynamic bool
-	EvaluatedLines map[int]struct{}
-}
-
-// CollectUnusedDirectives returns errors for unused directives within scope.
-func CollectUnusedDirectives(directives []Directive, scope UnusedScope) []DirectiveError {
-	var errs []DirectiveError
-	for _, d := range directives {
-		if d.Used {
-			continue
-		}
-		spec, _ := LookupRuleSpec(d.Rule)
-		if !scope.IncludeDynamic && spec.Stage == StageDynamic {
-			continue
-		}
-		if _, inScope := scope.EvaluatedLines[d.TargetLine]; !inScope {
-			continue
-		}
-		errs = append(errs, DirectiveError{
-			File:    scope.File,
-			Line:    d.CommentLine,
-			Message: fmt.Sprintf("unused CODEQUALITY_ALLOW(%s, %s): target has no suppressible HARD_LIMIT violation", d.Rule, d.Category),
-		})
-	}
-	return errs
 }

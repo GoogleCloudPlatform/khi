@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strings"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
@@ -32,7 +34,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"golang.org/x/sync/errgroup"
 )
 
 const containerdStartingMsg = "starting containerd"
@@ -162,6 +163,40 @@ var podSandboxIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	},
 )
 
+// containerdLogLogToTimelineMapperTask maps containerd logs to timelines.
+var containerdLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8snode.ContainerdLogLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8snode.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8snode.ContainerdLogGroupTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &containerdLogTimelineMapper{
+			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
+			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
+			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
+			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
+		}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*containerdLogTimelineMapper)(nil)
+
+// containerdLogTimelineMapper maps containerd logs to the timelines of their node component and of the pods, containers, and resources they mention.
+type containerdLogTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+	clusterIdentity          coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	podSandboxIDFinder       coretask.Input[patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]]
+	containerIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]]
+	resourceUIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
+}
+
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (c *containerdLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapContainerdLog(ctx, l, c.clusterIdentity.Get(ctx), c.podSandboxIDFinder.Get(ctx), c.containerIDPatternFinder.Get(ctx), c.resourceUIDPatternFinder.Get(ctx))
+	return cs, struct{}{}, err
+}
+
 func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]) {
 	componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil || componentFieldSet.Message == nil {
@@ -258,23 +293,6 @@ func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (
 	return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 }
 
-// containerdLogTimelineMapper maps containerd logs to the timelines of their node component and of the pods, containers, and resources they mention.
-type containerdLogTimelineMapper struct {
-	inspectiontaskbase.StatelessMapperBase
-	clusterIdentity          coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	podSandboxIDFinder       coretask.Input[patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]]
-	containerIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ContainerIdentity]]
-	resourceUIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
-func (c *containerdLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	cs, err := mapContainerdLog(ctx, l, c.clusterIdentity.Get(ctx), c.podSandboxIDFinder.Get(ctx), c.containerIDPatternFinder.Get(ctx), c.resourceUIDPatternFinder.Get(ctx))
-	return cs, struct{}{}, err
-}
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*containerdLogTimelineMapper)(nil)
-
 // mapContainerdLog adds events for a containerd log to the timeline of its node component and to the timelines of the pods, containers, and resources it mentions.
 // It also adds a revision to the component timeline when the log marks the start or the stop of containerd.
 func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
@@ -297,20 +315,3 @@ func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon
 
 	return cs, nil
 }
-
-// containerdLogLogToTimelineMapperTask maps containerd logs to timelines.
-var containerdLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8snode.ContainerdLogLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8snode.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8snode.ContainerdLogGroupTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &containerdLogTimelineMapper{
-			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
-			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
-			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
-			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
-		}
-	},
-)

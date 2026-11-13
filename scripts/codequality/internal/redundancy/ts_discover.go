@@ -27,44 +27,67 @@ import (
 
 // RawTSSpecCase represents a Jasmine spec declaration extracted by mutate_ts.js from a *.spec.ts file.
 type RawTSSpecCase struct {
-	FullName         string `json:"fullName"`
-	Line             int    `json:"line"`
-	StartLine        int    `json:"startLine"`
-	EndLine          int    `json:"endLine"`
-	ItStartLine      int    `json:"itStartLine"`
-	ItEndLine        int    `json:"itEndLine"`
-	SuiteHeaderLines []int  `json:"suiteHeaderLines"`
-	WeakAssertion    bool   `json:"weakAssertion"`
+	// FullName is the full Jasmine spec title path.
+	FullName string `json:"fullName"`
+	// Line is the 1-based line number of the spec declaration.
+	Line int `json:"line"`
+	// StartLine is the 1-based starting line of the spec block.
+	StartLine int `json:"startLine"`
+	// EndLine is the 1-based ending line of the spec block.
+	EndLine int `json:"endLine"`
+	// ItStartLine is the 1-based starting line of the it(...) call.
+	ItStartLine int `json:"itStartLine"`
+	// ItEndLine is the 1-based ending line of the it(...) call.
+	ItEndLine int `json:"itEndLine"`
+	// SuiteHeaderLines lists 1-based header lines of enclosing describe(...) suites.
+	SuiteHeaderLines []int `json:"suiteHeaderLines"`
+	// WeakAssertion reports whether the spec only uses weak assertions.
+	WeakAssertion bool `json:"weakAssertion"`
 }
 
 // ChangedTSSpec holds source location and diff membership for a Jasmine spec in a modified *.spec.ts file.
 type ChangedTSSpec struct {
-	File          string
-	FullName      string
-	Line          int
-	InDiff        bool
+	// File is the slash-separated relative path of the spec file.
+	File string
+	// FullName is the full Jasmine spec title path.
+	FullName string
+	// Line is the 1-based line number of the spec declaration.
+	Line int
+	// InDiff reports whether the spec overlaps the modified line set.
+	InDiff bool
+	// WeakAssertion reports whether the spec only uses weak assertions.
 	WeakAssertion bool
 }
 
 // TSSpecOrderEntry identifies a single executed Jasmine spec in Pass 0 execution order.
 type TSSpecOrderEntry struct {
-	ID       string `json:"id"`
+	// ID is the Jasmine spec identifier.
+	ID string `json:"id"`
+	// FullName is the full Jasmine spec title path.
 	FullName string `json:"fullName"`
 }
 
 // TSMutantSpecRun records which Jasmine spec IDs ran and failed during a single mutant evaluation pass.
 type TSMutantSpecRun struct {
-	RanSpecIDs    []string `json:"ranSpecIds"`
+	// RanSpecIDs lists Jasmine spec IDs executed during the mutant pass.
+	RanSpecIDs []string `json:"ranSpecIds"`
+	// FailedSpecIDs lists Jasmine spec IDs that failed during the mutant pass.
 	FailedSpecIDs []string `json:"failedSpecIds"`
 }
 
 // TSAnalyzeInput bundles Jasmine spec execution order, polarity traces, and per-mutant failure sets.
 type TSAnalyzeInput struct {
-	ChangedSpecs         []ChangedTSSpec
-	SpecOrder            []TSSpecOrderEntry
-	SpecPolarities       map[string][]string
-	MutantRuns           map[string]TSMutantSpecRun
-	MutantFileByID       map[int]string
+	// ChangedSpecs lists Jasmine specs extracted from modified spec files.
+	ChangedSpecs []ChangedTSSpec
+	// SpecOrder lists executed Jasmine specs in Pass 0 order.
+	SpecOrder []TSSpecOrderEntry
+	// SpecPolarities maps Jasmine spec IDs to observed polarity tokens.
+	SpecPolarities map[string][]string
+	// MutantRuns maps mutant IDs to spec execution outcomes.
+	MutantRuns map[string]TSMutantSpecRun
+	// MutantFileByID maps mutant and probe IDs to production TypeScript file paths.
+	MutantFileByID map[int]string
+	// BudgetSkippedMutants holds mutant IDs skipped due to budget or timeout limits.
 	BudgetSkippedMutants map[int]struct{}
 }
 
@@ -92,21 +115,6 @@ func DiscoverChangedTSSpecs(filePath string, specCases []RawTSSpecCase, changedL
 		return nil
 	}
 	return out
-}
-
-func isTSSpecInDiff(sc RawTSSpecCase, changedLines map[int]struct{}) bool {
-	return astcheck.OverlapsLines(sc.StartLine, sc.EndLine, changedLines) ||
-		astcheck.OverlapsLines(sc.ItStartLine, sc.ItEndLine, changedLines) ||
-		anyLineInSet(sc.SuiteHeaderLines, changedLines)
-}
-
-func anyLineInSet(lines []int, set map[int]struct{}) bool {
-	for _, line := range lines {
-		if _, ok := set[line]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 // IsSubjectMutantForTSSpec reports whether prodFile belongs to the directory or subtree under test of specFile.
@@ -142,6 +150,21 @@ func AnalyzeTS(in TSAnalyzeInput) []FuncRedundancy {
 		}
 	}
 	return out
+}
+
+func isTSSpecInDiff(sc RawTSSpecCase, changedLines map[int]struct{}) bool {
+	return astcheck.OverlapsLines(sc.StartLine, sc.EndLine, changedLines) ||
+		astcheck.OverlapsLines(sc.ItStartLine, sc.ItEndLine, changedLines) ||
+		anyLineInSet(sc.SuiteHeaderLines, changedLines)
+}
+
+func anyLineInSet(lines []int, set map[int]struct{}) bool {
+	for _, line := range lines {
+		if _, ok := set[line]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func groupTSSpecsByName(specs []ChangedTSSpec) map[string][]ChangedTSSpec {

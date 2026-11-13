@@ -26,6 +26,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// setFormNotStringArrayHint is the validation error of a set form given a value that is not an array of strings.
+const setFormNotStringArrayHint = "The value must be an array of strings."
+
 // SetFormValidator is a function to check if the given value is valid or not.
 type SetFormValidator = func(ctx context.Context, value []string) (string, error)
 
@@ -38,11 +41,33 @@ type SetFormOptionsProvider = func(ctx context.Context, previousValues []string)
 // SetFormValueConverter is a function type to convert the given string slice value to another type stored in the variable set.
 type SetFormValueConverter[T any] = func(ctx context.Context, value []string) (T, error)
 
-// SetFormHintGenerator is a function type to generate a hint string
+// SetFormHintGenerator is a function type to generate a hint string.
 type SetFormHintGenerator = func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error)
 
 // SetFormBoolProvider is a function type to provide boolean flags dynamically.
 type SetFormBoolProvider = func(ctx context.Context) (bool, error)
+
+// SetFormSpec holds the optional settings of a set form defined with DefineSetForm.
+// Callbacks may read inputs declared on the Binder passed to the bind function.
+// A nil callback or a zero value uses the default.
+type SetFormSpec[T any] struct {
+	// AllowCustomValue reports whether users can input custom values. Defaults to false.
+	AllowCustomValue SetFormBoolProvider
+	// DisableAddAll reports whether the "Add All" option is disabled. Defaults to false.
+	DisableAddAll SetFormBoolProvider
+	// DisableRemoveAll reports whether the "Remove All" option is disabled. Defaults to false.
+	DisableRemoveAll SetFormBoolProvider
+	// DefaultValue generates the default value of the set form. Defaults to nil.
+	DefaultValue SetFormDefaultValueGenerator
+	// Options provides the available options for the set form. Defaults to an empty slice.
+	Options SetFormOptionsProvider
+	// Validator validates the input string slice. Defaults to a validator that accepts any input.
+	Validator SetFormValidator
+	// Converter converts the input string slice to T. Defaults to a conversion that only works when T is []string.
+	Converter SetFormValueConverter[T]
+	// Hint generates a hint message for the form field. Defaults to no hint.
+	Hint SetFormHintGenerator
+}
 
 // setFormTask holds the settings of a set form task defined with DefineSetForm.
 type setFormTask[T any] struct {
@@ -55,6 +80,41 @@ type setFormTask[T any] struct {
 	allowCustomValue SetFormBoolProvider
 	disableAddAll    SetFormBoolProvider
 	disableRemoveAll SetFormBoolProvider
+}
+
+// DefineSetForm defines a set form task with a Binder.
+// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
+// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
+func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) SetFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
+	form := newSetFormTask(id, priority, label, description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
+		form.applySpec(bind(b))
+		return form.run
+	}, form.formLabelOpts(labelOpts)...)
+}
+
+// ConstantBool returns a SetFormBoolProvider that always returns value.
+func ConstantBool(value bool) SetFormBoolProvider {
+	return func(ctx context.Context) (bool, error) {
+		return value, nil
+	}
+}
+
+// ConstantOptions returns a SetFormOptionsProvider that always returns options.
+func ConstantOptions(options ...inspectionmetadata.SetParameterFormFieldOptionItem) SetFormOptionsProvider {
+	return func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+		return options, nil
+	}
+}
+
+// PreviousOrConstantDefaultValue returns a SetFormDefaultValueGenerator that returns the previous values when they exist, otherwise values.
+func PreviousOrConstantDefaultValue(values []string) SetFormDefaultValueGenerator {
+	return func(ctx context.Context, previousValues []string) ([]string, error) {
+		if len(previousValues) > 0 {
+			return previousValues, nil
+		}
+		return values, nil
+	}
 }
 
 // newSetFormTask creates a set form task with the default settings described in SetFormSpec.
@@ -83,30 +143,6 @@ func newSetFormTask[T any](id taskid.TaskImplementationID[T], priority int, labe
 		allowCustomValue: func(ctx context.Context) (bool, error) { return false, nil },
 		disableAddAll:    func(ctx context.Context) (bool, error) { return false, nil },
 		disableRemoveAll: func(ctx context.Context) (bool, error) { return false, nil },
-	}
-}
-
-// setFormNotStringArrayHint is the validation error of a set form given a value that is not an array of strings.
-const setFormNotStringArrayHint = "The value must be an array of strings."
-
-// toStringSlice converts a request value to a string slice.
-// JSON decoding gives []any and MCP parameters give []string; it returns false for any other value.
-func toStringSlice(value any) ([]string, bool) {
-	switch v := value.(type) {
-	case []string:
-		return v, true
-	case []any:
-		strs := make([]string, len(v))
-		for i, elem := range v {
-			str, ok := elem.(string)
-			if !ok {
-				return nil, false
-			}
-			strs[i] = str
-		}
-		return strs, true
-	default:
-		return nil, false
 	}
 }
 
@@ -219,28 +255,6 @@ func (b *setFormTask[T]) run(ctx context.Context) (T, error) {
 	return convertedValue, nil
 }
 
-// SetFormSpec holds the optional settings of a set form defined with DefineSetForm.
-// Callbacks may read inputs declared on the Binder passed to the bind function.
-// A nil callback or a zero value uses the default.
-type SetFormSpec[T any] struct {
-	// AllowCustomValue reports whether users can input custom values. Defaults to false.
-	AllowCustomValue SetFormBoolProvider
-	// DisableAddAll reports whether the "Add All" option is disabled. Defaults to false.
-	DisableAddAll SetFormBoolProvider
-	// DisableRemoveAll reports whether the "Remove All" option is disabled. Defaults to false.
-	DisableRemoveAll SetFormBoolProvider
-	// DefaultValue generates the default value of the set form. Defaults to nil.
-	DefaultValue SetFormDefaultValueGenerator
-	// Options provides the available options for the set form. Defaults to an empty slice.
-	Options SetFormOptionsProvider
-	// Validator validates the input string slice. Defaults to a validator that accepts any input.
-	Validator SetFormValidator
-	// Converter converts the input string slice to T. Defaults to a conversion that only works when T is []string.
-	Converter SetFormValueConverter[T]
-	// Hint generates a hint message for the form field. Defaults to no hint.
-	Hint SetFormHintGenerator
-}
-
 func (b *setFormTask[T]) applySpec(spec SetFormSpec[T]) {
 	if spec.AllowCustomValue != nil {
 		b.allowCustomValue = spec.AllowCustomValue
@@ -268,37 +282,23 @@ func (b *setFormTask[T]) applySpec(spec SetFormSpec[T]) {
 	}
 }
 
-// DefineSetForm defines a set form task with a Binder.
-// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
-// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
-func DefineSetForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) SetFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
-	form := newSetFormTask(id, priority, label, description)
-	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
-		form.applySpec(bind(b))
-		return form.run
-	}, form.formLabelOpts(labelOpts)...)
-}
-
-// ConstantBool returns a SetFormBoolProvider that always returns value.
-func ConstantBool(value bool) SetFormBoolProvider {
-	return func(ctx context.Context) (bool, error) {
-		return value, nil
-	}
-}
-
-// ConstantOptions returns a SetFormOptionsProvider that always returns options.
-func ConstantOptions(options ...inspectionmetadata.SetParameterFormFieldOptionItem) SetFormOptionsProvider {
-	return func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
-		return options, nil
-	}
-}
-
-// PreviousOrConstantDefaultValue returns a SetFormDefaultValueGenerator that returns the previous values when they exist, otherwise values.
-func PreviousOrConstantDefaultValue(values []string) SetFormDefaultValueGenerator {
-	return func(ctx context.Context, previousValues []string) ([]string, error) {
-		if len(previousValues) > 0 {
-			return previousValues, nil
+// toStringSlice converts a request value to a string slice.
+// JSON decoding gives []any and MCP parameters give []string; it returns false for any other value.
+func toStringSlice(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		return v, true
+	case []any:
+		strs := make([]string, len(v))
+		for i, elem := range v {
+			str, ok := elem.(string)
+			if !ok {
+				return nil, false
+			}
+			strs[i] = str
 		}
-		return values, nil
+		return strs, true
+	default:
+		return nil, false
 	}
 }

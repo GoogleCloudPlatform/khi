@@ -30,10 +30,82 @@ import (
 
 // KarmaCoverageRequest configures an Angular Karma coverage execution.
 type KarmaCoverageRequest struct {
-	RepoRoot    string
-	Plan        gotestutil.TSTestPlan
+	// RepoRoot is the repository root directory path.
+	RepoRoot string
+	// Plan specifies the differential Karma spec execution plan.
+	Plan gotestutil.TSTestPlan
+	// CoverageDir is the output directory for Istanbul coverage reports.
 	CoverageDir string
-	ErrOut      io.Writer
+	// ErrOut receives Karma command output on failure.
+	ErrOut io.Writer
+}
+
+// RunTSTestCoverage executes Angular Karma tests with coverage output written to req.CoverageDir.
+func RunTSTestCoverage(ctx context.Context, req KarmaCoverageRequest) error {
+	if req.Plan.SkipKarma {
+		return nil
+	}
+	port, err := gotestutil.PickKarmaPort(ctx)
+	if err != nil {
+		return err
+	}
+	ngArgs := buildKarmaCoverageArgs(req.Plan.IncludeSpecs)
+
+	var cmd *exec.Cmd
+	if gotestutil.IsContainerExecutionEnabled() {
+		cmd, err = buildContainerKarmaCoverageCommand(ctx, req.RepoRoot, req.CoverageDir, port, ngArgs)
+		if err != nil {
+			return err
+		}
+	} else {
+		cmd = exec.CommandContext(ctx, "npx", ngArgs...)
+		cmd.Dir = filepath.Join(req.RepoRoot, "web")
+		cmd.Env = append(os.Environ(), "KARMA_PORT="+port, "KARMA_COVERAGE_DIR="+req.CoverageDir)
+	}
+
+	var combined bytes.Buffer
+	cmd.Stdout = &combined
+	cmd.Stderr = &combined
+	if err := cmd.Run(); err != nil {
+		if req.ErrOut != nil {
+			_, _ = io.Copy(req.ErrOut, &combined)
+		}
+		return fmt.Errorf("ng test failed (npx %s): %w", strings.Join(ngArgs, " "), err)
+	}
+	return nil
+}
+
+// SupplementMissingTSCoverage populates zero-hit Istanbul coverage entries for unimported changed TypeScript files.
+func SupplementMissingTSCoverage(
+	ctx context.Context,
+	repoRoot string,
+	changedTSFiles []string,
+	covByFile map[string]gotestutil.IstanbulFileCoverage,
+) error {
+	missing := collectUnimportedTSFiles(repoRoot, changedTSFiles, covByFile)
+	if len(missing) == 0 {
+		return nil
+	}
+	scriptPath, err := resolveTSHelperScriptPath(repoRoot, "zero_hit_ts.js")
+	if err != nil {
+		return err
+	}
+	args := make([]string, 0, 2+len(missing))
+	args = append(args, scriptPath, repoRoot)
+	args = append(args, missing...)
+
+	outBytes, err := gotestutil.RunCommandOutput(ctx, repoRoot, "node", args...)
+	if err != nil {
+		return fmt.Errorf("failed to generate zero-hit TypeScript coverage: %w", err)
+	}
+	supplemented, err := gotestutil.ParseIstanbulCoverageJSON(bytes.NewReader(outBytes), repoRoot)
+	if err != nil {
+		return err
+	}
+	for file, fc := range supplemented {
+		covByFile[file] = fc
+	}
+	return nil
 }
 
 func loadOrRunTSCoverage(ctx context.Context, opts Options) (map[string]gotestutil.IstanbulFileCoverage, bool, error) {
@@ -105,41 +177,6 @@ func executeFreshKarmaCoverage(
 	return loaded, true, nil
 }
 
-// RunTSTestCoverage executes Angular Karma tests with coverage output written to req.CoverageDir.
-func RunTSTestCoverage(ctx context.Context, req KarmaCoverageRequest) error {
-	if req.Plan.SkipKarma {
-		return nil
-	}
-	port, err := gotestutil.PickKarmaPort(ctx)
-	if err != nil {
-		return err
-	}
-	ngArgs := buildKarmaCoverageArgs(req.Plan.IncludeSpecs)
-
-	var cmd *exec.Cmd
-	if gotestutil.IsContainerExecutionEnabled() {
-		cmd, err = buildContainerKarmaCoverageCommand(ctx, req.RepoRoot, req.CoverageDir, port, ngArgs)
-		if err != nil {
-			return err
-		}
-	} else {
-		cmd = exec.CommandContext(ctx, "npx", ngArgs...)
-		cmd.Dir = filepath.Join(req.RepoRoot, "web")
-		cmd.Env = append(os.Environ(), "KARMA_PORT="+port, "KARMA_COVERAGE_DIR="+req.CoverageDir)
-	}
-
-	var combined bytes.Buffer
-	cmd.Stdout = &combined
-	cmd.Stderr = &combined
-	if err := cmd.Run(); err != nil {
-		if req.ErrOut != nil {
-			_, _ = io.Copy(req.ErrOut, &combined)
-		}
-		return fmt.Errorf("ng test failed (npx %s): %w", strings.Join(ngArgs, " "), err)
-	}
-	return nil
-}
-
 func buildKarmaCoverageArgs(includeSpecs []string) []string {
 	ngArgs := make([]string, 0, 6+len(includeSpecs))
 	ngArgs = append(ngArgs,
@@ -191,39 +228,6 @@ func buildContainerKarmaCoverageCommand(
 	cmd := exec.CommandContext(ctx, containerCmd, args...)
 	cmd.Dir = absRepo
 	return cmd, nil
-}
-
-// SupplementMissingTSCoverage populates zero-hit Istanbul coverage entries for unimported changed TypeScript files.
-func SupplementMissingTSCoverage(
-	ctx context.Context,
-	repoRoot string,
-	changedTSFiles []string,
-	covByFile map[string]gotestutil.IstanbulFileCoverage,
-) error {
-	missing := collectUnimportedTSFiles(repoRoot, changedTSFiles, covByFile)
-	if len(missing) == 0 {
-		return nil
-	}
-	scriptPath, err := resolveTSHelperScriptPath(repoRoot, "zero_hit_ts.js")
-	if err != nil {
-		return err
-	}
-	args := make([]string, 0, 2+len(missing))
-	args = append(args, scriptPath, repoRoot)
-	args = append(args, missing...)
-
-	outBytes, err := gotestutil.RunCommandOutput(ctx, repoRoot, "node", args...)
-	if err != nil {
-		return fmt.Errorf("failed to generate zero-hit TypeScript coverage: %w", err)
-	}
-	supplemented, err := gotestutil.ParseIstanbulCoverageJSON(bytes.NewReader(outBytes), repoRoot)
-	if err != nil {
-		return err
-	}
-	for file, fc := range supplemented {
-		covByFile[file] = fc
-	}
-	return nil
 }
 
 func collectUnimportedTSFiles(

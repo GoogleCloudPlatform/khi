@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeResourceCondition is the timeline type style for Kubernetes resource status conditions.
 	TimelineTypeResourceCondition = style.MustRegisterTimelineType(
 		"condition",
 		"Status conditions of the resource (from .status.conditions)",
@@ -35,6 +36,7 @@ var (
 		2000,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeEndpointSlice is the timeline type style for Kubernetes EndpointSlice serving statuses.
 	TimelineTypeEndpointSlice = style.MustRegisterTimelineType(
 		"endpoint",
 		"Pod serving status (from EndpointSlice)",
@@ -48,6 +50,7 @@ var (
 		20000,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeOwnerReference is the timeline type style for child resources referenced via ownerReferences.
 	TimelineTypeOwnerReference = style.MustRegisterTimelineType(
 		"owns",
 		"Child resources owned by the resource (from .metadata.ownerReferences)",
@@ -61,6 +64,7 @@ var (
 		7000,
 		style.GroupedChronologicalSortPolicy("-"),
 	)
+	// TimelineTypePodPhase is the timeline type style for Kubernetes Pod phase transitions.
 	TimelineTypePodPhase = style.MustRegisterTimelineType(
 		"pod",
 		"Phase transitions of the pod (from .status.phase)",

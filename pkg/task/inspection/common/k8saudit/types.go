@@ -23,34 +23,83 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
-type ResourceIdentityType int
-
 const (
-	// Namespace indicates the resource is entire specific resource in a namespace
+	// Namespace indicates the resource is entire specific resource in a namespace.
 	Namespace ResourceIdentityType = iota
-	// Resource indicates the resource is specific resource in a namespace
+	// Resource indicates the resource is specific resource in a namespace.
 	Resource
-	// Subresource indicates the resource is specific subresource of a resource
+	// Subresource indicates the resource is specific subresource of a resource.
 	Subresource
 )
 
+var _ resourcelease.LeaseHolder = (*ResourceIdentity)(nil)
+
+// ResourceIdentityType classifies the scope level of a ResourceIdentity.
+type ResourceIdentityType int
+
 // ResourceIdentity represents the identity of a kubernetes resource.
 type ResourceIdentity struct {
-	APIVersion      string
-	Kind            string
-	Name            string
-	Namespace       string
+	// APIVersion is the API group and version of the resource (e.g., "core/v1").
+	APIVersion string
+	// Kind is the singular lowercase resource kind (e.g., "pod").
+	Kind string
+	// Name is the resource name, or empty for namespace-wide identities.
+	Name string
+	// Namespace is the resource namespace, or empty for cluster-scoped resources.
+	Namespace string
+	// SubresourceName is the subresource name if applicable (e.g., "status").
 	SubresourceName string
 }
 
-// Equals implements resourcelease.LeaseHolder.
-func (r *ResourceIdentity) Equals(holder resourcelease.LeaseHolder) bool {
-	if castedHolder, ok := holder.(*ResourceIdentity); ok {
-		return r.APIVersion == castedHolder.APIVersion && r.Kind == castedHolder.Kind && r.Name == castedHolder.Name && r.Namespace == castedHolder.Namespace && r.SubresourceName == castedHolder.SubresourceName
-	}
-	return false
+// ContainerIdentity represents the identity of a container and its owning pod.
+type ContainerIdentity struct {
+	// ContainerID is the runtime container identifier.
+	ContainerID string
+	// ContainerName is the name of the container within the pod.
+	ContainerName string
+	// PodSandboxID is the runtime pod sandbox identifier.
+	PodSandboxID string
+	// PodNamespace is the namespace of the owning pod.
+	PodNamespace string
+	// PodName is the name of the owning pod.
+	PodName string
 }
 
+// ResourceLogGroup is the group of the logs associated with k8s resource.
+type ResourceLogGroup struct {
+	// Resource is the resource identity.
+	Resource *ResourceIdentity
+	// Logs is the list of the logs associated with the resource.
+	Logs []*log.Log
+}
+
+// ResourceLogGroupMap is the map of the resource log groups.
+type ResourceLogGroupMap = map[string]*ResourceLogGroup
+
+// ResourceManifestLog is the log with the resource manifest information.
+type ResourceManifestLog struct {
+	// Log is the log.
+	Log *log.Log
+	// ResourceBodyReader is the reader for the resource body.
+	ResourceBodyReader *structured.NodeReader
+	// ResourceCreated is true if the resource is created.
+	ResourceCreated bool
+	// ResourceDeleted is true if the resource is deleted.
+	ResourceDeleted bool
+}
+
+// ResourceManifestLogGroup is the group of the resource change logs.
+type ResourceManifestLogGroup struct {
+	// Resource is the resource identity.
+	Resource *ResourceIdentity
+	// Logs is the list of the resource change logs.
+	Logs []*ResourceManifestLog
+}
+
+// ResourceManifestLogGroupMap is the map of the resource change log groups.
+type ResourceManifestLogGroupMap = map[string]*ResourceManifestLogGroup
+
+// ResourceIdentityFromKubernetesOperation builds a ResourceIdentity from a KubernetesObjectOperation.
 func ResourceIdentityFromKubernetesOperation(op *model.KubernetesObjectOperation) *ResourceIdentity {
 	return &ResourceIdentity{
 		APIVersion:      op.APIVersion,
@@ -59,6 +108,14 @@ func ResourceIdentityFromKubernetesOperation(op *model.KubernetesObjectOperation
 		Namespace:       op.Namespace,
 		SubresourceName: op.SubResourceName,
 	}
+}
+
+// Equals implements resourcelease.LeaseHolder.
+func (r *ResourceIdentity) Equals(holder resourcelease.LeaseHolder) bool {
+	if castedHolder, ok := holder.(*ResourceIdentity); ok {
+		return r.APIVersion == castedHolder.APIVersion && r.Kind == castedHolder.Kind && r.Name == castedHolder.Name && r.Namespace == castedHolder.Namespace && r.SubresourceName == castedHolder.SubresourceName
+	}
+	return false
 }
 
 // Type returns the type of the resource identity.
@@ -129,17 +186,6 @@ func (r *ResourceIdentity) SummaryTag() string {
 	return fmt.Sprintf("【%s (Namespace: %s, APIVersion: %s, Kind: %s)】", r.Name, r.Namespace, r.APIVersion, r.Kind)
 }
 
-var _ resourcelease.LeaseHolder = (*ResourceIdentity)(nil)
-
-// ContainerIdentity represents the identity of a container and its owning pod.
-type ContainerIdentity struct {
-	ContainerID   string
-	ContainerName string
-	PodSandboxID  string
-	PodNamespace  string
-	PodName       string
-}
-
 // Merge combines two ContainerIdentity instances, preferring non-empty fields from other.
 func (c *ContainerIdentity) Merge(other *ContainerIdentity) *ContainerIdentity {
 	result := *c
@@ -160,37 +206,3 @@ func (c *ContainerIdentity) Merge(other *ContainerIdentity) *ContainerIdentity {
 	}
 	return &result
 }
-
-// ResourceLogGroup is the group of the logs associated with k8s resource.
-type ResourceLogGroup struct {
-	// Resource is the resource identity.
-	Resource *ResourceIdentity
-	// Logs is the list of the logs associated with the resource.
-	Logs []*log.Log
-}
-
-// ResourceLogGroupMap is the map of the resource log groups.
-type ResourceLogGroupMap = map[string]*ResourceLogGroup
-
-// ResourceManifestLog is the log with the resource manifest information.
-type ResourceManifestLog struct {
-	// Log is the log.
-	Log *log.Log
-	// ResourceBodyReader is the reader for the resource body.
-	ResourceBodyReader *structured.NodeReader
-	// ResourceCreated is true if the resource is created.
-	ResourceCreated bool
-	// ResourceDeleted is true if the resource is deleted.
-	ResourceDeleted bool
-}
-
-// ResourceManifestLogGroup is the group of the resource change logs.
-type ResourceManifestLogGroup struct {
-	// Resource is the resource identity.
-	Resource *ResourceIdentity
-	// Logs is the list of the resource change logs.
-	Logs []*ResourceManifestLog
-}
-
-// ResourceManifestLogGroupMap is the map of the resource change log groups.
-type ResourceManifestLogGroupMap = map[string]*ResourceManifestLogGroup

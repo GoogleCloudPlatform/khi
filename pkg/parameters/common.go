@@ -23,8 +23,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
+// Common holds the singleton instance of CommonParameters.
 var Common *CommonParameters = &CommonParameters{}
 
+var _ ParameterStore = (*CommonParameters)(nil)
+
+// CommonParameters stores general application parameters.
 type CommonParameters struct {
 	// DataDestinationFolder is the folder path where the final khi file to be stored for serving.
 	DataDestinationFolder *string
@@ -56,5 +60,3 @@ func (c *CommonParameters) Prepare() error {
 	c.Version = flag.Bool("version", false, "Show the version.", "")
 	return nil
 }
-
-var _ ParameterStore = (*CommonParameters)(nil)

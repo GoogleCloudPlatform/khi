@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -29,38 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeautoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"gopkg.in/yaml.v3"
 )
-
-// processAutoscalerLog sets the log type, timestamp, severity and summary of a cluster autoscaler log.
-func processAutoscalerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-	cs, err := khifilev6.NewLogChangeSet(l)
-	if err != nil {
-		return nil, err
-	}
-
-	cs.SetLogType(gkeautoscaler.LogTypeAutoscaler)
-	cs.SetTimestamp(l.Timestamp)
-
-	autoscalerFieldSet, err := gkeautoscaler.ExtractAutoscalerLog(l.NodeReader)
-	if err != nil {
-		return nil, err
-	}
-
-	switch {
-	case autoscalerFieldSet.DecisionLog != nil:
-		cs.SetSeverity(inspectioncore.SeverityWarning)
-		cs.SetSummary(getDecisionSummary(autoscalerFieldSet.DecisionLog))
-	case autoscalerFieldSet.NoDecisionLog != nil:
-		cs.SetSeverity(inspectioncore.SeverityInfo)
-		cs.SetSummary(getNoDecisionSummary(autoscalerFieldSet.NoDecisionLog))
-	case autoscalerFieldSet.ResultInfoLog != nil:
-		cs.SetSeverity(inspectioncore.SeverityInfo)
-		cs.SetSummary(getResultInfoSummary(autoscalerFieldSet.ResultInfoLog))
-	}
-
-	return cs, nil
-}
 
 // logIngesterTask serializes the ingested log metadata into the builder.
 var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
@@ -81,6 +52,26 @@ var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 		}
 	},
 )
+
+// logToTimelineMapperTask maps the autoscaler logs to respective resource timelines.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	gkeautoscaler.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: gkeautoscaler.LogIngesterTaskID.Ref(),
+		GroupedLogs: gkeautoscaler.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &autoscalerTimelineMapper{}
+	},
+	inspectioncore.FeatureTaskLabel(
+		`GKE Autoscaler Logs`,
+		`Gather Cluster Autoscaler logs to visualize autoscaling decisions and actions on the timelines of the affected resources.`,
+		8000,
+		true,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*autoscalerTimelineMapper)(nil)
 
 // autoscalerTimelineMapper maps cluster autoscaler logs to the timelines of the affected node pools, MIGs, nodes and pods.
 type autoscalerTimelineMapper struct {
@@ -121,25 +112,35 @@ func (m *autoscalerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*autoscalerTimelineMapper)(nil)
+// processAutoscalerLog sets the log type, timestamp, severity and summary of a cluster autoscaler log.
+func processAutoscalerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, err
+	}
 
-// logToTimelineMapperTask maps the autoscaler logs to respective resource timelines.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	gkeautoscaler.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: gkeautoscaler.LogIngesterTaskID.Ref(),
-		GroupedLogs: gkeautoscaler.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &autoscalerTimelineMapper{}
-	},
-	inspectioncore.FeatureTaskLabel(
-		`GKE Autoscaler Logs`,
-		`Gather Cluster Autoscaler logs to visualize autoscaling decisions and actions on the timelines of the affected resources.`,
-		8000,
-		true,
-	),
-)
+	cs.SetLogType(gkeautoscaler.LogTypeAutoscaler)
+	cs.SetTimestamp(l.Timestamp)
+
+	autoscalerFieldSet, err := gkeautoscaler.ExtractAutoscalerLog(l.NodeReader)
+	if err != nil {
+		return nil, err
+	}
+
+	switch {
+	case autoscalerFieldSet.DecisionLog != nil:
+		cs.SetSeverity(inspectioncore.SeverityWarning)
+		cs.SetSummary(getDecisionSummary(autoscalerFieldSet.DecisionLog))
+	case autoscalerFieldSet.NoDecisionLog != nil:
+		cs.SetSeverity(inspectioncore.SeverityInfo)
+		cs.SetSummary(getNoDecisionSummary(autoscalerFieldSet.NoDecisionLog))
+	case autoscalerFieldSet.ResultInfoLog != nil:
+		cs.SetSeverity(inspectioncore.SeverityInfo)
+		cs.SetSummary(getResultInfoSummary(autoscalerFieldSet.ResultInfoLog))
+	}
+
+	return cs, nil
+}
 
 func getDecisionSummary(decision *gkeautoscaler.DecisionLog) string {
 	if decision.ScaleUp != nil {

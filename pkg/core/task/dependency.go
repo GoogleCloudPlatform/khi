@@ -20,9 +20,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// Dependency represents any task dependency descriptor, such as a point-to-point reference or a fan-in tag reference.
-type Dependency = taskid.DependencyDescriptor
-
 var (
 	// FromActiveFeatures configures the dependency scope to ScopeActiveFeatures.
 	FromActiveFeatures = taskid.ScopeActiveFeatures
@@ -31,6 +28,14 @@ var (
 	// FromAll configures the dependency scope to ScopeAll.
 	FromAll = taskid.ScopeAll
 )
+
+var (
+	_ TagReference[any]      = (*tagReferenceImpl[any])(nil)
+	_ taskid.FanInDescriptor = (*tagReferenceImpl[any])(nil)
+)
+
+// Dependency represents any task dependency descriptor, such as a point-to-point reference or a fan-in tag reference.
+type Dependency = taskid.DependencyDescriptor
 
 // TagReference defines a typed reference to an aggregation of tasks providing a specific tag.
 type TagReference[TaskResult any] interface {
@@ -44,8 +49,17 @@ type tagReferenceImpl[TaskResult any] struct {
 	config taskid.DependencyConfig
 }
 
-var _ TagReference[any] = (*tagReferenceImpl[any])(nil)
-var _ taskid.FanInDescriptor = (*tagReferenceImpl[any])(nil)
+// NewTagReference creates a new TagReference for the specified tag and options.
+func NewTagReference[TaskResult any](tag string, opts ...taskid.FanInOption) TagReference[TaskResult] {
+	cfg := taskid.NewDefaultFanInConfig()
+	for _, opt := range opts {
+		taskid.ApplyFanInOption(&cfg, opt)
+	}
+	return &tagReferenceImpl[TaskResult]{
+		tag:    tag,
+		config: cfg,
+	}
+}
 
 // DescriptorCardinality returns that this dependency is a fan-in aggregation.
 func (t *tagReferenceImpl[TaskResult]) DescriptorCardinality() taskid.EdgeCardinality {
@@ -71,16 +85,4 @@ func (t *tagReferenceImpl[TaskResult]) Tag() string {
 func (t *tagReferenceImpl[TaskResult]) GetZeroValue() TaskResult {
 	var zero TaskResult
 	return zero
-}
-
-// NewTagReference creates a new TagReference for the specified tag and options.
-func NewTagReference[TaskResult any](tag string, opts ...taskid.FanInOption) TagReference[TaskResult] {
-	cfg := taskid.NewDefaultFanInConfig()
-	for _, opt := range opts {
-		taskid.ApplyFanInOption(&cfg, opt)
-	}
-	return &tagReferenceImpl[TaskResult]{
-		tag:    tag,
-		config: cfg,
-	}
 }

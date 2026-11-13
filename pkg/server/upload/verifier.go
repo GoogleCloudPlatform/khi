@@ -22,6 +22,11 @@ import (
 	"time"
 )
 
+var (
+	_ UploadFileVerifier = &NopWaitUploadFileVerifier{}
+	_ UploadFileVerifier = &JSONLineUploadFileVerifier{}
+)
+
 // UploadFileVerifier verifies uploaded files (e.g., file type checks).
 type UploadFileVerifier interface {
 	// Verify checks the file. This returns an error if invalid.
@@ -36,16 +41,16 @@ type NopWaitUploadFileVerifier struct {
 	Error error
 }
 
+// JSONLineUploadFileVerifier verifies that an uploaded file contains valid newline-delimited JSON records.
+type JSONLineUploadFileVerifier struct {
+	// MaxLineSizeInBytes sets the maximum allowed line buffer size in bytes when scanning the file.
+	MaxLineSizeInBytes int
+}
+
 // Verify implements UploadFileVerifier.
 func (n *NopWaitUploadFileVerifier) Verify(storeProvider UploadFileStoreProvider, token UploadToken) error {
 	<-time.After(time.Duration(n.WaitTimeInMs) * time.Millisecond)
 	return n.Error
-}
-
-var _ UploadFileVerifier = &NopWaitUploadFileVerifier{}
-
-type JSONLineUploadFileVerifier struct {
-	MaxLineSizeInBytes int
 }
 
 // Verify implements UploadFileVerifier.
@@ -86,5 +91,3 @@ func (j *JSONLineUploadFileVerifier) Verify(storeProvider UploadFileStoreProvide
 
 	return nil
 }
-
-var _ UploadFileVerifier = &JSONLineUploadFileVerifier{}

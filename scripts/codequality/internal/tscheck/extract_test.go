@@ -21,9 +21,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestPlanTSFileMutationsAndExclusions(t *testing.T) {

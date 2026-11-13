@@ -20,6 +20,21 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
+const (
+	// ClusterTypeBaremetalAdmin identifies a bare-metal admin cluster.
+	ClusterTypeBaremetalAdmin OnPremClusterType = "baremetalAdmin"
+	// ClusterTypeBaremetalStandalone identifies a bare-metal standalone cluster.
+	ClusterTypeBaremetalStandalone OnPremClusterType = "baremetalStandalone"
+	// ClusterTypeBaremetalUser identifies a bare-metal user cluster.
+	ClusterTypeBaremetalUser OnPremClusterType = "baremetal"
+	// ClusterTypeVMWareAdmin identifies a VMware admin cluster.
+	ClusterTypeVMWareAdmin OnPremClusterType = "vmwareAdmin"
+	// ClusterTypeVMWareUser identifies a VMware user cluster.
+	ClusterTypeVMWareUser OnPremClusterType = "vmware"
+	// ClusterTypeUnknown identifies an unknown on-premises cluster type.
+	ClusterTypeUnknown OnPremClusterType = "unknown"
+)
+
 var (
 	pathProjectID    = structured.CompileFieldPath("resource.labels.project_id")
 	pathResourceName = structured.CompileFieldPath("protoPayload.resourceName")
@@ -28,20 +43,15 @@ var (
 // OnPremClusterType represents the type of on-premises cluster.
 type OnPremClusterType = string
 
-const (
-	ClusterTypeBaremetalAdmin      OnPremClusterType = "baremetalAdmin"
-	ClusterTypeBaremetalStandalone OnPremClusterType = "baremetalStandalone"
-	ClusterTypeBaremetalUser       OnPremClusterType = "baremetal"
-	ClusterTypeVMWareAdmin         OnPremClusterType = "vmwareAdmin"
-	ClusterTypeVMWareUser          OnPremClusterType = "vmware"
-	ClusterTypeUnknown             OnPremClusterType = "unknown"
-)
-
 // OnPremAPIAuditResourceFieldSet holds structured log data extracted from an OnPrem API log.
 type OnPremAPIAuditResourceFieldSet struct {
-	Project      string
-	ClusterType  OnPremClusterType
-	ClusterName  string
+	// Project is the GCP project ID or number associated with the cluster.
+	Project string
+	// ClusterType is the on-premises cluster variant (e.g., baremetal, vmware).
+	ClusterType OnPremClusterType
+	// ClusterName is the name of the on-premises cluster.
+	ClusterName string
+	// NodepoolName is the name of the node pool when the log targets a node pool, or empty otherwise.
 	NodepoolName string
 }
 

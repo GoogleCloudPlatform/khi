@@ -29,6 +29,21 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// gcpK8sAuditLogListLogEntriesTask queries the Kubernetes audit logs of the cluster from Cloud Logging.
+var gcpK8sAuditLogListLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	k8saudit.GCPK8sAuditLogListLogEntriesTaskID,
+	"K8s audit logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &k8sAuditQuerySource{
+			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+			kindFilter:      coretask.Use(b, k8scommon.InputKindFilterTaskID.Ref()),
+			namespaceFilter: coretask.Use(b, k8scommon.InputNamespaceFilterTaskID.Ref()),
+		}
+	},
+)
+
+var _ gcpcommon.StructuredLogQuerySource = (*k8sAuditQuerySource)(nil)
+
 // k8sAuditQuerySource builds the Cloud Logging query for the Kubernetes audit logs of the cluster.
 type k8sAuditQuerySource struct {
 	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
@@ -55,21 +70,6 @@ func (s *k8sAuditQuerySource) Queries(ctx context.Context, taskMode inspectionco
 func (s *k8sAuditQuerySource) TimePartitionCount() int {
 	return 10
 }
-
-var _ gcpcommon.StructuredLogQuerySource = (*k8sAuditQuerySource)(nil)
-
-// gcpK8sAuditLogListLogEntriesTask queries the Kubernetes audit logs of the cluster from Cloud Logging.
-var gcpK8sAuditLogListLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	k8saudit.GCPK8sAuditLogListLogEntriesTaskID,
-	"K8s audit logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &k8sAuditQuerySource{
-			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
-			kindFilter:      coretask.Use(b, k8scommon.InputKindFilterTaskID.Ref()),
-			namespaceFilter: coretask.Use(b, k8scommon.InputNamespaceFilterTaskID.Ref()),
-		}
-	},
-)
 
 // generateK8sAuditStructuredQuery constructs a StructuredLogQuery for fetching
 // Kubernetes audit logs based on cluster identity, kind filters, and namespace filters.

@@ -40,25 +40,6 @@ var writableMetadataContextKey = typedmap.NewTypedKey[*typedmap.TypedMap]("test-
 
 var fakeTestTaskID = taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
 
-func newTestSummaryCollector(tasks ...coretask.UntypedTask) *summary.Collector {
-	fakeTask := coretask.DefineConstant(fakeTestTaskID, struct{}{})
-	allTasks := make([]coretask.UntypedTask, 0, len(tasks)+1)
-	allTasks = append(allTasks, fakeTask)
-	for _, t := range tasks {
-		if t.UntypedID().String() == fakeTask.UntypedID().String() {
-			continue
-		}
-		allTasks = append(allTasks, t)
-	}
-	taskGraph := coretask.NewResolvedTaskSet(allTasks, nil, nil)
-	return summary.NewCollector(taskGraph)
-}
-
-func setTestSummaryCollector(ctx context.Context, tasks ...coretask.UntypedTask) {
-	writable := khictx.MustGetValue(ctx, writableMetadataContextKey)
-	typedmap.Set(writable, summary.MetadataKey, newTestSummaryCollector(tasks...))
-}
-
 // WithDefaultTestInspectionTaskContext returns a new context used for running inspection task.
 func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.Context {
 	taskCtx := khictx.WithValue(baseContext, inspectioncore.InspectionCreationTime, TestInspectionCreationTime)
@@ -128,6 +109,25 @@ func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTas
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore.InspectionTaskMode, mode)
 	result, err := tasktest.RunTaskWithDependency(taskCtx, mainTask, dependencies, progress.TaskInterceptor)
 	return result, metadata, err
+}
+
+func newTestSummaryCollector(tasks ...coretask.UntypedTask) *summary.Collector {
+	fakeTask := coretask.DefineConstant(fakeTestTaskID, struct{}{})
+	allTasks := make([]coretask.UntypedTask, 0, len(tasks)+1)
+	allTasks = append(allTasks, fakeTask)
+	for _, t := range tasks {
+		if t.UntypedID().String() == fakeTask.UntypedID().String() {
+			continue
+		}
+		allTasks = append(allTasks, t)
+	}
+	taskGraph := coretask.NewResolvedTaskSet(allTasks, nil, nil)
+	return summary.NewCollector(taskGraph)
+}
+
+func setTestSummaryCollector(ctx context.Context, tasks ...coretask.UntypedTask) {
+	writable := khictx.MustGetValue(ctx, writableMetadataContextKey)
+	typedmap.Set(writable, summary.MetadataKey, newTestSummaryCollector(tasks...))
 }
 
 func generateTestMetadata() (*typedmap.TypedMap, *typedmap.ReadonlyTypedMap) {

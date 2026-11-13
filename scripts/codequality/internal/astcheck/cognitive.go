@@ -24,9 +24,20 @@ import (
 
 // ComplexitySummary holds cognitive complexity, maximum control-flow nesting depth, and per-line hotspots.
 type ComplexitySummary struct {
-	Cognitive  int
+	// Cognitive is the accumulated cognitive complexity score.
+	Cognitive int
+	// MaxNesting is the maximum control-flow nesting depth observed.
 	MaxNesting int
-	Hotspots   []rule.Hotspot
+	// Hotspots lists the source lines contributing complexity increments.
+	Hotspots []rule.Hotspot
+}
+
+type complexityWalker struct {
+	fset          *token.FileSet
+	skipNestedRun bool
+	total         int
+	maxNest       int
+	hotspots      []rule.Hotspot
 }
 
 // AnalyzeBlockComplexity computes cognitive complexity and maximum nesting depth for a function body.
@@ -49,14 +60,6 @@ func AnalyzeSubtestBlockComplexity(fset *token.FileSet, body *ast.BlockStmt) Com
 		MaxNesting: w.maxNest,
 		Hotspots:   w.hotspots,
 	}
-}
-
-type complexityWalker struct {
-	fset          *token.FileSet
-	skipNestedRun bool
-	total         int
-	maxNest       int
-	hotspots      []rule.Hotspot
 }
 
 func (w *complexityWalker) recordNest(depth int) {

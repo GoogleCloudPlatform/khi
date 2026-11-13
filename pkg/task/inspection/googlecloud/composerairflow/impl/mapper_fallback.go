@@ -45,6 +45,22 @@ var airflowOtherLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	},
 )
 
+// airflowOtherLogToTimelineMapperTask is the task that maps other Airflow logs to timeline events.
+var airflowOtherLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	composerairflow.AirflowOtherLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: composerairflow.AirflowOtherLogIngesterTaskID.Ref(),
+		GroupedLogs: composerairflow.AirflowOtherLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &otherLogToTimelineMapper{
+			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
+		}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherLogToTimelineMapper)(nil)
+
 type otherLogToTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 	environmentName coretask.Input[string]
@@ -54,8 +70,6 @@ type otherLogToTimelineMapper struct {
 func (m *otherLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	return mapOtherLog(ctx, l, m.environmentName.Get(ctx)), struct{}{}, nil
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherLogToTimelineMapper)(nil)
 
 // mapOtherLog maps other Airflow logs to timeline changes for the given environment.
 func mapOtherLog(ctx context.Context, l *log.Log, environmentName string) *khifilev6.TimelineChangeSet {
@@ -107,17 +121,3 @@ func mapOtherLog(ctx context.Context, l *log.Log, environmentName string) *khifi
 
 	return cs
 }
-
-// airflowOtherLogToTimelineMapperTask is the task that maps other Airflow logs to timeline events.
-var airflowOtherLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	composerairflow.AirflowOtherLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: composerairflow.AirflowOtherLogIngesterTaskID.Ref(),
-		GroupedLogs: composerairflow.AirflowOtherLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &otherLogToTimelineMapper{
-			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
-		}
-	},
-)

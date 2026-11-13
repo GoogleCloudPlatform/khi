@@ -26,20 +26,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generateOnPremAPIStructuredQuery generates a structured query for OnPrem API audit logs.
-func generateOnPremAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
-	return &logestimator.StructuredLogQuery{
-		Incomplete:    !clusterIdentity.IsComplete(),
-		ResourceTypes: []string{"audited_resource"},
-		Filters: []logestimator.LoggingMonitoringMatcher{
-			logestimator.ResourceLabel("service", logestimator.Exact("gkeonprem.googleapis.com")),
-			logestimator.ResourceLabel("method", logestimator.ContainsAny("Update", "Create", "Delete", "Enroll", "Unenroll")),
-			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
-			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"projects/%s/locations/%s/"`, clusterIdentity.ProjectID, clusterIdentity.Location)),
-			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"%s"`, clusterIdentity.ClusterName)),
-		},
-	}
-}
+// listLogEntriesTask queries on-prem API logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(onpremapiaudit.ListLogEntriesTaskID, "OnPrem API Logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+	return &onPremAuditQuerySource{clusterIdentity: coretask.Use(b, onpremapiaudit.ClusterIdentityTaskID.Ref())}
+})
+
+var _ gcpcommon.StructuredLogQuerySource = (*onPremAuditQuerySource)(nil)
 
 // onPremAuditQuerySource builds the on-prem API audit log query for the cluster read through the cluster identity input.
 type onPremAuditQuerySource struct {
@@ -61,9 +53,17 @@ func (s *onPremAuditQuerySource) TimePartitionCount() int {
 	return 1
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*onPremAuditQuerySource)(nil)
-
-// listLogEntriesTask queries on-prem API logs from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(onpremapiaudit.ListLogEntriesTaskID, "OnPrem API Logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-	return &onPremAuditQuerySource{clusterIdentity: coretask.Use(b, onpremapiaudit.ClusterIdentityTaskID.Ref())}
-})
+// generateOnPremAPIStructuredQuery generates a structured query for OnPrem API audit logs.
+func generateOnPremAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !clusterIdentity.IsComplete(),
+		ResourceTypes: []string{"audited_resource"},
+		Filters: []logestimator.LoggingMonitoringMatcher{
+			logestimator.ResourceLabel("service", logestimator.Exact("gkeonprem.googleapis.com")),
+			logestimator.ResourceLabel("method", logestimator.ContainsAny("Update", "Create", "Delete", "Enroll", "Unenroll")),
+			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"projects/%s/locations/%s/"`, clusterIdentity.ProjectID, clusterIdentity.Location)),
+			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"%s"`, clusterIdentity.ClusterName)),
+		},
+	}
+}

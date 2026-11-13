@@ -22,6 +22,12 @@ import (
 	"strings"
 )
 
+var (
+	_ UploadFileStoreProvider               = &LocalUploadFileStoreProvider{}
+	_ DirectWritableUploadFileStoreProvider = &LocalUploadFileStoreProvider{}
+	_ UploadFileStoreProvider               = &InPlaceUploadFileStoreProvider{}
+)
+
 // UploadFileStoreProvider defines operations for reading uploaded files.
 type UploadFileStoreProvider interface {
 	// GetUploadToken generates an UploadToken for the given ID.
@@ -45,6 +51,9 @@ type DirectWritableUploadFileStoreProvider interface {
 type LocalUploadFileStoreProvider struct {
 	directoryPath string
 }
+
+// InPlaceUploadFileStoreProvider is an implementation of UploadFileStore that reads files in place.
+type InPlaceUploadFileStoreProvider struct{}
 
 // NewLocalUploadFileStoreProvider creates a new LocalUploadFileStoreProvider.
 func NewLocalUploadFileStoreProvider(directoryPath string) *LocalUploadFileStoreProvider {
@@ -119,12 +128,6 @@ func (l *LocalUploadFileStoreProvider) validateTokenFormat(token UploadToken) er
 	return nil
 }
 
-var _ UploadFileStoreProvider = &LocalUploadFileStoreProvider{}
-var _ DirectWritableUploadFileStoreProvider = &LocalUploadFileStoreProvider{}
-
-// InPlaceUploadFileStoreProvider is an implementation of UploadFileStore that reads files in place.
-type InPlaceUploadFileStoreProvider struct{}
-
 // GetUploadToken implements UploadFileStoreProvider.
 func (i *InPlaceUploadFileStoreProvider) GetUploadToken(id string) UploadToken {
 	return &LocalFileUploadToken{FilePath: id}
@@ -142,5 +145,3 @@ func (i *InPlaceUploadFileStoreProvider) Read(token UploadToken) (io.ReadCloser,
 	}
 	return file, nil
 }
-
-var _ UploadFileStoreProvider = &InPlaceUploadFileStoreProvider{}
