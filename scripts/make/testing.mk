@@ -87,6 +87,10 @@ codequality-fast: ## Run fast Go AST structural complexity, size, naming, ratche
 codequality-ci: ## Run unified differential code quality checks for Cloud Build CI
 	/bin/bash ./scripts/run-codequality-ci.sh
 
+.PHONY: post-codequality-comment
+post-codequality-comment: ## Post or update sticky GitHub PR comment from completed Cloud Build Check Run
+	/bin/bash ./scripts/post-codequality-pr-comment.sh
+
 .PHONY: codequality
 ifneq ($(filter true 1,$(USE_CONTAINER)),)
 codequality: $(GENERATE_BACKEND_DUMMY) $(GENERATE_FRONTEND_DUMMY) build-builder ## Run unified Go and TypeScript code and test quality checks

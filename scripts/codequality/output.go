@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/report"
@@ -31,13 +32,20 @@ type emitRequest struct {
 	env       cliEnv
 }
 
-func emitOutputs(req emitRequest) error {
+func emitOutputs(_ context.Context, req emitRequest) error {
 	if req.flags.format == "github" {
 		for _, rep := range req.reports {
 			report.RenderGitHubAnnotations(req.env.stdout, rep, req.flags.maxAnnotations)
 		}
 	} else {
 		emitTextOutputs(req)
+	}
+	if req.flags.commentEnvelope {
+		body := report.FormatPRCommentBody(req.baseLabel, req.reports, report.PRCommentMeta{
+			CommitSHA: req.flags.commitSHA,
+			BuildURL:  req.flags.buildURL,
+		})
+		report.WriteCommentEnvelope(req.env.stdout, body)
 	}
 	if req.flags.summaryFile != "" {
 		return writeSummaryFile(req.flags.summaryFile, req.baseLabel, req.reports)

@@ -71,6 +71,12 @@ func TestRunCLIEndToEndModes(t *testing.T) {
 			wantCode: 2,
 			wantErr:  true,
 		},
+		{
+			name:     "unknown flag returns code 2",
+			args:     []string{"--unknown-flag"},
+			wantCode: 2,
+			wantErr:  true,
+		},
 	}
 
 	for _, tc := range testCases {
