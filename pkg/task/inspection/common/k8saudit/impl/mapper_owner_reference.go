@@ -104,7 +104,7 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	}
 
 	bodyReader, ok := event.GetLastBodyReader("target")
-	if !ok || bodyReader == nil {
+	if !ok {
 		return cs, struct{}{}, nil
 	}
 	ownerReferencesReaders, err := bodyReader.GetReader(pathOwnerReferences)
@@ -113,40 +113,45 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	}
 
 	for _, ownerReferenceReader := range ownerReferencesReaders.Children() {
-		kind, err := ownerReferenceReader.ReadString(pathOwnerKind)
-		if err != nil {
+		ownerIdentity, ok := r.parseOwnerIdentity(ownerReferenceReader, k8sFieldSet.Namespace)
+		if !ok {
 			continue
-		}
-		kind = strings.ToLower(kind)
-		apiVersion, err := ownerReferenceReader.ReadString(pathOwnerAPIVersion)
-		if err != nil {
-			continue
-		}
-		name, err := ownerReferenceReader.ReadString(pathOwnerName)
-		if err != nil {
-			continue
-		}
-		if !strings.Contains(apiVersion, "/") {
-			apiVersion = "core/" + apiVersion
-		}
-		namespace := k8sFieldSet.Namespace
-		if _, ok := r.nonNamespacedOwnerTypes[fmt.Sprintf("%s#%s", apiVersion, kind)]; ok {
-			namespace = k8saudit.ClusterScopeNamespace
-		}
-
-		ownerIdentity := &k8saudit.ResourceIdentity{
-			APIVersion: apiVersion,
-			Kind:       kind,
-			Namespace:  namespace,
-			Name:       name,
 		}
 		ownerPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, ownerIdentity)
-
 		targetPath := k8saudit.MustOwnedResourceTimeline(ctx, ownerPath, ownedResourceTimelineName(event.ResourceIdentity))
-
 		cs.AddAlias(targetPath, aliasPath)
 	}
 	return cs, struct{}{}, nil
+}
+
+// parseOwnerIdentity extracts the owner resource identity from an ownerReferences entry.
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) parseOwnerIdentity(ownerReferenceReader structured.NodeReader, defaultNamespace string) (*k8saudit.ResourceIdentity, bool) {
+	kind, err := ownerReferenceReader.ReadString(pathOwnerKind)
+	if err != nil {
+		return nil, false
+	}
+	kind = strings.ToLower(kind)
+	apiVersion, err := ownerReferenceReader.ReadString(pathOwnerAPIVersion)
+	if err != nil {
+		return nil, false
+	}
+	name, err := ownerReferenceReader.ReadString(pathOwnerName)
+	if err != nil {
+		return nil, false
+	}
+	if !strings.Contains(apiVersion, "/") {
+		apiVersion = "core/" + apiVersion
+	}
+	namespace := defaultNamespace
+	if _, ok := r.nonNamespacedOwnerTypes[fmt.Sprintf("%s#%s", apiVersion, kind)]; ok {
+		namespace = k8saudit.ClusterScopeNamespace
+	}
+	return &k8saudit.ResourceIdentity{
+		APIVersion: apiVersion,
+		Kind:       kind,
+		Namespace:  namespace,
+		Name:       name,
+	}, true
 }
 
 // isOwnedByPodWithSameName reports whether the resource is of a type owned by the Pod with the same namespace and name.

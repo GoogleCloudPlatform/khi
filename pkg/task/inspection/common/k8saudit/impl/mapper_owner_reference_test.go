@@ -188,6 +188,9 @@ metadata:
   - apiVersion: apps/v1
     # Missing kind
     name: nginx-replicaset
+  - kind: ReplicaSet
+    # Missing apiVersion
+    name: nginx-replicaset
   - apiVersion: apps/v1
     kind: ReplicaSet
     # Missing name
