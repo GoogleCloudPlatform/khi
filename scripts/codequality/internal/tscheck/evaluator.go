@@ -31,10 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
-const (
-	defaultTSMaxMutants     = 80
-	defaultTSOverallTimeout = 3 * time.Minute
-)
+const defaultTSOverallTimeout = 3 * time.Minute
 
 // ProgressHooks reports high-level phase progress during TypeScript evaluation.
 type ProgressHooks interface {
@@ -58,7 +55,7 @@ type Options struct {
 	ChangedLinesByFile map[string]map[int]struct{}
 	// ChangedTestLinesByFile maps changed TypeScript spec files to modified 1-based line sets.
 	ChangedTestLinesByFile map[string]map[int]struct{}
-	// MaxMutants caps the total number of evaluated TypeScript mutants.
+	// MaxMutants caps the total number of evaluated TypeScript mutants (0 = unlimited).
 	MaxMutants int
 	// Timeout bounds the overall TypeScript mutation testing duration.
 	Timeout time.Duration
@@ -167,6 +164,13 @@ func resolveTSMutationTimeouts(configured time.Duration) (time.Duration, time.Du
 		overall = defaultTSOverallTimeout
 	}
 	return overall, overall + 35*time.Second
+}
+
+func resolveTSMutantBudget(requested int, pendingCount int) (int, int) {
+	if requested <= 0 {
+		return 0, pendingCount
+	}
+	return requested, min(pendingCount, requested)
 }
 
 func buildTSMutPlanBundle(
@@ -288,12 +292,9 @@ func runTSPendingMutantsIfNeeded(
 		return nil, nil
 	}
 
-	maxBudget := opts.MaxMutants
-	if maxBudget <= 0 {
-		maxBudget = defaultTSMaxMutants
-	}
+	maxBudget, evalTarget := resolveTSMutantBudget(opts.MaxMutants, len(bundle.pendingMutants))
 	phaseIfPresent(opts.Progress, 4, 4, fmt.Sprintf("Evaluating up to %d TypeScript mutant(s) across %d spec file(s)...",
-		min(len(bundle.pendingMutants), maxBudget), len(specPlan.IncludeSpecs)))
+		evalTarget, len(specPlan.IncludeSpecs)))
 
 	workDir, err := os.MkdirTemp("", "khi-ts-mutation-*")
 	if err != nil {

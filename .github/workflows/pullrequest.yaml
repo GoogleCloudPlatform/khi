@@ -123,13 +123,10 @@ jobs:
     needs: [build-web]
     permissions:
       contents: "read"
-      id-token: "write"
       pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -161,16 +158,7 @@ jobs:
       - name: Backend Test
         run: |
           make generate-backend
-          KHI_SKIP_CLOUD_LOGGING=true go test -coverprofile=go-cover.output ./...
-      - name: Run Backend Go Quality Gate
-        run: |
-          go run ./scripts/codequality \
-            --lang=go \
-            --coverprofile=go-cover.output \
-            --vcs=git \
-            --base=HEAD^1 \
-            --target=HEAD \
-            --format=github
+          KHI_SKIP_CLOUD_LOGGING=true go test ./...
       - name: Backend Format and Lint Check
         run: |
           make check-format-misc
@@ -187,8 +175,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -246,17 +232,7 @@ jobs:
           chrome-version: stable
 
       - name: Angular Test
-        run: make coverage-web
-
-      - name: Report Frontend Code & Test Quality
-        run: |
-          go run ./scripts/codequality \
-            --lang=ts \
-            --ts-coverage=web/coverage/frontend/coverage-final.json \
-            --vcs=git \
-            --base=HEAD^1 \
-            --target=HEAD \
-            --format=github
+        run: make test-web
 
       - name: Frontend Format and Lint Check
         run: |

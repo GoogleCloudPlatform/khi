@@ -80,6 +80,10 @@ coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_
 codequality-fast: ## Run fast Go AST structural complexity, size, naming, and ratchet checks on changed files
 	go run ./scripts/codequality --lang=go --fast --color=$(CODEQUALITY_COLOR) $(if $(CODEQUALITY_VCS),--vcs=$(CODEQUALITY_VCS),) $(if $(CODEQUALITY_BASE),--base=$(CODEQUALITY_BASE),) $(if $(CODEQUALITY_TARGET),--target=$(CODEQUALITY_TARGET),)
 
+.PHONY: codequality-ci
+codequality-ci: ## Run unified differential code quality checks for Cloud Build CI
+	/bin/bash ./scripts/run-codequality-ci.sh
+
 .PHONY: codequality
 ifneq ($(filter true 1,$(USE_CONTAINER)),)
 codequality: $(GENERATE_BACKEND_DUMMY) $(GENERATE_FRONTEND_DUMMY) build-builder ## Run unified Go and TypeScript code and test quality checks
