@@ -16,6 +16,7 @@ package popup
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -171,7 +172,7 @@ func TestPopupManager(t *testing.T) {
 					Text: &apiv1.TextPopupValidationRequest{Value: proto.String("ok")},
 				},
 			})
-			if err != CurrentPopupIsntMatchingWithGivenId {
+			if !errors.Is(err, CurrentPopupIsntMatchingWithGivenId) {
 				t.Errorf("%s", err.Error())
 			}
 			_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{
@@ -200,7 +201,7 @@ func TestPopupManager(t *testing.T) {
 					Text: &apiv1.TextPopupAnswer{Value: proto.String("ok")},
 				},
 			})
-			if err != CurrentPopupIsntMatchingWithGivenId {
+			if !errors.Is(err, CurrentPopupIsntMatchingWithGivenId) {
 				t.Errorf("expected %s but got %s", CurrentPopupIsntMatchingWithGivenId, err)
 			}
 			_ = pm.Answer(ctx, &apiv1.SubmitPopupAnswerRequest{

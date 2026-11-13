@@ -85,7 +85,7 @@ func GetFinalizers(reader *structured.NodeReader) ([]string, bool) {
 		for _, v := range r.Children() {
 			v, err := v.NodeScalarValue()
 			if err != nil {
-				slog.Warn("an error occurred while reading finalizer elements", "err", err)
+				slog.Warn("an error occurred while reading finalizer elements", "err", err) //nolint:forbidigo // NodeReader helper does not receive a task context.Context.
 				continue
 			}
 			result = append(result, v.(string))

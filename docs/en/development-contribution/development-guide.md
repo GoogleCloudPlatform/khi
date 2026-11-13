@@ -100,17 +100,17 @@ When you want to run backend tests without Cloud Logging, run the following code
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
-To verify differential line coverage, assertion strength (mutation testing), and redundant tests on the Go and TypeScript lines you added or modified relative to `main` (`trunk`), run:
+To verify unified Go and TypeScript code and test quality rules (Go AST complexity/size/naming/clone budgets, uncovered executable lines, surviving mutants, and redundant tests) on the files you added or modified relative to `main` (`trunk`), run:
 
 ```shell
-make mutation-diff
+make codequality
 ```
 
-You can also target a single language (`make mutation-diff-go` or `make mutation-diff-web`), run frontend Karma inside the builder container (`USE_CONTAINER=true`), specify a custom base revision (for example, `make mutation-diff MUTATION_BASE=@-` or `MUTATION_BASE=origin/main~3`), run full-repo coverage (`MUTATION_FULL=true`), or force/disable ANSI colors (`COLOR=always` / `COLOR=never`).
+During fast Go refactoring, you can run static AST quality and ratchet checks in under a second with `make codequality-fast`. You can also target a single language (`make codequality-go` or `make codequality-web`), run frontend Karma inside the builder container (`USE_CONTAINER=true`), specify a custom base revision (for example, `make codequality CODEQUALITY_BASE=@-` or `CODEQUALITY_BASE=origin/main~3`), run full-repo coverage (`CODEQUALITY_FULL=true`), or force/disable ANSI colors (`COLOR=always` / `COLOR=never`).
 
-When a mutant survives, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff`, asserting Angular signals/view models in `*.spec.ts`, or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// NOMUTANTS(<category>): <reason>` or `// NOMUTANTS(<category>, <operator>): <reason>`, where `<category>` is `equivalent`, `perf`, `observability`, or `external`).
+Go quality rules use a unified hard-limit and no-worsening ratchet (`after <= before` on pre-existing legacy units). When a mutant survives or an uncovered branch is flagged in Go or TypeScript, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff`, asserting Angular signals/view models in `*.spec.ts`, or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// CODEQUALITY_ALLOW(<rule_id>, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is `dispatch`, `protocol`, `equivalent`, `perf`, `observability`, or `external` depending on the rule).
 
-`make mutation-diff` also inspects newly added or modified `*_test.go` and `*.spec.ts` cases and reports redundant tests (`SAME PATH` when a new test runs the exact same code path and catches no additional bugs beyond an existing test, or `NO OUTPUT CHECK` when a new test catches 0 bugs and only checks `err != nil` or trivial smoke assertions like `expect(component).toBeTruthy()` on an already-tested path). Keep cases that document distinct domain regressions, and remove duplicate equivalence-class cases.
+`make codequality` also inspects newly added or modified `*_test.go` and `*.spec.ts` cases under `test_redundancy` (`SAME PATH` when a new test runs the exact same branch-polarity path and catches no additional bugs beyond an existing test, or `NO OUTPUT CHECK` when a new test catches 0 bugs and only checks `err != nil` or trivial smoke assertions like `expect(component).toBeTruthy()` on an already-tested path). Remove duplicate equivalence-class cases or strengthen assertions so each case catches a distinct failure mode.
 
 ### Clean up legacy generated test files
 

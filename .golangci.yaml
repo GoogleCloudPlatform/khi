@@ -20,13 +20,96 @@ linters:
   default: none
   enable:
     - bodyclose
+    - depguard
+    - errorlint
+    - forbidigo
     - gocritic
     - govet
     - ineffassign
     - noctx
+    - nolintlint
     - staticcheck
     - unused
   settings:
+    depguard:
+      rules:
+        pkg-common:
+          files:
+            - "**/pkg/common/**/*.go"
+            - "!**/pkg/common/**/*_test.go"
+          deny:
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/core"
+              desc: "pkg/common must not depend on pkg/core (see pkg/GEMINI.md)"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/model"
+              desc: "pkg/common must not depend on pkg/model (see pkg/GEMINI.md)"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/server"
+              desc: "pkg/common must not depend on pkg/server (see pkg/GEMINI.md)"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/task"
+              desc: "pkg/common must not depend on pkg/task (see pkg/GEMINI.md)"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/testutil"
+              desc: "production code must not import pkg/testutil"
+        pkg-core-task:
+          files:
+            - "**/pkg/core/task/**/*.go"
+            - "!**/pkg/core/task/**/*_test.go"
+            - "!**/pkg/core/task/test/**"
+          deny:
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+              desc: "pkg/core/task may only depend on pkg/common"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/core/app"
+              desc: "pkg/core/task may only depend on pkg/common"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/model"
+              desc: "pkg/core/task may only depend on pkg/common"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/server"
+              desc: "pkg/core/task may only depend on pkg/common"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/task"
+              desc: "pkg/core/task may only depend on pkg/common"
+        pkg-core-subsystems:
+          files:
+            - "**/pkg/core/inspection/**/*.go"
+            - "**/pkg/core/app/**/*.go"
+            - "!**/pkg/core/**/*_test.go"
+            - "!**/pkg/core/**/test/**"
+            - "!**/pkg/core/**/*test/**"
+          deny:
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/server/api"
+              desc: "pkg/core must not depend on pkg/server/api"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/server/mcp"
+              desc: "pkg/core must not depend on pkg/server/mcp"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
+              desc: "pkg/core must not depend on pkg/server/workbench"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common"
+              desc: "pkg/core must not depend on concrete domain task packages"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud"
+              desc: "pkg/core must not depend on concrete domain task packages"
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/oss"
+              desc: "pkg/core must not depend on concrete domain task packages"
+        no-testutil-in-prod:
+          files:
+            - "$all"
+            - "!**/*_test.go"
+            - "!**/pkg/testutil/**"
+            - "!**/pkg/**/test/**"
+            - "!**/pkg/**/*test/**"
+          deny:
+            - pkg: "github.com/GoogleCloudPlatform/khi/pkg/testutil"
+              desc: "non-test code outside test utility packages must not import pkg/testutil (see pkg/GEMINI.md)"
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    forbidigo:
+      forbid:
+        - pattern: ^reflect\.DeepEqual$
+          msg: "use github.com/google/go-cmp/cmp (cmp.Diff / cmp.Equal) instead of reflect.DeepEqual in tests"
+        - pattern: ^slog\.(Info|Warn|Error|Debug)$
+          msg: "use context-aware slog.InfoContext / WarnContext / ErrorContext / DebugContext in pkg/task"
+        - pattern: ^fmt\.Print(f|ln)?$
+          msg: "do not use fmt.Print* in pkg/task; use context-aware slog.*Context"
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
     govet:
       disable:
         - fieldalignment
@@ -56,6 +139,18 @@ linters:
           - govet
           - noctx
         path: _test\.go
+      - linters:
+          - forbidigo
+        path-except: _test\.go
+        text: "reflect\\.DeepEqual"
+      - linters:
+          - forbidigo
+        path-except: ^pkg/task/
+        text: "(slog\\.|fmt\\.Print)"
+      - linters:
+          - forbidigo
+        path: _test\.go
+        text: "(slog\\.|fmt\\.Print)"
     paths:
       - third_party$
       - builtin$

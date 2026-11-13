@@ -15,6 +15,7 @@
 package patternfinder
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -70,7 +71,7 @@ func TestPatternFinderImplementations(t *testing.T) {
 				}
 
 				_, err = finder.GetPattern(pattern)
-				if err != ErrPatternNotFound {
+				if !errors.Is(err, ErrPatternNotFound) {
 					t.Errorf("expected ErrPatternNotFound after delete, but got %v", err)
 				}
 			})
@@ -80,7 +81,7 @@ func TestPatternFinderImplementations(t *testing.T) {
 				pattern := "test_pattern"
 
 				_, err := finder.GetPattern("non_existent")
-				if err != ErrPatternNotFound {
+				if !errors.Is(err, ErrPatternNotFound) {
 					t.Errorf("expected ErrPatternNotFound, but got %v", err)
 				}
 
@@ -89,7 +90,7 @@ func TestPatternFinderImplementations(t *testing.T) {
 					t.Fatalf("first AddPattern failed: %v", err)
 				}
 				err = finder.AddPattern(pattern, 2)
-				if err != ErrPatternAlreadyExists {
+				if !errors.Is(err, ErrPatternAlreadyExists) {
 					t.Errorf("expected ErrPatternAlreadyExists, but got %v", err)
 				}
 			})

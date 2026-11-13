@@ -73,7 +73,7 @@ func DefineFileForm(id taskid.TaskImplementationID[upload.UploadResult], priorit
 			}
 			err = formFields.SetField(field)
 			if err != nil {
-				return upload.UploadResult{}, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", id, err)
+				return upload.UploadResult{}, fmt.Errorf("failed to configure the form metadata in task `%s`\n%w", id, err)
 			}
 
 			if taskMode == inspectioncore.TaskModeRun {

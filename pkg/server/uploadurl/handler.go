@@ -118,7 +118,7 @@ func (h *Handler) storeBody(body io.Reader, sessionToken string, size int64) (in
 	for offset := int64(0); offset < size; {
 		n, err := io.ReadFull(body, buf[:min(int64(len(buf)), size-offset)])
 		if err != nil {
-			return 0, fmt.Errorf("%w: %v", errIncompleteBody, err)
+			return 0, fmt.Errorf("%w: %w", errIncompleteBody, err)
 		}
 		if _, err := h.manager.WriteChunk(sessionToken, offset, buf[:n]); err != nil {
 			return 0, err

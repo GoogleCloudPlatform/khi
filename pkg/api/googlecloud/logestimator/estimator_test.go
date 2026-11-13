@@ -16,6 +16,7 @@ package logestimator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -326,7 +327,7 @@ func (f *realLogProbeFetcher) ProbeLogTimestamps(ctx context.Context, container 
 	var timestamps []time.Time
 	for {
 		entry, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {
@@ -829,7 +830,7 @@ protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."`),
 			var pageCount int
 			for {
 				_, err := it.Next()
-				if err == iterator.Done {
+				if errors.Is(err, iterator.Done) {
 					break
 				}
 				if err != nil {
