@@ -633,3 +633,97 @@ func TestWorkbenchHandler_HandleRenderTimelines_StatefulPatchAndBranch(t *testin
 		t.Errorf("expected ANCHOR_OUT_OF_VIEWPORT, got:\n%s", gotErrText)
 	}
 }
+
+func TestBuildTimelineRenderRequest(t *testing.T) {
+	startTime := time.Unix(100, 123456789).UTC()
+	endTime := time.Unix(200, 987654321).UTC()
+	startMs, endMs := int64(100123), int64(200987)
+
+	testCases := []struct {
+		name          string
+		spec          scene.Spec
+		applied       workbench.AppliedFilter
+		parentSceneID string
+		overlay       *scene.Overlay
+		want          TimelineRenderRequest
+	}{
+		{
+			name: "zero values use defaults",
+			want: TimelineRenderRequest{MaxNodes: 50},
+		},
+		{
+			name: "above maxNodes cap is capped",
+			spec: scene.Spec{MaxNodes: 151},
+			want: TimelineRenderRequest{MaxNodes: 150},
+		},
+		{
+			name: "negative depth becomes zero",
+			spec: scene.Spec{MaxDepth: -1},
+			want: TimelineRenderRequest{MaxNodes: 50},
+		},
+		{
+			name:    "only start time is set",
+			applied: workbench.AppliedFilter{StartTime: startTime},
+			want: TimelineRenderRequest{
+				MaxNodes:          50,
+				ViewStartTimeMs:   &startMs,
+				FilterStartTimeNs: "100123456789",
+			},
+		},
+		{
+			name:    "only end time is set",
+			applied: workbench.AppliedFilter{EndTime: endTime},
+			want: TimelineRenderRequest{
+				MaxNodes:        50,
+				ViewEndTimeMs:   &endMs,
+				FilterEndTimeNs: "200987654321",
+			},
+		},
+		{
+			name: "forwards in-range limits, scene parameters, and both time bounds",
+			spec: scene.Spec{
+				InspectionID:       "inspection-1",
+				TimelineIDs:        []uint32{1, 2},
+				MaxNodes:           20,
+				MaxDepth:           3,
+				TimezoneShiftHours: 5.5,
+			},
+			applied: workbench.AppliedFilter{
+				TimelineQuery:               `timelineType == "Pod"`,
+				TimelineExclusionQuery:      `timelineType == "Node"`,
+				LogQuery:                    "severity >= WARNING",
+				ExcludeTimelinesWithoutLogs: true,
+				StartTime:                   startTime,
+				EndTime:                     endTime,
+			},
+			parentSceneID: "parent-scene",
+			overlay:       &scene.Overlay{DimUnlistedRows: true},
+			want: TimelineRenderRequest{
+				ParentSceneID:          "parent-scene",
+				Overlay:                &scene.Overlay{DimUnlistedRows: true},
+				InspectionID:           "inspection-1",
+				TimelineQuery:          `timelineType == "Pod"`,
+				TimelineExclusionQuery: `timelineType == "Node"`,
+				LogQuery:               "severity >= WARNING",
+				ExcludeNoLogs:          true,
+				TimelineIDs:            []uint32{1, 2},
+				MaxNodes:               20,
+				MaxDepth:               3,
+				TimezoneShiftHours:     5.5,
+				ViewStartTimeMs:        &startMs,
+				ViewEndTimeMs:          &endMs,
+				FilterStartTimeNs:      "100123456789",
+				FilterEndTimeNs:        "200987654321",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildTimelineRenderRequest(tc.parentSceneID, tc.spec, tc.applied, tc.overlay)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("buildTimelineRenderRequest() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
