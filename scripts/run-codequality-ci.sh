@@ -48,6 +48,15 @@ configure_git_and_fetch_base() {
   fi
 }
 
+build_cloud_build_log_url() {
+  if [[ -z "${PROJECT_ID:-}" || -z "${BUILD_ID:-}" ]]; then
+    echo ""
+    return
+  fi
+  local region="${LOCATION:-asia-northeast1}"
+  echo "https://console.cloud.google.com/cloud-build/builds;region=${region}/${BUILD_ID}?project=${PROJECT_ID}"
+}
+
 ensure_embed_placeholder() {
   mkdir -p pkg/server/dist/browser
   if [[ ! -f pkg/server/dist/browser/index.html ]]; then
@@ -151,6 +160,13 @@ main() {
     similarity_args+=("--similarity-project=${CODEQUALITY_SIMILARITY_PROJECT}")
   fi
 
+  local emit_envelope="${EMIT_COMMENT_ENVELOPE:-false}"
+  if [[ -n "${BUILD_ID:-}" ]]; then
+    emit_envelope="true"
+  fi
+  local build_url
+  build_url="$(build_cloud_build_log_url)"
+
   KHI_SKIP_CLOUD_LOGGING=true go run ./scripts/codequality \
     --lang=all \
     --vcs=git \
@@ -159,6 +175,9 @@ main() {
     --max-mutants="${CODEQUALITY_MAX}" \
     --timeout="${CODEQUALITY_TIMEOUT}" \
     "${similarity_args[@]}" \
+    --comment-envelope="${emit_envelope}" \
+    --commit-sha="${COMMIT_SHA:-${head_sha}}" \
+    --build-url="${build_url}" \
     --color=never
 }
 

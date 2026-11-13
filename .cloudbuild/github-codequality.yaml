@@ -24,6 +24,10 @@ steps:
     env:
       - "BASE_BRANCH=${_BASE_BRANCH}"
       - "PR_NUMBER=${_PR_NUMBER}"
+      - "COMMIT_SHA=${COMMIT_SHA}"
+      - "PROJECT_ID=${PROJECT_ID}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "LOCATION=${LOCATION}"
       - "CODEQUALITY_MAX=${_MAX_MUTANTS}"
       - "CODEQUALITY_TIMEOUT=${_TIMEOUT}"
       - "CODEQUALITY_SIMILARITY=${_SIMILARITY}"
