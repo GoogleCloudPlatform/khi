@@ -154,6 +154,18 @@ func TestEvaluatorPlanningAndMutationSessionBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("resolves unlimited and explicit mutant budgets", func(t *testing.T) {
+		b0, t0 := resolveTSMutantBudget(0, 5)
+		bNeg, tNeg := resolveTSMutantBudget(-3, 5)
+		bCap, tCap := resolveTSMutantBudget(3, 5)
+		bHigh, tHigh := resolveTSMutantBudget(10, 5)
+		got := [][2]int{{b0, t0}, {bNeg, tNeg}, {bCap, tCap}, {bHigh, tHigh}}
+		want := [][2]int{{0, 5}, {0, 5}, {3, 3}, {10, 5}}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("resolveTSMutantBudget() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
 	t.Run("plans single changed file probe gating and missing file fallbacks", testPlanSingleTSChangedFileBranches)
 	t.Run("registers planned pending suppressed and probe mutants", testRegisterPlannedTSFileBranches)
 	t.Run("executes pending mutants skip budget and default session branches", testRunTSPendingMutantsBranches)
@@ -287,14 +299,14 @@ func testRunTSPendingMutantsBranches(t *testing.T) {
 		t.Fatalf("orphan SkipKarma = (%+v, %v, status=%v)", res, err, orphanMut.Status)
 	}
 
-	// Default MaxMutants (80) and nil RunKarmaSession execute runKarmaMutationSession via hermetic npx.
+	// Unlimited MaxMutants (0) and nil RunKarmaSession execute runKarmaMutationSession via hermetic npx.
 	repoDir := setupMinimalMutantRepoWithSpec(t)
 	script := `#!/bin/sh
 node -e '
 const fs = require("fs");
 const cfg = JSON.parse(fs.readFileSync(process.env.KHI_MUTATION_CONFIG_FILE, "utf8"));
 fs.writeFileSync(cfg.resultsPath, JSON.stringify({
-  outcomes: {"1": String(cfg.maxMutants === 80 ? "KILLED" : "SURVIVED")}
+  outcomes: {"1": String(cfg.maxMutants === 0 ? "KILLED" : "SURVIVED")}
 }));
 '
 `

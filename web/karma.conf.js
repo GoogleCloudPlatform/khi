@@ -74,6 +74,7 @@ module.exports = function (config) {
         base: 'ChromeHeadless',
         flags: [
           '--no-sandbox',
+          '--disable-dev-shm-usage',
           '--disable-extensions',
           '--enable-unsafe-swiftshader',
           '--enable-webgl',
