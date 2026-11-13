@@ -22,15 +22,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/inspectionserver"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 var ignoreMCPUnexported = cmpopts.IgnoreUnexported(

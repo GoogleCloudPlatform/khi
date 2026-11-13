@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeCSMTrafficLog is the registered timeline style TimelineType for CSM traffic logs.
 	TimelineTypeCSMTrafficLog = style.MustRegisterTimelineType(
 		"csm",
 		"CSM Traffic logs related to this resource",

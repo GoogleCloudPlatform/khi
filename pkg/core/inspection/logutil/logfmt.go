@@ -22,8 +22,9 @@ import (
 )
 
 // severityLogfmtFieldNames holds the keys checked for severity levels in logfmt.
-
 var severityLogfmtFieldNames = []string{"level", "severity"}
+
+var _ StructuredLogParser = (*LogfmtTextParser)(nil)
 
 // LogfmtTextParser parses given logfmt formatted string.
 // Reference: https://github.com/hynek/structlog/issues/511#issuecomment-1916426273
@@ -31,6 +32,11 @@ type LogfmtTextParser struct {
 	workers *sync.Pool
 }
 
+type logfmtTextParserWorker struct {
+	builder strings.Builder
+}
+
+// NewLogfmtTextParser creates a new LogfmtTextParser instance.
 func NewLogfmtTextParser() *LogfmtTextParser {
 	return &LogfmtTextParser{
 		workers: &sync.Pool{
@@ -50,12 +56,6 @@ func (l *LogfmtTextParser) TryParse(message string) *ParseStructuredLogResult {
 		return nil
 	}
 	return result
-}
-
-var _ StructuredLogParser = (*LogfmtTextParser)(nil)
-
-type logfmtTextParserWorker struct {
-	builder strings.Builder
 }
 
 func newLogfmtTextParserWorker() *logfmtTextParserWorker {

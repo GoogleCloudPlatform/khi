@@ -28,6 +28,29 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+var (
+	pathEndpointOwnerReferences       = structured.CompileFieldPath("metadata.ownerReferences")
+	pathEndpointOwnerKind             = structured.CompileFieldPath("kind")
+	pathEndpointOwnerName             = structured.CompileFieldPath("name")
+	pathEndpoints                     = structured.CompileFieldPath("endpoints")
+	pathEndpointTargetRefKind         = structured.CompileFieldPath("targetRef.kind")
+	pathEndpointTargetRefName         = structured.CompileFieldPath("targetRef.name")
+	pathEndpointTargetRefNamespace    = structured.CompileFieldPath("targetRef.namespace")
+	pathEndpointTargetRefUID          = structured.CompileFieldPath("targetRef.uid")
+	pathEndpointConditionsTerminating = structured.CompileFieldPath("conditions.terminating")
+	pathEndpointConditionsReady       = structured.CompileFieldPath("conditions.ready")
+)
+
+var _ k8saudit.ManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState] = (*endpointResourceLogToTimelineMapperTaskSetting)(nil)
+
+// endpointResourceLogToTimelineMapperTask is the task to generate endpoint resource history.
+var endpointResourceLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](
+	k8saudit.EndpointResourceLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState] {
+		return &endpointResourceLogToTimelineMapperTaskSetting{}
+	},
+)
+
 type podIdentity struct {
 	// uid is the UID of the pod.
 	uid string
@@ -47,28 +70,63 @@ type endpointResourceLogToTimelineMapperState struct {
 	lastStates map[string]*pb.RevisionState
 }
 
-var (
-	pathEndpointOwnerReferences       = structured.CompileFieldPath("metadata.ownerReferences")
-	pathEndpointOwnerKind             = structured.CompileFieldPath("kind")
-	pathEndpointOwnerName             = structured.CompileFieldPath("name")
-	pathEndpoints                     = structured.CompileFieldPath("endpoints")
-	pathEndpointTargetRefKind         = structured.CompileFieldPath("targetRef.kind")
-	pathEndpointTargetRefName         = structured.CompileFieldPath("targetRef.name")
-	pathEndpointTargetRefNamespace    = structured.CompileFieldPath("targetRef.namespace")
-	pathEndpointTargetRefUID          = structured.CompileFieldPath("targetRef.uid")
-	pathEndpointConditionsTerminating = structured.CompileFieldPath("conditions.terminating")
-	pathEndpointConditionsReady       = structured.CompileFieldPath("conditions.ready")
-)
-
-// endpointResourceLogToTimelineMapperTask is the task to generate endpoint resource history.
-var endpointResourceLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](
-	k8saudit.EndpointResourceLogToTimelineMapperTaskID,
-	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState] {
-		return &endpointResourceLogToTimelineMapperTaskSetting{}
-	},
-)
-
 type endpointResourceLogToTimelineMapperTaskSetting struct {
+}
+
+// MustResolveServiceEndpointSliceTimelinePath resolves ServiceEndpointSlice timeline path.
+func MustResolveServiceEndpointSliceTimelinePath(ctx context.Context, clusterName, namespace, endpointSliceName, serviceName string) *khifilev6.TimelinePath {
+	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
+	kind := k8saudit.MustK8sKindTimeline(ctx, api, "service")
+	var servicePath *khifilev6.TimelinePath
+	if namespace != "" {
+		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, namespace)
+		servicePath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, serviceName)
+	} else {
+		servicePath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, serviceName)
+	}
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	return builder.TimelineAccumulator.GetPath(servicePath, khifilev6.PathSegment{
+		Name: endpointSliceName,
+		Type: k8saudit.TimelineTypeEndpointSlice,
+	})
+}
+
+// MustResolvePodEndpointSliceTimelinePath resolves PodEndpointSlice timeline path.
+func MustResolvePodEndpointSliceTimelinePath(ctx context.Context, clusterName, endpointSliceNamespace, endpointSliceName, podNamespace, podName string) *khifilev6.TimelinePath {
+	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
+	kind := k8saudit.MustK8sKindTimeline(ctx, api, "pod")
+	var podPath *khifilev6.TimelinePath
+	if podNamespace != "" {
+		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, podNamespace)
+		podPath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, podName)
+	} else {
+		podPath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, podName)
+	}
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
+		Name: fmt.Sprintf("%s(%s)", endpointSliceName, endpointSliceNamespace),
+		Type: k8saudit.TimelineTypeEndpointSlice,
+	})
+}
+
+// MustResolveEndpointSliceChildPodTimelinePath resolves EndpointSliceChildPod timeline path.
+func MustResolveEndpointSliceChildPodTimelinePath(ctx context.Context, clusterName string, endpointSliceResource *k8saudit.ResourceIdentity, podNamespace, podName string) *khifilev6.TimelinePath {
+	endpointSlicePath := MustResolveTimelinePath(ctx, clusterName, endpointSliceResource)
+
+	var segmentName string
+	if podNamespace != endpointSliceResource.Namespace {
+		segmentName = fmt.Sprintf("%s(%s)", podName, podNamespace)
+	} else {
+		segmentName = podName
+	}
+
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	return builder.TimelineAccumulator.GetPath(endpointSlicePath, khifilev6.PathSegment{
+		Name: segmentName,
+		Type: k8saudit.TimelineTypeEndpointSlice,
+	})
 }
 
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
@@ -368,61 +426,3 @@ func endpointConditionToPodEndpointState(ready bool, terminating bool) *pb.Revis
 		return k8saudit.RevisionStateEndpointUnready
 	}
 }
-
-// MustResolveServiceEndpointSliceTimelinePath resolves ServiceEndpointSlice timeline path.
-func MustResolveServiceEndpointSliceTimelinePath(ctx context.Context, clusterName, namespace, endpointSliceName, serviceName string) *khifilev6.TimelinePath {
-	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
-	kind := k8saudit.MustK8sKindTimeline(ctx, api, "service")
-	var servicePath *khifilev6.TimelinePath
-	if namespace != "" {
-		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, namespace)
-		servicePath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, serviceName)
-	} else {
-		servicePath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, serviceName)
-	}
-	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-	return builder.TimelineAccumulator.GetPath(servicePath, khifilev6.PathSegment{
-		Name: endpointSliceName,
-		Type: k8saudit.TimelineTypeEndpointSlice,
-	})
-}
-
-// MustResolvePodEndpointSliceTimelinePath resolves PodEndpointSlice timeline path.
-func MustResolvePodEndpointSliceTimelinePath(ctx context.Context, clusterName, endpointSliceNamespace, endpointSliceName, podNamespace, podName string) *khifilev6.TimelinePath {
-	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
-	kind := k8saudit.MustK8sKindTimeline(ctx, api, "pod")
-	var podPath *khifilev6.TimelinePath
-	if podNamespace != "" {
-		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, podNamespace)
-		podPath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, podName)
-	} else {
-		podPath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, podName)
-	}
-	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
-		Name: fmt.Sprintf("%s(%s)", endpointSliceName, endpointSliceNamespace),
-		Type: k8saudit.TimelineTypeEndpointSlice,
-	})
-}
-
-// MustResolveEndpointSliceChildPodTimelinePath resolves EndpointSliceChildPod timeline path.
-func MustResolveEndpointSliceChildPodTimelinePath(ctx context.Context, clusterName string, endpointSliceResource *k8saudit.ResourceIdentity, podNamespace, podName string) *khifilev6.TimelinePath {
-	endpointSlicePath := MustResolveTimelinePath(ctx, clusterName, endpointSliceResource)
-
-	var segmentName string
-	if podNamespace != endpointSliceResource.Namespace {
-		segmentName = fmt.Sprintf("%s(%s)", podName, podNamespace)
-	} else {
-		segmentName = podName
-	}
-
-	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-	return builder.TimelineAccumulator.GetPath(endpointSlicePath, khifilev6.PathSegment{
-		Name: segmentName,
-		Type: k8saudit.TimelineTypeEndpointSlice,
-	})
-}
-
-var _ k8saudit.ManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState] = (*endpointResourceLogToTimelineMapperTaskSetting)(nil)

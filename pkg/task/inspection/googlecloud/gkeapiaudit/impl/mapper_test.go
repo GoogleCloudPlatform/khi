@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -35,7 +37,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 type mockInitialResourceStateProvider struct {

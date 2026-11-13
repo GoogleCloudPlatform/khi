@@ -29,6 +29,57 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// csmControlPlaneLogIngesterTask ingests CSM control plane logs.
+var csmControlPlaneLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	csm.CSMControlPlaneLogIngesterTaskID,
+	csm.ListCSMControlPlaneLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return ingestCSMControlPlaneLog
+	},
+)
+
+// csmControlPlaneLogGrouperTask groups CSM control plane logs.
+var csmControlPlaneLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	csm.CSMControlPlaneLogGrouperTaskID,
+	csm.ListCSMControlPlaneLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return groupCSMControlPlaneLog
+	},
+)
+
+// csmControlPlaneLogToTimelineMapperTask maps CSM control plane logs to timelines.
+var csmControlPlaneLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	csm.CSMControlPlaneLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: csm.CSMControlPlaneLogIngesterTaskID.Ref(),
+		GroupedLogs: csm.CSMControlPlaneLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] {
+		return &csmControlPlaneTimelineMapper{
+			clusterIdentity: coretask.Use(b, csm.ClusterIdentityTaskID.Ref()),
+		}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"CSM Control Plane Logs",
+		"Gather Managed Cloud Service Mesh control plane (istiod) logs to visualize xDS configuration pushes and proxy connections on associated Pod timelines.",
+		10200,
+		false,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] = (*csmControlPlaneTimelineMapper)(nil)
+
+// csmControlPlaneTimelineMapper maps CSM control plane logs to resource timelines.
+type csmControlPlaneTimelineMapper struct {
+	inspectiontaskbase.SinglePassMapperBase[*commoncsmcp.TimelineState]
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+}
+
+// ProcessLogByGroup maps each control plane log inside a group to its control plane, pod, and connection timelines.
+func (m *csmControlPlaneTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.TimelineState) (*khifilev6.TimelineChangeSet, *commoncsmcp.TimelineState, error) {
+	return mapCSMControlPlaneLog(ctx, l, prevGroupData, m.clusterIdentity.Get(ctx))
+}
+
 // ingestCSMControlPlaneLog ingests a single CSM control plane log entry into a LogChangeSet.
 func ingestCSMControlPlaneLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
@@ -54,15 +105,6 @@ func ingestCSMControlPlaneLog(ctx context.Context, l *log.Log) (*khifilev6.LogCh
 	return cs, nil
 }
 
-// csmControlPlaneLogIngesterTask ingests CSM control plane logs.
-var csmControlPlaneLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
-	csm.CSMControlPlaneLogIngesterTaskID,
-	csm.ListCSMControlPlaneLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		return ingestCSMControlPlaneLog
-	},
-)
-
 // groupCSMControlPlaneLog groups CSM control plane logs by project, location, and revision.
 func groupCSMControlPlaneLog(ctx context.Context, l *log.Log) string {
 	fs, err := csm.ExtractCSMControlPlaneLog(l.NodeReader)
@@ -71,28 +113,6 @@ func groupCSMControlPlaneLog(ctx context.Context, l *log.Log) string {
 	}
 	return fmt.Sprintf("%s/%s/%s", fs.ProjectID, fs.Location, fs.Revision)
 }
-
-// csmControlPlaneLogGrouperTask groups CSM control plane logs.
-var csmControlPlaneLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
-	csm.CSMControlPlaneLogGrouperTaskID,
-	csm.ListCSMControlPlaneLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
-		return groupCSMControlPlaneLog
-	},
-)
-
-// csmControlPlaneTimelineMapper maps CSM control plane logs to resource timelines.
-type csmControlPlaneTimelineMapper struct {
-	inspectiontaskbase.SinglePassMapperBase[*commoncsmcp.TimelineState]
-	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-}
-
-// ProcessLogByGroup maps each control plane log inside a group to its control plane, pod, and connection timelines.
-func (m *csmControlPlaneTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *commoncsmcp.TimelineState) (*khifilev6.TimelineChangeSet, *commoncsmcp.TimelineState, error) {
-	return mapCSMControlPlaneLog(ctx, l, prevGroupData, m.clusterIdentity.Get(ctx))
-}
-
-var _ inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] = (*csmControlPlaneTimelineMapper)(nil)
 
 // mapCSMControlPlaneLog maps a CSM control plane log entry to its control plane, pod, and connection timeline paths.
 func mapCSMControlPlaneLog(
@@ -130,23 +150,3 @@ func mapCSMControlPlaneLog(
 
 	return cs, prevGroupData, nil
 }
-
-// csmControlPlaneLogToTimelineMapperTask maps CSM control plane logs to timelines.
-var csmControlPlaneLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	csm.CSMControlPlaneLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: csm.CSMControlPlaneLogIngesterTaskID.Ref(),
-		GroupedLogs: csm.CSMControlPlaneLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*commoncsmcp.TimelineState] {
-		return &csmControlPlaneTimelineMapper{
-			clusterIdentity: coretask.Use(b, csm.ClusterIdentityTaskID.Ref()),
-		}
-	},
-	inspectioncore.FeatureTaskLabel(
-		"CSM Control Plane Logs",
-		"Gather Managed Cloud Service Mesh control plane (istiod) logs to visualize xDS configuration pushes and proxy connections on associated Pod timelines.",
-		10200,
-		false,
-	),
-)

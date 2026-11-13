@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeSerialPort is the registered timeline style LogType for GCE serial port output logs.
 	LogTypeSerialPort = style.MustRegisterLogType("serial port", "Serial Port Output Logs", style.MustForceConvertSRGBHex("#333333"), style.ColorWhite)
 )

@@ -24,9 +24,9 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-type taskProgressContextKey struct{}
-
 var noopProgress = inspectionmetadata.NewNoopTaskProgressMetadata()
+
+type taskProgressContextKey struct{}
 
 // ResolveTitle determines the display title for a task using its explicit title label or its shortened task ID.
 func ResolveTitle(task coretask.UntypedTask) string {

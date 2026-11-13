@@ -17,8 +17,9 @@ package inspectionmetadata
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 )
 
 func TestQuerySerializeInSortedOrder(t *testing.T) {

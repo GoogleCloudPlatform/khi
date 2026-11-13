@@ -20,6 +20,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
@@ -28,7 +30,6 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"github.com/google/go-cmp/cmp"
 )
 
 var pathFilterTestID = structured.CompileFieldPath("id")

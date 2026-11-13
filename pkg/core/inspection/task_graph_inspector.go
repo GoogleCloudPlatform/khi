@@ -21,13 +21,14 @@ import (
 	"slices"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"google.golang.org/protobuf/proto"
 )
 
 // ErrInspectionTypeNotFound indicates that the requested inspection type is not registered on the server.
@@ -119,6 +120,38 @@ func InspectResolution(
 		Dag:                  dagInfo,
 		AvailableFeatures:    availableFeatures,
 	}, nil
+}
+
+// EvaluateTaskCompatibility checks whether a task is compatible with the given inspection type
+// and returns the compatibility status along with an explanatory diagnosis.
+func EvaluateTaskCompatibility(task coretask.UntypedTask, currentType *InspectionType) (bool, string) {
+	labels := task.Labels()
+
+	if selector, ok := typedmap.Get(labels, inspectioncore.LabelKeyInspectionTypeLabelSelector); ok {
+		keys := make([]string, 0, len(selector))
+		for k := range selector {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+
+		var missingOrMismatched []string
+		for _, k := range keys {
+			wantV := selector[k]
+			gotV, ok := currentType.Labels[k]
+			if !ok {
+				missingOrMismatched = append(missingOrMismatched, fmt.Sprintf("%s=%q (missing on inspection type)", k, wantV))
+			} else if gotV != wantV {
+				missingOrMismatched = append(missingOrMismatched, fmt.Sprintf("%s=%q (inspection type has %q)", k, wantV, gotV))
+			}
+		}
+
+		if len(missingOrMismatched) == 0 {
+			return true, fmt.Sprintf("Matched label selector (%s)", formatSelectorString(selector))
+		}
+		return false, fmt.Sprintf("Mismatched label selector: %s", strings.Join(missingOrMismatched, ", "))
+	}
+
+	return true, "Global task (compatible with all inspection types)"
 }
 
 // evaluateCandidateTasks filters and prioritizes registered tasks against the given inspection type.
@@ -324,38 +357,6 @@ func buildTaskDAGInfoFromTaskSet(resolvedTaskSet *coretask.TaskSet) *apiv1.TaskD
 	dagInfo.Edges = edges
 
 	return dagInfo
-}
-
-// EvaluateTaskCompatibility checks whether a task is compatible with the given inspection type
-// and returns the compatibility status along with an explanatory diagnosis.
-func EvaluateTaskCompatibility(task coretask.UntypedTask, currentType *InspectionType) (bool, string) {
-	labels := task.Labels()
-
-	if selector, ok := typedmap.Get(labels, inspectioncore.LabelKeyInspectionTypeLabelSelector); ok {
-		keys := make([]string, 0, len(selector))
-		for k := range selector {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-
-		var missingOrMismatched []string
-		for _, k := range keys {
-			wantV := selector[k]
-			gotV, ok := currentType.Labels[k]
-			if !ok {
-				missingOrMismatched = append(missingOrMismatched, fmt.Sprintf("%s=%q (missing on inspection type)", k, wantV))
-			} else if gotV != wantV {
-				missingOrMismatched = append(missingOrMismatched, fmt.Sprintf("%s=%q (inspection type has %q)", k, wantV, gotV))
-			}
-		}
-
-		if len(missingOrMismatched) == 0 {
-			return true, fmt.Sprintf("Matched label selector (%s)", formatSelectorString(selector))
-		}
-		return false, fmt.Sprintf("Mismatched label selector: %s", strings.Join(missingOrMismatched, ", "))
-	}
-
-	return true, "Global task (compatible with all inspection types)"
 }
 
 // extractProvidedTags extracts provided tag definitions from task labels and returns them sorted by tag ID.

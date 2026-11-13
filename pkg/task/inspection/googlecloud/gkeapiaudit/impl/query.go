@@ -26,21 +26,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generateGKEAuditStructuredQuery generates a structured query for GKE API audit logs.
-func generateGKEAuditStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
-	return &logestimator.StructuredLogQuery{
-		Incomplete:                !cluster.IsComplete(),
-		ResourceTypes:             []string{"gke_cluster", "gke_nodepool"},
-		IgnoreMetricsResourceType: []string{"gke_cluster", "gke_nodepool"},
-		Filters: []logestimator.LoggingMonitoringMatcher{
-			logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
-			logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
-			logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.ClusterName)),
-			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
-			logestimator.CustomFilter(`protoPayload.serviceName="container.googleapis.com"`),
-		},
-	}
-}
+// listLogEntriesTask queries GKE audit logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(gkeapiaudit.ListLogEntriesTaskID, "GKE Audit logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+	return &gkeAuditQuerySource{clusterIdentity: coretask.Use(b, gkeapiaudit.ClusterIdentityTaskID.Ref())}
+})
+
+var _ gcpcommon.StructuredLogQuerySource = (*gkeAuditQuerySource)(nil)
 
 // gkeAuditQuerySource builds the GKE audit log query for the cluster read through the cluster identity input.
 type gkeAuditQuerySource struct {
@@ -62,9 +53,18 @@ func (s *gkeAuditQuerySource) TimePartitionCount() int {
 	return 1
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*gkeAuditQuerySource)(nil)
-
-// listLogEntriesTask queries GKE audit logs of the cluster from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(gkeapiaudit.ListLogEntriesTaskID, "GKE Audit logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-	return &gkeAuditQuerySource{clusterIdentity: coretask.Use(b, gkeapiaudit.ClusterIdentityTaskID.Ref())}
-})
+// generateGKEAuditStructuredQuery generates a structured query for GKE API audit logs.
+func generateGKEAuditStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+	return &logestimator.StructuredLogQuery{
+		Incomplete:                !cluster.IsComplete(),
+		ResourceTypes:             []string{"gke_cluster", "gke_nodepool"},
+		IgnoreMetricsResourceType: []string{"gke_cluster", "gke_nodepool"},
+		Filters: []logestimator.LoggingMonitoringMatcher{
+			logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+			logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+			logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.ClusterName)),
+			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+			logestimator.CustomFilter(`protoPayload.serviceName="container.googleapis.com"`),
+		},
+	}
+}

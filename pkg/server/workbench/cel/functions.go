@@ -47,46 +47,6 @@ func CompileCaseInsensitiveRegex(pattern string) (*regexp.Regexp, error) {
 	return re, nil
 }
 
-func combinePatterns(patterns []string) string {
-	if len(patterns) == 0 {
-		return ""
-	}
-	if len(patterns) == 1 {
-		return patterns[0]
-	}
-	return "(?:" + strings.Join(patterns, ")|(?:") + ")"
-}
-
-// resolveStructYAML resolves the YAML string representation for a given struct ID using DirectYAMLSerializer.
-func resolveStructYAML(structID uint32, pool *khifilev6model.ReadonlyInternPool) (string, bool) {
-	if pool == nil {
-		return "", false
-	}
-	serializer := directYAMLSerializerPool.Get().(*khifilev6model.DirectYAMLSerializer)
-	defer directYAMLSerializerPool.Put(serializer)
-	yamlStr, err := serializer.SerializeFlatStruct(structID, pool)
-	if err != nil {
-		return "", false
-	}
-	return yamlStr, true
-}
-
-// resolveStructNode resolves the structured.Node from an interned struct ID.
-func resolveStructNode(structID uint32, pool *khifilev6model.ReadonlyInternPool) (structured.Node, bool) {
-	if pool == nil {
-		return nil, false
-	}
-	s := pool.ResolveStructFromID(structID)
-	if s == nil {
-		return nil, false
-	}
-	node, err := khifilev6model.FromInternedStruct(s, pool)
-	if err != nil {
-		return nil, false
-	}
-	return node, true
-}
-
 // MatchTimelinePath checks if any key in timeline's hierarchy path matches the given pattern(s) case-insensitively.
 func MatchTimelinePath(t *TimelineData, key string, patterns []string, tlMap map[uint32]*TimelineData) bool {
 	if t == nil || len(patterns) == 0 {
@@ -191,6 +151,46 @@ func MatchLogField(
 		return false, nil
 	}
 	return matchNodeField(node, pathKey, combinedPattern), nil
+}
+
+func combinePatterns(patterns []string) string {
+	if len(patterns) == 0 {
+		return ""
+	}
+	if len(patterns) == 1 {
+		return patterns[0]
+	}
+	return "(?:" + strings.Join(patterns, ")|(?:") + ")"
+}
+
+// resolveStructYAML resolves the YAML string representation for a given struct ID using DirectYAMLSerializer.
+func resolveStructYAML(structID uint32, pool *khifilev6model.ReadonlyInternPool) (string, bool) {
+	if pool == nil {
+		return "", false
+	}
+	serializer := directYAMLSerializerPool.Get().(*khifilev6model.DirectYAMLSerializer)
+	defer directYAMLSerializerPool.Put(serializer)
+	yamlStr, err := serializer.SerializeFlatStruct(structID, pool)
+	if err != nil {
+		return "", false
+	}
+	return yamlStr, true
+}
+
+// resolveStructNode resolves the structured.Node from an interned struct ID.
+func resolveStructNode(structID uint32, pool *khifilev6model.ReadonlyInternPool) (structured.Node, bool) {
+	if pool == nil {
+		return nil, false
+	}
+	s := pool.ResolveStructFromID(structID)
+	if s == nil {
+		return nil, false
+	}
+	node, err := khifilev6model.FromInternedStruct(s, pool)
+	if err != nil {
+		return nil, false
+	}
+	return node, true
 }
 
 func matchNodeField(node structured.Node, pathKey string, pattern string) bool {

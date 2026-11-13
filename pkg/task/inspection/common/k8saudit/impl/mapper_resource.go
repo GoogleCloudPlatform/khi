@@ -27,6 +27,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
+// Explicit interface compliance assertion.
+var _ k8saudit.ManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState] = (*resourceRevisionLogToTimelineMapperTaskSetting)(nil)
+
+// resourceRevisionLogToTimelineMapperTask is the task to generate resource revision history.
+var resourceRevisionLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState](
+	k8saudit.ResourceRevisionLogToTimelineMapperTaskID,
+	func(b *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState] {
+		return &resourceRevisionLogToTimelineMapperTaskSetting{
+			initialStateProviderInput: coretask.Use(b, k8saudit.InitialResourceStateProviderRef),
+			kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
+				"core/v1#pod": {},
+			},
+		}
+	},
+)
+
 // resourceRevisionLogToTimelineMapperState tracks the status of a resource during timeline generation.
 type resourceRevisionLogToTimelineMapperState struct {
 	// WasCompletelyRemoved is true if the resource was completely removed.
@@ -43,18 +59,32 @@ type resourceRevisionLogToTimelineMapperState struct {
 	hasFallbackCreationTime bool
 }
 
-// newResourceRevisionLogToTimelineMapperState returns a new instance of resourceRevisionLogToTimelineMapperState.
-func newResourceRevisionLogToTimelineMapperState() *resourceRevisionLogToTimelineMapperState {
-	return &resourceRevisionLogToTimelineMapperState{
-		creationTimePerUID: make(map[string]time.Time),
-	}
-}
-
 // resourceRevisionLogToTimelineMapperTaskSetting is the setting for the resource revision timeline mapper task.
 type resourceRevisionLogToTimelineMapperTaskSetting struct {
 	initialStateProviderInput coretask.Input[k8saudit.InitialResourceStateProvider]
 	// kindsToWaitExactDeletionToDeterminDeletion is the map of kinds to wait exact deletion to determine deletion.
 	kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
+}
+
+// MustResolveTimelinePath resolves TimelinePath from ResourceIdentity using K6 core helpers.
+func MustResolveTimelinePath(ctx context.Context, clusterName string, identity *k8saudit.ResourceIdentity) *khifilev6.TimelinePath {
+	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, identity.APIVersion)
+	kind := k8saudit.MustK8sKindTimeline(ctx, api, strings.ToLower(identity.Kind))
+
+	var resPath *khifilev6.TimelinePath
+	if identity.Namespace != "" {
+		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, identity.Namespace)
+		resPath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, identity.Name)
+	} else {
+		resPath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, identity.Name)
+	}
+
+	if identity.SubresourceName != "" {
+		return k8saudit.MustK8sSubresourceTimeline(ctx, resPath, identity.SubresourceName)
+	}
+
+	return resPath
 }
 
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
@@ -140,19 +170,6 @@ func (r *resourceRevisionLogToTimelineMapperTaskSetting) processLog(ctx context.
 		return cs, nextState, err
 	}
 }
-
-// resourceRevisionLogToTimelineMapperTask is the task to generate resource revision history.
-var resourceRevisionLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState](
-	k8saudit.ResourceRevisionLogToTimelineMapperTaskID,
-	func(b *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState] {
-		return &resourceRevisionLogToTimelineMapperTaskSetting{
-			initialStateProviderInput: coretask.Use(b, k8saudit.InitialResourceStateProviderRef),
-			kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
-				"core/v1#pod": {},
-			},
-		}
-	},
-)
 
 // handleParentChangeForSubresource handles the parent change for subresource.
 func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSubresource(ctx context.Context, event k8saudit.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet) error {
@@ -384,26 +401,9 @@ func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 	return prevGroupData, nil
 }
 
-// MustResolveTimelinePath resolves TimelinePath from ResourceIdentity using K6 core helpers.
-func MustResolveTimelinePath(ctx context.Context, clusterName string, identity *k8saudit.ResourceIdentity) *khifilev6.TimelinePath {
-	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, identity.APIVersion)
-	kind := k8saudit.MustK8sKindTimeline(ctx, api, strings.ToLower(identity.Kind))
-
-	var resPath *khifilev6.TimelinePath
-	if identity.Namespace != "" {
-		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, identity.Namespace)
-		resPath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, identity.Name)
-	} else {
-		resPath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, identity.Name)
+// newResourceRevisionLogToTimelineMapperState returns a new instance of resourceRevisionLogToTimelineMapperState.
+func newResourceRevisionLogToTimelineMapperState() *resourceRevisionLogToTimelineMapperState {
+	return &resourceRevisionLogToTimelineMapperState{
+		creationTimePerUID: make(map[string]time.Time),
 	}
-
-	if identity.SubresourceName != "" {
-		return k8saudit.MustK8sSubresourceTimeline(ctx, resPath, identity.SubresourceName)
-	}
-
-	return resPath
 }
-
-// Explicit interface compliance assertion.
-var _ k8saudit.ManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState] = (*resourceRevisionLogToTimelineMapperTaskSetting)(nil)

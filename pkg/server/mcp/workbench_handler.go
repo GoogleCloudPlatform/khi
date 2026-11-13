@@ -20,14 +20,17 @@ import (
 	"strings"
 	"time"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const defaultWorkbenchWaitTimeout = 30 * time.Second
+
+var _ DomainHandler = (*WorkbenchHandler)(nil)
 
 // WorkbenchHandler exposes workbench operations and tools over MCP.
 type WorkbenchHandler struct {
@@ -40,7 +43,11 @@ type WorkbenchHandler struct {
 	baseURL     string
 }
 
-var _ DomainHandler = (*WorkbenchHandler)(nil)
+type workbenchLoadingData struct {
+	ID            string
+	Stage         string
+	ProgressRatio float64
+}
 
 // NewWorkbenchHandler creates a new WorkbenchHandler.
 //
@@ -116,12 +123,6 @@ func (h *WorkbenchHandler) Register(srv *mcpsdk.Server) {
 	}, h.handleValidateReport)
 }
 
-type workbenchLoadingData struct {
-	ID            string
-	Stage         string
-	ProgressRatio float64
-}
-
 // acquireWorkbench loads or retrieves a workbench for the inspection, waiting up to waitTimeout.
 // If the workbench or index is still loading when the timeout expires, it returns a WORKBENCH_LOADING tool result.
 func (h *WorkbenchHandler) acquireWorkbench(ctx context.Context, inspectionID string) (*workbench.Workbench, *mcpsdk.CallToolResult, error) {
@@ -160,13 +161,6 @@ func (h *WorkbenchHandler) acquireWorkbench(ctx context.Context, inspectionID st
 	return wb, nil, nil
 }
 
-func loadStageName(stage apiv1.OpenWorkbenchResponse_Stage) string {
-	if stage == apiv1.OpenWorkbenchResponse_STAGE_UNSPECIFIED {
-		return "INITIALIZING"
-	}
-	return strings.TrimPrefix(stage.String(), "STAGE_")
-}
-
 func (h *WorkbenchHandler) workbenchLoadingResult(inspectionID, stage string, progressRatio float64) (*workbench.Workbench, *mcpsdk.CallToolResult, error) {
 	res, _, err := h.templates.ErrorToolResult("workbench_loading.md.tmpl", workbenchLoadingData{
 		ID:            inspectionID,
@@ -174,4 +168,11 @@ func (h *WorkbenchHandler) workbenchLoadingResult(inspectionID, stage string, pr
 		ProgressRatio: progressRatio,
 	})
 	return nil, res, err
+}
+
+func loadStageName(stage apiv1.OpenWorkbenchResponse_Stage) string {
+	if stage == apiv1.OpenWorkbenchResponse_STAGE_UNSPECIFIED {
+		return "INITIALIZING"
+	}
+	return strings.TrimPrefix(stage.String(), "STAGE_")
 }

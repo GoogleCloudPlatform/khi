@@ -17,12 +17,13 @@ package khifilev6
 import (
 	"testing"
 
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
-	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
 func TestReadonlyInternPool_IngestAndResolve(t *testing.T) {

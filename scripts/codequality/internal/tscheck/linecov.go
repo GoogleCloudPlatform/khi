@@ -24,18 +24,56 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
+const (
+	tsCandidateStatement tsCandidateKind = iota
+	tsCandidateFnDecl
+	tsCandidateFnBody
+	tsCandidateBranchArm
+)
+
 // TSCoverageOptions configures TypeScript differential and overall coverage analysis.
 type TSCoverageOptions struct {
-	CovByFile          map[string]gotestutil.IstanbulFileCoverage
+	// CovByFile maps TypeScript file paths to parsed Istanbul coverage data.
+	CovByFile map[string]gotestutil.IstanbulFileCoverage
+	// ChangedLinesByFile maps modified TypeScript file paths to changed 1-based line sets.
 	ChangedLinesByFile map[string]map[int]struct{}
-	ReadSource         func(relPath string) ([]byte, error)
-	IncludeOverall     bool
+	// ReadSource reads raw source bytes for a TypeScript file path.
+	ReadSource func(relPath string) ([]byte, error)
+	// IncludeOverall enables overall statement coverage totals in the summary.
+	IncludeOverall bool
 }
 
 // TSCoverageResult holds aggregate coverage summary metrics and per-file uncovered line findings.
 type TSCoverageResult struct {
-	Summary  rule.CoverageSummary
+	// Summary holds aggregated patch and overall TypeScript coverage totals.
+	Summary rule.CoverageSummary
+	// Findings contains func_uncovered_lines violations for TypeScript files.
 	Findings []rule.Finding
+}
+
+type tsFileCovOutcome struct {
+	finding   *rule.Finding
+	execCount int
+	covCount  int
+}
+
+type tsLineState struct {
+	executable bool
+	covered    bool
+}
+
+type tsCandidateKind int
+
+type tsLineCandidate struct {
+	kind          tsCandidateKind
+	branchType    string
+	effStart      int
+	effEnd        int
+	origStartLine int
+	origStartCol  int
+	origEndLine   int
+	origEndCol    int
+	count         int
 }
 
 // AnalyzeTSCoverage maps Istanbul spans onto changed TypeScript lines and builds uncovered line findings.
@@ -77,12 +115,6 @@ func accumulateOverallTSStatements(sum *rule.CoverageSummary, covByFile map[stri
 			}
 		}
 	}
-}
-
-type tsFileCovOutcome struct {
-	finding   *rule.Finding
-	execCount int
-	covCount  int
 }
 
 func analyzeSingleTSFile(relFile string, opts TSCoverageOptions) (tsFileCovOutcome, error) {
@@ -138,32 +170,6 @@ func collectChangedTSLineCounts(states []tsLineState, numLines int, changedSet m
 		}
 	}
 	return execCount, covCount, uncovered
-}
-
-type tsLineState struct {
-	executable bool
-	covered    bool
-}
-
-type tsCandidateKind int
-
-const (
-	tsCandidateStatement tsCandidateKind = iota
-	tsCandidateFnDecl
-	tsCandidateFnBody
-	tsCandidateBranchArm
-)
-
-type tsLineCandidate struct {
-	kind          tsCandidateKind
-	branchType    string
-	effStart      int
-	effEnd        int
-	origStartLine int
-	origStartCol  int
-	origEndLine   int
-	origEndCol    int
-	count         int
 }
 
 func mapIstanbulToLines(rawLines []string, codeLines []bool, fc gotestutil.IstanbulFileCoverage) []tsLineState {

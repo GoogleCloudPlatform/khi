@@ -27,15 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scontrolplane"
 )
 
-func kindToKLogFieldPair(apiVersion string, kind string, klogField string, isNamespaced bool) *k8scontrolplane.KindToKLogFieldPairData {
-	return &k8scontrolplane.KindToKLogFieldPairData{
-		APIVersion:   apiVersion,
-		KindName:     kind,
-		KLogField:    klogField,
-		IsNamespaced: isNamespaced,
-	}
-}
-
 var defaultControllerManagerExtractor = &k8scontrolplane.K8sControllerManagerComponentExtractor{
 	WellKnownSourceLocationToControllerMap: map[string]string{
 		"namespace_controller.go":      "namespace-controller",
@@ -87,6 +78,22 @@ var controllerManagerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// controllerManagerLogToTimelineMapperTask maps kube-controller-manager logs to the timelines of the controllers and the resources they mention.
+var controllerManagerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.ControllerManagerLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.ControllerManagerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &controllerManagerTimelineMapper{
+			finder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
+		}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*controllerManagerTimelineMapper)(nil)
+
 // controllerManagerTimelineMapper maps controller manager logs to timeline paths.
 type controllerManagerTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
@@ -99,7 +106,14 @@ func (o *controllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	return cs, struct{}{}, err
 }
 
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*controllerManagerTimelineMapper)(nil)
+func kindToKLogFieldPair(apiVersion string, kind string, klogField string, isNamespaced bool) *k8scontrolplane.KindToKLogFieldPairData {
+	return &k8scontrolplane.KindToKLogFieldPairData{
+		APIVersion:   apiVersion,
+		KindName:     kind,
+		KLogField:    klogField,
+		IsNamespaced: isNamespaced,
+	}
+}
 
 // mapControllerManagerLog adds events for a kube-controller-manager log to the timelines of its controller and of the resources the log mentions by name or UID.
 func mapControllerManagerLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
@@ -141,17 +155,3 @@ func mapControllerManagerLog(ctx context.Context, l *log.Log, finder patternfind
 
 	return cs, nil
 }
-
-// controllerManagerLogToTimelineMapperTask maps kube-controller-manager logs to the timelines of the controllers and the resources they mention.
-var controllerManagerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8scontrolplane.ControllerManagerLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8scontrolplane.ControllerManagerLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &controllerManagerTimelineMapper{
-			finder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
-		}
-	},
-)

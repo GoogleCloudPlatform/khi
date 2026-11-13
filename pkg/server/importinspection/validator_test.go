@@ -20,12 +20,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/proto"
 )
 
 func createTestKHIFile(t *testing.T, dir string, metadataItems []*pb.MetadataItem) string {

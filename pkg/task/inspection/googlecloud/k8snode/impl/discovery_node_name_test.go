@@ -18,13 +18,14 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8snode"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestNodeNameDiscoveryTask(t *testing.T) {

@@ -20,21 +20,27 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
+const (
+	// ClusterTypeAWS identifies an Anthos on AWS cluster.
+	ClusterTypeAWS MultiCloudClusterType = "aws"
+	// ClusterTypeAzure identifies an Anthos on Azure cluster.
+	ClusterTypeAzure MultiCloudClusterType = "azure"
+	// ClusterTypeUnknown identifies an unknown multicloud cluster type.
+	ClusterTypeUnknown MultiCloudClusterType = "unknown"
+)
+
 var pathResourceName = structured.CompileFieldPath("protoPayload.resourceName")
 
 // MultiCloudClusterType represents the type of multicloud cluster.
 type MultiCloudClusterType = string
 
-const (
-	ClusterTypeAWS     MultiCloudClusterType = "aws"
-	ClusterTypeAzure   MultiCloudClusterType = "azure"
-	ClusterTypeUnknown MultiCloudClusterType = "unknown"
-)
-
 // MulticloudAPIAuditResourceFieldSet represents the parsed resource fields of a multicloud audit log.
 type MulticloudAPIAuditResourceFieldSet struct {
-	ClusterType  MultiCloudClusterType
-	ClusterName  string
+	// ClusterType is the cloud provider type of the multicloud cluster (e.g., aws, azure).
+	ClusterType MultiCloudClusterType
+	// ClusterName is the name of the multicloud cluster.
+	ClusterName string
+	// NodepoolName is the name of the node pool when the log targets a node pool, or empty otherwise.
 	NodepoolName string
 }
 

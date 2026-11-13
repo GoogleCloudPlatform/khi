@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -31,7 +33,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/networkapiaudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"gopkg.in/yaml.v3"
 )
 
 // logIngesterTask ingests the metadata of GCE Network API audit logs into the KHI v6 format.
@@ -55,6 +56,30 @@ var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 		}
 	},
 )
+
+// logToTimelineMapperTask maps GCE Network API audit logs to NEG timelines.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	networkapiaudit.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: networkapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: networkapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*perNEGHistoryModificationStatus] {
+		return &networkAuditTimelineMapper{
+			clusterIdentity:     coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+			negs:                coretask.Use(b, k8scommon.NEGNamesInventoryTaskID.Ref()),
+			ipLeases:            coretask.Use(b, k8saudit.IPLeaseHistoryInventoryTaskID.Ref()),
+			negToBackendService: coretask.Use(b, k8scommon.NEGToBackendServiceInventoryTaskID.Ref()),
+		}
+	},
+	inspectioncore.FeatureTaskLabel(`GCE Network Logs`,
+		`Gather GCE Network API logs to visualize the provisioning and status transitions of Network Endpoint Groups (NEGs) on timelines.`,
+		7000,
+		true,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[*perNEGHistoryModificationStatus] = (*networkAuditTimelineMapper)(nil)
 
 type negAttachOrDetachRequestEndpoint struct {
 	Instance  string `yaml:"instance"`
@@ -280,30 +305,6 @@ func processEndpointRevisions(
 		prevGroupData.KnownEndpoints[endpointKey] = true
 	}
 }
-
-var _ inspectiontaskbase.TimelineMapper[*perNEGHistoryModificationStatus] = (*networkAuditTimelineMapper)(nil)
-
-// logToTimelineMapperTask maps GCE Network API audit logs to NEG timelines.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	networkapiaudit.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: networkapiaudit.LogIngesterTaskID.Ref(),
-		GroupedLogs: networkapiaudit.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*perNEGHistoryModificationStatus] {
-		return &networkAuditTimelineMapper{
-			clusterIdentity:     coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
-			negs:                coretask.Use(b, k8scommon.NEGNamesInventoryTaskID.Ref()),
-			ipLeases:            coretask.Use(b, k8saudit.IPLeaseHistoryInventoryTaskID.Ref()),
-			negToBackendService: coretask.Use(b, k8scommon.NEGToBackendServiceInventoryTaskID.Ref()),
-		}
-	},
-	inspectioncore.FeatureTaskLabel(`GCE Network Logs`,
-		`Gather GCE Network API logs to visualize the provisioning and status transitions of Network Endpoint Groups (NEGs) on timelines.`,
-		7000,
-		true,
-	),
-)
 
 func getNegNameFromResourceName(resourceName string) string {
 	lastSlashIndex := strings.LastIndex(resourceName, "/")

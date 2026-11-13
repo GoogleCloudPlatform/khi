@@ -14,6 +14,11 @@
 
 package upload
 
+var (
+	_ UploadToken = &DirectUploadToken{}
+	_ UploadToken = &LocalFileUploadToken{}
+)
+
 // UploadToken is the type given to the frontend to receive the file.
 // This currently exects files are uploaded to API directly, but in future this may support the upload using signed URLs as well.
 // All token implements this type must be serializable as JSON.
@@ -33,6 +38,12 @@ type DirectUploadToken struct {
 	ID string `json:"id"`
 }
 
+// LocalFileUploadToken is a UploadToken for uploading local files via file path.
+type LocalFileUploadToken struct {
+	// FilePath identifies the file location uploaded to this server locally.
+	FilePath string `json:"filepath"`
+}
+
 // GetHash implements UploadToken.
 func (d *DirectUploadToken) GetHash() string {
 	return d.ID
@@ -46,14 +57,6 @@ func (d *DirectUploadToken) GetID() string {
 // GetType implements UploadToken.
 func (d *DirectUploadToken) GetType() string {
 	return "direct"
-}
-
-var _ UploadToken = &DirectUploadToken{}
-
-// LocalFileUploadToken is a UploadToken for uploading local files via file path.
-type LocalFileUploadToken struct {
-	// FilePath identifies the file location uploaded to this server locally.
-	FilePath string `json:"filepath"`
 }
 
 // GetHash implements UploadToken.
@@ -70,5 +73,3 @@ func (l *LocalFileUploadToken) GetID() string {
 func (l *LocalFileUploadToken) GetType() string {
 	return "local-file"
 }
-
-var _ UploadToken = &LocalFileUploadToken{}

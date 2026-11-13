@@ -18,9 +18,10 @@ import (
 	"iter"
 	"sync"
 
+	"google.golang.org/protobuf/proto"
+
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-	"google.golang.org/protobuf/proto"
 )
 
 // TimelinePath represents a single node in the timeline hierarchy tree.
@@ -45,16 +46,6 @@ type PathSegment struct {
 	Type *pb.TimelineType
 }
 
-// timelinePathKey is used internally as a composite key to deduplicate TimelinePath instances.
-type timelinePathKey struct {
-	// parentID is the ID of the parent TimelinePath, or 0 for root paths.
-	parentID uint32
-	// nameID is the interned string ID.
-	nameID uint32
-	// typeID is the TimelineType ID.
-	typeID uint32
-}
-
 // TimelinePathPool guarantees the uniqueness of TimelinePath instances.
 // It is safe for concurrent use by multiple goroutines.
 type TimelinePathPool struct {
@@ -66,6 +57,16 @@ type TimelinePathPool struct {
 	paths sync.Map // map[timelinePathKey]*TimelinePath
 	// idToPath is a concurrent map caching ID to *TimelinePath.
 	idToPath sync.Map // map[uint32]*TimelinePath
+}
+
+// timelinePathKey is used internally as a composite key to deduplicate TimelinePath instances.
+type timelinePathKey struct {
+	// parentID is the ID of the parent TimelinePath, or 0 for root paths.
+	parentID uint32
+	// nameID is the interned string ID.
+	nameID uint32
+	// typeID is the TimelineType ID.
+	typeID uint32
 }
 
 // NewTimelinePathPool creates a new pool for deduplicating TimelinePath instances.
@@ -85,6 +86,24 @@ func (p *TimelinePathPool) Get(parent *TimelinePath, segments ...PathSegment) *T
 		current = p.getOrCreateSingle(current, seg.Name, seg.Type)
 	}
 	return current
+}
+
+// Paths returns an iterator over all TimelinePath instances present in the pool.
+func (p *TimelinePathPool) Paths() iter.Seq[*TimelinePath] {
+	return func(yield func(*TimelinePath) bool) {
+		p.paths.Range(func(key, value any) bool {
+			return yield(value.(*TimelinePath))
+		})
+	}
+}
+
+// ResolvePathFromID returns the TimelinePath corresponding to the given ID.
+// It returns nil if the ID is not found or is an orphaned ID.
+func (p *TimelinePathPool) ResolvePathFromID(id uint32) *TimelinePath {
+	if value, ok := p.idToPath.Load(id); ok {
+		return value.(*TimelinePath)
+	}
+	return nil
 }
 
 // getOrCreateSingle handles the thread-safe retrieval or creation of a single TimelinePath segment.
@@ -127,22 +146,4 @@ func (p *TimelinePathPool) getOrCreateSingle(parent *TimelinePath, name string, 
 		p.idToPath.Store(newID, (*TimelinePath)(nil))
 	}
 	return actual.(*TimelinePath)
-}
-
-// Paths returns an iterator over all TimelinePath instances present in the pool.
-func (p *TimelinePathPool) Paths() iter.Seq[*TimelinePath] {
-	return func(yield func(*TimelinePath) bool) {
-		p.paths.Range(func(key, value any) bool {
-			return yield(value.(*TimelinePath))
-		})
-	}
-}
-
-// ResolvePathFromID returns the TimelinePath corresponding to the given ID.
-// It returns nil if the ID is not found or is an orphaned ID.
-func (p *TimelinePathPool) ResolvePathFromID(id uint32) *TimelinePath {
-	if value, ok := p.idToPath.Load(id); ok {
-		return value.(*TimelinePath)
-	}
-	return nil
 }

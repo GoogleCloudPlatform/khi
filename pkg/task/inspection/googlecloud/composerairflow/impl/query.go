@@ -28,6 +28,28 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// composerLogsQueryTask defines a task that gathers logs from Cloud Logging for multiple Composer components.
+var composerLogsQueryTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	composerairflow.ComposerLogsQueryTaskID,
+	"Composer Environment Logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &composerLogsQuerySource{
+			clusterIdentity: coretask.Use(b, composercluster.ClusterIdentityTaskID.Ref()),
+			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
+			components:      coretask.Use(b, composerairflow.InputComposerComponentsTaskID.Ref()),
+		}
+	},
+)
+
+var _ gcpcommon.StructuredLogQuerySource = (*composerLogsQuerySource)(nil)
+
+// composerLogsQuerySource builds the Cloud Composer logs query for the cluster, environment, and components read through the inputs.
+type composerLogsQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	environmentName coretask.Input[string]
+	components      coretask.Input[[]string]
+}
+
 // GenerateComposerLogsStructuredQuery generates a structured query for Composer environment logs.
 func GenerateComposerLogsStructuredQuery(projectID, location, environmentName string, selectedComponents []string) *logestimator.StructuredLogQuery {
 	filters := []logestimator.LoggingMonitoringMatcher{
@@ -54,13 +76,6 @@ func GenerateComposerLogsQuery(projectID, location, environmentName string, sele
 	return GenerateComposerLogsStructuredQuery(projectID, location, environmentName, selectedComponents).GenerateCloudLoggingQuery()
 }
 
-// composerLogsQuerySource builds the Cloud Composer logs query for the cluster, environment, and components read through the inputs.
-type composerLogsQuerySource struct {
-	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	environmentName coretask.Input[string]
-	components      coretask.Input[[]string]
-}
-
 // DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
 func (s *composerLogsQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	clusterIdentity := s.clusterIdentity.Get(ctx)
@@ -80,18 +95,3 @@ func (s *composerLogsQuerySource) Queries(ctx context.Context, taskMode inspecti
 func (s *composerLogsQuerySource) TimePartitionCount() int {
 	return 10
 }
-
-var _ gcpcommon.StructuredLogQuerySource = (*composerLogsQuerySource)(nil)
-
-// composerLogsQueryTask defines a task that gathers logs from Cloud Logging for multiple Composer components.
-var composerLogsQueryTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	composerairflow.ComposerLogsQueryTaskID,
-	"Composer Environment Logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &composerLogsQuerySource{
-			clusterIdentity: coretask.Use(b, composercluster.ClusterIdentityTaskID.Ref()),
-			environmentName: coretask.Use(b, composercluster.InputComposerEnvironmentNameTaskID.Ref()),
-			components:      coretask.Use(b, composerairflow.InputComposerComponentsTaskID.Ref()),
-		}
-	},
-)

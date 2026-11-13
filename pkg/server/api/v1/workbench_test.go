@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -30,7 +32,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"google.golang.org/protobuf/proto"
 )
 
 func createTestInspectionServerForWorkbench(t *testing.T) (*coreinspection.InspectionTaskServer, string) {

@@ -18,11 +18,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 )
 
-// ControlplaneLogContext defines the contextual metadata of a control plane log used for parser routing.
-type ControlplaneLogContext struct {
-	ComponentName string
-}
-
 // DefaultControlplaneLogParser is the default SelectorLogParser for GKE control plane logs.
 var DefaultControlplaneLogParser = logutil.NewSelectorLogParser[ControlplaneLogContext](
 	logutil.NewMultiTextLogParser(
@@ -41,3 +36,9 @@ var DefaultControlplaneLogParser = logutil.NewSelectorLogParser[ControlplaneLogC
 		),
 	},
 )
+
+// ControlplaneLogContext defines the contextual metadata of a control plane log used for parser routing.
+type ControlplaneLogContext struct {
+	// ComponentName is the name of the control plane component (e.g., scheduler, controller-manager).
+	ComponentName string
+}

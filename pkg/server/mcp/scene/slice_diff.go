@@ -26,32 +26,43 @@ import (
 
 const maxSlicePreviewLines = 6
 
-type diffHunkRange struct {
-	opStart int
-	opEnd   int
-}
-
 // DiffSliceOptions configures multi-window slicing of a resource revision diff.
 type DiffSliceOptions struct {
-	Windows  []SliceWindow
+	// Windows specifies search spots and context line counts to retain in the diff.
+	Windows []SliceWindow
+	// MaxLines caps the total number of diff lines returned across all windows.
 	MaxLines int
 }
 
 // DiffSliceResult holds the sliced lines and summary counts for a unified diff.
 type DiffSliceResult struct {
-	Changes        workbench.LineChangeCount
+	// Changes holds the total added and deleted line counts across the full diff.
+	Changes workbench.LineChangeCount
+	// TotalDiffLines is the total number of lines across all unified diff hunks.
 	TotalDiffLines int
-	Lines          []ExcerptLine
+	// Lines contains the sliced excerpt lines including omitted-gap markers.
+	Lines []ExcerptLine
 }
 
 // ResourceDiffSlice combines revision metadata with a sliced managedFields-clean unified diff.
 type ResourceDiffSlice struct {
-	TimelineID       uint32
-	Segments         []workbench.TimelineSegment
-	Revision         workbench.ResourceRevision
-	Previous         *workbench.ResourceRevision
+	// TimelineID is the resource timeline ID containing the revision.
+	TimelineID uint32
+	// Segments holds the timeline path segments identifying the resource.
+	Segments []workbench.TimelineSegment
+	// Revision holds metadata for the target resource revision.
+	Revision workbench.ResourceRevision
+	// Previous holds metadata for the preceding revision, or nil for the initial revision.
+	Previous *workbench.ResourceRevision
+	// NextRevisionTime is the timestamp of the following revision, or nil if this is the latest revision.
 	NextRevisionTime *time.Time
-	Slice            DiffSliceResult
+	// Slice contains the sliced unified diff lines and change counts.
+	Slice DiffSliceResult
+}
+
+type diffHunkRange struct {
+	opStart int
+	opEnd   int
 }
 
 // SliceResourceDiff fetches the managedFields-stripped revision pair from wb and slices its unified diff according to opts.

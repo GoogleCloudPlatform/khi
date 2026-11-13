@@ -32,26 +32,43 @@ import (
 
 // Options configures Stage-2 differential mutation testing and test_redundancy evaluation.
 type Options struct {
-	RepoRoot               string
-	WorkDir                string
-	Thresholds             rule.Thresholds
+	// RepoRoot is the repository root directory path.
+	RepoRoot string
+	// WorkDir is the temporary working directory for mutation builds and traces.
+	WorkDir string
+	// Thresholds specifies quality limits for mutation and redundancy rules.
+	Thresholds rule.Thresholds
+	// ChangedProdLinesByFile maps changed production file paths to modified 1-based line sets.
 	ChangedProdLinesByFile map[string]map[int]struct{}
+	// ChangedTestLinesByFile maps changed test file paths to modified 1-based line sets.
 	ChangedTestLinesByFile map[string]map[int]struct{}
-	CoverBlocksByFile      map[string][]gotestutil.CoverBlock
-	HasCoverProfile        bool
-	ASTResult              *astcheck.Result
-	EnsureBaseOverlay      func() (*overlay.Snapshot, error)
-	Workers                int
-	MaxMutants             int
-	Timeout                time.Duration
-	LogWriter              io.Writer
-	Progress               ProgressHooks
+	// CoverBlocksByFile maps file paths to parsed Go coverprofile blocks.
+	CoverBlocksByFile map[string][]gotestutil.CoverBlock
+	// HasCoverProfile reports whether coverage data is available to pre-filter uncovered lines.
+	HasCoverProfile bool
+	// ASTResult holds Stage-1 AST analysis results shared with Stage-2 checks.
+	ASTResult *astcheck.Result
+	// EnsureBaseOverlay lazily materializes the base-revision overlay workspace.
+	EnsureBaseOverlay func() (*overlay.Snapshot, error)
+	// Workers specifies the parallel mutant execution worker count.
+	Workers int
+	// MaxMutants caps the total number of evaluated mutants across packages.
+	MaxMutants int
+	// Timeout bounds the overall mutation testing duration.
+	Timeout time.Duration
+	// LogWriter receives diagnostic compile and bisect messages.
+	LogWriter io.Writer
+	// Progress receives progress updates during compilation, tracing, and mutant execution.
+	Progress ProgressHooks
 }
 
 // Result holds Stage-2 mutation summary stats and findings for func_surviving_mutants and test_redundancy.
 type Result struct {
-	Summary    rule.MutationSummary
-	Findings   []rule.Finding
+	// Summary holds aggregated mutant counts across evaluation statuses.
+	Summary rule.MutationSummary
+	// Findings contains func_surviving_mutants and test_redundancy violations.
+	Findings []rule.Finding
+	// Suppressed contains mutation findings suppressed by CODEQUALITY_ALLOW.
 	Suppressed []rule.SuppressedItem
 }
 

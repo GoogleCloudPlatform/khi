@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logestimator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
@@ -32,8 +34,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"google.golang.org/protobuf/proto"
 )
+
+var _ apiv1connect.InspectionServiceHandler = (*InspectionServiceServer)(nil)
 
 // InspectionServiceServer implements the apiv1connect.InspectionServiceHandler interface.
 type InspectionServiceServer struct {
@@ -41,8 +44,6 @@ type InspectionServiceServer struct {
 	streamCycleDuration time.Duration
 	updateInterval      time.Duration
 }
-
-var _ apiv1connect.InspectionServiceHandler = (*InspectionServiceServer)(nil)
 
 // NewInspectionServiceServer creates a new InspectionServiceServer with default 30s stream cycle and 1s interval.
 func NewInspectionServiceServer(inspectionServer *coreinspection.InspectionTaskServer) *InspectionServiceServer {

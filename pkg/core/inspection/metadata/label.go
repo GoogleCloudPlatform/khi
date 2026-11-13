@@ -14,24 +14,35 @@
 
 package inspectionmetadata
 
-// TODO: avoid circular dependency and use namespace in the flag name
+// LabelKeyIncludedInRunResultFlag indicates whether metadata is included in the inspection run result.
+// TODO: avoid circular dependency and use namespace in the flag name.
 var LabelKeyIncludedInRunResultFlag = NewMetadataLabelsKey[bool]("metadata/include-in-run-result")
+
+// LabelKeyIncludedInDryRunResultFlag indicates whether metadata is included in the dry-run result.
 var LabelKeyIncludedInDryRunResultFlag = NewMetadataLabelsKey[bool]("metadata/include-in-dry-run-result")
+
+// LabelKeyIncludedInTaskListFlag indicates whether metadata is included in the task list response.
 var LabelKeyIncludedInTaskListFlag = NewMetadataLabelsKey[bool]("metadata/include-in-tasklist")
+
+// LabelKeyIncludedInResultBinaryFlag indicates whether metadata is included in the serialized result binary.
 var LabelKeyIncludedInResultBinaryFlag = NewMetadataLabelsKey[bool]("metadata/include-in-result-binary")
 
+// IncludeInRunResult returns a label option that marks metadata for inclusion in the run result.
 func IncludeInRunResult() MetadataLabelOpt {
 	return WithLabelValue(LabelKeyIncludedInRunResultFlag, true)
 }
 
+// IncludeInDryRunResult returns a label option that marks metadata for inclusion in the dry-run result.
 func IncludeInDryRunResult() MetadataLabelOpt {
 	return WithLabelValue(LabelKeyIncludedInDryRunResultFlag, true)
 }
 
+// IncludeInTaskList returns a label option that marks metadata for inclusion in the task list.
 func IncludeInTaskList() MetadataLabelOpt {
 	return WithLabelValue(LabelKeyIncludedInTaskListFlag, true)
 }
 
+// IncludeInResultBinary returns a label option that marks metadata for inclusion in the result binary.
 func IncludeInResultBinary() MetadataLabelOpt {
 	return WithLabelValue(LabelKeyIncludedInResultBinaryFlag, true)
 }

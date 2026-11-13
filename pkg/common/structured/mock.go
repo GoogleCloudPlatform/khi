@@ -18,12 +18,12 @@ import (
 	"reflect"
 )
 
+var _ Node = (*MockNode)(nil)
+
 // MockNode is a specialized Node for unit tests that stores typed mock values.
 type MockNode struct {
 	values map[reflect.Type]any
 }
-
-var _ Node = (*MockNode)(nil)
 
 // NewMockNode instantiates a MockNode containing the given mock values.
 func NewMockNode(mockValues ...any) *MockNode {

@@ -22,9 +22,12 @@ import (
 // PatternMatchResult represents a single match found within a larger text.
 // It includes the start and end positions of the match.
 type PatternMatchResult[T any] struct {
+	// Value is the payload associated with the matched pattern.
 	Value T
+	// Start is the byte offset where the match begins.
 	Start int
-	End   int
+	// End is the byte offset immediately after the match.
+	End int
 }
 
 // GetMatchedString extracts the matched string from the original string.
@@ -120,11 +123,6 @@ func FindAllWithStarterRunes[T any](searchText string, finder PatternFinder[T], 
 	return results
 }
 
-// isLowerHexDigit reports whether b is a digit of a lowercase hexadecimal string.
-func isLowerHexDigit(b byte) bool {
-	return ('0' <= b && b <= '9') || ('a' <= b && b <= 'f')
-}
-
 // FindAllHexTokens finds all occurrences of registered patterns that form a whole lowercase
 // hexadecimal token within searchText.
 //
@@ -157,4 +155,9 @@ func FindAllHexTokens[T any](searchText string, finder PatternFinder[T]) []Patte
 		i = matchEnd
 	}
 	return results
+}
+
+// isLowerHexDigit reports whether b is a digit of a lowercase hexadecimal string.
+func isLowerHexDigit(b byte) bool {
+	return ('0' <= b && b <= '9') || ('a' <= b && b <= 'f')
 }

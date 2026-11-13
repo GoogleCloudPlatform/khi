@@ -18,9 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewLog(t *testing.T) {

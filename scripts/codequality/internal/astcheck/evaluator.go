@@ -29,25 +29,42 @@ type TargetReader func(relPath string) ([]byte, error)
 
 // Options configures Stage-1 AST structural evaluation across changed Go files.
 type Options struct {
-	Thresholds             rule.Thresholds
+	// Thresholds specifies the quantitative quality limits for Stage-1 AST checks.
+	Thresholds rule.Thresholds
+	// ChangedProdLinesByFile maps changed production file paths to modified 1-based line sets.
 	ChangedProdLinesByFile map[string]map[int]struct{}
+	// ChangedTestLinesByFile maps changed test file paths to modified 1-based line sets.
 	ChangedTestLinesByFile map[string]map[int]struct{}
-	DeletedGoFiles         []string
-	CloneCorpusFiles       []string
-	ReadTargetFile         TargetReader
-	ReadBaseFile           BaseReader
+	// DeletedGoFiles lists Go files deleted relative to the base revision.
+	DeletedGoFiles []string
+	// CloneCorpusFiles lists all production Go files included in cross-file clone indexing.
+	CloneCorpusFiles []string
+	// ReadTargetFile reads raw bytes for a target working-tree file.
+	ReadTargetFile TargetReader
+	// ReadBaseFile reads raw bytes for a base-revision file.
+	ReadBaseFile BaseReader
 }
 
 // Result holds Stage-1 AST findings alongside parsed target/base metadata shared with Stage-2 evaluators.
 type Result struct {
-	Findings        []rule.Finding
-	Suppressed      []rule.SuppressedItem
+	// Findings contains all Stage-1 AST quality findings.
+	Findings []rule.Finding
+	// Suppressed contains findings suppressed by valid CODEQUALITY_ALLOW directives.
+	Suppressed []rule.SuppressedItem
+	// DirectiveErrors contains malformed or unused CODEQUALITY_ALLOW directive errors.
 	DirectiveErrors []rule.DirectiveError
-	Files           map[string]*FileMetrics
-	TouchedFuncs    map[string][]FuncMetrics
-	EvaluatedLines  map[string]map[int]struct{}
-	FuncsEvaluated  int
-	Base            *BaseSnapshot
+	// Files maps evaluated file paths to their parsed file metrics.
+	Files map[string]*FileMetrics
+	// TouchedFuncs maps evaluated file paths to substantively modified production functions.
+	TouchedFuncs map[string][]FuncMetrics
+	// DynamicChangedLines maps evaluated production file paths to changed lines inside substantively modified functions.
+	DynamicChangedLines map[string]map[int]struct{}
+	// EvaluatedLines maps evaluated file paths to lines covered by Stage-1 evaluation.
+	EvaluatedLines map[string]map[int]struct{}
+	// FuncsEvaluated is the total number of functions and subtests evaluated.
+	FuncsEvaluated int
+	// Base holds lazily loaded metrics from the base revision.
+	Base *BaseSnapshot
 }
 
 type evalSession struct {
@@ -55,6 +72,17 @@ type evalSession struct {
 	base         *BaseSnapshot
 	targetClones *CloneIndex
 	res          *Result
+}
+
+type checkInput struct {
+	ruleID     rule.RuleID
+	declLine   int
+	reportLine int
+	endLine    int
+	subject    string
+	sample     rule.Sample
+	detail     string
+	hotspots   []rule.Hotspot
 }
 
 // Evaluate runs all Stage-1 AST quality rules on changed Go production and test files.
@@ -72,10 +100,11 @@ func Evaluate(opts Options) (*Result, error) {
 		base:         baseSnap,
 		targetClones: buildTargetCloneIndex(opts, prodFiles),
 		res: &Result{
-			Files:          make(map[string]*FileMetrics),
-			TouchedFuncs:   make(map[string][]FuncMetrics),
-			EvaluatedLines: make(map[string]map[int]struct{}),
-			Base:           baseSnap,
+			Files:               make(map[string]*FileMetrics),
+			TouchedFuncs:        make(map[string][]FuncMetrics),
+			DynamicChangedLines: make(map[string]map[int]struct{}),
+			EvaluatedLines:      make(map[string]map[int]struct{}),
+			Base:                baseSnap,
 		},
 	}
 
@@ -120,6 +149,7 @@ func (s *evalSession) evaluateProdFile(relPath string) error {
 	s.checkCatchAllFilename(relPath)
 	s.checkFileSize(fm, rule.RuleFileCodeLines)
 
+	targetHashes := ExtractFuncTokenHashes(relPath, src)
 	cloneByFunc := indexCloneBlocksByKey(ExtractCloneBlocks(relPath, src))
 	for _, fn := range fm.Funcs {
 		if !OverlapsLines(fn.StartLine, fn.EndLine, changed) {
@@ -128,9 +158,36 @@ func (s *evalSession) evaluateProdFile(relPath string) error {
 		s.res.FuncsEvaluated++
 		s.res.TouchedFuncs[relPath] = append(s.res.TouchedFuncs[relPath], fn)
 		s.res.EvaluatedLines[relPath][fn.StartLine] = struct{}{}
+		s.recordDynamicFuncScope(fm, fn, targetHashes[fn.Key], changed)
 		s.evaluateProdFunc(fm, fn, cloneByFunc[fn.Key])
 	}
 	return nil
+}
+
+func (s *evalSession) recordDynamicFuncScope(fm *FileMetrics, fn FuncMetrics, targetHash uint64, changed map[int]struct{}) {
+	if !s.isSubstantivelyModified(fm, fn, targetHash) {
+		return
+	}
+	dynLines := s.res.DynamicChangedLines[fm.File]
+	if dynLines == nil {
+		dynLines = make(map[int]struct{})
+		s.res.DynamicChangedLines[fm.File] = dynLines
+	}
+	for ln := fn.StartLine; ln <= fn.EndLine; ln++ {
+		if _, ok := changed[ln]; ok {
+			dynLines[ln] = struct{}{}
+		}
+	}
+}
+
+func (s *evalSession) isSubstantivelyModified(fm *FileMetrics, fn FuncMetrics, targetHash uint64) bool {
+	for _, d := range fm.Directives {
+		if d.TargetLine >= fn.StartLine && d.TargetLine <= fn.EndLine {
+			return true
+		}
+	}
+	baseHash, hasBase := s.base.LookupFuncHash(fm.File, fn.Key)
+	return !hasBase || targetHash != baseHash
 }
 
 func (s *evalSession) evaluateTestFile(relPath string) error {
@@ -321,17 +378,6 @@ func (s *evalSession) evaluateFuncClone(fm *FileMetrics, fn FuncMetrics, cloneBl
 		},
 		detail: detail,
 	})
-}
-
-type checkInput struct {
-	ruleID     rule.RuleID
-	declLine   int
-	reportLine int
-	endLine    int
-	subject    string
-	sample     rule.Sample
-	detail     string
-	hotspots   []rule.Hotspot
 }
 
 func (s *evalSession) recordCheck(fm *FileMetrics, in checkInput) {

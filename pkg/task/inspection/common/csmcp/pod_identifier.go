@@ -20,8 +20,11 @@ import (
 
 // PodIdentifier holds the namespace, name, and an optional connection ID of a Pod.
 type PodIdentifier struct {
-	Namespace    string
-	Name         string
+	// Namespace is the Kubernetes namespace of the Pod.
+	Namespace string
+	// Name is the name of the Pod.
+	Name string
+	// ConnectionID is the optional xDS connection identifier extracted from the log.
 	ConnectionID string
 }
 

@@ -19,12 +19,17 @@ import (
 	"errors"
 )
 
+// ErrNoValidTokenResolved is returned when no resolver produces a valid token.
 var ErrNoValidTokenResolved = errors.New("no valid token returned")
 
+var _ TokenResolver = &MultiTokenResolver{}
+
+// MultiTokenResolver tries multiple TokenResolvers in order until one succeeds.
 type MultiTokenResolver struct {
 	resolvers []TokenResolver
 }
 
+// NewMultiTokenResolver creates a MultiTokenResolver with the given resolvers.
 func NewMultiTokenResolver(resolvers ...TokenResolver) *MultiTokenResolver {
 	return &MultiTokenResolver{
 		resolvers: resolvers,
@@ -46,5 +51,3 @@ func (m *MultiTokenResolver) Resolve(ctx context.Context) (*Token, error) {
 	}
 	return nil, errors.Join(resultErrors...)
 }
-
-var _ TokenResolver = &MultiTokenResolver{}

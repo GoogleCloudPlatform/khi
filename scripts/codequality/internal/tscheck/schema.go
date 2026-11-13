@@ -21,147 +21,9 @@ import (
 	"strings"
 )
 
-const tsBrowserRuntimeFileName = "zzz_khi_mutant_runtime.js"
-
-// RenderTSSuperMutantSource splices activeSites into TypeScript source bytes from innermost to outermost spans.
-func RenderTSSuperMutantSource(src []byte, activeSites []TSMutationSite) []byte {
-	if len(activeSites) == 0 {
-		return src
-	}
-	sorted := make([]TSMutationSite, len(activeSites))
-	copy(sorted, activeSites)
-	slices.SortFunc(sorted, func(a, b TSMutationSite) int {
-		return cmp.Or(
-			cmp.Compare(a.StartOffset, b.StartOffset),
-			cmp.Compare(b.EndOffset, a.EndOffset),
-		)
-	})
-	rendered := renderTSSpan(src, sorted, tsSpanBounds{start: 0, end: len(src), excludeIdx: -1})
-	return []byte("// @ts-nocheck\n" + rendered)
-}
-
-type tsSpanBounds struct {
-	start      int
-	end        int
-	excludeIdx int
-}
-
-func renderTSSpan(src []byte, sites []TSMutationSite, bounds tsSpanBounds) string {
-	var sb strings.Builder
-	cursor := bounds.start
-	for i := range sites {
-		if skipTSNestedSite(sites, i, cursor, bounds) {
-			continue
-		}
-		s := &sites[i]
-		sb.Write(src[cursor:s.StartOffset])
-		sb.WriteString(renderSingleTSSite(src, sites, i))
-		cursor = s.EndOffset
-	}
-	sb.Write(src[cursor:bounds.end])
-	return sb.String()
-}
-
-func skipTSNestedSite(sites []TSMutationSite, idx int, cursor int, bounds tsSpanBounds) bool {
-	if idx == bounds.excludeIdx {
-		return true
-	}
-	s := &sites[idx]
-	if s.StartOffset < cursor || s.EndOffset > bounds.end {
-		return true
-	}
-	if bounds.excludeIdx >= 0 {
-		p := &sites[bounds.excludeIdx]
-		return s.StartOffset == p.StartOffset && s.EndOffset == p.EndOffset
-	}
-	return false
-}
-
-func renderSingleTSSite(src []byte, sites []TSMutationSite, idx int) string {
-	s := &sites[idx]
-	switch s.Kind {
-	case "ordered_cmp", "eq_cmp", "logical", "nullish", "arith":
-		return renderBinaryTSSite(src, sites, idx)
-	case "cond":
-		inner := renderTSSpan(src, sites, tsSpanBounds{start: s.StartOffset, end: s.EndOffset, excludeIdx: idx})
-		return fmt.Sprintf("(globalThis.__khiMut.cond(%d, %d, Boolean(%s)))", s.Mutants[0].ID, s.Mutants[1].ID, inner)
-	case "unary_not":
-		operand := renderTSSpan(src, sites, tsSpanBounds{start: s.LeftStart, end: s.LeftEnd, excludeIdx: idx})
-		return fmt.Sprintf("(globalThis.__khiMut.flip(%d, !(%s)))", s.Mutants[0].ID, operand)
-	case "bool_lit":
-		lit := "false"
-		if s.BoolVal {
-			lit = "true"
-		}
-		return fmt.Sprintf("(globalThis.__khiMut.flip(%d, %s))", s.Mutants[0].ID, lit)
-	case "stmt_skip":
-		stmtText := renderTSSpan(src, sites, tsSpanBounds{start: s.StartOffset, end: s.EndOffset, excludeIdx: idx})
-		return fmt.Sprintf("if (!globalThis.__khiMut.active(%d)) { %s }", s.Mutants[0].ID, stmtText)
-	default:
-		return string(src[s.StartOffset:s.EndOffset])
-	}
-}
-
-func renderBinaryTSSite(src []byte, sites []TSMutationSite, idx int) string {
-	s := &sites[idx]
-	lhs := renderTSSpan(src, sites, tsSpanBounds{start: s.LeftStart, end: s.LeftEnd, excludeIdx: idx})
-	rhs := renderTSSpan(src, sites, tsSpanBounds{start: s.RightStart, end: s.RightEnd, excludeIdx: idx})
-	switch s.Kind {
-	case "ordered_cmp":
-		return fmt.Sprintf("(globalThis.__khiMut.%s(%d, %d, (%s), (%s)))", tsOrderedMethod(s.Op), s.Mutants[0].ID, s.Mutants[1].ID, lhs, rhs)
-	case "eq_cmp":
-		return fmt.Sprintf("(globalThis.__khiMut.flip(%d, (%s) %s (%s)))", s.Mutants[0].ID, lhs, s.Op, rhs)
-	case "logical":
-		fn := "and"
-		if s.Op == "||" {
-			fn = "or"
-		}
-		return fmt.Sprintf("(globalThis.__khiMut.%s(%d, () => (%s), () => (%s)))", fn, s.Mutants[0].ID, lhs, rhs)
-	case "nullish":
-		return fmt.Sprintf("(globalThis.__khiMut.coal(%d, %d, () => (%s), () => (%s)))", s.Mutants[0].ID, s.Mutants[1].ID, lhs, rhs)
-	default:
-		return fmt.Sprintf("(globalThis.__khiMut.%s(%d, (%s), (%s)))", tsArithMethod(s), s.Mutants[0].ID, lhs, rhs)
-	}
-}
-
-func tsOrderedMethod(op string) string {
-	switch op {
-	case "<=":
-		return "le"
-	case ">":
-		return "gt"
-	case ">=":
-		return "ge"
-	default:
-		return "lt"
-	}
-}
-
-func tsArithMethod(s *TSMutationSite) string {
-	switch s.Op {
-	case "+":
-		if s.AddKeepRight {
-			return "addR"
-		}
-		return "addL"
-	case "-":
-		return "sub"
-	case "*":
-		return "mul"
-	default:
-		return "div"
-	}
-}
-
-// GenerateTSBrowserRuntimeSource returns the classic browser script defining globalThis.__khiMut and Jasmine hit/polarity tracing.
-func GenerateTSBrowserRuntimeSource(maxMutantID int, maxProbeID int) []byte {
-	seenCap := max(maxMutantID+1, 2)
-	probeCap := max(maxProbeID+1, 2)
-	script := fmt.Sprintf(tsBrowserRuntimeTemplate, seenCap, probeCap, seenCap, seenCap, seenCap*3, probeCap*3)
-	return []byte(script)
-}
-
-const tsBrowserRuntimeTemplate = `(function () {
+const (
+	tsBrowserRuntimeFileName = "zzz_khi_mutant_runtime.js"
+	tsBrowserRuntimeTemplate = `(function () {
   'use strict';
 
   function parseSelectedMutant() {
@@ -444,3 +306,142 @@ const tsBrowserRuntimeTemplate = `(function () {
   }
 })();
 `
+)
+
+type tsSpanBounds struct {
+	start      int
+	end        int
+	excludeIdx int
+}
+
+// RenderTSSuperMutantSource splices activeSites into TypeScript source bytes from innermost to outermost spans.
+func RenderTSSuperMutantSource(src []byte, activeSites []TSMutationSite) []byte {
+	if len(activeSites) == 0 {
+		return src
+	}
+	sorted := make([]TSMutationSite, len(activeSites))
+	copy(sorted, activeSites)
+	slices.SortFunc(sorted, func(a, b TSMutationSite) int {
+		return cmp.Or(
+			cmp.Compare(a.StartOffset, b.StartOffset),
+			cmp.Compare(b.EndOffset, a.EndOffset),
+		)
+	})
+	rendered := renderTSSpan(src, sorted, tsSpanBounds{start: 0, end: len(src), excludeIdx: -1})
+	return []byte("// @ts-nocheck\n" + rendered)
+}
+
+// GenerateTSBrowserRuntimeSource returns the classic browser script defining globalThis.__khiMut and Jasmine hit/polarity tracing.
+func GenerateTSBrowserRuntimeSource(maxMutantID int, maxProbeID int) []byte {
+	seenCap := max(maxMutantID+1, 2)
+	probeCap := max(maxProbeID+1, 2)
+	script := fmt.Sprintf(tsBrowserRuntimeTemplate, seenCap, probeCap, seenCap, seenCap, seenCap*3, probeCap*3)
+	return []byte(script)
+}
+
+func renderTSSpan(src []byte, sites []TSMutationSite, bounds tsSpanBounds) string {
+	var sb strings.Builder
+	cursor := bounds.start
+	for i := range sites {
+		if skipTSNestedSite(sites, i, cursor, bounds) {
+			continue
+		}
+		s := &sites[i]
+		sb.Write(src[cursor:s.StartOffset])
+		sb.WriteString(renderSingleTSSite(src, sites, i))
+		cursor = s.EndOffset
+	}
+	sb.Write(src[cursor:bounds.end])
+	return sb.String()
+}
+
+func skipTSNestedSite(sites []TSMutationSite, idx int, cursor int, bounds tsSpanBounds) bool {
+	if idx == bounds.excludeIdx {
+		return true
+	}
+	s := &sites[idx]
+	if s.StartOffset < cursor || s.EndOffset > bounds.end {
+		return true
+	}
+	if bounds.excludeIdx >= 0 {
+		p := &sites[bounds.excludeIdx]
+		return s.StartOffset == p.StartOffset && s.EndOffset == p.EndOffset
+	}
+	return false
+}
+
+func renderSingleTSSite(src []byte, sites []TSMutationSite, idx int) string {
+	s := &sites[idx]
+	switch s.Kind {
+	case "ordered_cmp", "eq_cmp", "logical", "nullish", "arith":
+		return renderBinaryTSSite(src, sites, idx)
+	case "cond":
+		inner := renderTSSpan(src, sites, tsSpanBounds{start: s.StartOffset, end: s.EndOffset, excludeIdx: idx})
+		return fmt.Sprintf("(globalThis.__khiMut.cond(%d, %d, Boolean(%s)))", s.Mutants[0].ID, s.Mutants[1].ID, inner)
+	case "unary_not":
+		operand := renderTSSpan(src, sites, tsSpanBounds{start: s.LeftStart, end: s.LeftEnd, excludeIdx: idx})
+		return fmt.Sprintf("(globalThis.__khiMut.flip(%d, !(%s)))", s.Mutants[0].ID, operand)
+	case "bool_lit":
+		lit := "false"
+		if s.BoolVal {
+			lit = "true"
+		}
+		return fmt.Sprintf("(globalThis.__khiMut.flip(%d, %s))", s.Mutants[0].ID, lit)
+	case "stmt_skip":
+		stmtText := renderTSSpan(src, sites, tsSpanBounds{start: s.StartOffset, end: s.EndOffset, excludeIdx: idx})
+		return fmt.Sprintf("if (!globalThis.__khiMut.active(%d)) { %s }", s.Mutants[0].ID, stmtText)
+	default:
+		return string(src[s.StartOffset:s.EndOffset])
+	}
+}
+
+func renderBinaryTSSite(src []byte, sites []TSMutationSite, idx int) string {
+	s := &sites[idx]
+	lhs := renderTSSpan(src, sites, tsSpanBounds{start: s.LeftStart, end: s.LeftEnd, excludeIdx: idx})
+	rhs := renderTSSpan(src, sites, tsSpanBounds{start: s.RightStart, end: s.RightEnd, excludeIdx: idx})
+	switch s.Kind {
+	case "ordered_cmp":
+		return fmt.Sprintf("(globalThis.__khiMut.%s(%d, %d, (%s), (%s)))", tsOrderedMethod(s.Op), s.Mutants[0].ID, s.Mutants[1].ID, lhs, rhs)
+	case "eq_cmp":
+		return fmt.Sprintf("(globalThis.__khiMut.flip(%d, (%s) %s (%s)))", s.Mutants[0].ID, lhs, s.Op, rhs)
+	case "logical":
+		fn := "and"
+		if s.Op == "||" {
+			fn = "or"
+		}
+		return fmt.Sprintf("(globalThis.__khiMut.%s(%d, () => (%s), () => (%s)))", fn, s.Mutants[0].ID, lhs, rhs)
+	case "nullish":
+		return fmt.Sprintf("(globalThis.__khiMut.coal(%d, %d, () => (%s), () => (%s)))", s.Mutants[0].ID, s.Mutants[1].ID, lhs, rhs)
+	default:
+		return fmt.Sprintf("(globalThis.__khiMut.%s(%d, (%s), (%s)))", tsArithMethod(s), s.Mutants[0].ID, lhs, rhs)
+	}
+}
+
+func tsOrderedMethod(op string) string {
+	switch op {
+	case "<=":
+		return "le"
+	case ">":
+		return "gt"
+	case ">=":
+		return "ge"
+	default:
+		return "lt"
+	}
+}
+
+func tsArithMethod(s *TSMutationSite) string {
+	switch s.Op {
+	case "+":
+		if s.AddKeepRight {
+			return "addR"
+		}
+		return "addL"
+	case "-":
+		return "sub"
+	case "*":
+		return "mul"
+	default:
+		return "div"
+	}
+}

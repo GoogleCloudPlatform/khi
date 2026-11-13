@@ -16,5 +16,6 @@ package idgenerator
 
 // IDGenerator generates a unique ID.
 type IDGenerator interface {
+	// Generate returns a new ID string.
 	Generate() string
 }

@@ -20,11 +20,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
+// Job holds the singleton instance of JobParameters.
 var Job *JobParameters = &JobParameters{}
 
+var _ ParameterStore = (*JobParameters)(nil)
+
+// JobParameters stores parameters used when running KHI in non-interactive job mode.
 type JobParameters struct {
-	// JobMode
-	// If this flag is set, KHI run as job mode and doesn't serve as a web server.
+	// JobMode runs KHI in job mode without serving the web server when set.
 	JobMode *bool
 	// InspectionType is the inspection type used in the job mode. Inspection types are defined in `inspection-type.go` in multiple directory. Check them for more details.
 	InspectionType *string
@@ -53,5 +56,3 @@ func (j *JobParameters) Prepare() error {
 	j.ExportDestination = flag.String("job-export-destination", "", "(Job mode only)The destination file path of KHI file written after the query.", "")
 	return nil
 }
-
-var _ ParameterStore = (*JobParameters)(nil)

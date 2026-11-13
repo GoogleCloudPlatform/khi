@@ -35,11 +35,6 @@ const DefaultStartTimeout = 30 * time.Second
 
 var devToolsWSRegex = regexp.MustCompile(`DevTools listening on (ws://[^\s]+)`)
 
-type targetInfo struct {
-	Type                 string `json:"type"`
-	WebSocketDebuggerURL string `json:"webSocketDebuggerUrl"`
-}
-
 // Browser manages a headless Chrome process and its Chrome DevTools Protocol page endpoint.
 type Browser struct {
 	mu            sync.Mutex
@@ -47,6 +42,33 @@ type Browser struct {
 	cmd           *exec.Cmd
 	browserCancel context.CancelFunc
 	userDataDir   string
+}
+
+type targetInfo struct {
+	Type                 string `json:"type"`
+	WebSocketDebuggerURL string `json:"webSocketDebuggerUrl"`
+}
+
+// FindChromeBinary locates a Chrome or Chromium executable from CHROME_BIN or standard PATH names.
+func FindChromeBinary() (string, error) {
+	if envBin := os.Getenv("CHROME_BIN"); envBin != "" {
+		if path, err := exec.LookPath(envBin); err == nil {
+			return path, nil
+		}
+		return "", fmt.Errorf("Chrome binary specified in CHROME_BIN (%q) was not found: %w", envBin, exec.ErrNotFound)
+	}
+	candidates := []string{
+		"google-chrome",
+		"google-chrome-stable",
+		"chromium",
+		"chromium-browser",
+	}
+	for _, candidate := range candidates {
+		if path, err := exec.LookPath(candidate); err == nil {
+			return path, nil
+		}
+	}
+	return "", errors.New("no Chrome or Chromium binary found in PATH or CHROME_BIN")
 }
 
 // StartBrowser launches a headless Chrome process immediately and resolves its initial page WebSocket URL.
@@ -170,28 +192,6 @@ func (b *Browser) closeLocked() error {
 		b.userDataDir = ""
 	}
 	return errors.Join(errs...)
-}
-
-// FindChromeBinary locates a Chrome or Chromium executable from CHROME_BIN or standard PATH names.
-func FindChromeBinary() (string, error) {
-	if envBin := os.Getenv("CHROME_BIN"); envBin != "" {
-		if path, err := exec.LookPath(envBin); err == nil {
-			return path, nil
-		}
-		return "", fmt.Errorf("Chrome binary specified in CHROME_BIN (%q) was not found: %w", envBin, exec.ErrNotFound)
-	}
-	candidates := []string{
-		"google-chrome",
-		"google-chrome-stable",
-		"chromium",
-		"chromium-browser",
-	}
-	for _, candidate := range candidates {
-		if path, err := exec.LookPath(candidate); err == nil {
-			return path, nil
-		}
-	}
-	return "", errors.New("no Chrome or Chromium binary found in PATH or CHROME_BIN")
 }
 
 func waitForDevToolsURL(ctx context.Context, stderr io.Reader) (string, error) {

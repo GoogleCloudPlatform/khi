@@ -20,8 +20,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
 func TestEvaluateRulesRatchetAndSuppression(t *testing.T) {
@@ -341,5 +342,66 @@ func TestEvaluateZeroCloneThreshold(t *testing.T) {
 	}
 	if len(res.Findings) != 1 || res.Findings[0].Rule != rule.RuleCodeClone {
 		t.Fatalf("Findings = %+v, want single RuleCodeClone finding", res.Findings)
+	}
+}
+
+func TestEvaluateDynamicScopeExcludesReorderedAndCommentOnlyFunctions(t *testing.T) {
+	baseSrc := `package svc
+
+type item int
+
+func Extern()
+
+func WithDirective(v int) int { return v }
+
+func Helper(x int) int {
+	return x + 1
+}
+
+func Moved(a int) int {
+	return a * 2
+}
+`
+	targetSrc := `package svc
+
+type item int
+
+func Extern()
+
+// Moved doubles a after being moved above Helper with a new GoDoc comment.
+func Moved(a int) int {
+	// inline comment added
+	return a * 2
+}
+
+// CODEQUALITY_ALLOW(func_uncovered_lines, external): external OS boundary
+func WithDirective(v int) int { return v }
+
+// Helper increments x by 2 instead of 1.
+func Helper(x int) int {
+	return x + 2
+}
+`
+	res, err := Evaluate(Options{
+		Thresholds: rule.DefaultThresholds(),
+		ChangedProdLinesByFile: map[string]map[int]struct{}{
+			"pkg/svc/svc.go": {8: {}, 9: {}, 10: {}, 11: {}, 14: {}, 18: {}},
+		},
+		ReadTargetFile: func(string) ([]byte, error) {
+			return []byte(targetSrc), nil
+		},
+		ReadBaseFile: func(string) ([]byte, bool, error) {
+			return []byte(baseSrc), true, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("Evaluate() error: %v", err)
+	}
+
+	wantDynLines := map[string]map[int]struct{}{
+		"pkg/svc/svc.go": {14: {}, 18: {}},
+	}
+	if diff := cmp.Diff(wantDynLines, res.DynamicChangedLines); diff != "" {
+		t.Errorf("DynamicChangedLines mismatch (-want +got):\n%s", diff)
 	}
 }

@@ -22,6 +22,9 @@ import (
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
+var _ core_contract.TaskGraphMetadata = (*TaskSet)(nil)
+
+// LabelPredicate defines a predicate function used to filter task label values.
 type LabelPredicate[T any] = func(v T) bool
 
 // TaskSet is a collection of tasks and resolved dependency edges.
@@ -34,8 +37,6 @@ type TaskSet struct {
 	boundRefIDs                  map[string]struct{}            // set of task reference IDs bound to the graph
 	boundFanInRefIDsByTaskImplID map[string]map[string][]string // targetImplID -> tag -> []sourceRefID
 }
-
-var _ core_contract.TaskGraphMetadata = (*TaskSet)(nil)
 
 // NewTaskSet creates a new TaskSet with the given tasks.
 // Returns an error if there are duplicate task IDs.
@@ -92,8 +93,8 @@ func NewResolvedTaskSet(
 	}
 }
 
-// Add a task definition to current TaskSet.
-// Returns an error when duplicated task Id is assigned on the task.
+// Add adds a task definition to the current TaskSet.
+// Returns an error when a duplicated task ID is assigned on the task.
 func (s *TaskSet) Add(newTask UntypedTask) error {
 	taskIdMap := map[string]interface{}{}
 	for _, task := range s.tasks {
@@ -137,8 +138,8 @@ func (s *TaskSet) BoundReferenceIDsForTaskImplWithTag(taskImplementationID strin
 	return nil
 }
 
-// Remove a task definition from current DefinitionSet.
-// Returns error if the definition does not exist
+// Remove removes a task definition from the current TaskSet.
+// Returns an error if the definition does not exist.
 func (s *TaskSet) Remove(id string) error {
 	taskIdMap := map[string]interface{}{}
 	for _, task := range s.tasks {

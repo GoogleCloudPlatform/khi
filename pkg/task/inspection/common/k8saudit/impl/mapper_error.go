@@ -25,6 +25,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*nonSuccessLogLogToTimelineMapperTaskSetting)(nil)
+
 // nonSuccessLogLogToTimelineMapperTask is the task to generate history from non-success logs.
 var nonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask[struct{}](
 	k8saudit.NonSuccessLogLogToTimelineMapperTaskID,
@@ -89,5 +91,3 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSetting) mapLog(ctx context.Context
 
 	return cs, nil
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*nonSuccessLogLogToTimelineMapperTaskSetting)(nil)

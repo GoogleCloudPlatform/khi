@@ -14,6 +14,8 @@
 
 package inspectioncore
 
+// InspectionRequest carries parameter values submitted for an inspection run.
 type InspectionRequest struct {
+	// Values maps inspection parameter names to their submitted values.
 	Values map[string]any
 }

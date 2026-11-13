@@ -20,16 +20,45 @@ import (
 	"strings"
 )
 
+var (
+	_ TrigramQuery = (*AllQuery)(nil)
+	_ TrigramQuery = (*NoneQuery)(nil)
+	_ TrigramQuery = (*TermQuery)(nil)
+	_ TrigramQuery = (*AndQuery)(nil)
+	_ TrigramQuery = (*OrQuery)(nil)
+)
+
 // TrigramQuery represents a node in the Boolean AST of trigram search requirements.
 type TrigramQuery interface {
+	// String returns a human-readable representation of the query.
 	String() string
+	// Simplify returns a simplified equivalent TrigramQuery.
 	Simplify() TrigramQuery
 }
 
 // AllQuery represents an unconstrained query matching all candidates (Universe).
 type AllQuery struct{}
 
-var _ TrigramQuery = (*AllQuery)(nil)
+// NoneQuery represents an impossible query matching no candidates (Empty).
+type NoneQuery struct{}
+
+// TermQuery represents a single 3-gram term constraint.
+type TermQuery struct {
+	// Term is the 3-rune trigram string required by this query.
+	Term string
+}
+
+// AndQuery represents a conjunction (AND) of sub-queries.
+type AndQuery struct {
+	// Children holds the sub-queries combined by logical AND.
+	Children []TrigramQuery
+}
+
+// OrQuery represents a disjunction (OR) of sub-queries.
+type OrQuery struct {
+	// Children holds the sub-queries combined by logical OR.
+	Children []TrigramQuery
+}
 
 // String returns a human-readable representation of AllQuery.
 func (q *AllQuery) String() string {
@@ -41,11 +70,6 @@ func (q *AllQuery) Simplify() TrigramQuery {
 	return q
 }
 
-// NoneQuery represents an impossible query matching no candidates (Empty).
-type NoneQuery struct{}
-
-var _ TrigramQuery = (*NoneQuery)(nil)
-
 // String returns a human-readable representation of NoneQuery.
 func (q *NoneQuery) String() string {
 	return "NONE"
@@ -56,13 +80,6 @@ func (q *NoneQuery) Simplify() TrigramQuery {
 	return q
 }
 
-// TermQuery represents a single 3-gram term constraint.
-type TermQuery struct {
-	Term string
-}
-
-var _ TrigramQuery = (*TermQuery)(nil)
-
 // String returns a human-readable representation of TermQuery.
 func (q *TermQuery) String() string {
 	return fmt.Sprintf("TERM(%q)", q.Term)
@@ -72,13 +89,6 @@ func (q *TermQuery) String() string {
 func (q *TermQuery) Simplify() TrigramQuery {
 	return q
 }
-
-// AndQuery represents a conjunction (AND) of sub-queries.
-type AndQuery struct {
-	Children []TrigramQuery
-}
-
-var _ TrigramQuery = (*AndQuery)(nil)
 
 // String returns a human-readable representation of AndQuery.
 func (q *AndQuery) String() string {
@@ -130,13 +140,6 @@ func (q *AndQuery) Simplify() TrigramQuery {
 	}
 	return &AndQuery{Children: simplified}
 }
-
-// OrQuery represents a disjunction (OR) of sub-queries.
-type OrQuery struct {
-	Children []TrigramQuery
-}
-
-var _ TrigramQuery = (*OrQuery)(nil)
 
 // String returns a human-readable representation of OrQuery.
 func (q *OrQuery) String() string {

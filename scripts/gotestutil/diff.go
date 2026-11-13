@@ -33,32 +33,64 @@ var hunkHeaderRegex = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @
 
 // DiffOptions configures how VCS changes are collected.
 type DiffOptions struct {
-	VCS    string
-	Base   string
+	// VCS selects the version control backend ("auto", "jj", or "git").
+	VCS string
+	// Base specifies the base revision for differential comparison.
+	Base string
+	// Target specifies the target revision for differential comparison.
 	Target string
 }
 
 // DiffResult holds the resolved VCS metadata and changed 1-based line numbers per file.
 type DiffResult struct {
-	VCS                 string
-	BaseLabel           string
-	ResolvedBaseRev     string
-	ChangedLines        map[string]map[int]struct{}
-	ChangedTestLines    map[string]map[int]struct{}
-	TSChangedLines      map[string]map[int]struct{}
-	TSChangedTestLines  map[string]map[int]struct{}
-	DeletedGoFiles      []string
+	// VCS is the resolved version control backend ("jj" or "git").
+	VCS string
+	// BaseLabel is the human-readable base revision label.
+	BaseLabel string
+	// ResolvedBaseRev is the resolved revision identifier used to read base files.
+	ResolvedBaseRev string
+	// ChangedLines maps modified Go production file paths to changed 1-based line sets.
+	ChangedLines map[string]map[int]struct{}
+	// ChangedTestLines maps modified Go test file paths to changed 1-based line sets.
+	ChangedTestLines map[string]map[int]struct{}
+	// TSChangedLines maps modified TypeScript production file paths to changed 1-based line sets.
+	TSChangedLines map[string]map[int]struct{}
+	// TSChangedTestLines maps modified TypeScript spec file paths to changed 1-based line sets.
+	TSChangedTestLines map[string]map[int]struct{}
+	// DeletedGoFiles lists Go file paths deleted relative to the base revision.
+	DeletedGoFiles []string
+	// OtherChangedGoFiles lists modified Go files outside primary analysis targets.
 	OtherChangedGoFiles []string
 }
 
 // UnifiedDiffDetails holds parsed line maps and deleted/non-target Go files extracted from a unified diff stream.
 type UnifiedDiffDetails struct {
-	ProdLines           map[string]map[int]struct{}
-	TestLines           map[string]map[int]struct{}
-	TSLines             map[string]map[int]struct{}
-	TSTestLines         map[string]map[int]struct{}
-	DeletedGoFiles      []string
+	// ProdLines maps modified Go production file paths to changed 1-based line sets.
+	ProdLines map[string]map[int]struct{}
+	// TestLines maps modified Go test file paths to changed 1-based line sets.
+	TestLines map[string]map[int]struct{}
+	// TSLines maps modified TypeScript production file paths to changed 1-based line sets.
+	TSLines map[string]map[int]struct{}
+	// TSTestLines maps modified TypeScript spec file paths to changed 1-based line sets.
+	TSTestLines map[string]map[int]struct{}
+	// DeletedGoFiles lists Go file paths deleted in the diff.
+	DeletedGoFiles []string
+	// OtherChangedGoFiles lists modified Go files outside primary analysis targets.
 	OtherChangedGoFiles []string
+}
+
+type diffScanState struct {
+	prodLines           map[string]map[int]struct{}
+	testLines           map[string]map[int]struct{}
+	tsLines             map[string]map[int]struct{}
+	tsTestLines         map[string]map[int]struct{}
+	deletedGoFiles      []string
+	otherChangedGoFiles []string
+	oldFile             string
+	currentFile         string
+	targetMap           map[string]map[int]struct{}
+	inHunk              bool
+	newLine             int
 }
 
 // IsTargetGoFile reports whether relPath is a non-test Go source file eligible for coverage and mutation analysis.
@@ -77,21 +109,6 @@ func IsTargetGoTestFile(relPath string) bool {
 		return false
 	}
 	return isAllowedGoPath(clean)
-}
-
-func isAllowedGoPath(clean string) bool {
-	excludedPrefixes := []string{
-		"pkg/generated/",
-		"pkg/testutil/",
-		"web/",
-	}
-	for _, prefix := range excludedPrefixes {
-		if strings.HasPrefix(clean, prefix) {
-			return false
-		}
-	}
-	baseName := path.Base(clean)
-	return !strings.HasPrefix(baseName, "zzz_")
 }
 
 // IsTargetProductionTSFile reports whether relPath is a production TypeScript source file eligible for analysis.
@@ -164,18 +181,79 @@ func ParseUnifiedDiffDetails(r io.Reader) (UnifiedDiffDetails, error) {
 	}, nil
 }
 
-type diffScanState struct {
-	prodLines           map[string]map[int]struct{}
-	testLines           map[string]map[int]struct{}
-	tsLines             map[string]map[int]struct{}
-	tsTestLines         map[string]map[int]struct{}
-	deletedGoFiles      []string
-	otherChangedGoFiles []string
-	oldFile             string
-	currentFile         string
-	targetMap           map[string]map[int]struct{}
-	inHunk              bool
-	newLine             int
+// CollectChangedLines executes VCS diff in repoRoot and returns changed line numbers for matching Go and TypeScript files.
+func CollectChangedLines(ctx context.Context, repoRoot string, opts DiffOptions) (DiffResult, error) {
+	vcs, err := resolveVCS(ctx, repoRoot, opts.VCS)
+	if err != nil {
+		return DiffResult{}, err
+	}
+
+	switch vcs {
+	case "jj":
+		res, jjErr := collectJJDiff(ctx, repoRoot, opts)
+		if jjErr != nil && opts.VCS != "jj" && hasGitRepo(repoRoot) {
+			if gitRes, gitErr := collectGitDiff(ctx, repoRoot, opts); gitErr == nil {
+				return gitRes, nil
+			}
+		}
+		return res, jjErr
+	case "git":
+		return collectGitDiff(ctx, repoRoot, opts)
+	default:
+		return DiffResult{}, fmt.Errorf("unsupported vcs %q", vcs)
+	}
+}
+
+// ReadBaseFile reads relPath from the base revision recorded in res.
+// It returns (nil, false, nil) when relPath did not exist at the base revision.
+func ReadBaseFile(ctx context.Context, repoRoot string, res DiffResult, relPath string) ([]byte, bool, error) {
+	cleanPath := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
+	if cleanPath == "" {
+		return nil, false, fmt.Errorf("empty relative file path")
+	}
+	if res.ResolvedBaseRev == "" {
+		return nil, false, fmt.Errorf("missing resolved base revision for vcs %q", res.VCS)
+	}
+	switch res.VCS {
+	case "jj":
+		return readJJBaseFile(ctx, repoRoot, res.ResolvedBaseRev, cleanPath)
+	case "git":
+		return readGitBaseFile(ctx, repoRoot, res.ResolvedBaseRev, cleanPath)
+	default:
+		return nil, false, fmt.Errorf("unsupported vcs %q", res.VCS)
+	}
+}
+
+// RunCommandOutput executes name with args in dir and returns captured stdout or an enriched error containing stderr.
+func RunCommandOutput(ctx context.Context, dir string, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg != "" {
+			return nil, fmt.Errorf("%w: %s", err, errMsg)
+		}
+		return nil, err
+	}
+	return stdout.Bytes(), nil
+}
+
+func isAllowedGoPath(clean string) bool {
+	excludedPrefixes := []string{
+		"pkg/generated/",
+		"pkg/testutil/",
+		"web/",
+	}
+	for _, prefix := range excludedPrefixes {
+		if strings.HasPrefix(clean, prefix) {
+			return false
+		}
+	}
+	baseName := path.Base(clean)
+	return !strings.HasPrefix(baseName, "zzz_")
 }
 
 func (s *diffScanState) step(line string) error {
@@ -284,29 +362,6 @@ func (s *diffScanState) handleHunkLine(line string) {
 		s.newLine++
 	case '-', '\\':
 		// Deleted lines and "\ No newline at end of file" markers do not advance the new-file line counter.
-	}
-}
-
-// CollectChangedLines executes VCS diff in repoRoot and returns changed line numbers for matching Go and TypeScript files.
-func CollectChangedLines(ctx context.Context, repoRoot string, opts DiffOptions) (DiffResult, error) {
-	vcs, err := resolveVCS(ctx, repoRoot, opts.VCS)
-	if err != nil {
-		return DiffResult{}, err
-	}
-
-	switch vcs {
-	case "jj":
-		res, jjErr := collectJJDiff(ctx, repoRoot, opts)
-		if jjErr != nil && opts.VCS != "jj" && hasGitRepo(repoRoot) {
-			if gitRes, gitErr := collectGitDiff(ctx, repoRoot, opts); gitErr == nil {
-				return gitRes, nil
-			}
-		}
-		return res, jjErr
-	case "git":
-		return collectGitDiff(ctx, repoRoot, opts)
-	default:
-		return DiffResult{}, fmt.Errorf("unsupported vcs %q", vcs)
 	}
 }
 
@@ -428,26 +483,6 @@ func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Dif
 	}, nil
 }
 
-// ReadBaseFile reads relPath from the base revision recorded in res.
-// It returns (nil, false, nil) when relPath did not exist at the base revision.
-func ReadBaseFile(ctx context.Context, repoRoot string, res DiffResult, relPath string) ([]byte, bool, error) {
-	cleanPath := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
-	if cleanPath == "" {
-		return nil, false, fmt.Errorf("empty relative file path")
-	}
-	if res.ResolvedBaseRev == "" {
-		return nil, false, fmt.Errorf("missing resolved base revision for vcs %q", res.VCS)
-	}
-	switch res.VCS {
-	case "jj":
-		return readJJBaseFile(ctx, repoRoot, res.ResolvedBaseRev, cleanPath)
-	case "git":
-		return readGitBaseFile(ctx, repoRoot, res.ResolvedBaseRev, cleanPath)
-	default:
-		return nil, false, fmt.Errorf("unsupported vcs %q", res.VCS)
-	}
-}
-
 func readJJBaseFile(ctx context.Context, repoRoot string, rev string, cleanPath string) ([]byte, bool, error) {
 	listed, err := RunCommandOutput(ctx, repoRoot, "jj", "file", "list", "--ignore-working-copy", "-r", rev, "--", cleanPath)
 	if err != nil {
@@ -486,21 +521,4 @@ func resolveDefaultGitBase(ctx context.Context, repoRoot string) (string, error)
 		}
 	}
 	return "", fmt.Errorf("could not resolve a default git base revision (tried %s)", strings.Join(candidates, ", "))
-}
-
-// RunCommandOutput executes name with args in dir and returns captured stdout or an enriched error containing stderr.
-func RunCommandOutput(ctx context.Context, dir string, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		errMsg := strings.TrimSpace(stderr.String())
-		if errMsg != "" {
-			return nil, fmt.Errorf("%w: %s", err, errMsg)
-		}
-		return nil, err
-	}
-	return stdout.Bytes(), nil
 }

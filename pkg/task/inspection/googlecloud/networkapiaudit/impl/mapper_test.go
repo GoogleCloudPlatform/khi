@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
@@ -33,7 +35,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {

@@ -23,13 +23,25 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gkeapiaudit"
 )
 
+// gkeResourceInitialStateProviderTask supplies initial GKE resource manifests to the audit log parser.
+var gkeResourceInitialStateProviderTask = gcpcommon.DefineCAIInitialResourceStateProviderTask(
+	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "cai"),
+	caik8s.GKEResourceTaskIDs,
+	extractGKEIdentity,
+	gkeIdentityGroupKey,
+	extractGKEResourceBody,
+	func(states []gcpcommon.CAIActiveAssetState[gkeResourceIdentity]) gkeapiaudit.InitialResourceStateProvider {
+		return buildCAIGKEInitialResourceStateProvider(states)
+	},
+)
+
+var _ gkeapiaudit.InitialResourceStateProvider = (*caiGKEInitialResourceStateProvider)(nil)
+
 // caiGKEInitialResourceStateProvider serves initial states of GKE clusters and node pools from CAI.
 type caiGKEInitialResourceStateProvider struct {
 	clusters  map[string]*gkeapiaudit.InitialResourceState
 	nodePools map[string]*gkeapiaudit.InitialResourceState
 }
-
-var _ gkeapiaudit.InitialResourceStateProvider = (*caiGKEInitialResourceStateProvider)(nil)
 
 // ClusterInitialState implements gkeapiaudit.InitialResourceStateProvider.
 func (p *caiGKEInitialResourceStateProvider) ClusterInitialState(clusterName string) (*gkeapiaudit.InitialResourceState, bool) {
@@ -67,15 +79,3 @@ func buildCAIGKEInitialResourceStateProvider(states []gcpcommon.CAIActiveAssetSt
 		nodePools: nodePools,
 	}
 }
-
-// gkeResourceInitialStateProviderTask supplies initial GKE resource manifests to the audit log parser.
-var gkeResourceInitialStateProviderTask = gcpcommon.DefineCAIInitialResourceStateProviderTask(
-	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "cai"),
-	caik8s.GKEResourceTaskIDs,
-	extractGKEIdentity,
-	gkeIdentityGroupKey,
-	extractGKEResourceBody,
-	func(states []gcpcommon.CAIActiveAssetState[gkeResourceIdentity]) gkeapiaudit.InitialResourceStateProvider {
-		return buildCAIGKEInitialResourceStateProvider(states)
-	},
-)

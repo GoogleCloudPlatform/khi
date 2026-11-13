@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeControlPlaneComponent is the registered timeline style TimelineType for Kubernetes control plane components.
 	TimelineTypeControlPlaneComponent = style.MustRegisterTimelineType(
 		"controlplane",
 		"Timeline representing control plane components of the cluster",

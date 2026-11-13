@@ -23,10 +23,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var ErrMultipleDocumentNodeFound = errors.New("multiple document node found in a yaml. FromYAML only supports a single document node")
-var ErrAliasNodeNotSupported = errors.New("alias node is not supported in a yaml. FromYAML does not support alias node")
-var ErrUnknownYAMLNodeKind = errors.New("unknown yaml node kind")
-
 const (
 	// Subset of YAML tags needed to identify its scalar type.
 	yamlTagNull      = "!!null"
@@ -37,6 +33,16 @@ const (
 	yamlTagTimestamp = "!!timestamp"
 )
 
+// ErrMultipleDocumentNodeFound is returned when YAML input does not contain exactly one document node.
+var ErrMultipleDocumentNodeFound = errors.New("multiple document node found in a yaml. FromYAML only supports a single document node")
+
+// ErrAliasNodeNotSupported is returned when YAML input contains an unsupported alias node.
+var ErrAliasNodeNotSupported = errors.New("alias node is not supported in a yaml. FromYAML does not support alias node")
+
+// ErrUnknownYAMLNodeKind is returned when YAML input contains an unrecognized yaml.Node kind.
+var ErrUnknownYAMLNodeKind = errors.New("unknown yaml node kind")
+
+// FromYAML parses a single-document YAML string into a Node while preserving map key order.
 func FromYAML(yamlStr string) (Node, error) {
 	// Parse yaml string as yaml.Node instead of `any` type to keep the order of the map keys in the original YAML.
 	var root yaml.Node

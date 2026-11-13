@@ -29,11 +29,17 @@ const CAICreationTimestampSkewTolerance = time.Second
 
 // CAIInitialSnapshotRevisionSpec defines how a CAI snapshot active at queryStartTime should be staged on a timeline.
 type CAIInitialSnapshotRevisionSpec struct {
-	TargetTimeline    *khifilev6.TimelinePath
-	CreationTime      time.Time
-	ObservedTime      time.Time
-	ResourceBody      structured.Node
+	// TargetTimeline is the timeline path where the initial snapshot revisions are staged.
+	TargetTimeline *khifilev6.TimelinePath
+	// CreationTime is the resource creation timestamp used for a synthetic creation revision when available.
+	CreationTime time.Time
+	// ObservedTime is the timestamp of the observed CAI snapshot.
+	ObservedTime time.Time
+	// ResourceBody holds the structured resource payload at ObservedTime.
+	ResourceBody structured.Node
+	// CreationStateType is the revision state applied to the synthetic creation revision at CreationTime.
 	CreationStateType *pb.RevisionState
+	// SnapshotStateType is the revision state applied to the snapshot revision at ObservedTime.
 	SnapshotStateType *pb.RevisionState
 }
 

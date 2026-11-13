@@ -20,12 +20,13 @@ import (
 	"testing"
 	"time"
 
-	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
 func setupSearchTimelinesTestWorkbench() *Workbench {

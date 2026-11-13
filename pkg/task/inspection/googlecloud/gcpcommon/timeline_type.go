@@ -36,6 +36,7 @@ var (
 		40,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeGKE is the timeline style for a GKE cluster under a GCP project.
 	TimelineTypeGKE = style.MustRegisterTimelineType(
 		"gke",
 		"Control plane operations and lifecycle logs of the GKE cluster",
@@ -105,6 +106,7 @@ var (
 		45,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeOperation is the timeline style for Google Cloud long-running operations on a resource.
 	TimelineTypeOperation = style.MustRegisterTimelineType(
 		"operation",
 		"Google Cloud operations associated with the resource",
@@ -118,6 +120,7 @@ var (
 		3000,
 		style.ChronologicalSortPolicy(0),
 	)
+	// TimelineTypeGCPProject is the timeline style for a Google Cloud project root timeline.
 	TimelineTypeGCPProject = style.MustRegisterTimelineType(
 		"project",
 		"Timeline representing a Google Cloud project",
@@ -131,6 +134,7 @@ var (
 		30,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeGCPResourceType is the timeline style for a GCP resource type grouping timeline.
 	TimelineTypeGCPResourceType = style.MustRegisterTimelineType(
 		"gcp_resource_type",
 		"Grouping timeline for Google Cloud resource types",
@@ -144,6 +148,7 @@ var (
 		31,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeGCPResource is the timeline style for an individual Google Cloud resource timeline.
 	TimelineTypeGCPResource = style.MustRegisterTimelineType(
 		"gcp_resource",
 		"Timeline representing a Google Cloud resource",

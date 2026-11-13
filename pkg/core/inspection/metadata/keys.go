@@ -14,8 +14,13 @@
 
 package inspectionmetadata
 
+// HeaderMetadataKey is the key to retrieve HeaderMetadata from the metadata set.
 var HeaderMetadataKey = NewMetadataKey[*HeaderMetadata]("header")
+
+// FormFieldSetMetadataKey is the key to retrieve FormFieldSetMetadata from the metadata set.
 var FormFieldSetMetadataKey = NewMetadataKey[*FormFieldSetMetadata]("form")
+
+// ErrorMessageSetMetadataKey is the key to retrieve ErrorMessageSetMetadata from the metadata set.
 var ErrorMessageSetMetadataKey = NewMetadataKey[*ErrorMessageSetMetadata]("error")
 
 // LogMetadataKey is a key to get LogMetadata from the metadata set.
@@ -24,6 +29,12 @@ var LogMetadataKey = NewMetadataKey[*LogMetadata]("log")
 // ProgressMetadataKey is the key used to store and retrieve Progress metadata
 // from a context or metadata map.
 var ProgressMetadataKey = NewMetadataKey[*Progress]("progress")
+
+// QueryMetadataKey is the key to retrieve QueryMetadata from the metadata set.
 var QueryMetadataKey = NewMetadataKey[*QueryMetadata]("query")
+
+// JobModeCommandMetadataKey is the key to retrieve JobModeCommandMetadata from the metadata set.
 var JobModeCommandMetadataKey = NewMetadataKey[*JobModeCommandMetadata]("jobCommand")
+
+// FilterVocabularyMetadataKey is the key to retrieve FilterVocabularyMetadata from the metadata set.
 var FilterVocabularyMetadataKey = NewMetadataKey[*FilterVocabularyMetadata]("filterVocabulary")

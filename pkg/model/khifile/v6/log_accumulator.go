@@ -23,11 +23,12 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // estimatedLogProtoSize is the estimated serialized protobuf byte size for a Log entry plus slice overhead.
@@ -35,11 +36,16 @@ const estimatedLogProtoSize = 48
 
 // StagingLog represents a log entry and its associated metadata to be added to LogAccumulator.
 type StagingLog struct {
-	Log       *log.Log
-	Summary   string
+	// Log holds the reference to the parser-side log model.
+	Log *log.Log
+	// Summary is the formatted summary text for the log entry.
+	Summary string
+	// Timestamp is the log entry timestamp.
 	Timestamp time.Time
-	LogType   *pb.LogType
-	Severity  *pb.Severity
+	// LogType is the styled log type definition.
+	LogType *pb.LogType
+	// Severity is the styled severity definition.
+	Severity *pb.Severity
 }
 
 // LogAccumulator facilitates the construction of Log chunks
@@ -155,6 +161,53 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 	return nil
 }
 
+// Flush writes any pending buffered logs into a final LogChunk and outputs it to the destination Writer.
+func (a *LogAccumulator) Flush() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.flushLocked()
+}
+
+// ResolveLogID returns the serialized log ID (uint32) for a given parser-side temporary log ID (uint32).
+// It returns false if the log ID is not found.
+func (a *LogAccumulator) ResolveLogID(parserID uint32) (uint32, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if parserID == 0 || int(parserID) > len(a.parserIDToID) {
+		return 0, false
+	}
+	confirmedID := a.parserIDToID[parserID-1]
+	if confirmedID == 0 {
+		return 0, false
+	}
+	return confirmedID, true
+}
+
+// LogTypes returns the sorted distinct labels of log types added so far.
+func (a *LogAccumulator) LogTypes() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	labels := make(map[string]struct{}, len(a.logTypeLabels))
+	for _, label := range a.logTypeLabels {
+		labels[label] = struct{}{}
+	}
+	return slices.Sorted(maps.Keys(labels))
+}
+
+// Dispose releases batch buffers and lookup arrays to allow GC to reclaim memory.
+func (a *LogAccumulator) Dispose() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.batchIDs = nil
+	a.batchTimestamps = nil
+	a.batchLogTypeIDs = nil
+	a.batchSeverityIDs = nil
+	a.batchSummaryIDs = nil
+	a.batchBodyStructIDs = nil
+	a.parserIDToID = nil
+	a.logTypeLabels = nil
+}
+
 // flushLocked sorts staged logs chronologically and writes them as a compressed LogChunk to the destination Writer.
 func (a *LogAccumulator) flushLocked() error {
 	n := len(a.batchIDs)
@@ -209,51 +262,4 @@ func (a *LogAccumulator) flushLocked() error {
 	a.currentBatchSize = 0
 
 	return nil
-}
-
-// Flush writes any pending buffered logs into a final LogChunk and outputs it to the destination Writer.
-func (a *LogAccumulator) Flush() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.flushLocked()
-}
-
-// ResolveLogID returns the serialized log ID (uint32) for a given parser-side temporary log ID (uint32).
-// It returns false if the log ID is not found.
-func (a *LogAccumulator) ResolveLogID(parserID uint32) (uint32, bool) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if parserID == 0 || int(parserID) > len(a.parserIDToID) {
-		return 0, false
-	}
-	confirmedID := a.parserIDToID[parserID-1]
-	if confirmedID == 0 {
-		return 0, false
-	}
-	return confirmedID, true
-}
-
-// LogTypes returns the sorted distinct labels of log types added so far.
-func (a *LogAccumulator) LogTypes() []string {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	labels := make(map[string]struct{}, len(a.logTypeLabels))
-	for _, label := range a.logTypeLabels {
-		labels[label] = struct{}{}
-	}
-	return slices.Sorted(maps.Keys(labels))
-}
-
-// Dispose releases batch buffers and lookup arrays to allow GC to reclaim memory.
-func (a *LogAccumulator) Dispose() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.batchIDs = nil
-	a.batchTimestamps = nil
-	a.batchLogTypeIDs = nil
-	a.batchSeverityIDs = nil
-	a.batchSummaryIDs = nil
-	a.batchBodyStructIDs = nil
-	a.parserIDToID = nil
-	a.logTypeLabels = nil
 }

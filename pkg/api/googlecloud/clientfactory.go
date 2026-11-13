@@ -41,13 +41,19 @@ type ClientFactoryOption = func(s *ClientFactory) error
 // ClientFactory generates a context used for generating the google cloud client.
 // This type creates the instance of API clients centrally, using `cloud.google.com/go` packages.
 type ClientFactory struct {
-	ClientOptions    []ClientFactoryOptionsModifiers
+	// ClientOptions holds modifiers applied to client options for all generated Google Cloud clients.
+	ClientOptions []ClientFactoryOptionsModifiers
+	// ContextModifiers holds modifiers applied to contexts before creating Google Cloud clients.
 	ContextModifiers []ClientFactoryContextModifiers
 
-	LoggingClientOptions          []ClientFactoryOptionsModifiers
-	RegionsClientOptions          []ClientFactoryOptionsModifiers
+	// LoggingClientOptions holds client option modifiers applied specifically to Cloud Logging clients.
+	LoggingClientOptions []ClientFactoryOptionsModifiers
+	// RegionsClientOptions holds client option modifiers applied specifically to Compute Engine Regions clients.
+	RegionsClientOptions []ClientFactoryOptionsModifiers
+	// MonitoringMetricClientOptions holds client option modifiers applied specifically to Cloud Monitoring metric clients.
 	MonitoringMetricClientOptions []ClientFactoryOptionsModifiers
-	AssetClientOptions            []ClientFactoryOptionsModifiers
+	// AssetClientOptions holds client option modifiers applied specifically to Cloud Asset clients.
+	AssetClientOptions []ClientFactoryOptionsModifiers
 
 	mu                           sync.Mutex
 	loggingClientsCache          map[string]*logging.Client
@@ -74,52 +80,12 @@ func NewClientFactory(options ...ClientFactoryOption) (*ClientFactory, error) {
 	return factory, nil
 }
 
-// context applies all registered context modifiers to the given context for the given resource container.
-func (s *ClientFactory) context(ctx context.Context, container ResourceContainer) (context.Context, error) {
-	for _, modifier := range s.ContextModifiers {
-		var err error
-		ctx, err = modifier(ctx, container)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ctx, nil
-}
-
-// options applies all registered client options modifiers to an initial set of client options
-// for the given resource container. It returns the modified client options or an error if any modifier fails.
-func (s *ClientFactory) options(container ResourceContainer, clientSpecificOptions []ClientFactoryOptionsModifiers, opts ...option.ClientOption) ([]option.ClientOption, error) {
-	modifiers := append([]ClientFactoryOptionsModifiers{}, s.ClientOptions...)
-	modifiers = append(modifiers, clientSpecificOptions...)
-	var options []option.ClientOption
-	for _, modifier := range modifiers {
-		var err error
-		options, err = modifier(options, container)
-		if err != nil {
-			return nil, err
-		}
-	}
-	options = append(options, opts...)
-	return options, nil
-}
-
-// prepareServiceInput returns the context and options needed for initializing clients.
-func (s *ClientFactory) prepareServiceInput(ctx context.Context, c ResourceContainer, clientSpecificOptions []ClientFactoryOptionsModifiers, opts ...option.ClientOption) (context.Context, []option.ClientOption, error) {
-	ctx, err := s.context(ctx, c)
-	if err != nil {
-		return nil, nil, err
-	}
-	options, err := s.options(c, clientSpecificOptions, opts...)
-
-	return ctx, options, err
-}
-
 // LoggingClient returns the client for logging.googleapis.com from given context and the resource container.
 func (s *ClientFactory) LoggingClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*logging.Client, error) {
 	return getOrInitClient(s, ctx, c, s.loggingClientsCache, s.LoggingClientOptions, opts, logging.NewClient)
 }
 
-// RegionsClient returns the client for listing GCE regions. https://cloud.google.com/compute/docs/reference/rest/v1#rest-resource:-v1.regions
+// RegionsClient returns the client for listing GCE regions (https://cloud.google.com/compute/docs/reference/rest/v1#rest-resource:-v1.regions).
 func (s *ClientFactory) RegionsClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*compute.RegionsClient, error) {
 	return getOrInitClient(s, ctx, c, s.regionsClientsCache, s.RegionsClientOptions, opts, compute.NewRegionsRESTClient)
 }
@@ -166,6 +132,46 @@ func (s *ClientFactory) Close() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// context applies all registered context modifiers to the given context for the given resource container.
+func (s *ClientFactory) context(ctx context.Context, container ResourceContainer) (context.Context, error) {
+	for _, modifier := range s.ContextModifiers {
+		var err error
+		ctx, err = modifier(ctx, container)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ctx, nil
+}
+
+// options applies all registered client options modifiers to an initial set of client options
+// for the given resource container. It returns the modified client options or an error if any modifier fails.
+func (s *ClientFactory) options(container ResourceContainer, clientSpecificOptions []ClientFactoryOptionsModifiers, opts ...option.ClientOption) ([]option.ClientOption, error) {
+	modifiers := append([]ClientFactoryOptionsModifiers{}, s.ClientOptions...)
+	modifiers = append(modifiers, clientSpecificOptions...)
+	var options []option.ClientOption
+	for _, modifier := range modifiers {
+		var err error
+		options, err = modifier(options, container)
+		if err != nil {
+			return nil, err
+		}
+	}
+	options = append(options, opts...)
+	return options, nil
+}
+
+// prepareServiceInput returns the context and options needed for initializing clients.
+func (s *ClientFactory) prepareServiceInput(ctx context.Context, c ResourceContainer, clientSpecificOptions []ClientFactoryOptionsModifiers, opts ...option.ClientOption) (context.Context, []option.ClientOption, error) {
+	ctx, err := s.context(ctx, c)
+	if err != nil {
+		return nil, nil, err
+	}
+	options, err := s.options(c, clientSpecificOptions, opts...)
+
+	return ctx, options, err
 }
 
 // getOrInitClient is a generic helper to retrieve a cached API client or initialize and cache a new one.

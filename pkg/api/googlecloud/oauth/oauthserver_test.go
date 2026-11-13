@@ -25,13 +25,14 @@ import (
 	"testing"
 	"time"
 
-	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 )
 
 const (

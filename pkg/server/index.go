@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/index"
 )
 
+// IndexReplacePlaceholder is the HTML comment placeholder replaced with dynamically generated tags.
 var IndexReplacePlaceholder = `<!--INJECT GENERATED CODE HERE FROM BACKEND-->`
 
 // replaceLocalDevServerOnlyTag removed tags only used in the local dev environment.

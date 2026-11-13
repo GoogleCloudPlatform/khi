@@ -22,6 +22,8 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeEvent is the log type style for Kubernetes Event logs.
 	LogTypeEvent = style.MustRegisterLogType("k8s event", "Kubernetes Event Logs", style.MustForceConvertSRGBHex("#3fb549"), style.ColorWhite)
+	// LogTypeAudit is the log type style for Kubernetes API audit logs.
 	LogTypeAudit = style.MustRegisterLogType("k8s audit", "Kubernetes Audit Logs", style.ColorBlack, style.ColorWhite)
 )

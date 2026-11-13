@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeK8sCluster is the timeline type style for Kubernetes cluster grouping timelines.
 	TimelineTypeK8sCluster = style.MustRegisterTimelineType(
 		"k8sCluster",
 		"Grouping timeline for Kubernetes clusters",
@@ -35,6 +36,7 @@ var (
 		50,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeAPIVersion is the timeline type style for Kubernetes API version grouping timelines.
 	TimelineTypeAPIVersion = style.MustRegisterTimelineType(
 		"apiVersion",
 		"Grouping timeline for Kubernetes API versions",
@@ -48,6 +50,7 @@ var (
 		100,
 		style.AlphabeticalSortPolicy("core/v1", "apps/v1"),
 	)
+	// TimelineTypeKind is the timeline type style for Kubernetes resource kind grouping timelines.
 	TimelineTypeKind = style.MustRegisterTimelineType(
 		"kind",
 		"Grouping timeline for Kubernetes API resource kinds",
@@ -61,6 +64,7 @@ var (
 		200,
 		style.AlphabeticalSortPolicy("node", "pod", "service", "replicaset", "deployment", "statefulset", "daemonset", "job", "cronjob"),
 	)
+	// TimelineTypeNamespace is the timeline type style for Kubernetes namespace grouping timelines.
 	TimelineTypeNamespace = style.MustRegisterTimelineType(
 		"namespace",
 		"Grouping timeline for Kubernetes namespaces",
@@ -74,6 +78,7 @@ var (
 		300,
 		style.AlphabeticalSortPolicy("kube-system", "default"),
 	)
+	// TimelineTypeResource is the timeline type style for Kubernetes resource timelines.
 	TimelineTypeResource = style.MustRegisterTimelineType(
 		"resource",
 		"Lifecycle states and logs of the Kubernetes resource",
@@ -87,6 +92,7 @@ var (
 		1000,
 		style.GroupedChronologicalSortPolicy("-"),
 	)
+	// TimelineTypeSubresource is the timeline type style for Kubernetes subresource timelines.
 	TimelineTypeSubresource = style.MustRegisterTimelineType(
 		"subresource",
 		"Lifecycle states and logs of the Kubernetes subresource",

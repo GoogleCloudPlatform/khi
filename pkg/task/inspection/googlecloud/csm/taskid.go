@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
+// TaskIDPrefix is the prefix used for all CSM traffic, Traffic Director, and control plane task IDs.
 const TaskIDPrefix = "cloud.google.com/log/csm-trafficlog/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.

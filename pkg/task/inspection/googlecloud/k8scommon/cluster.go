@@ -16,9 +16,6 @@ package k8scommon
 
 import "fmt"
 
-// ClusterNameUsage represents a usage context layer of a cluster name.
-type ClusterNameUsage string
-
 const (
 	// ClusterNameUsageK8sCluster is the usage context for Kubernetes internal common logs.
 	ClusterNameUsageK8sCluster ClusterNameUsage = "k8s_cluster"
@@ -28,12 +25,27 @@ const (
 	ClusterNameUsageCSM ClusterNameUsage = "csm"
 )
 
+// ClusterNameUsage represents a usage context layer of a cluster name.
+type ClusterNameUsage string
+
 // ClusterPrefixPolicy defines a policy to apply a prefix to a cluster name based on the usage context.
 type ClusterPrefixPolicy struct {
 	// Prefix is the single cluster prefix string.
 	Prefix string
 	// RequiredUsages represents the list of usages that require the prefix.
 	RequiredUsages []ClusterNameUsage
+}
+
+// GoogleCloudClusterIdentity is the tuple identify a cluster in Google Cloud.
+type GoogleCloudClusterIdentity struct {
+	// ProjectID is the project ID of the cluster.
+	ProjectID string
+	// PrefixPolicy is the prefix policy applied to the cluster name.
+	PrefixPolicy ClusterPrefixPolicy
+	// ClusterName is the name of the cluster.
+	ClusterName string
+	// Location is the location of the cluster.
+	Location string
 }
 
 // PrefixFor returns the prefix for the given usage context if the usage is listed in RequiredUsages.
@@ -49,18 +61,6 @@ func (c ClusterPrefixPolicy) PrefixFor(usage ClusterNameUsage) string {
 // Apply applies the prefix to the given cluster name if the usage is listed in RequiredUsages.
 func (c ClusterPrefixPolicy) Apply(usage ClusterNameUsage, clusterName string) string {
 	return fmt.Sprintf("%s%s", c.PrefixFor(usage), clusterName)
-}
-
-// GoogleCloudClusterIdentity is the tuple identify a cluster in Google Cloud.
-type GoogleCloudClusterIdentity struct {
-	// ProjectID is the project ID of the cluster.
-	ProjectID string
-	// PrefixPolicy is the prefix policy applied to the cluster name.
-	PrefixPolicy ClusterPrefixPolicy
-	// ClusterName is the name of the cluster.
-	ClusterName string
-	// Location is the location of the cluster.
-	Location string
 }
 
 // NameFor returns the cluster name representation for the given usage context.

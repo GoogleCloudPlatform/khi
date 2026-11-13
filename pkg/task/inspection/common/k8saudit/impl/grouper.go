@@ -29,12 +29,23 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+const (
+	// Subresource means the subresourceResourceGroupDecider must treat it as subresource by default. This is the default value.
+	Subresource = 0
+	// Parent means the subresourceResourceGroupDecider must treat it as its parent by default.
+	Parent = 1
+)
+
 var (
 	pathGrouperItems        = structured.CompileFieldPath("items")
 	pathGrouperMetadataName = structured.CompileFieldPath("metadata.name")
 	pathGrouperAPIVersion   = structured.CompileFieldPath("apiVersion")
 	pathGrouperKind         = structured.CompileFieldPath("kind")
 )
+
+var defaultSubresourceDefaultBehaviorOverrides = map[string]subresourceDefaultBehavior{
+	"status": Parent,
+}
 
 // nonSuccessLogGrouperTask groups logs by resource path.
 // K8s audit error logs are simply associated with timelines as events. They don't require any special grouping, so they use the resource associated with the original resource name modified by the request.
@@ -100,17 +111,6 @@ var changeTargetGrouperTask = inspectiontaskbase.DefineInspectionTask[k8saudit.R
 // subresourceDefaultBehavior defines how a subresource should be treated by default
 // if its associated resource type cannot be determined from the log's request or response.
 type subresourceDefaultBehavior int
-
-const (
-	// Subresource means the subresourceResourceGroupDecider must treat it as subresource by default. This is the default value.
-	Subresource = 0
-	// Parent means the subresourceResourceGroupDecider must treat it as its parent by default.
-	Parent = 1
-)
-
-var defaultSubresourceDefaultBehaviorOverrides = map[string]subresourceDefaultBehavior{
-	"status": Parent,
-}
 
 type targetResourceScanner struct {
 	extractor                           k8saudit.K8sAuditLogExtractor

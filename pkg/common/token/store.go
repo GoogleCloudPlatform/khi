@@ -23,16 +23,21 @@ import (
 	"time"
 )
 
+// ErrNoNewTokenResolved is returned when a resolver cannot obtain a new token.
 var ErrNoNewTokenResolved = errors.New("no new token resolved")
 
+var _ TokenStore = &BasicTokenStore{}
+
+// TokenStore manages caching and refreshing of authentication tokens.
 type TokenStore interface {
+	// GetType returns the token type identifier.
 	GetType() string
 	// GetToken returns the current token. It can come from cache or newly resolved from TokenResolver.
 	GetToken(ctx context.Context) (*Token, error)
 	// IsTokenValidityAssured returns true if this token is assured to be valid now.
 	// When a permission error happens, refresher may attempt to refresh tokens. The refresh is only needed when the token can be expired(when we don't know the expiration time) or the token is actually expired.
 	IsTokenValidityAssured(ctx context.Context) bool
-	// RefreshToken refreshes the token returned from GetToken()
+	// RefreshToken refreshes the token returned from GetToken().
 	RefreshToken(ctx context.Context) error
 }
 
@@ -47,6 +52,7 @@ type BasicTokenStore struct {
 	initialRefreshOnce    sync.Once
 }
 
+// NewBasicTokenStore creates a BasicTokenStore for the given tokenType and resolver.
 func NewBasicTokenStore(tokenType string, resolver TokenResolver) *BasicTokenStore {
 	return &BasicTokenStore{
 		tokenType: tokenType,
@@ -54,6 +60,7 @@ func NewBasicTokenStore(tokenType string, resolver TokenResolver) *BasicTokenSto
 	}
 }
 
+// GetType implements TokenStore.
 func (b *BasicTokenStore) GetType() string {
 	return b.tokenType
 }
@@ -71,6 +78,7 @@ func (b *BasicTokenStore) GetToken(ctx context.Context) (*Token, error) {
 	return b.lastToken, b.lastTokenRefreshError
 }
 
+// IsTokenValidityAssured implements TokenStore.
 func (b *BasicTokenStore) IsTokenValidityAssured(ctx context.Context) bool {
 	return b.lastToken != nil && b.lastToken.ValidAtLeastUntil.After(time.Now())
 }
@@ -101,5 +109,3 @@ func (b *BasicTokenStore) refreshTokenWithoutLock(ctx context.Context) error {
 	b.lastTokenRefreshError = nil
 	return nil
 }
-
-var _ TokenStore = &BasicTokenStore{}

@@ -34,6 +34,25 @@ var kubeletLogFilterTask = defineParserTypeFilterTask(k8snode.KubeletLogFilterTa
 // kubeletLogGroupTask groups kubelet logs by node and component.
 var kubeletLogGroupTask = defineNodeAndComponentNameGrouperTask(k8snode.KubeletLogGroupTaskID, k8snode.KubeletLogFilterTaskID.Ref())
 
+// kubeletLogLogToTimelineMapperTask maps kubelet logs to timelines.
+var kubeletLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8snode.KubeletLogLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8snode.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8snode.KubeletLogGroupTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &kubeletLogTimelineMapper{
+			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
+			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
+			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
+			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
+		}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*kubeletLogTimelineMapper)(nil)
+
 // kubeletLogTimelineMapper maps kubelet logs to the timelines of their node component and of the pods, containers and resources they mention.
 type kubeletLogTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
@@ -48,8 +67,6 @@ func (k *kubeletLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	cs, err := mapKubeletLog(ctx, l, k.clusterIdentity.Get(ctx), k.podSandboxIDFinder.Get(ctx), k.containerIDPatternFinder.Get(ctx), k.resourceUIDPatternFinder.Get(ctx))
 	return cs, struct{}{}, err
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*kubeletLogTimelineMapper)(nil)
 
 // mapKubeletLog adds events for a kubelet log to the timeline of its node component and to the timelines of the pods, containers and resources it mentions.
 func mapKubeletLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.GoogleCloudClusterIdentity, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.TimelineChangeSet, error) {
@@ -102,20 +119,3 @@ func mapKubeletLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon.Go
 
 	return cs, nil
 }
-
-// kubeletLogLogToTimelineMapperTask maps kubelet logs to timelines.
-var kubeletLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8snode.KubeletLogLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8snode.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8snode.KubeletLogGroupTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &kubeletLogTimelineMapper{
-			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
-			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
-			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
-			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
-		}
-	},
-)

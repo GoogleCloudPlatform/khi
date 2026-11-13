@@ -54,66 +54,53 @@ var (
 	// ref: https://github.com/apache/airflow/blob/2.7.3/airflow/jobs/scheduler_job_runner.py#L1746C55-L1746C62
 	airflowSchedulerZombieDetectedTemplate = regexp.MustCompile(`'DAG Id':\s*'(?P<dagid>[^']+)',\s*'Task Id':\s*'(?P<taskid>[^']+)',\s*'Run Id':\s*'(?P<runid>[^']+)',\s*('Map Index':\s*'(?P<mapIndex>[^']+)',\s*)?'Hostname':\s*'(?P<host>[^']+)'`)
 
-	// Running <TaskInstance: DAG_ID.TASK_ID RUN_ID [STATE]> on host WORKER
+	// Running <TaskInstance: DAG_ID.TASK_ID RUN_ID [STATE]> on host WORKER.
 	airflowWorkerRunningHostTemplate = regexp.MustCompile(`Running <TaskInstance:\s(?P<dagid>\w+)\.(?P<taskid>[\w.-]+)\s(?P<runid>\S+)\s(?:map_index=(?P<mapIndex>\d+)\s)?\[(?P<state>\w+)\]> on host (?P<host>.+)`)
 
 	// Marking task as STATE. dag_id=DAG_ID, task_id=TASK_ID, run_id=RUN_ID, map_index=MAP_INDEX, execution_date=..., start_date=..., end_date=...
 	airflowWorkerMarkingStatusTemplate = regexp.MustCompile(`.*Marking task as\s(?P<state>\S+).\sdag_id=(?P<dagid>\S+),\stask_id=(?P<taskid>\S+),\srun_id=(?P<runid>\S+),\s(map_index=(?P<mapIndex>\d+),\s)?.+`)
 
-	// Task finished [task_instance_id=019d10e4-71f5-7016-b412-aa1fbcfd16fc] [exit_code=0] [duration=0.41656468300061533] [final_state=skipped]
+	// Task finished [task_instance_id=019d10e4-71f5-7016-b412-aa1fbcfd16fc] [exit_code=0] [duration=0.41656468300061533] [final_state=skipped].
 	airflowWorkerFinalStateExtractTemplate = regexp.MustCompile(`\[final_state=(?P<state>[a-z_]*)\]`)
 )
 
 // ComposerTaskInstanceFieldSet contains parsed Airflow task instance info.
 type ComposerTaskInstanceFieldSet struct {
+	// TaskInstance is the parsed Airflow task instance.
 	TaskInstance *AirflowTaskInstance
 }
 
 // ComposerFieldSet contains component identity info for Composer logs.
 type ComposerFieldSet struct {
-	Component             string // e.g. "worker", "scheduler", "dag-processor-manager"
-	WorkerID              string
-	SchedulerID           string
+	// Component is the Airflow component name (for example, "worker", "scheduler", or "dag-processor-manager").
+	Component string
+	// WorkerID is the worker pod or instance identifier.
+	WorkerID string
+	// SchedulerID is the scheduler pod or instance identifier.
+	SchedulerID string
+	// DagProcessorManagerID is the DAG processor manager pod or instance identifier.
 	DagProcessorManagerID string
-	TriggererID           string
-	WebserverID           string
-	Subservice            string
+	// TriggererID is the triggerer pod or instance identifier.
+	TriggererID string
+	// WebserverID is the webserver pod or instance identifier.
+	WebserverID string
+	// Subservice is the Cloud Composer subservice label value.
+	Subservice string
 }
 
 // ComposerWorkerTaskInstanceFieldSet contains worker-specific task instance info.
 type ComposerWorkerTaskInstanceFieldSet struct {
+	// TaskInstance is the parsed Airflow task instance from worker logs.
 	TaskInstance *AirflowTaskInstance
 }
 
-func stringToTiState(stateStr string) (Tistate, error) {
-	switch strings.ToLower(stateStr) {
-	case "scheduled":
-		return TASKINSTANCE_SCHEDULED, nil
-	case "queued":
-		return TASKINSTANCE_QUEUED, nil
-	case "running":
-		return TASKINSTANCE_RUNNING, nil
-	case "success":
-		return TASKINSTANCE_SUCCESS, nil
-	case "failed":
-		return TASKINSTANCE_FAILED, nil
-	case "deferred":
-		return TASKINSTANCE_DEFERRED, nil
-	case "up_for_retry":
-		return TASKINSTANCE_UP_FOR_RETRY, nil
-	case "up_for_reschedule":
-		return TASKINSTANCE_UP_FOR_RESCHEDULE, nil
-	case "removed":
-		return TASKINSTANCE_REMOVED, nil
-	case "upstream_failed":
-		return TASKINSTANCE_UPSTREAM_FAILED, nil
-	case "zombie":
-		return TASKINSTANCE_ZOMBIE, nil
-	case "skipped":
-		return TASKINSTANCE_SKIPPED, nil
-	default:
-		return "", fmt.Errorf("unknown Airflow task state: %s", stateStr)
-	}
+type workerTaskInstanceInfo struct {
+	dagId    string
+	taskId   string
+	runId    string
+	mapIndex string
+	workerId string
+	state    Tistate
 }
 
 // ExtractComposerComponent extracts the component name from a Composer log NodeReader.
@@ -256,13 +243,36 @@ func ExtractComposerTaskInstance(reader *structured.NodeReader) (ComposerTaskIns
 	return ComposerTaskInstanceFieldSet{}, fmt.Errorf("not an Airflow TaskInstance log")
 }
 
-type workerTaskInstanceInfo struct {
-	dagId    string
-	taskId   string
-	runId    string
-	mapIndex string
-	workerId string
-	state    Tistate
+// ExtractComposerWorkerTaskInstance extracts ComposerWorkerTaskInstanceFieldSet from a NodeReader.
+func ExtractComposerWorkerTaskInstance(reader *structured.NodeReader) (ComposerWorkerTaskInstanceFieldSet, error) {
+	if mock, ok := structured.GetMock[ComposerWorkerTaskInstanceFieldSet](reader); ok {
+		return mock, nil
+	}
+	if reader == nil {
+		return ComposerWorkerTaskInstanceFieldSet{}, fmt.Errorf("nil reader")
+	}
+
+	labelInfo := readWorkerLabels(reader)
+
+	textPayload, err := reader.ReadString(pathTextPayload)
+	if err != nil {
+		return ComposerWorkerTaskInstanceFieldSet{}, fmt.Errorf("textPayload not found: %w", err)
+	}
+
+	payloadInfo := parseWorkerPayload(textPayload)
+	info := labelInfo.merge(payloadInfo)
+
+	if info.mapIndex == "" {
+		info.mapIndex = "-1"
+	}
+
+	if info.dagId == "" || info.taskId == "" || info.runId == "" || info.workerId == "" {
+		return ComposerWorkerTaskInstanceFieldSet{}, fmt.Errorf("not an Airflow Worker TaskInstance log")
+	}
+
+	return ComposerWorkerTaskInstanceFieldSet{
+		TaskInstance: NewAirflowTaskInstance(info.dagId, info.taskId, info.runId, info.mapIndex, info.workerId, info.state),
+	}, nil
 }
 
 func (i workerTaskInstanceInfo) merge(other workerTaskInstanceInfo) workerTaskInstanceInfo {
@@ -286,6 +296,37 @@ func (i workerTaskInstanceInfo) merge(other workerTaskInstanceInfo) workerTaskIn
 		res.state = other.state
 	}
 	return res
+}
+
+func stringToTiState(stateStr string) (Tistate, error) {
+	switch strings.ToLower(stateStr) {
+	case "scheduled":
+		return TASKINSTANCE_SCHEDULED, nil
+	case "queued":
+		return TASKINSTANCE_QUEUED, nil
+	case "running":
+		return TASKINSTANCE_RUNNING, nil
+	case "success":
+		return TASKINSTANCE_SUCCESS, nil
+	case "failed":
+		return TASKINSTANCE_FAILED, nil
+	case "deferred":
+		return TASKINSTANCE_DEFERRED, nil
+	case "up_for_retry":
+		return TASKINSTANCE_UP_FOR_RETRY, nil
+	case "up_for_reschedule":
+		return TASKINSTANCE_UP_FOR_RESCHEDULE, nil
+	case "removed":
+		return TASKINSTANCE_REMOVED, nil
+	case "upstream_failed":
+		return TASKINSTANCE_UPSTREAM_FAILED, nil
+	case "zombie":
+		return TASKINSTANCE_ZOMBIE, nil
+	case "skipped":
+		return TASKINSTANCE_SKIPPED, nil
+	default:
+		return "", fmt.Errorf("unknown Airflow task state: %s", stateStr)
+	}
 }
 
 func readWorkerLabels(reader *structured.NodeReader) workerTaskInstanceInfo {
@@ -356,36 +397,4 @@ func parseWorkerPayload(textPayload string) workerTaskInstanceInfo {
 		}
 	}
 	return workerTaskInstanceInfo{}
-}
-
-// ExtractComposerWorkerTaskInstance extracts ComposerWorkerTaskInstanceFieldSet from a NodeReader.
-func ExtractComposerWorkerTaskInstance(reader *structured.NodeReader) (ComposerWorkerTaskInstanceFieldSet, error) {
-	if mock, ok := structured.GetMock[ComposerWorkerTaskInstanceFieldSet](reader); ok {
-		return mock, nil
-	}
-	if reader == nil {
-		return ComposerWorkerTaskInstanceFieldSet{}, fmt.Errorf("nil reader")
-	}
-
-	labelInfo := readWorkerLabels(reader)
-
-	textPayload, err := reader.ReadString(pathTextPayload)
-	if err != nil {
-		return ComposerWorkerTaskInstanceFieldSet{}, fmt.Errorf("textPayload not found: %w", err)
-	}
-
-	payloadInfo := parseWorkerPayload(textPayload)
-	info := labelInfo.merge(payloadInfo)
-
-	if info.mapIndex == "" {
-		info.mapIndex = "-1"
-	}
-
-	if info.dagId == "" || info.taskId == "" || info.runId == "" || info.workerId == "" {
-		return ComposerWorkerTaskInstanceFieldSet{}, fmt.Errorf("not an Airflow Worker TaskInstance log")
-	}
-
-	return ComposerWorkerTaskInstanceFieldSet{
-		TaskInstance: NewAirflowTaskInstance(info.dagId, info.taskId, info.runId, info.mapIndex, info.workerId, info.state),
-	}, nil
 }

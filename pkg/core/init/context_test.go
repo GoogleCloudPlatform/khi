@@ -18,8 +18,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
 func TestInitContext_GetSet(t *testing.T) {

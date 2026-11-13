@@ -21,14 +21,15 @@ import (
 	"runtime/pprof"
 
 	"cloud.google.com/go/profiler"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
-	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
+	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 )
 
 // InitializerIDDebugFeatures configures profiler and Cloud Trace.

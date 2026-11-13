@@ -16,21 +16,66 @@ version: "2"
 run:
   go: "1.27"
   allow-parallel-runners: true
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
 linters:
   default: none
   enable:
     - bodyclose
+    - decorder
     - depguard
     - errorlint
     - forbidigo
+    - funcorder
     - gocritic
+    - godoclint
+    - godot
     - govet
     - ineffassign
     - noctx
     - nolintlint
+    - revive
     - staticcheck
     - unused
   settings:
+    decorder:
+      dec-order:
+        - const
+        - var
+        - type
+        - func
+      ignore-underscore-vars: true
+      disable-dec-order-check: false
+      disable-init-func-first-check: false
+      disable-dec-num-check: true
+      disable-type-dec-num-check: true
+      disable-const-dec-num-check: true
+      disable-var-dec-num-check: true
+    funcorder:
+      constructor: true
+      struct-method: true
+      alphabetical: false
+    godoclint:
+      default: all
+      disable:
+        - require-pkg-doc
+        - require-stdlib-doclink
+        - max-len
+    godot:
+      scope: declarations
+      exclude:
+        - "^fixme:"
+        - "^todo:"
+        - "^---"
+        - "^```"
+      period: true
+      capital: false
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
     depguard:
       rules:
         pkg-common:
@@ -126,18 +171,26 @@ linters:
     staticcheck:
       checks:
         - -SA1006
+        - ST1020
+        - ST1021
+        - ST1022
   exclusions:
     generated: lax
     presets:
-      - comments
       - common-false-positives
       - legacy
       - std-error-handling
     rules:
       - linters:
+          - decorder
           - errcheck
+          - funcorder
+          - godoclint
+          - godot
           - govet
           - noctx
+          - revive
+          - staticcheck
         path: _test\.go
       - linters:
           - forbidigo
@@ -158,7 +211,14 @@ linters:
       - ^pkg/generated/
 formatters:
   enable:
+    - gci
     - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/GoogleCloudPlatform/khi)
   exclusions:
     generated: lax
     paths:

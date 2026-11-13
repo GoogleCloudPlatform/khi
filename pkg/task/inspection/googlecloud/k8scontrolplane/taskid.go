@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package googlecloudlogk8scontrolplane_contract defines the contract for tasks related to GKE control plane component logs.
+// Package k8scontrolplane defines the contract for tasks related to GKE control plane component logs.
 package k8scontrolplane
 
 import (

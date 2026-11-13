@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -31,8 +33,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"golang.org/x/sync/errgroup"
 )
+
+var _ ProgressReportableLogFetcher = (*TimePartitioningProgressReportableLogFetcher)(nil)
 
 // LogFetchProgress represents the progress of a log fetching operation.
 type LogFetchProgress struct {
@@ -42,6 +45,7 @@ type LogFetchProgress struct {
 	Progress float32
 }
 
+// ProgressReportableLogFetcher fetches Cloud Logging entries over a time range while reporting progress.
 type ProgressReportableLogFetcher interface {
 	// FetchLogsWithProgress fetches logs while periodically reporting its progress through a separate channel.
 	// It closes the progress channel upon completion and returns timestamp-sorted logs.
@@ -55,7 +59,15 @@ type StandardProgressReportableLogFetcher struct {
 	reportInterval time.Duration
 }
 
-// NewProgressReportableLogFetcher creates a new instance of ProgressReportableLogFetcher.
+// TimePartitioningProgressReportableLogFetcher splits a query time range into parallel partitions and aggregates progress.
+type TimePartitioningProgressReportableLogFetcher struct {
+	client         *StandardProgressReportableLogFetcher
+	partitionCount int
+	maxParallelism int
+	reportInterval time.Duration
+}
+
+// NewStandardProgressReportableLogFetcher creates a new instance of StandardProgressReportableLogFetcher.
 func NewStandardProgressReportableLogFetcher(fetcher LogFetcher, interval time.Duration) *StandardProgressReportableLogFetcher {
 	return &StandardProgressReportableLogFetcher{
 		fetcher:        fetcher,
@@ -170,13 +182,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	return nil
 }
 
-type TimePartitioningProgressReportableLogFetcher struct {
-	client         *StandardProgressReportableLogFetcher
-	partitionCount int
-	maxParallelism int
-	reportInterval time.Duration
-}
-
+// NewTimePartitioningProgressReportableLogFetcher creates a TimePartitioningProgressReportableLogFetcher with the specified partition count and concurrency limit.
 func NewTimePartitioningProgressReportableLogFetcher(fetcher LogFetcher, interval time.Duration, partitionCount int, maxParallelism int) *TimePartitioningProgressReportableLogFetcher {
 	return &TimePartitioningProgressReportableLogFetcher{
 		client:         NewStandardProgressReportableLogFetcher(fetcher, interval),
@@ -351,8 +357,6 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(pro
 func (t *TimePartitioningProgressReportableLogFetcher) getPartitionedTimes(beginTime, endTime time.Time) []time.Time {
 	return divideTimeSegments(beginTime, endTime, t.partitionCount)
 }
-
-var _ ProgressReportableLogFetcher = (*TimePartitioningProgressReportableLogFetcher)(nil)
 
 // divideTimeSegments divides a given time range into count of partitioned time segments.
 // First element is the begin time of the first segment, the last element is the end time of the last segment, otherwise the nth time.Time is (n-1)th begin time and n th end time.

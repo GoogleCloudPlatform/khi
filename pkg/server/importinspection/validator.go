@@ -21,11 +21,12 @@ import (
 	"iter"
 	"os"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"google.golang.org/protobuf/proto"
 )
 
 // ValidateAndExtractMetadata validates that the file at the given path is a valid KHI v6 binary file

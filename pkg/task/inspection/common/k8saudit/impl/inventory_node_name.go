@@ -31,22 +31,6 @@ var nodeNameInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	mergeNodeNames,
 )
 
-func mergeNodeNames(results [][]string) ([]string, error) {
-	result := map[string]struct{}{}
-	for _, r := range results {
-		for _, s := range r {
-			result[s] = struct{}{}
-		}
-	}
-
-	var ret []string
-	for k := range result {
-		ret = append(ret, k)
-	}
-	slices.Sort(ret)
-	return ret, nil
-}
-
 // nodeNameDiscoveryTask extracts node name from audit logs and node names are registered on nodeNameInventoryTask.
 var nodeNameDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.NodeNameDiscoveryTaskID,
@@ -78,3 +62,19 @@ var nodeNameDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	coretask.ProvidesTag(k8saudit.TagNodeNameDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
+
+func mergeNodeNames(results [][]string) ([]string, error) {
+	result := map[string]struct{}{}
+	for _, r := range results {
+		for _, s := range r {
+			result[s] = struct{}{}
+		}
+	}
+
+	var ret []string
+	for k := range result {
+		ret = append(ret, k)
+	}
+	slices.Sort(ret)
+	return ret, nil
+}

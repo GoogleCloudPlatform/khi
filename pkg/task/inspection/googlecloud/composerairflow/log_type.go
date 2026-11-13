@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeManagedAirflowEnvironment is the timeline log type style for Managed Airflow environment logs.
 	LogTypeManagedAirflowEnvironment = style.MustRegisterLogType("managed airflow", "Managed Airflow Environment Logs", style.MustForceConvertSRGBHex("#88AA55"), style.ColorWhite)
 )

@@ -22,12 +22,30 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	"golang.org/x/sync/errgroup"
+)
+
+const (
+	// TaskRunPhaseWaiting indicates that the task is waiting for its dependencies to complete.
+	TaskRunPhaseWaiting TaskRunPhase = iota
+	// TaskRunPhaseRunning indicates that the task is currently running.
+	TaskRunPhaseRunning
+	// TaskRunPhaseDone indicates that the task finished successfully.
+	TaskRunPhaseDone
+	// TaskRunPhaseError indicates that the task finished with an error.
+	TaskRunPhaseError
+)
+
+var (
+	// LocalRunner implements task_interface.TaskRunner.
+	_ TaskRunner = (*LocalRunner)(nil)
+	_ error      = (*TaskError)(nil)
 )
 
 // Interceptor is a function that can intercept the execution of a task.
@@ -52,22 +70,30 @@ type LocalRunner struct {
 	taskByImplID                map[string]UntypedTask
 }
 
-// LocalRunner implements task_interface.TaskRunner
-var _ TaskRunner = (*LocalRunner)(nil)
-
 // TaskRunPhase represents the execution phase of a single task in a task graph.
 type TaskRunPhase int
 
-const (
-	// TaskRunPhaseWaiting indicates that the task is waiting for its dependencies to complete.
-	TaskRunPhaseWaiting TaskRunPhase = iota
-	// TaskRunPhaseRunning indicates that the task is currently running.
-	TaskRunPhaseRunning
-	// TaskRunPhaseDone indicates that the task finished successfully.
-	TaskRunPhaseDone
-	// TaskRunPhaseError indicates that the task finished with an error.
-	TaskRunPhaseError
-)
+// TaskError represents an error that occurred during the execution of a task in a task graph.
+type TaskError struct {
+	// TaskID is the implementation ID of the task that failed.
+	TaskID taskid.UntypedTaskImplementationID
+	// Err is the underlying error returned by the task.
+	Err error
+}
+
+// TaskRunStatus is an immutable snapshot of the execution state of a single task.
+// StartTime is zero while the task is waiting, and EndTime is zero until the task finishes.
+// Error holds the error returned by the task when Phase is TaskRunPhaseError.
+type TaskRunStatus struct {
+	// Phase is the current execution phase of the task.
+	Phase TaskRunPhase
+	// StartTime is the timestamp when the task started running.
+	StartTime time.Time
+	// EndTime is the timestamp when the task finished running.
+	EndTime time.Time
+	// Error is the error returned by the task when Phase is TaskRunPhaseError.
+	Error error
+}
 
 // String returns the human-readable name of the task run phase.
 func (p TaskRunPhase) String() string {
@@ -85,14 +111,6 @@ func (p TaskRunPhase) String() string {
 	}
 }
 
-// TaskError represents an error that occurred during the execution of a task in a task graph.
-type TaskError struct {
-	TaskID taskid.UntypedTaskImplementationID
-	Err    error
-}
-
-var _ error = (*TaskError)(nil)
-
 // Error returns the formatted error message including the failed task ID and the underlying error.
 func (e *TaskError) Error() string {
 	return fmt.Sprintf("failed to run a task graph.\n task ID=%s got an error. \n ERROR:\n%v", e.TaskID, e.Err)
@@ -101,16 +119,6 @@ func (e *TaskError) Error() string {
 // Unwrap returns the underlying error returned by the task.
 func (e *TaskError) Unwrap() error {
 	return e.Err
-}
-
-// TaskRunStatus is an immutable snapshot of the execution state of a single task.
-// StartTime is zero while the task is waiting, and EndTime is zero until the task finishes.
-// Error holds the error returned by the task when Phase is TaskRunPhaseError.
-type TaskRunStatus struct {
-	Phase     TaskRunPhase
-	StartTime time.Time
-	EndTime   time.Time
-	Error     error
 }
 
 // NewLocalRunner creates and initializes a new LocalRunner for a given TaskSet.
@@ -230,6 +238,11 @@ func (r *LocalRunner) TaskRunStatuses() map[string]TaskRunStatus {
 	r.taskRunStatusesMu.RLock()
 	defer r.taskRunStatusesMu.RUnlock()
 	return maps.Clone(r.taskRunStatuses)
+}
+
+// Tasks returns all tasks in the resolved task set.
+func (r *LocalRunner) Tasks() []UntypedTask {
+	return r.resolvedTaskSet.GetAll()
 }
 
 // markTaskRunning records that a task started its execution.
@@ -357,10 +370,6 @@ func (r *LocalRunner) cleanupCompletedTaskResults(completedTask UntypedTask) {
 			typedmap.Delete(r.resultVariable, typedmap.NewTypedKey[any](producerRefID))
 		}
 	}
-}
-
-func (r *LocalRunner) Tasks() []UntypedTask {
-	return r.resolvedTaskSet.GetAll()
 }
 
 // wrapWithTaskError wraps the original error with the ID of the task that produced it.

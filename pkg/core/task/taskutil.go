@@ -26,6 +26,13 @@ import (
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
+// WrapErrorWithTaskInformation annotates given error with the current task information.
+func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
+	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
+	errorMessage := fmt.Sprintf("An error occurred in task `%s`", taskID.String())
+	return errors.Join(errors.New(errorMessage), err)
+}
+
 // dependencyKey identifies a dependency by its reference ID or tag.
 // It panics for nil and any other dependency type because such a dependency cannot be resolved in the task graph.
 func dependencyKey(dep Dependency) string {
@@ -88,11 +95,4 @@ func lookupTaskResultsWithTag[T any](ctx context.Context, tagReference TagRefere
 		results = append(results, res)
 	}
 	return results
-}
-
-// WrapErrorWithTaskInformation annotates given error with the current task information.
-func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
-	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
-	errorMessage := fmt.Sprintf("An error occurred in task `%s`", taskID.String())
-	return errors.Join(errors.New(errorMessage), err)
 }

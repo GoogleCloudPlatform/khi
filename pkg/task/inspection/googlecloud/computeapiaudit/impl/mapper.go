@@ -51,6 +51,28 @@ var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// logToTimelineMapperTask maps GCE API audit logs to timeline events and revisions in parallel.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	computeapiaudit.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: computeapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: computeapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &computeAuditTimelineMapper{
+			clusterIdentity: coretask.Use(b, computeapiaudit.ClusterIdentityTaskID.Ref()),
+		}
+	},
+	inspectioncore.FeatureTaskLabel("Compute API Logs",
+		"Gather Compute API audit logs to visualize the provisioning of infrastructure resources (e.g., GCE VM creation/deletion, Persistent Disk mounting) on associated timelines.",
+		6000,
+		true,
+	),
+)
+
+// Explicit interface compliance assertion.
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*computeAuditTimelineMapper)(nil)
+
 // computeAuditTimelineMapper maps grouped GCE API audit logs to node and operation timelines.
 type computeAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
@@ -61,9 +83,6 @@ type computeAuditTimelineMapper struct {
 func (m *computeAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	return mapComputeAuditLog(ctx, l, tracker, m.clusterIdentity.Get(ctx).ClusterName)
 }
-
-// Explicit interface compliance assertion.
-var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*computeAuditTimelineMapper)(nil)
 
 // mapComputeAuditLog translates a single GCE API audit log into timeline event/revision changesets for the given cluster.
 func mapComputeAuditLog(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker, clusterName string) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
@@ -94,25 +113,6 @@ func mapComputeAuditLog(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPO
 
 	return cs, tracker, nil
 }
-
-// logToTimelineMapperTask maps GCE API audit logs to timeline events and revisions in parallel.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	computeapiaudit.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: computeapiaudit.LogIngesterTaskID.Ref(),
-		GroupedLogs: computeapiaudit.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
-		return &computeAuditTimelineMapper{
-			clusterIdentity: coretask.Use(b, computeapiaudit.ClusterIdentityTaskID.Ref()),
-		}
-	},
-	inspectioncore.FeatureTaskLabel("Compute API Logs",
-		"Gather Compute API audit logs to visualize the provisioning of infrastructure resources (e.g., GCE VM creation/deletion, Persistent Disk mounting) on associated timelines.",
-		6000,
-		true,
-	),
-)
 
 func getInstanceNameFromResourceName(resourceName string) string {
 	resourceNameSplitted := strings.Split(resourceName, "/")

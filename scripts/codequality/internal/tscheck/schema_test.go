@@ -22,9 +22,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/redundancy"
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestRenderTSSuperMutantAndRuntimeSemantics(t *testing.T) {

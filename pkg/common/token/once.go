@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+var _ TokenResolver = (*OnceTokenResolver)(nil)
+
 // OnceTokenResolver resolves the token from somewhere only onetime. This is mainly used for resolving token from CLI arguments or environment variables.
 type OnceTokenResolver struct {
 	// resolver can be called twice if the resolver can't return token at the previous call.
@@ -27,6 +29,7 @@ type OnceTokenResolver struct {
 	tokenResolved bool
 }
 
+// NewOnceTokenResolver creates a OnceTokenResolver backed by resolver.
 func NewOnceTokenResolver(resolver func() string) *OnceTokenResolver {
 	return &OnceTokenResolver{
 		resolver:      resolver,
@@ -48,5 +51,3 @@ func (e *OnceTokenResolver) Resolve(ctx context.Context) (*Token, error) {
 	}
 	return nil, ErrNoValidTokenResolved
 }
-
-var _ TokenResolver = (*OnceTokenResolver)(nil)

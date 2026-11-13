@@ -20,9 +20,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/gin-gonic/gin"
 )
 
 func TestServerStatusServiceInitializer(t *testing.T) {

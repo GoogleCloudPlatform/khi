@@ -22,15 +22,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
+// InitializerIDInspectionIndexManager identifies the Initializer that creates the InspectionIndexManager.
+const InitializerIDInspectionIndexManager coreinit.InitializerID = "khi.default/inspection-index-manager"
+
+// InitializerIDWorkbenchService identifies the Initializer that mounts the WorkbenchService.
+const InitializerIDWorkbenchService coreinit.InitializerID = "khi.default/workbench-service"
+
 var (
 	// WorkbenchManagerKey stores the WorkbenchManager instance in the init context.
 	WorkbenchManagerKey = typedmap.NewTypedKey[*workbench.WorkbenchManager]("khi.google.com/init/workbench-manager")
 	// InspectionIndexManagerKey stores the InspectionIndexManager instance in the init context.
 	InspectionIndexManagerKey = typedmap.NewTypedKey[*workbench.InspectionIndexManager]("khi.google.com/init/inspection-index-manager")
 )
-
-// InitializerIDInspectionIndexManager identifies the Initializer that creates the InspectionIndexManager.
-const InitializerIDInspectionIndexManager coreinit.InitializerID = "khi.default/inspection-index-manager"
 
 // InspectionIndexManagerInitializer initializes the persistent InspectionIndexManager.
 var InspectionIndexManagerInitializer = &coreinit.Initializer{
@@ -46,9 +49,6 @@ var InspectionIndexManagerInitializer = &coreinit.Initializer{
 		return nil
 	},
 }
-
-// InitializerIDWorkbenchService identifies the Initializer that mounts the WorkbenchService.
-const InitializerIDWorkbenchService coreinit.InitializerID = "khi.default/workbench-service"
 
 // WorkbenchServiceInitializer mounts the WorkbenchService and MaskService Connect-RPC handlers onto the Gin router.
 var WorkbenchServiceInitializer = &coreinit.Initializer{

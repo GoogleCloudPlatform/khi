@@ -32,16 +32,6 @@ const embeddedStaticFolderPath = "dist/browser"
 //go:embed dist/browser
 var embeddedStaticFolder embed.FS
 
-func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if ctx.Request.URL.Path == exactPath {
-			ctx.Redirect(302, redirectTo)
-			return
-		}
-		ctx.Next()
-	}
-}
-
 // SetupFrontendMiddleware mounts base redirect and static file serving middlewares onto engine.
 func SetupFrontendMiddleware(engine *gin.Engine, basePath string, staticFolderPath string) {
 	basePathWithoutTrailingSlash := strings.TrimSuffix(basePath, "/")
@@ -88,4 +78,14 @@ func SetupFrontendRoutes(router gin.IRouter, staticFolderPath string) {
 	router.GET("/session/*wild", serveIndexHTML)
 	router.GET("/debug/*wild", serveIndexHTML)
 	router.GET("/render/*wild", serveIndexHTML)
+}
+
+func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if ctx.Request.URL.Path == exactPath {
+			ctx.Redirect(302, redirectTo)
+			return
+		}
+		ctx.Next()
+	}
 }

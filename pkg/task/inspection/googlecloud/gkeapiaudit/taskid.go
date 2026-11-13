@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
+// GKEAPIAuditLogTaskIDPrefix is the prefix used for all GKE API audit log task IDs.
 var GKEAPIAuditLogTaskIDPrefix = "cloud.google.com/log/gke-api/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.

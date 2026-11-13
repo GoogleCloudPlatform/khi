@@ -20,6 +20,7 @@ import (
 	"strings"
 )
 
+// DedupStringArray returns a sorted slice containing unique strings from arr.
 func DedupStringArray(arr []string) []string {
 	arrByMap := map[string]struct{}{}
 	for _, v := range arr {
@@ -33,36 +34,7 @@ func DedupStringArray(arr []string) []string {
 	return deduped
 }
 
-func levenshteinDistance(s, t string) int {
-	m := len(s)
-	n := len(t)
-
-	d := make([][]int, m+1)
-	for i := range d {
-		d[i] = make([]int, n+1)
-	}
-
-	for i := 1; i <= m; i++ {
-		d[i][0] = i
-	}
-	for j := 1; j <= n; j++ {
-		d[0][j] = j
-	}
-
-	for i := 1; i <= m; i++ {
-		for j := 1; j <= n; j++ {
-			m := min(d[i-1][j]+1, d[i][j-1]+1)
-			if s[i-1] == t[j-1] {
-				d[i][j] = min(m, d[i-1][j-1])
-			} else {
-				d[i][j] = min(m, d[i-1][j-1]+1)
-			}
-		}
-	}
-
-	return d[m][n]
-}
-
+// SortForAutocomplete sorts elements by relevance to input for autocomplete suggestions.
 func SortForAutocomplete(input string, elements []string) []string {
 	// Sort criteria
 	// Priority group 1: completely matches the name
@@ -116,4 +88,34 @@ func SameStringSet(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func levenshteinDistance(s, t string) int {
+	m := len(s)
+	n := len(t)
+
+	d := make([][]int, m+1)
+	for i := range d {
+		d[i] = make([]int, n+1)
+	}
+
+	for i := 1; i <= m; i++ {
+		d[i][0] = i
+	}
+	for j := 1; j <= n; j++ {
+		d[0][j] = j
+	}
+
+	for i := 1; i <= m; i++ {
+		for j := 1; j <= n; j++ {
+			m := min(d[i-1][j]+1, d[i][j-1]+1)
+			if s[i-1] == t[j-1] {
+				d[i][j] = min(m, d[i-1][j-1])
+			} else {
+				d[i][j] = min(m, d[i-1][j-1]+1)
+			}
+		}
+	}
+
+	return d[m][n]
 }

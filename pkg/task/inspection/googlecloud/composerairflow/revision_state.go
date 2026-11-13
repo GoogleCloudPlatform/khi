@@ -20,6 +20,7 @@ import (
 )
 
 var (
+	// RevisionStateComposerTiScheduled indicates that the Airflow task instance is scheduled and waiting to be queued.
 	RevisionStateComposerTiScheduled = style.MustRegisterRevisionState(
 		"Task instance is scheduled",
 		"schedule",
@@ -27,6 +28,7 @@ var (
 		style.MustForceConvertSRGBHex("#d1b48c"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiQueued indicates that the Airflow task instance is queued in the executor.
 	RevisionStateComposerTiQueued = style.MustRegisterRevisionState(
 		"Task instance is queued",
 		"transition_push",
@@ -34,6 +36,7 @@ var (
 		style.MustForceConvertSRGBHex("#808080"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiRunning indicates that the Airflow task instance is currently running.
 	RevisionStateComposerTiRunning = style.MustRegisterRevisionState(
 		"Task instance is running",
 		"directions_run",
@@ -41,6 +44,7 @@ var (
 		style.MustForceConvertSRGBHex("#00ff01"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiDeferred indicates that the Airflow task instance is deferred waiting for a trigger.
 	RevisionStateComposerTiDeferred = style.MustRegisterRevisionState(
 		"Task instance is deferred",
 		"pause",
@@ -48,6 +52,7 @@ var (
 		style.MustForceConvertSRGBHex("#9470dc"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiSuccess indicates that the Airflow task instance completed successfully.
 	RevisionStateComposerTiSuccess = style.MustRegisterRevisionState(
 		"Task instance succeeded",
 		"check",
@@ -55,6 +60,7 @@ var (
 		style.MustForceConvertSRGBHex("#008001"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiFailed indicates that the Airflow task instance failed during execution.
 	RevisionStateComposerTiFailed = style.MustRegisterRevisionState(
 		"Task instance failed",
 		"exclamation",
@@ -62,6 +68,7 @@ var (
 		style.MustForceConvertSRGBHex("#fe0000"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiUpForRetry indicates that the Airflow task instance failed and is waiting to retry.
 	RevisionStateComposerTiUpForRetry = style.MustRegisterRevisionState(
 		"Task instance is up for retry",
 		"camping",
@@ -69,6 +76,7 @@ var (
 		style.MustForceConvertSRGBHex("#fed700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiRestarting indicates that the Airflow task instance is restarting.
 	RevisionStateComposerTiRestarting = style.MustRegisterRevisionState(
 		"Task instance is restarting",
 		"restart_alt",
@@ -76,6 +84,7 @@ var (
 		style.MustForceConvertSRGBHex("#ee82ef"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiRemoved indicates that the Airflow task instance was removed from the DAG run.
 	RevisionStateComposerTiRemoved = style.MustRegisterRevisionState(
 		"Task instance is removed",
 		"waving_hand",
@@ -83,6 +92,7 @@ var (
 		style.MustForceConvertSRGBHex("#d3d3d3"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiUpstreamFailed indicates that the Airflow task instance was skipped due to an upstream failure.
 	RevisionStateComposerTiUpstreamFailed = style.MustRegisterRevisionState(
 		"Upstream task failed",
 		"falling",
@@ -90,6 +100,7 @@ var (
 		style.MustForceConvertSRGBHex("#ffa11b"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiZombie indicates that the Airflow task instance was detected as a zombie process.
 	RevisionStateComposerTiZombie = style.MustRegisterRevisionState(
 		"Task instance is a zombie",
 		"skull",
@@ -97,6 +108,7 @@ var (
 		style.MustForceConvertSRGBHex("#4b0082"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiUpForReschedule indicates that the Airflow task instance is waiting for a sensor reschedule.
 	RevisionStateComposerTiUpForReschedule = style.MustRegisterRevisionState(
 		"Task instance is up for reschedule",
 		"history",
@@ -104,6 +116,7 @@ var (
 		style.MustForceConvertSRGBHex("#808080"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerTiSkipped indicates that the Airflow task instance was skipped during execution.
 	RevisionStateComposerTiSkipped = style.MustRegisterRevisionState(
 		"Task instance is skipped",
 		"step_over",

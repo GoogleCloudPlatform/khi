@@ -20,8 +20,9 @@ import (
 	"go/token"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
 func parseFuncBodyForTest(t *testing.T, src string) (*token.FileSet, *ast.BlockStmt) {

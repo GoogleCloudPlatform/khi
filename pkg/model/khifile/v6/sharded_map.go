@@ -26,28 +26,6 @@ const (
 	shardedMapMask      = shardedMapNumShards - 1
 )
 
-func hashBytes(b []byte) uint64 {
-	var h uint64 = fnvOffset64
-	for _, c := range b {
-		h ^= uint64(c)
-		h *= fnvPrime64
-	}
-	return h
-}
-
-func hashString(s string) uint64 {
-	var h uint64 = fnvOffset64
-	for i := 0; i < len(s); i++ {
-		h ^= uint64(s[i])
-		h *= fnvPrime64
-	}
-	return h
-}
-
-func shardIndexFromHash(h uint64) uint8 {
-	return uint8((h ^ (h >> 32) ^ (h >> 16) ^ (h >> 8)) & shardedMapMask)
-}
-
 type stringUint32Shard struct {
 	sync.RWMutex
 	m map[string]uint32
@@ -148,4 +126,26 @@ func (sm *shardedStringUint32Map) Dispose() {
 		shard.m = nil
 		shard.Unlock()
 	}
+}
+
+func hashBytes(b []byte) uint64 {
+	var h uint64 = fnvOffset64
+	for _, c := range b {
+		h ^= uint64(c)
+		h *= fnvPrime64
+	}
+	return h
+}
+
+func hashString(s string) uint64 {
+	var h uint64 = fnvOffset64
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= fnvPrime64
+	}
+	return h
+}
+
+func shardIndexFromHash(h uint64) uint8 {
+	return uint8((h ^ (h >> 32) ^ (h >> 16) ^ (h >> 8)) & shardedMapMask)
 }

@@ -19,9 +19,10 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+
+	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
 
 func TestCELValidationServer_ValidateTimelineQuery(t *testing.T) {

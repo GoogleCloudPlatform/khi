@@ -22,11 +22,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/inspectionserver"
-	"github.com/google/go-cmp/cmp"
 )
 
 func createTestInspectionServer(t *testing.T) (*coreinspection.InspectionTaskServer, string) {

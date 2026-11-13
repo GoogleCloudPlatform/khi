@@ -19,10 +19,11 @@ import (
 	"slices"
 	"sync"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"google.golang.org/protobuf/proto"
 )
 
 // MetadataAccumulator facilitates the thread-safe accumulation of inspection metadata.
@@ -71,6 +72,16 @@ func (a *MetadataAccumulator) AddMetadata(m inspectionmetadata.Metadata) error {
 	a.mu.Unlock()
 
 	return nil
+}
+
+// Accumulate returns a slice of the accumulated *pb.MetadataItem messages.
+func (a *MetadataAccumulator) Accumulate() []*pb.MetadataItem {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	result := make([]*pb.MetadataItem, len(a.metadata))
+	copy(result, a.metadata)
+	return result
 }
 
 func toHeaderMetadataItem(v *inspectionmetadata.HeaderMetadata) *pb.MetadataItem {
@@ -125,14 +136,4 @@ func toFilterVocabularyMetadataItem(v inspectionmetadata.FilterVocabulary) *pb.M
 			},
 		},
 	}
-}
-
-// Accumulate returns a slice of the accumulated *pb.MetadataItem messages.
-func (a *MetadataAccumulator) Accumulate() []*pb.MetadataItem {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	result := make([]*pb.MetadataItem, len(a.metadata))
-	copy(result, a.metadata)
-	return result
 }

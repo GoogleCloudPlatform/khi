@@ -18,13 +18,18 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
+// Auth holds the singleton instance of AuthParameters.
 var Auth *AuthParameters = &AuthParameters{}
 
+var _ ParameterStore = (*AuthParameters)(nil)
+
+// AuthParameters stores parameters related to authentication and Google Cloud access.
 type AuthParameters struct {
 	// FixedProjectID is a GCP project ID prefilled in the form. User won't be able to edit it from the form.
 	FixedProjectID *string
@@ -111,5 +116,3 @@ func (a *AuthParameters) GetOAuthConfig() *oauth2.Config {
 		Endpoint:     google.Endpoint,
 	}
 }
-
-var _ ParameterStore = (*AuthParameters)(nil)

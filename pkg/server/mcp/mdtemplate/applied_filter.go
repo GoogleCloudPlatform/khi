@@ -22,21 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
-// yamlBlock formats s as a YAML literal block scalar indented by two spaces so that query text such as `!has(x)` or `a: b` stays verbatim except for trailing newlines.
-// It normalizes CRLF and CR line endings to LF, returns an empty quoted string for an empty s, and adds an explicit indentation indicator when the first non-empty line starts with spaces or tabs because YAML would otherwise detect the indentation from them.
-func yamlBlock(s string) string {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	s = strings.ReplaceAll(s, "\r", "\n")
-	if s == "" {
-		return `""`
-	}
-	header := "|-"
-	if body := strings.TrimLeft(s, "\n"); strings.HasPrefix(body, " ") || strings.HasPrefix(body, "\t") {
-		header = "|2-"
-	}
-	return header + "\n  " + strings.ReplaceAll(s, "\n", "\n  ")
-}
-
 // FormatAppliedFilter formats an AppliedFilter struct into a markdown explanation with a YAML block.
 func FormatAppliedFilter(f workbench.AppliedFilter) string {
 	startTime := `""`
@@ -59,4 +44,19 @@ func FormatAppliedFilter(f workbench.AppliedFilter) string {
 	return "## Applied filter\n" +
 		"Enter these values in the KHI Web UI filter to see the same data.\n\n" +
 		md.Fence("yaml", yamlBody.String())
+}
+
+// yamlBlock formats s as a YAML literal block scalar indented by two spaces so that query text such as `!has(x)` or `a: b` stays verbatim except for trailing newlines.
+// It normalizes CRLF and CR line endings to LF, returns an empty quoted string for an empty s, and adds an explicit indentation indicator when the first non-empty line starts with spaces or tabs because YAML would otherwise detect the indentation from them.
+func yamlBlock(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	if s == "" {
+		return `""`
+	}
+	header := "|-"
+	if body := strings.TrimLeft(s, "\n"); strings.HasPrefix(body, " ") || strings.HasPrefix(body, "\t") {
+		header = "|2-"
+	}
+	return header + "\n  " + strings.ReplaceAll(s, "\n", "\n  ")
 }

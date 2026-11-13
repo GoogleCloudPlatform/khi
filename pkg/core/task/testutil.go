@@ -14,7 +14,7 @@
 
 package coretask
 
-// HasDependency check if 2 tasks have dependency between them when the task graph was resolved with given task set.
+// HasDependency checks if two tasks have a dependency between them when the task graph was resolved with given task set.
 func HasDependency(taskSet *TaskSet, dependencyFrom UntypedTask, dependencyTo UntypedTask) (bool, error) {
 	resolvedSet, err := ResolveGraph([]UntypedTask{dependencyFrom}, []UntypedTask{dependencyFrom}, nil)
 	if err != nil {

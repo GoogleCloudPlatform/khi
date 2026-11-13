@@ -20,7 +20,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
+// InspectionTimeTaskID is the task ID for obtaining the inspection execution timestamp.
 var InspectionTimeTaskID = taskid.NewDefaultImplementationID[time.Time](InspectionTaskPrefix + "task/time")
+
+// TimeZoneShiftInputTaskID is the task ID for the timezone shift input form task.
 var TimeZoneShiftInputTaskID = taskid.NewDefaultImplementationID[*time.Location](InspectionTaskPrefix + "input-timezone-shift")
+
+// InputInspectionNameTaskID is the task ID for the inspection name input form task.
 var InputInspectionNameTaskID = taskid.NewDefaultImplementationID[string](InspectionTaskPrefix + "input/inspection-name")
+
+// SerializerTaskID is the task ID for serializing the inspection result into a FileSystemStore.
 var SerializerTaskID = taskid.NewDefaultImplementationID[*FileSystemStore](InspectionTaskPrefix + "serialize")

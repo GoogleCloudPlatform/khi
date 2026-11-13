@@ -22,11 +22,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
+var (
+	_ ReadonlyPool = (*ReadonlyInternPool)(nil)
+	_ flatSpanPool = (*ReadonlyInternPool)(nil)
+)
+
 // ReadonlyPool defines the common read-only lookup interface implemented by InternPool and ReadonlyInternPool.
 type ReadonlyPool interface {
+	// ResolveStringFromID returns the string corresponding to the given ID.
 	ResolveStringFromID(id uint32) string
+	// ResolveFieldSetFromID returns the field path string IDs corresponding to the given field set ID.
 	ResolveFieldSetFromID(id uint32) []uint32
+	// ResolveStructFromID returns the InternedStruct corresponding to the given struct ID.
 	ResolveStructFromID(id uint32) *pb.InternedStruct
+	// ResolveStructStringField resolves the string value at fieldPath within structID.
 	ResolveStructStringField(structID uint32, fieldPath ...string) (string, bool)
 }
 
@@ -40,11 +49,6 @@ type ReadonlyInternPool struct {
 	fieldSets     [][]uint32
 	flatStructs   *FlatStructStore
 }
-
-var (
-	_ ReadonlyPool = (*ReadonlyInternPool)(nil)
-	_ flatSpanPool = (*ReadonlyInternPool)(nil)
-)
 
 // NewReadonlyInternPool instantiates an empty ReadonlyInternPool.
 func NewReadonlyInternPool() *ReadonlyInternPool {
@@ -93,21 +97,6 @@ func (p *ReadonlyInternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
 	p.flatStructs.StoreProtoBatch(chunk.Structs)
 }
 
-// ensureCapacity expands the slice if needed so that maxIndex is a valid index.
-func ensureCapacity[T any](slice []T, maxIndex uint32) []T {
-	required := int(maxIndex) + 1
-	if required <= len(slice) {
-		return slice
-	}
-	newCap := len(slice) * 2
-	if newCap < required {
-		newCap = required
-	}
-	newSlice := make([]T, newCap)
-	copy(newSlice, slice)
-	return newSlice
-}
-
 // ResolveStringFromID returns the string corresponding to the given string ID, or empty string if not found.
 func (p *ReadonlyInternPool) ResolveStringFromID(idVal uint32) string {
 	p.mu.RLock()
@@ -145,15 +134,6 @@ func (p *ReadonlyInternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
 // Returns ("", false) when structID or fieldPath is missing, or when the target field does not hold a string value.
 func (p *ReadonlyInternPool) ResolveStructStringField(structID uint32, fieldPath ...string) (string, bool) {
 	return resolveStructStringField(p, structID, fieldPath)
-}
-
-// resolveFlatStructSpan locates the FlatStructStore span for structID in this pool.
-func (p *ReadonlyInternPool) resolveFlatStructSpan(structID uint32) (flatStructSpan, bool) {
-	fieldSetID, offset, count, ok := p.flatStructs.GetValueSpan(structID)
-	if !ok {
-		return flatStructSpan{}, false
-	}
-	return flatStructSpan{pool: p, store: p.flatStructs, fieldSetID: fieldSetID, offset: offset, count: count}, true
 }
 
 // FlatStructStore returns the underlying FlatStructStore.
@@ -195,4 +175,28 @@ func (p *ReadonlyInternPool) ServerStrings() []string {
 	out := make([]string, len(p.serverStrings))
 	copy(out, p.serverStrings)
 	return out
+}
+
+// resolveFlatStructSpan locates the FlatStructStore span for structID in this pool.
+func (p *ReadonlyInternPool) resolveFlatStructSpan(structID uint32) (flatStructSpan, bool) {
+	fieldSetID, offset, count, ok := p.flatStructs.GetValueSpan(structID)
+	if !ok {
+		return flatStructSpan{}, false
+	}
+	return flatStructSpan{pool: p, store: p.flatStructs, fieldSetID: fieldSetID, offset: offset, count: count}, true
+}
+
+// ensureCapacity expands the slice if needed so that maxIndex is a valid index.
+func ensureCapacity[T any](slice []T, maxIndex uint32) []T {
+	required := int(maxIndex) + 1
+	if required <= len(slice) {
+		return slice
+	}
+	newCap := len(slice) * 2
+	if newCap < required {
+		newCap = required
+	}
+	newSlice := make([]T, newCap)
+	copy(newSlice, slice)
+	return newSlice
 }

@@ -27,6 +27,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
@@ -39,10 +44,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"github.com/google/go-cmp/cmp"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var inspectionTemplates = mdtemplate.MustParse(templateFS, "templates/*.md.tmpl")

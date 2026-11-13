@@ -38,24 +38,59 @@ const (
 
 // ProgressHooks reports high-level phase progress during TypeScript evaluation.
 type ProgressHooks interface {
+	// Phase updates the current evaluation phase progress label.
 	Phase(step int, totalSteps int, message string)
 }
 
 // Options configures unified TypeScript differential coverage, mutation, and redundancy evaluation.
 type Options struct {
-	RepoRoot               string
-	BaseLabel              string
-	TSCoveragePath         string
-	Full                   bool
-	FailOnViolations       bool
-	ChangedLinesByFile     map[string]map[int]struct{}
+	// RepoRoot is the repository root directory path.
+	RepoRoot string
+	// BaseLabel describes the base VCS revision used for differential checks.
+	BaseLabel string
+	// TSCoveragePath points to an optional precomputed Istanbul coverage-final.json file.
+	TSCoveragePath string
+	// Full enables whole-repository TypeScript coverage evaluation.
+	Full bool
+	// FailOnViolations treats TypeScript findings as blocking when true.
+	FailOnViolations bool
+	// ChangedLinesByFile maps changed production TypeScript files to modified 1-based line sets.
+	ChangedLinesByFile map[string]map[int]struct{}
+	// ChangedTestLinesByFile maps changed TypeScript spec files to modified 1-based line sets.
 	ChangedTestLinesByFile map[string]map[int]struct{}
-	MaxMutants             int
-	Timeout                time.Duration
-	LogWriter              io.Writer
-	Progress               ProgressHooks
-	RunKarmaCoverage       func(ctx context.Context, req KarmaCoverageRequest) error
-	RunKarmaSession        func(ctx context.Context, req karmaSessionRequest) error
+	// MaxMutants caps the total number of evaluated TypeScript mutants.
+	MaxMutants int
+	// Timeout bounds the overall TypeScript mutation testing duration.
+	Timeout time.Duration
+	// LogWriter receives diagnostic Karma and helper output.
+	LogWriter io.Writer
+	// Progress receives high-level phase updates.
+	Progress ProgressHooks
+	// RunKarmaCoverage overrides the Karma coverage runner in tests when non-nil.
+	RunKarmaCoverage func(ctx context.Context, req KarmaCoverageRequest) error
+	// RunKarmaSession overrides the Karma mutation session runner in tests when non-nil.
+	RunKarmaSession func(ctx context.Context, req karmaSessionRequest) error
+}
+
+type tsMutPlanBundle struct {
+	allPlans       []*TSFilePlan
+	stagedFiles    []tsStagedFile
+	pendingMutants []*TSMutant
+	filesPending   []string
+	mutantFileByID map[int]string
+	changedSpecs   []redundancy.ChangedTSSpec
+	maxMutantID    int
+	maxProbeID     int
+}
+
+type tsSingleFileCtx struct {
+	relFile          string
+	extractions      map[string]RawTSFileExtraction
+	covByFile        map[string]gotestutil.IstanbulFileCoverage
+	hasTSCov         bool
+	changedSpecFiles []string
+	nextMutID        *int
+	nextProbeID      *int
 }
 
 // Evaluate runs TypeScript differential coverage, Super-Mutant evaluation, and Jasmine spec redundancy analysis.
@@ -95,17 +130,6 @@ func Evaluate(ctx context.Context, opts Options) (*rule.Report, error) {
 	}
 	sortTSFindings(rep)
 	return rep, nil
-}
-
-type tsMutPlanBundle struct {
-	allPlans       []*TSFilePlan
-	stagedFiles    []tsStagedFile
-	pendingMutants []*TSMutant
-	filesPending   []string
-	mutantFileByID map[int]string
-	changedSpecs   []redundancy.ChangedTSSpec
-	maxMutantID    int
-	maxProbeID     int
 }
 
 func evaluateTSMutationsAndSpecs(
@@ -188,16 +212,6 @@ func buildTSMutPlanBundle(
 	out.maxMutantID = nextMutID - 1
 	out.maxProbeID = nextProbeID - 1
 	return out, nil
-}
-
-type tsSingleFileCtx struct {
-	relFile          string
-	extractions      map[string]RawTSFileExtraction
-	covByFile        map[string]gotestutil.IstanbulFileCoverage
-	hasTSCov         bool
-	changedSpecFiles []string
-	nextMutID        *int
-	nextProbeID      *int
 }
 
 func planSingleTSChangedFile(opts Options, fc tsSingleFileCtx, out *tsMutPlanBundle) error {

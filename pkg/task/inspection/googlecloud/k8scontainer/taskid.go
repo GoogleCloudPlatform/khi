@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
+// TaskIDPrefix is the prefix for all task IDs in the k8scontainer package.
 const TaskIDPrefix = "cloud.google.com/log/k8s-container/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.

@@ -20,9 +20,6 @@ import (
 	"strings"
 )
 
-// ExclusionScope specifies how far an AST boilerplate exclusion applies during traversal.
-type ExclusionScope int
-
 const (
 	// ExclusionNone allows normal quality analysis on the node and its children.
 	ExclusionNone ExclusionScope = iota
@@ -32,28 +29,48 @@ const (
 	ExclusionSubtree
 )
 
+var (
+	_ ExclusionRule = (*constAndTypeRule)(nil)
+	_ ExclusionRule = (*errorGuardRule)(nil)
+	_ ExclusionRule = (*loggingAndDiagCallRule)(nil)
+	_ ExclusionRule = (*allocationHintRule)(nil)
+	_ ExclusionRule = (*deferAndPanicRule)(nil)
+)
+
+// ExclusionScope specifies how far an AST boilerplate exclusion applies during traversal.
+type ExclusionScope int
+
 // ExclusionContext carries file, token position, and ancestor chain state for ExclusionRule evaluation.
 type ExclusionContext struct {
-	FilePath  string
-	Fset      *token.FileSet
-	File      *ast.File
-	Source    []byte
+	// FilePath is the slash-separated relative path of the Go file.
+	FilePath string
+	// Fset is the token.FileSet for the parsed AST.
+	Fset *token.FileSet
+	// File is the parsed AST of the Go file.
+	File *ast.File
+	// Source holds the raw Go source bytes.
+	Source []byte
+	// Ancestors holds the enclosing AST nodes leading to the current node.
 	Ancestors []ast.Node
-}
-
-// Parent returns the immediate enclosing AST node, or nil at the root.
-func (c *ExclusionContext) Parent() ast.Node {
-	if len(c.Ancestors) == 0 {
-		return nil
-	}
-	return c.Ancestors[len(c.Ancestors)-1]
 }
 
 // ExclusionRule determines whether an AST node represents non-domain boilerplate.
 type ExclusionRule interface {
+	// Name returns the unique identifier of the exclusion rule.
 	Name() string
+	// Evaluate returns the ExclusionScope to apply to node within ctx.
 	Evaluate(ctx *ExclusionContext, node ast.Node) ExclusionScope
 }
+
+type constAndTypeRule struct{}
+
+type errorGuardRule struct{}
+
+type loggingAndDiagCallRule struct{}
+
+type allocationHintRule struct{}
+
+type deferAndPanicRule struct{}
 
 // DefaultExclusionRules returns the shared KHI boilerplate suppression rules for coverage and mutation checks.
 func DefaultExclusionRules() []ExclusionRule {
@@ -101,6 +118,95 @@ func BoilerplateLineSet(fset *token.FileSet, file *ast.File) map[int]struct{} {
 	return excluded
 }
 
+// IsErrorNotNilGuard reports whether expr compares an error-like expression against nil with !=.
+func IsErrorNotNilGuard(expr ast.Expr) bool {
+	bin, ok := ast.Unparen(expr).(*ast.BinaryExpr)
+	return ok && bin.Op == token.NEQ && isErrorNilComparison(bin)
+}
+
+// Parent returns the immediate enclosing AST node, or nil at the root.
+func (c *ExclusionContext) Parent() ast.Node {
+	if len(c.Ancestors) == 0 {
+		return nil
+	}
+	return c.Ancestors[len(c.Ancestors)-1]
+}
+
+func (r *constAndTypeRule) Name() string { return "const_and_type" }
+
+func (r *constAndTypeRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
+	switch n := node.(type) {
+	case *ast.GenDecl:
+		if n.Tok == token.CONST || n.Tok == token.TYPE {
+			return ExclusionSubtree
+		}
+	case *ast.ArrayType, *ast.StructType, *ast.InterfaceType, *ast.MapType, *ast.ChanType, *ast.FuncType:
+		return ExclusionSubtree
+	case *ast.BinaryExpr:
+		if isPureLiteralExpr(n) {
+			return ExclusionSubtree
+		}
+	}
+	return ExclusionNone
+}
+
+func (r *errorGuardRule) Name() string { return "error_guard" }
+
+func (r *errorGuardRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
+	switch n := node.(type) {
+	case *ast.BinaryExpr:
+		if isErrorNilComparison(n) {
+			return ExclusionSubtree
+		}
+	case *ast.IfStmt:
+		if isErrorGuardIf(n) {
+			return ExclusionSubtree
+		}
+	}
+	return ExclusionNone
+}
+
+func (r *loggingAndDiagCallRule) Name() string { return "logging_and_diag_call" }
+
+func (r *loggingAndDiagCallRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
+	call, ok := node.(*ast.CallExpr)
+	if !ok {
+		return ExclusionNone
+	}
+	if isDiagSelectorCall(call, true) {
+		return ExclusionSubtree
+	}
+	return ExclusionNone
+}
+
+func (r *allocationHintRule) Name() string { return "allocation_hint" }
+
+func (r *allocationHintRule) Evaluate(ctx *ExclusionContext, node ast.Node) ExclusionScope {
+	if call, ok := node.(*ast.CallExpr); ok {
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Grow" {
+			return ExclusionSubtree
+		}
+	}
+	if isMakeCapacityArg(ctx.Parent(), node) {
+		return ExclusionSubtree
+	}
+	return ExclusionNone
+}
+
+func (r *deferAndPanicRule) Name() string { return "defer_and_panic" }
+
+func (r *deferAndPanicRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
+	switch n := node.(type) {
+	case *ast.DeferStmt:
+		return ExclusionSubtree
+	case *ast.CallExpr:
+		if isPanicCall(n) {
+			return ExclusionSubtree
+		}
+	}
+	return ExclusionNone
+}
+
 func collectFuncBoilerplateLines(fset *token.FileSet, body *ast.BlockStmt, excluded map[int]struct{}) {
 	ast.Inspect(body, func(n ast.Node) bool {
 		switch s := n.(type) {
@@ -137,83 +243,6 @@ func markNodeLines(fset *token.FileSet, n ast.Node, excluded map[int]struct{}) {
 	}
 }
 
-type constAndTypeRule struct{}
-
-var _ ExclusionRule = (*constAndTypeRule)(nil)
-
-func (r *constAndTypeRule) Name() string { return "const_and_type" }
-
-func (r *constAndTypeRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
-	switch n := node.(type) {
-	case *ast.GenDecl:
-		if n.Tok == token.CONST || n.Tok == token.TYPE {
-			return ExclusionSubtree
-		}
-	case *ast.ArrayType, *ast.StructType, *ast.InterfaceType, *ast.MapType, *ast.ChanType, *ast.FuncType:
-		return ExclusionSubtree
-	case *ast.BinaryExpr:
-		if isPureLiteralExpr(n) {
-			return ExclusionSubtree
-		}
-	}
-	return ExclusionNone
-}
-
-type errorGuardRule struct{}
-
-var _ ExclusionRule = (*errorGuardRule)(nil)
-
-func (r *errorGuardRule) Name() string { return "error_guard" }
-
-func (r *errorGuardRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
-	switch n := node.(type) {
-	case *ast.BinaryExpr:
-		if isErrorNilComparison(n) {
-			return ExclusionSubtree
-		}
-	case *ast.IfStmt:
-		if isErrorGuardIf(n) {
-			return ExclusionSubtree
-		}
-	}
-	return ExclusionNone
-}
-
-type loggingAndDiagCallRule struct{}
-
-var _ ExclusionRule = (*loggingAndDiagCallRule)(nil)
-
-func (r *loggingAndDiagCallRule) Name() string { return "logging_and_diag_call" }
-
-func (r *loggingAndDiagCallRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
-	call, ok := node.(*ast.CallExpr)
-	if !ok {
-		return ExclusionNone
-	}
-	if isDiagSelectorCall(call, true) {
-		return ExclusionSubtree
-	}
-	return ExclusionNone
-}
-
-type allocationHintRule struct{}
-
-var _ ExclusionRule = (*allocationHintRule)(nil)
-
-func (r *allocationHintRule) Name() string { return "allocation_hint" }
-
-func (r *allocationHintRule) Evaluate(ctx *ExclusionContext, node ast.Node) ExclusionScope {
-	if call, ok := node.(*ast.CallExpr); ok {
-		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Grow" {
-			return ExclusionSubtree
-		}
-	}
-	if isMakeCapacityArg(ctx.Parent(), node) {
-		return ExclusionSubtree
-	}
-	return ExclusionNone
-}
-
 func isMakeCapacityArg(parent ast.Node, node ast.Node) bool {
 	call, ok := parent.(*ast.CallExpr)
 	if !ok {
@@ -232,24 +261,6 @@ func isMakeCapacityArg(parent ast.Node, node ast.Node) bool {
 		return ok
 	}
 	return false
-}
-
-type deferAndPanicRule struct{}
-
-var _ ExclusionRule = (*deferAndPanicRule)(nil)
-
-func (r *deferAndPanicRule) Name() string { return "defer_and_panic" }
-
-func (r *deferAndPanicRule) Evaluate(_ *ExclusionContext, node ast.Node) ExclusionScope {
-	switch n := node.(type) {
-	case *ast.DeferStmt:
-		return ExclusionSubtree
-	case *ast.CallExpr:
-		if isPanicCall(n) {
-			return ExclusionSubtree
-		}
-	}
-	return ExclusionNone
 }
 
 func isDiagOrPanicCall(expr ast.Expr) bool {
@@ -289,12 +300,6 @@ func isDiagSelectorCall(call *ast.CallExpr, includeErrorConstructors bool) bool 
 
 func isErrorGuardIf(s *ast.IfStmt) bool {
 	return s.Else == nil && IsErrorNotNilGuard(s.Cond) && endsWithReturnStmt(s.Body)
-}
-
-// IsErrorNotNilGuard reports whether expr compares an error-like expression against nil with !=.
-func IsErrorNotNilGuard(expr ast.Expr) bool {
-	bin, ok := ast.Unparen(expr).(*ast.BinaryExpr)
-	return ok && bin.Op == token.NEQ && isErrorNilComparison(bin)
 }
 
 func isErrorNilComparison(bin *ast.BinaryExpr) bool {

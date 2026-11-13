@@ -20,6 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
+var _ Metadata = (*JobModeCommandMetadata)(nil)
+
 // JobModeCommandMetadata stores the command-line instruction to replicate the current dry-run configuration in job mode.
 type JobModeCommandMetadata struct {
 	command string
@@ -28,7 +30,15 @@ type JobModeCommandMetadata struct {
 
 // JobModeCommandSerializable is a helper struct for JSON serialization.
 type JobModeCommandSerializable struct {
+	// Command is the CLI command string used to run the inspection in job mode.
 	Command string `json:"command"`
+}
+
+// NewJobModeCommandMetadata creates a new JobModeCommandMetadata instance.
+func NewJobModeCommandMetadata(command string) *JobModeCommandMetadata {
+	return &JobModeCommandMetadata{
+		command: command,
+	}
 }
 
 // Labels implements Metadata.
@@ -57,13 +67,4 @@ func (j *JobModeCommandMetadata) GetCommand() string {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 	return j.command
-}
-
-var _ Metadata = (*JobModeCommandMetadata)(nil)
-
-// NewJobModeCommandMetadata creates a new JobModeCommandMetadata instance.
-func NewJobModeCommandMetadata(command string) *JobModeCommandMetadata {
-	return &JobModeCommandMetadata{
-		command: command,
-	}
 }

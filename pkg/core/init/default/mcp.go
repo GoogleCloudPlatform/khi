@@ -18,12 +18,22 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	mcp "github.com/GoogleCloudPlatform/khi/pkg/server/mcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
-	"github.com/gin-gonic/gin"
 )
+
+// InitializerIDMCPServer identifies the Initializer that sets up the MCP server.
+const InitializerIDMCPServer coreinit.InitializerID = "khi.default/mcp-server"
+
+// mcpAssetsPath is the route prefix of MCP-generated asset URLs under the base path.
+const mcpAssetsPath = "/api/v1/mcp-assets/"
+
+// mcpScenesPath is the route prefix of MCP-issued scene document URLs under the base path.
+const mcpScenesPath = "/api/v1/mcp-scenes/"
 
 var (
 	// MCPServerKey stores the mcp.Server instance.
@@ -33,15 +43,6 @@ var (
 	// MCPSceneStoreKey stores the scene.Store instance used to serve and resolve timeline scene documents over HTTP.
 	MCPSceneStoreKey = typedmap.NewTypedKey[*scene.Store]("khi.google.com/init/mcp-scene-store")
 )
-
-// mcpAssetsPath is the route prefix of MCP-generated asset URLs under the base path.
-const mcpAssetsPath = "/api/v1/mcp-assets/"
-
-// mcpScenesPath is the route prefix of MCP-issued scene document URLs under the base path.
-const mcpScenesPath = "/api/v1/mcp-scenes/"
-
-// InitializerIDMCPServer identifies the Initializer that sets up the MCP server.
-const InitializerIDMCPServer coreinit.InitializerID = "khi.default/mcp-server"
 
 // MCPServerInitializer mounts MCP endpoints onto the Gin router when not in job mode.
 var MCPServerInitializer = &coreinit.Initializer{
@@ -107,14 +108,14 @@ var MCPServerInitializer = &coreinit.Initializer{
 	},
 }
 
+func init() {
+	coreinit.RegisterInitializer(MCPServerInitializer)
+}
+
 func localServerBaseURL(host string, port int, basePath string) string {
 	switch host {
 	case "", "0.0.0.0", "::":
 		host = "127.0.0.1"
 	}
 	return "http://" + net.JoinHostPort(host, strconv.Itoa(port)) + basePath
-}
-
-func init() {
-	coreinit.RegisterInitializer(MCPServerInitializer)
 }

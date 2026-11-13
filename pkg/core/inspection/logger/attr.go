@@ -16,6 +16,7 @@ package logger
 
 import "log/slog"
 
+// LogKindAttrKey is the slog attribute key used to identify the log kind for throttling.
 var LogKindAttrKey = "log-kind"
 
 // LogKind returns slog.Attr marks which log kind is associated to the log record.

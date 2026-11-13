@@ -21,11 +21,15 @@ import (
 	"strings"
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
+
+// namespaceAssetType is the CAI asset type of Kubernetes Namespace resources.
+const namespaceAssetType = "k8s.io/Namespace"
 
 var defaultSupportedKindsToAssetTypes = map[string]string{
 	"pod":                            "k8s.io/Pod",
@@ -55,6 +59,14 @@ var defaultSupportedKindsToAssetTypes = map[string]string{
 	"storageclass":                   "storage.k8s.io/StorageClass",
 	"mutatingwebhookconfiguration":   "admissionregistration.k8s.io/MutatingWebhookConfiguration",
 	"validatingwebhookconfiguration": "admissionregistration.k8s.io/ValidatingWebhookConfiguration",
+}
+
+// clusterResourceDiscoveryTarget carries the resolved inputs for discovering cluster resource assets in CAI.
+type clusterResourceDiscoveryTarget struct {
+	scope                      string
+	clusterAssetNameCandidates []string
+	assetTypes                 []string
+	namespaceFilter            *gcpqueryutil.SetFilterParseResult
 }
 
 func bindClusterResourceSearchTargetResolver(b *coretask.Binder) gcpcommon.CAISearchTargetResolver {
@@ -94,17 +106,6 @@ func resolveClusterResourceSearchTarget(
 		},
 	}, false, nil
 }
-
-// clusterResourceDiscoveryTarget carries the resolved inputs for discovering cluster resource assets in CAI.
-type clusterResourceDiscoveryTarget struct {
-	scope                      string
-	clusterAssetNameCandidates []string
-	assetTypes                 []string
-	namespaceFilter            *gcpqueryutil.SetFilterParseResult
-}
-
-// namespaceAssetType is the CAI asset type of Kubernetes Namespace resources.
-const namespaceAssetType = "k8s.io/Namespace"
 
 // clusterAssetNameCandidates returns the CAI full resource names the cluster may be named by.
 func clusterAssetNameCandidates(cluster k8scommon.GoogleCloudClusterIdentity) []string {

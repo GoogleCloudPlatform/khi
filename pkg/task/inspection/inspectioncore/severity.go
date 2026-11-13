@@ -23,11 +23,16 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// SeverityUnknown represents an unknown or unspecified log severity.
 	SeverityUnknown = style.MustRegisterSeverity("UNKNOWN", "", style.ColorBlack, style.ColorWhite, 0)
-	SeverityInfo    = style.MustRegisterSeverity("INFO", "I", style.MustForceConvertSRGBHex("#0000FF"), style.ColorWhite, 1)
+	// SeverityInfo represents an informational log severity.
+	SeverityInfo = style.MustRegisterSeverity("INFO", "I", style.MustForceConvertSRGBHex("#0000FF"), style.ColorWhite, 1)
+	// SeverityWarning represents a warning log severity.
 	SeverityWarning = style.MustRegisterSeverity("WARNING", "W", style.MustForceConvertSRGBHex("#FFAA44"), style.ColorWhite, 2)
-	SeverityError   = style.MustRegisterSeverity("ERROR", "E", style.MustForceConvertSRGBHex("#FF3935"), style.ColorWhite, 3)
-	SeverityFatal   = style.MustRegisterSeverity("FATAL", "F", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, 4)
+	// SeverityError represents an error log severity.
+	SeverityError = style.MustRegisterSeverity("ERROR", "E", style.MustForceConvertSRGBHex("#FF3935"), style.ColorWhite, 3)
+	// SeverityFatal represents a fatal log severity.
+	SeverityFatal = style.MustRegisterSeverity("FATAL", "F", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, 4)
 )
 
 // DefaultSeverityFieldSet is a struct type to hold the parsed log severity.

@@ -14,9 +14,6 @@
 
 package rule
 
-// ViolationKind classifies whether a rule sample passes, exceeds a hard limit, or worsens a legacy ratchet.
-type ViolationKind string
-
 const (
 	// ViolationNone indicates the measured value is within budget or did not worsen an existing legacy value.
 	ViolationNone ViolationKind = ""
@@ -26,11 +23,18 @@ const (
 	ViolationRatchetRegression ViolationKind = "RATCHET_REGRESSION"
 )
 
+// ViolationKind classifies whether a rule sample passes, exceeds a hard limit, or worsens a legacy ratchet.
+type ViolationKind string
+
 // Sample holds the target value, configured limit, and optional base revision value for one rule check.
 type Sample struct {
-	After     int
-	Limit     int
-	Before    int
+	// After is the measured metric value at the target revision.
+	After int
+	// Limit is the configured rule budget threshold.
+	Limit int
+	// Before is the measured metric value at the base revision.
+	Before int
+	// HasBefore reports whether Before is populated from the base revision.
 	HasBefore bool
 }
 

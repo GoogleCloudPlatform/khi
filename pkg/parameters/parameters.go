@@ -20,19 +20,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
+var stores []ParameterStore = make([]ParameterStore, 0)
+
 // ParameterStore parses subset of parameters given to KHI program.
 type ParameterStore interface {
-	// Prepare initialize settings for reading parameters with `flag` package.
+	// Prepare initializes settings for reading parameters with the `flag` package.
 	Prepare() error
 
-	// PostProcess override parsed parameters depending on the other parsed parameters.
+	// PostProcess overrides parsed parameters depending on the other parsed parameters.
 	PostProcess() error
 }
 
-var stores []ParameterStore = make([]ParameterStore, 0)
-
 // AddStore adds a ParameterStore to be initialized in the next Parse() call.
-// This function is expected to be called from init()
+// This function is expected to be called from init().
 func AddStore(store ParameterStore) {
 	stores = append(stores, store)
 }

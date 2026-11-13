@@ -18,16 +18,17 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"google.golang.org/protobuf/proto"
 )
+
+var _ apiv1connect.CELValidationServiceHandler = (*CELValidationServer)(nil)
 
 // CELValidationServer implements the CELValidationServiceHandler interface.
 type CELValidationServer struct{}
-
-var _ apiv1connect.CELValidationServiceHandler = (*CELValidationServer)(nil)
 
 // NewCELValidationServer creates a new instance of CELValidationServer.
 func NewCELValidationServer() *CELValidationServer {

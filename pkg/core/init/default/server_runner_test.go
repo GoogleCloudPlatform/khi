@@ -21,10 +21,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
-	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-cmp/cmp"
+
+	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 )
 
 func TestServerRunnerInitializer(t *testing.T) {

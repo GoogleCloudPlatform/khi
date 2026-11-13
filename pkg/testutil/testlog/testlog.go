@@ -19,6 +19,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+var pathTimestamp = structured.CompileFieldPath("timestamp")
+
+// TestLogOpt defines an option function that transforms a test log node.
 type TestLogOpt = func(original structured.Node) (structured.Node, error)
 
 // TestLog is a type to generate mock log data effectively for test.
@@ -26,13 +29,14 @@ type TestLog struct {
 	opts []TestLogOpt
 }
 
+// New creates a TestLog configured with the given opts.
 func New(opts ...TestLogOpt) *TestLog {
 	return &TestLog{
 		opts: opts,
 	}
 }
 
-// With instantiate a new TestLog with the given additional options and the current options.
+// With instantiates a new TestLog with the given additional options and the current options.
 func (b *TestLog) With(additionalOpts ...TestLogOpt) *TestLog {
 	opts := []TestLogOpt{}
 	opts = append(opts, b.opts...)
@@ -42,6 +46,7 @@ func (b *TestLog) With(additionalOpts ...TestLogOpt) *TestLog {
 	}
 }
 
+// BuildReader applies all configured options and returns a NodeReader.
 func (b *TestLog) BuildReader() (*structured.NodeReader, error) {
 	var node structured.Node
 	var err error
@@ -54,8 +59,7 @@ func (b *TestLog) BuildReader() (*structured.NodeReader, error) {
 	return structured.NewNodeReader(node), nil
 }
 
-var pathTimestamp = structured.CompileFieldPath("timestamp")
-
+// MustBuildYamlString builds the log and serializes it to a YAML string or panics on error.
 func (b *TestLog) MustBuildYamlString() string {
 	reader, err := b.BuildReader()
 	if err != nil {
@@ -68,6 +72,7 @@ func (b *TestLog) MustBuildYamlString() string {
 	return string(serializedRaw)
 }
 
+// MustBuildLogEntity builds the log and returns a Log entity or panics on error.
 func (b *TestLog) MustBuildLogEntity() *log.Log {
 	reader, err := b.BuildReader()
 	if err != nil {

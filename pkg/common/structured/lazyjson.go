@@ -27,6 +27,8 @@ import (
 // ErrInvalidJSON indicates that invalid JSON syntax was encountered during scanning.
 var ErrInvalidJSON = errors.New("invalid json format")
 
+var _ Node = (*LazyJSONNode)(nil)
+
 // LazyJSONNode represents structured data backed by an entry in LazyJSONBlockStore and an offset index.
 // Child nodes reuse the underlying block reference without allocating sub-slices, adjusting only the offset index.
 type LazyJSONNode struct {
@@ -36,8 +38,6 @@ type LazyJSONNode struct {
 	length  uint32
 	index   int
 }
-
-var _ Node = (*LazyJSONNode)(nil)
 
 // NewLazyJSONNode serializes a given Node to JSON and registers it into the LazyJSONBlockStore.
 func NewLazyJSONNode(store *LazyJSONBlockStore, node Node) (Node, error) {
@@ -66,10 +66,6 @@ func NewLazyJSONNodeFromBytes(store *LazyJSONBlockStore, data []byte) Node {
 		length:  uint32(len(data)),
 		index:   0,
 	}
-}
-
-func (n *LazyJSONNode) getBuffer() []byte {
-	return n.store.GetBuffer(n.blockID, n.offset, n.length)
 }
 
 // Type returns the NodeType of this node.
@@ -362,6 +358,10 @@ func (n *LazyJSONNode) GetChildByKey(key string) (Node, bool) {
 			idx++
 		}
 	}
+}
+
+func (n *LazyJSONNode) getBuffer() []byte {
+	return n.store.GetBuffer(n.blockID, n.offset, n.length)
 }
 
 func skipWhitespace(data []byte, index int) int {

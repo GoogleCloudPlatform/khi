@@ -40,7 +40,16 @@ type FieldOp struct {
 
 // FieldPathSchema caches the compiled FieldOp sequence for a specific FieldPathSet.
 type FieldPathSchema struct {
+	// Ops holds the compiled field formatting operations in serialization order.
 	Ops []FieldOp
+}
+
+// StringAndFieldSetResolver provides lookup of strings and field path sets by ID.
+type StringAndFieldSetResolver interface {
+	// ResolveStringFromID returns the string corresponding to the given ID.
+	ResolveStringFromID(id uint32) string
+	// ResolveFieldSetFromID returns the field path string IDs corresponding to the given field set ID.
+	ResolveFieldSetFromID(id uint32) []uint32
 }
 
 // DirectYAMLSerializer serializes InternedStruct directly to YAML text without constructing intermediate ASTs.
@@ -69,12 +78,6 @@ func (s *DirectYAMLSerializer) SerializeStruct(structObj *pb.InternedStruct, poo
 
 	s.serializeStructWithIndent(&s.buf, structObj, pool, schema, 0)
 	return s.buf.String(), nil
-}
-
-// StringAndFieldSetResolver provides lookup of strings and field path sets by ID.
-type StringAndFieldSetResolver interface {
-	ResolveStringFromID(id uint32) string
-	ResolveFieldSetFromID(id uint32) []uint32
 }
 
 // SerializeFlatStruct converts an interned struct identified by structID into its YAML string representation
@@ -117,50 +120,6 @@ func (s *DirectYAMLSerializer) getSchema(fieldPathSetID uint32, resolver StringA
 	schema := compileFieldPathSchema(keys)
 	s.schemaCache.Store(fieldPathSetID, schema)
 	return schema
-}
-
-// compileFieldPathSchema parses the flattened keys and constructs the static prefix and indentation headers.
-func compileFieldPathSchema(keys []string) *FieldPathSchema {
-	ops := make([]FieldOp, len(keys))
-	var prevParts []string
-
-	for i, keyStr := range keys {
-		parts := strings.Split(keyStr, fieldPathSeparator)
-
-		// Calculate common prefix with the previous field path to avoid re-opening existing parent maps.
-		common := 0
-		for common < len(prevParts)-1 && common < len(parts)-1 && prevParts[common] == parts[common] {
-			common++
-		}
-
-		// Emit opening lines for newly entered parent maps with safe key escaping.
-		var prefixBuilder strings.Builder
-		for lvl := common; lvl < len(parts)-1; lvl++ {
-			prefixBuilder.WriteString(strings.Repeat("  ", lvl))
-			prefixBuilder.WriteString(FormatKeyName(parts[lvl]))
-			prefixBuilder.WriteString(":\n")
-		}
-
-		leafLvl := len(parts) - 1
-		ops[i] = FieldOp{
-			PrefixYAML:  prefixBuilder.String(),
-			Indent:      strings.Repeat("  ", leafLvl),
-			KeyName:     FormatKeyName(parts[leafLvl]),
-			IndentLevel: leafLvl,
-		}
-
-		prevParts = parts
-	}
-
-	return &FieldPathSchema{Ops: ops}
-}
-
-// FormatKeyName formats a mapping key safely, applying quotes if the key starts with @ or contains control characters.
-func FormatKeyName(key string) string {
-	if isSafePlainScalar(key) {
-		return key
-	}
-	return strconv.Quote(key)
 }
 
 // serializeStructWithIndent writes the formatted struct fields into the target buffer.
@@ -313,73 +272,6 @@ func (s *DirectYAMLSerializer) emitListItem(targetBuf *bytes.Buffer, item *pb.In
 	targetBuf.WriteString(strings.Repeat("  ", itemIndentLvl-1))
 	targetBuf.WriteString("- ")
 	s.emitValue(targetBuf, item, pool, itemIndentLvl)
-}
-
-// isSafePlainScalar checks if a string is guaranteed to be parsed as a string (never boolean, number, or control token).
-func isSafePlainScalar(str string) bool {
-	if len(str) == 0 {
-		return false
-	}
-
-	// Must not have leading or trailing whitespace.
-	if str[0] == ' ' || str[len(str)-1] == ' ' {
-		return false
-	}
-
-	// Must start with an ASCII letter to guarantee it cannot be a number, timestamp, control token, or dot literal.
-	first := str[0]
-	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z')) {
-		return false
-	}
-
-	// Check against reserved YAML boolean and null keywords.
-	if len(str) <= 5 {
-		lower := strings.ToLower(str)
-		switch lower {
-		case "true", "false", "yes", "no", "on", "off", "null", "nan", "inf", "y", "n":
-			return false
-		}
-	}
-
-	// Must only contain safe identifier characters without any YAML syntax characters.
-	for i := 0; i < len(str); i++ {
-		c := str[i]
-		if (c >= 'a' && c <= 'z') ||
-			(c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') ||
-			c == ' ' || c == '-' || c == '_' || c == '.' || c == '/' {
-			continue
-		}
-		return false
-	}
-
-	return true
-}
-
-// emitQuotedString writes a double-quoted YAML string preserving valid UTF-8 runes.
-func emitQuotedString(targetBuf *bytes.Buffer, str string) {
-	targetBuf.WriteByte('"')
-	for _, r := range str {
-		switch r {
-		case '"':
-			targetBuf.WriteString(`\"`)
-		case '\\':
-			targetBuf.WriteString(`\\`)
-		case '\n':
-			targetBuf.WriteString(`\n`)
-		case '\r':
-			targetBuf.WriteString(`\r`)
-		case '\t':
-			targetBuf.WriteString(`\t`)
-		default:
-			if r < 0x20 {
-				fmt.Fprintf(targetBuf, `\x%02x`, r)
-			} else {
-				targetBuf.WriteRune(r)
-			}
-		}
-	}
-	targetBuf.WriteByte('"')
 }
 
 // emitString writes a string value to the buffer, using plain scalar for safe identifiers and double-quotes otherwise.
@@ -591,4 +483,115 @@ func (s *DirectYAMLSerializer) emitFlatListItem(targetBuf *bytes.Buffer, slot ui
 	default:
 		targetBuf.WriteString("null")
 	}
+}
+
+// FormatKeyName formats a mapping key safely, applying quotes if the key starts with @ or contains control characters.
+func FormatKeyName(key string) string {
+	if isSafePlainScalar(key) {
+		return key
+	}
+	return strconv.Quote(key)
+}
+
+// compileFieldPathSchema parses the flattened keys and constructs the static prefix and indentation headers.
+func compileFieldPathSchema(keys []string) *FieldPathSchema {
+	ops := make([]FieldOp, len(keys))
+	var prevParts []string
+
+	for i, keyStr := range keys {
+		parts := strings.Split(keyStr, fieldPathSeparator)
+
+		// Calculate common prefix with the previous field path to avoid re-opening existing parent maps.
+		common := 0
+		for common < len(prevParts)-1 && common < len(parts)-1 && prevParts[common] == parts[common] {
+			common++
+		}
+
+		// Emit opening lines for newly entered parent maps with safe key escaping.
+		var prefixBuilder strings.Builder
+		for lvl := common; lvl < len(parts)-1; lvl++ {
+			prefixBuilder.WriteString(strings.Repeat("  ", lvl))
+			prefixBuilder.WriteString(FormatKeyName(parts[lvl]))
+			prefixBuilder.WriteString(":\n")
+		}
+
+		leafLvl := len(parts) - 1
+		ops[i] = FieldOp{
+			PrefixYAML:  prefixBuilder.String(),
+			Indent:      strings.Repeat("  ", leafLvl),
+			KeyName:     FormatKeyName(parts[leafLvl]),
+			IndentLevel: leafLvl,
+		}
+
+		prevParts = parts
+	}
+
+	return &FieldPathSchema{Ops: ops}
+}
+
+// isSafePlainScalar checks if a string is guaranteed to be parsed as a string (never boolean, number, or control token).
+func isSafePlainScalar(str string) bool {
+	if len(str) == 0 {
+		return false
+	}
+
+	// Must not have leading or trailing whitespace.
+	if str[0] == ' ' || str[len(str)-1] == ' ' {
+		return false
+	}
+
+	// Must start with an ASCII letter to guarantee it cannot be a number, timestamp, control token, or dot literal.
+	first := str[0]
+	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z')) {
+		return false
+	}
+
+	// Check against reserved YAML boolean and null keywords.
+	if len(str) <= 5 {
+		lower := strings.ToLower(str)
+		switch lower {
+		case "true", "false", "yes", "no", "on", "off", "null", "nan", "inf", "y", "n":
+			return false
+		}
+	}
+
+	// Must only contain safe identifier characters without any YAML syntax characters.
+	for i := 0; i < len(str); i++ {
+		c := str[i]
+		if (c >= 'a' && c <= 'z') ||
+			(c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') ||
+			c == ' ' || c == '-' || c == '_' || c == '.' || c == '/' {
+			continue
+		}
+		return false
+	}
+
+	return true
+}
+
+// emitQuotedString writes a double-quoted YAML string preserving valid UTF-8 runes.
+func emitQuotedString(targetBuf *bytes.Buffer, str string) {
+	targetBuf.WriteByte('"')
+	for _, r := range str {
+		switch r {
+		case '"':
+			targetBuf.WriteString(`\"`)
+		case '\\':
+			targetBuf.WriteString(`\\`)
+		case '\n':
+			targetBuf.WriteString(`\n`)
+		case '\r':
+			targetBuf.WriteString(`\r`)
+		case '\t':
+			targetBuf.WriteString(`\t`)
+		default:
+			if r < 0x20 {
+				fmt.Fprintf(targetBuf, `\x%02x`, r)
+			} else {
+				targetBuf.WriteRune(r)
+			}
+		}
+	}
+	targetBuf.WriteByte('"')
 }

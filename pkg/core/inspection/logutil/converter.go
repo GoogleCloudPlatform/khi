@@ -48,18 +48,17 @@ var ansiSuffixCharacter map[byte]struct{} = map[byte]struct{}{
 	'u': {},
 }
 
-// SpecialSequenceConverter converts specific sequences from string to the other or removes them. (e.g ASCII escape characters, ANSI color characters)
+var (
+	_ SpecialSequenceConverter = (*SequenceConverter)(nil)
+	_ SpecialSequenceConverter = (*RegexSequenceConverter)(nil)
+	_ SpecialSequenceConverter = (*ANSIEscapeSequenceStripper)(nil)
+	_ SpecialSequenceConverter = (*UnicodeUnquoteConverter)(nil)
+)
+
+// SpecialSequenceConverter converts specific sequences from string to the other or removes them. (e.g ASCII escape characters, ANSI color characters).
 type SpecialSequenceConverter interface {
 	// Convert receives the original string and returns the converted string.
 	Convert(s string) string
-}
-
-// ConvertSpecialSequences returns the stripped string with applying provided strippers to the original string.
-func ConvertSpecialSequences(original string, converter ...SpecialSequenceConverter) string {
-	for _, s := range converter {
-		original = s.Convert(original)
-	}
-	return original
 }
 
 // SequenceConverter replaces specific sequences to a string.
@@ -70,20 +69,35 @@ type SequenceConverter struct {
 	From []string
 }
 
-func (c *SequenceConverter) Convert(s string) string {
-	for _, target := range c.From {
-		s = strings.ReplaceAll(s, target, c.To)
-	}
-	return s
-}
-
-var _ SpecialSequenceConverter = (*SequenceConverter)(nil)
-
+// RegexSequenceConverter replaces substrings matching a regular expression with a replacement string.
 type RegexSequenceConverter struct {
 	// Regex is the regular expression to match.
 	Regex *regexp.Regexp
 	// Repl is the replacement string.
 	Repl string
+}
+
+// ANSIEscapeSequenceStripper removes ANSI escape sequences.
+type ANSIEscapeSequenceStripper struct {
+}
+
+// UnicodeUnquoteConverter replaces escaped unicode characters like `\\xe2\\x80\\xa6` into the corresponded unicode string.
+type UnicodeUnquoteConverter struct{}
+
+// ConvertSpecialSequences returns the stripped string with applying provided strippers to the original string.
+func ConvertSpecialSequences(original string, converter ...SpecialSequenceConverter) string {
+	for _, s := range converter {
+		original = s.Convert(original)
+	}
+	return original
+}
+
+// Convert implements SpecialSequenceConverter.
+func (c *SequenceConverter) Convert(s string) string {
+	for _, target := range c.From {
+		s = strings.ReplaceAll(s, target, c.To)
+	}
+	return s
 }
 
 // NewRegexSequenceConverter instantiates RegexSequenceConverter from given string regex and replace target.
@@ -101,6 +115,7 @@ func NewRegexSequenceConverter(regex string, repl string) (*RegexSequenceConvert
 	}, nil
 }
 
+// MustNewRegexSequenceConverter creates a RegexSequenceConverter and panics if the regex fails to compile.
 func MustNewRegexSequenceConverter(regex string, repl string) *RegexSequenceConverter {
 	converter, err := NewRegexSequenceConverter(regex, repl)
 	if err != nil {
@@ -114,13 +129,7 @@ func (r *RegexSequenceConverter) Convert(s string) string {
 	return r.Regex.ReplaceAllString(s, r.Repl)
 }
 
-var _ SpecialSequenceConverter = (*RegexSequenceConverter)(nil)
-
-// ANSIEscapeSequenceStripper removes ANSI escape sequences.
-type ANSIEscapeSequenceStripper struct {
-}
-
-// Convert implements SpecialSequenceStripper.
+// Convert implements SpecialSequenceConverter.
 func (a *ANSIEscapeSequenceStripper) Convert(s string) string {
 	builder := strings.Builder{}
 	for i := 0; i < len(s); i++ {
@@ -159,11 +168,6 @@ func (a *ANSIEscapeSequenceStripper) Convert(s string) string {
 	return builder.String()
 }
 
-var _ SpecialSequenceConverter = (*ANSIEscapeSequenceStripper)(nil)
-
-// UnicodeUnquoteConverter replaces escaped unicode characters like `\\xe2\\x80\\xa6` into the corresponded unicode string.
-type UnicodeUnquoteConverter struct{}
-
 // Convert implements SpecialSequenceConverter.
 func (u *UnicodeUnquoteConverter) Convert(s string) string {
 	converted, err := strconv.Unquote(`"` + s + `"`)
@@ -172,5 +176,3 @@ func (u *UnicodeUnquoteConverter) Convert(s string) string {
 	}
 	return converted
 }
-
-var _ SpecialSequenceConverter = (*UnicodeUnquoteConverter)(nil)

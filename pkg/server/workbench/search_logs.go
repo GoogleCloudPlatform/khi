@@ -21,9 +21,10 @@ import (
 	"slices"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2"
+
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"github.com/RoaringBitmap/roaring/v2"
 )
 
 const (
@@ -35,34 +36,54 @@ const (
 
 // TimelineLogGroup represents a timeline linked to matched logs, along with its per-timeline log statistics.
 type TimelineLogGroup struct {
-	TimelineID      uint32
-	Segments        []TimelineSegment
+	// TimelineID is the identifier of the linked timeline.
+	TimelineID uint32
+	// Segments holds the hierarchical path segments of the timeline.
+	Segments []TimelineSegment
+	// MatchedLogCount is the number of matched logs linked to this timeline.
 	MatchedLogCount int
-	SeverityCounts  []SeverityCount
-	FirstMatchTime  time.Time
-	LastMatchTime   time.Time
+	// SeverityCounts holds the matched log counts grouped by severity.
+	SeverityCounts []SeverityCount
+	// FirstMatchTime is the earliest matched log timestamp on this timeline.
+	FirstMatchTime time.Time
+	// LastMatchTime is the latest matched log timestamp on this timeline.
+	LastMatchTime time.Time
 }
 
 // SampleLogEntry represents a single sampled log entry and its filtered linked timeline IDs.
 type SampleLogEntry struct {
-	LogID       uint32
-	Time        time.Time
-	Severity    *khifilev6.Severity
-	LogType     string
-	Summary     string
+	// LogID is the 1-based identifier of the sampled log entry.
+	LogID uint32
+	// Time is the log timestamp in UTC.
+	Time time.Time
+	// Severity is the resolved severity definition of the log.
+	Severity *khifilev6.Severity
+	// LogType is the resolved log type label.
+	LogType string
+	// Summary is the resolved summary string of the log.
+	Summary string
+	// TimelineIDs lists the filtered timeline IDs linked to this log.
 	TimelineIDs []uint32
 }
 
 // LogSearchResult contains the cross-timeline log search summary, linked timeline ranking, and evenly spaced sample logs.
 type LogSearchResult struct {
-	MatchedLogCount      int
+	// MatchedLogCount is the total number of matched logs.
+	MatchedLogCount int
+	// MatchedTimelineCount is the total number of timelines linked to matched logs.
 	MatchedTimelineCount int
-	FirstMatchTime       time.Time
-	LastMatchTime        time.Time
-	SeverityCounts       []SeverityCount
-	Applied              AppliedFilter
-	TimelineGroups       []TimelineLogGroup
-	SampleLogs           []SampleLogEntry
+	// FirstMatchTime is the earliest timestamp among matched logs.
+	FirstMatchTime time.Time
+	// LastMatchTime is the latest timestamp among matched logs.
+	LastMatchTime time.Time
+	// SeverityCounts holds the total matched log counts grouped by severity.
+	SeverityCounts []SeverityCount
+	// Applied holds the resolved filter configuration.
+	Applied AppliedFilter
+	// TimelineGroups holds the top ranked linked timelines.
+	TimelineGroups []TimelineLogGroup
+	// SampleLogs holds evenly spaced sample log entries.
+	SampleLogs []SampleLogEntry
 	// FilterVocabulary lists the values that filter CEL can match in the inspection.
 	FilterVocabulary FilterVocabulary
 }
@@ -73,20 +94,6 @@ type timelineLogStats struct {
 	severityCounts severityCounter
 	firstNs        int64
 	lastNs         int64
-}
-
-func (s *timelineLogStats) record(severity *khifilev6.Severity, ts int64) {
-	s.count++
-	s.severityCounts[severity]++
-	if ts <= 0 {
-		return
-	}
-	if s.firstNs == -1 || ts < s.firstNs {
-		s.firstNs = ts
-	}
-	if s.lastNs == -1 || ts > s.lastNs {
-		s.lastNs = ts
-	}
 }
 
 // SearchLogs filters logs and aggregates cross-timeline statistics, linked timeline rankings, and evenly spaced sample logs.
@@ -151,6 +158,20 @@ func (w *Workbench) SearchLogs(ctx context.Context, filter Filter, maxTimelines,
 	res.SampleLogs = buildSampleLogEntries(matchedLogs, maxSampleLogs, filterOut.TimelineIDs, index, styles.severityMap)
 
 	return res, nil
+}
+
+func (s *timelineLogStats) record(severity *khifilev6.Severity, ts int64) {
+	s.count++
+	s.severityCounts[severity]++
+	if ts <= 0 {
+		return
+	}
+	if s.firstNs == -1 || ts < s.firstNs {
+		s.firstNs = ts
+	}
+	if s.lastNs == -1 || ts > s.lastNs {
+		s.lastNs = ts
+	}
 }
 
 func collectSortedMatchedLogs(index *SearchIndex, logIDsBitmap *roaring.Bitmap) []*cel.LogData {

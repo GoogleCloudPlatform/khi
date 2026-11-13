@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestRequestFileUpload_Golden(t *testing.T) {

@@ -34,44 +34,6 @@ var timelineCreationTimeInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	mergeTimelineCreationTimes,
 )
 
-func mergeTimelineCreationTimes(results []k8saudit.TimelineCreationTimes) (k8saudit.TimelineCreationTimes, error) {
-	result := k8saudit.TimelineCreationTimes{}
-	for _, r := range results {
-		for path, times := range r {
-			result[path] = append(result[path], times...)
-		}
-	}
-	for path, times := range result {
-		result[path] = deduplicateAndSortTimes(times)
-	}
-	return result, nil
-}
-
-func deduplicateAndSortTimes(times []time.Time) []time.Time {
-	if len(times) <= 1 {
-		return slices.Clone(times)
-	}
-	sorted := slices.Clone(times)
-	slices.SortFunc(sorted, func(a, b time.Time) int {
-		return a.Compare(b)
-	})
-	return slices.CompactFunc(sorted, func(a, b time.Time) bool {
-		return a.Equal(b)
-	})
-}
-
-func extractLogCreationTime(l *k8saudit.ResourceManifestLog, verb *pb.Verb) (time.Time, bool) {
-	if l.ResourceBodyReader != nil {
-		if creationTime, found := GetCreationTimestamp(l.ResourceBodyReader); found {
-			return creationTime, true
-		}
-	}
-	if verb == k8saudit.VerbCreate {
-		return l.Log.Timestamp, true
-	}
-	return time.Time{}, false
-}
-
 // resourceTimelineCreationTimeDiscoveryTask extracts resource timeline creation timestamps from audit logs.
 var resourceTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.ResourceTimelineCreationTimeDiscoveryTaskID,
@@ -170,3 +132,41 @@ var podPhaseTimelineCreationTimeDiscoveryTask = inspectiontaskbase.DefineInspect
 	coretask.WithTitle("Discover Pod phase timeline creation times"),
 	coretask.WithDescription("Extracts Pod phase timeline creation timestamps from Kubernetes audit logs."),
 )
+
+func mergeTimelineCreationTimes(results []k8saudit.TimelineCreationTimes) (k8saudit.TimelineCreationTimes, error) {
+	result := k8saudit.TimelineCreationTimes{}
+	for _, r := range results {
+		for path, times := range r {
+			result[path] = append(result[path], times...)
+		}
+	}
+	for path, times := range result {
+		result[path] = deduplicateAndSortTimes(times)
+	}
+	return result, nil
+}
+
+func deduplicateAndSortTimes(times []time.Time) []time.Time {
+	if len(times) <= 1 {
+		return slices.Clone(times)
+	}
+	sorted := slices.Clone(times)
+	slices.SortFunc(sorted, func(a, b time.Time) int {
+		return a.Compare(b)
+	})
+	return slices.CompactFunc(sorted, func(a, b time.Time) bool {
+		return a.Equal(b)
+	})
+}
+
+func extractLogCreationTime(l *k8saudit.ResourceManifestLog, verb *pb.Verb) (time.Time, bool) {
+	if l.ResourceBodyReader != nil {
+		if creationTime, found := GetCreationTimestamp(l.ResourceBodyReader); found {
+			return creationTime, true
+		}
+	}
+	if verb == k8saudit.VerbCreate {
+		return l.Log.Timestamp, true
+	}
+	return time.Time{}, false
+}

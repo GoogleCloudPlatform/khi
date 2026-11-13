@@ -46,6 +46,8 @@ type cliFlags struct {
 	repoRoot           string
 	lang               string
 	fast               bool
+	conventions        bool
+	pkgs               string
 	vcs                string
 	base               string
 	target             string
@@ -78,6 +80,16 @@ type pipelineEnv struct {
 	errOut   io.Writer
 }
 
+type dynamicStageInput struct {
+	flags      cliFlags
+	repoRoot   string
+	modulePath string
+	diffRes    gotestutil.DiffResult
+	astRes     *astcheck.Result
+	progress   *report.ProgressReporter
+	errOut     io.Writer
+}
+
 func main() {
 	code, err := runCLI(context.Background(), cliEnv{
 		args:   os.Args[1:],
@@ -104,6 +116,9 @@ func runCLI(ctx context.Context, env cliEnv) (int, error) {
 	repoRoot, err := gotestutil.ResolveRepoRoot(flags.repoRoot)
 	if err != nil {
 		return 2, err
+	}
+	if flags.conventions {
+		return runConventionsMode(repoRoot, flags.pkgs, env.stdout)
 	}
 
 	reports, baseLabel, err := executePipeline(ctx, flags, repoRoot, env)
@@ -144,6 +159,8 @@ func parseFlags(args []string, errOut io.Writer, getenv func(string) string) (cl
 	fs.StringVar(&f.repoRoot, "repo-root", "", "repository root path (auto-detected by default)")
 	fs.StringVar(&f.lang, "lang", "all", "target language(s): all, go, or ts")
 	fs.BoolVar(&f.fast, "fast", false, "run fast Stage-1 Go AST structural and naming rules only")
+	fs.BoolVar(&f.conventions, "conventions", false, "check Go declaration visibility ordering and exported struct/interface member GoDoc conventions")
+	fs.StringVar(&f.pkgs, "pkgs", "./...", "comma-separated Go package patterns for --conventions, e.g. ./pkg/api/...,./pkg/common")
 	fs.StringVar(&f.vcs, "vcs", "auto", "version control system: auto, jj, or git")
 	fs.StringVar(&f.base, "base", "", "base revision for differential checks")
 	fs.StringVar(&f.target, "target", "", "target revision for differential checks")
@@ -177,6 +194,20 @@ func validateEnumFlags(f cliFlags) error {
 		return fmt.Errorf("invalid --format %q (want text or github)", f.format)
 	}
 	return nil
+}
+
+func runConventionsMode(repoRoot string, pkgs string, stdout io.Writer) (int, error) {
+	violations, err := astcheck.CheckConventions(repoRoot, pkgs)
+	if err != nil {
+		return 2, err
+	}
+	for _, v := range violations {
+		fmt.Fprintf(stdout, "%s:%d:%d: %s (%s)\n", v.File, v.Line, v.Column, v.Message, v.Rule)
+	}
+	if len(violations) > 0 {
+		return 1, nil
+	}
+	return 0, nil
 }
 
 func executePipeline(
@@ -343,16 +374,6 @@ func runASTStage(ctx context.Context, repoRoot string, diffRes gotestutil.DiffRe
 	})
 }
 
-type dynamicStageInput struct {
-	flags      cliFlags
-	repoRoot   string
-	modulePath string
-	diffRes    gotestutil.DiffResult
-	astRes     *astcheck.Result
-	progress   *report.ProgressReporter
-	errOut     io.Writer
-}
-
 func runDynamicStages(ctx context.Context, in dynamicStageInput, rep *rule.Report) error {
 	workDir, err := os.MkdirTemp("", "khi-codequality-*")
 	if err != nil {
@@ -409,7 +430,7 @@ func runCoverageStage(
 		Full:                   in.flags.full,
 		PrecomputedProfilePath: in.flags.coverprofile,
 		Thresholds:             rule.DefaultThresholds(),
-		ChangedProdLinesByFile: in.diffRes.ChangedLines,
+		ChangedProdLinesByFile: in.astRes.DynamicChangedLines,
 		ASTResult:              in.astRes,
 		ReadTargetFile: func(relPath string) ([]byte, error) {
 			return os.ReadFile(filepath.Join(in.repoRoot, filepath.FromSlash(relPath)))
@@ -430,7 +451,7 @@ func runMutationStage(
 		RepoRoot:               in.repoRoot,
 		WorkDir:                filepath.Join(workDir, "mut"),
 		Thresholds:             rule.DefaultThresholds(),
-		ChangedProdLinesByFile: in.diffRes.ChangedLines,
+		ChangedProdLinesByFile: in.astRes.DynamicChangedLines,
 		ChangedTestLinesByFile: in.diffRes.ChangedTestLines,
 		CoverBlocksByFile:      covRes.CoverBlocksByFile,
 		HasCoverProfile:        covRes.HasCoverProfile,

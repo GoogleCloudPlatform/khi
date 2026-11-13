@@ -34,9 +34,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// ChangeEventType is the type of the resource change event for mappers.
-type ChangeEventType int
-
 const (
 	// ChangeEventTypeCreation is the event type when the resource is created or first observed.
 	ChangeEventTypeCreation ChangeEventType = iota
@@ -45,6 +42,9 @@ const (
 	// ChangeEventTypeModification is the event type when the resource is modified.
 	ChangeEventTypeModification
 )
+
+// ChangeEventType is the type of the resource change event for mappers.
+type ChangeEventType int
 
 // RelatedGroupSet is a set of log groups that should be processed together.
 // For example, it groups a Pod log group and its Subresource (like status or binding) log groups.
@@ -67,35 +67,6 @@ type MultiGroupLogEvent struct {
 	GroupSet RelatedGroupSet
 }
 
-// GetLastBodyReader returns the latest resource body reader for the specified role at the time of this event.
-func (e *MultiGroupLogEvent) GetLastBodyReader(role string) (*structured.NodeReader, bool) {
-	manifestLog, ok := e.getLastManifestLog(role)
-	if !ok || manifestLog.ResourceBodyReader == nil {
-		return nil, false
-	}
-	return manifestLog.ResourceBodyReader, true
-}
-
-// getLastManifestLog returns the latest ResourceManifestLog entry for the specified role at the time of this event.
-func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestLog, bool) {
-	group, found := e.GroupSet.Roles[role]
-	if !found || group == nil {
-		return nil, false
-	}
-
-	eventTime := e.Log.Timestamp
-
-	// Use binary search to quickly find the first log that is in the future relative to eventTime.
-	idx := sort.Search(len(group.Logs), func(i int) bool {
-		return group.Logs[i].Log.Timestamp.After(eventTime)
-	})
-
-	if idx > 0 {
-		return group.Logs[idx-1], true
-	}
-	return nil, false
-}
-
 // ManifestLogToTimelineMapper defines the interface for manifest timeline mappers.
 type ManifestLogToTimelineMapper[T any] interface {
 	// PassCount returns the number of pre-processing passes.
@@ -111,28 +82,8 @@ type ManifestLogToTimelineMapper[T any] interface {
 // ManifestSinglePassMapperBase provides a base implementation for mappers that require only a single pass.
 type ManifestSinglePassMapperBase[T any] struct{}
 
-// PassCount returns 0 as no pre-processing pass is required.
-func (ManifestSinglePassMapperBase[T]) PassCount() int {
-	return 0
-}
-
-// PreProcessLog is a no-op pre-processor that returns the state as-is.
-func (ManifestSinglePassMapperBase[T]) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData T) (T, error) {
-	return prevGroupData, nil
-}
-
 // ManifestStatelessMapperBase provides a base implementation for mappers that are both stateless and require a single pass.
 type ManifestStatelessMapperBase struct{}
-
-// PassCount returns 0 as no pre-processing pass is required.
-func (ManifestStatelessMapperBase) PassCount() int {
-	return 0
-}
-
-// PreProcessLog is a no-op pre-processor that returns an empty struct.
-func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData struct{}) (struct{}, error) {
-	return struct{}{}, nil
-}
 
 // DefineManifestLogToTimelineMapper defines a timeline mapper task utilizing the ManifestLogToTimelineMapper interface.
 //
@@ -244,6 +195,55 @@ func DefineManifestLogToTimelineMapper[T any](taskID taskid.TaskImplementationID
 			return struct{}{}, nil
 		}
 	}, allLabels...)
+}
+
+// GetLastBodyReader returns the latest resource body reader for the specified role at the time of this event.
+func (e *MultiGroupLogEvent) GetLastBodyReader(role string) (*structured.NodeReader, bool) {
+	manifestLog, ok := e.getLastManifestLog(role)
+	if !ok || manifestLog.ResourceBodyReader == nil {
+		return nil, false
+	}
+	return manifestLog.ResourceBodyReader, true
+}
+
+// getLastManifestLog returns the latest ResourceManifestLog entry for the specified role at the time of this event.
+func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestLog, bool) {
+	group, found := e.GroupSet.Roles[role]
+	if !found || group == nil {
+		return nil, false
+	}
+
+	eventTime := e.Log.Timestamp
+
+	// Use binary search to quickly find the first log that is in the future relative to eventTime.
+	idx := sort.Search(len(group.Logs), func(i int) bool {
+		return group.Logs[i].Log.Timestamp.After(eventTime)
+	})
+
+	if idx > 0 {
+		return group.Logs[idx-1], true
+	}
+	return nil, false
+}
+
+// PassCount returns 0 as no pre-processing pass is required.
+func (ManifestSinglePassMapperBase[T]) PassCount() int {
+	return 0
+}
+
+// PreProcessLog is a no-op pre-processor that returns the state as-is.
+func (ManifestSinglePassMapperBase[T]) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData T) (T, error) {
+	return prevGroupData, nil
+}
+
+// PassCount returns 0 as no pre-processing pass is required.
+func (ManifestStatelessMapperBase) PassCount() int {
+	return 0
+}
+
+// PreProcessLog is a no-op pre-processor that returns an empty struct.
+func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData struct{}) (struct{}, error) {
+	return struct{}{}, nil
 }
 
 // iterateMultiGroupLog merges and yields log events from all roles in chronological order.

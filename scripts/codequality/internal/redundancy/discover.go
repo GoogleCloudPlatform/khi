@@ -31,30 +31,65 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
+var outcomeDurationRe = regexp.MustCompile(`\s+\([^)]*\)$`)
+
 // SubtestMeta holds source location, diff membership, and assertion strength for a table row or t.Run subtest.
 type SubtestMeta struct {
+	// NormalizedName is the normalized Go subtest path segment.
 	NormalizedName string
-	Line           int
-	InDiff         bool
-	OnlyErrorNil   bool
+	// Line is the 1-based source line number of the subtest or table row.
+	Line int
+	// InDiff reports whether the subtest overlaps the modified line set.
+	InDiff bool
+	// OnlyErrorNil reports whether the subtest body contains only err != nil checks.
+	OnlyErrorNil bool
 }
 
 // ChangedTestFunc describes a top-level Test* function in a *_test.go file overlapping the VCS diff.
 type ChangedTestFunc struct {
-	File              string
-	FuncName          string
-	Line              int
-	EndLine           int
+	// File is the slash-separated relative path of the test file.
+	File string
+	// FuncName is the top-level Test* function name.
+	FuncName string
+	// Line is the 1-based starting line of the test function.
+	Line int
+	// EndLine is the 1-based ending line of the test function.
+	EndLine int
+	// EntireFuncChanged reports whether the function declaration line itself is in the diff.
 	EntireFuncChanged bool
-	OnlyErrorNil      bool
-	Subtests          map[string]SubtestMeta
+	// OnlyErrorNil reports whether the test body contains only err != nil checks.
+	OnlyErrorNil bool
+	// Subtests maps normalized subtest names to extracted SubtestMeta.
+	Subtests map[string]SubtestMeta
 }
 
 // VerboseTestResult holds parsed per-leaf execution and failure state from a `go test -v` run.
 type VerboseTestResult struct {
-	LeafOrder   []string
-	RanLeafSet  map[string]struct{}
+	// LeafOrder lists executed leaf subtest names in execution order.
+	LeafOrder []string
+	// RanLeafSet contains all executed non-skipped leaf test names.
+	RanLeafSet map[string]struct{}
+	// FailedLeafs contains all leaf test names that failed.
 	FailedLeafs map[string]struct{}
+}
+
+type subtestExtractor struct {
+	fset           *token.FileSet
+	changedLines   map[int]struct{}
+	loopOnlyErrNil bool
+	result         map[string]SubtestMeta
+}
+
+type errNilOnlyWalker struct {
+	hasNonErrAssertion bool
+}
+
+type verboseScanState struct {
+	seenOrder  []string
+	seenSet    map[string]struct{}
+	skippedSet map[string]struct{}
+	failedAll  map[string]struct{}
+	activeLeaf string
 }
 
 // DiscoverChangedTestFuncs parses src and extracts Test* functions overlapping changedLines.
@@ -94,11 +129,47 @@ func DiscoverChangedTestFuncs(filePath string, src []byte, changedLines map[int]
 	return out, nil
 }
 
-type subtestExtractor struct {
-	fset           *token.FileSet
-	changedLines   map[int]struct{}
-	loopOnlyErrNil bool
-	result         map[string]SubtestMeta
+// ParseVerboseTestOutput extracts executed leaf tests and failed leaf tests from `go test -v` output.
+func ParseVerboseTestOutput(out []byte, exitedNonZero bool) VerboseTestResult {
+	st := &verboseScanState{
+		seenSet:    make(map[string]struct{}),
+		skippedSet: make(map[string]struct{}),
+		failedAll:  make(map[string]struct{}),
+	}
+	sc := bufio.NewScanner(bytes.NewReader(out))
+	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	for sc.Scan() {
+		st.step(strings.TrimSpace(sc.Text()))
+	}
+	return st.finalize(exitedNonZero)
+}
+
+// BuildTestFuncsRunRegex builds a -test.run regex matching any of the given top-level Test* functions.
+func BuildTestFuncsRunRegex(funcs []ChangedTestFunc) string {
+	if len(funcs) == 0 {
+		return ""
+	}
+	quoted := make([]string, 0, len(funcs))
+	for _, fn := range funcs {
+		quoted = append(quoted, regexp.QuoteMeta(fn.FuncName))
+	}
+	return "^(?:" + strings.Join(quoted, "|") + ")$"
+}
+
+// BuildSingleLeafRunRegex builds a slash-segmented -test.run pattern matching a single leaf test or subtest.
+func BuildSingleLeafRunRegex(leafName string) string {
+	segments := strings.Split(leafName, "/")
+	parts := make([]string, len(segments))
+	for i, seg := range segments {
+		parts[i] = "^" + regexp.QuoteMeta(seg) + "$"
+	}
+	return strings.Join(parts, "/")
+}
+
+// SplitTopAndSubtest splits a Go test name ("TestFoo/case_a") into ("TestFoo", "case_a").
+func SplitTopAndSubtest(leaf string) (string, string) {
+	top, sub, _ := strings.Cut(leaf, "/")
+	return top, sub
 }
 
 func extractSubtestMetadata(fset *token.FileSet, body *ast.BlockStmt, changed map[int]struct{}, defaultOnlyErrNil bool) map[string]SubtestMeta {
@@ -265,10 +336,6 @@ func bodyHasOnlyErrorNilChecks(block *ast.BlockStmt) bool {
 	return !checker.hasNonErrAssertion
 }
 
-type errNilOnlyWalker struct {
-	hasNonErrAssertion bool
-}
-
 func (w *errNilOnlyWalker) walk(n ast.Node, insideErrGuard bool) {
 	if n == nil {
 		return
@@ -309,31 +376,6 @@ func isTestingFailCall(n ast.Node) bool {
 		return false
 	}
 }
-
-type verboseScanState struct {
-	seenOrder  []string
-	seenSet    map[string]struct{}
-	skippedSet map[string]struct{}
-	failedAll  map[string]struct{}
-	activeLeaf string
-}
-
-// ParseVerboseTestOutput extracts executed leaf tests and failed leaf tests from `go test -v` output.
-func ParseVerboseTestOutput(out []byte, exitedNonZero bool) VerboseTestResult {
-	st := &verboseScanState{
-		seenSet:    make(map[string]struct{}),
-		skippedSet: make(map[string]struct{}),
-		failedAll:  make(map[string]struct{}),
-	}
-	sc := bufio.NewScanner(bytes.NewReader(out))
-	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for sc.Scan() {
-		st.step(strings.TrimSpace(sc.Text()))
-	}
-	return st.finalize(exitedNonZero)
-}
-
-var outcomeDurationRe = regexp.MustCompile(`\s+\([^)]*\)$`)
 
 func (s *verboseScanState) step(line string) {
 	switch {
@@ -403,32 +445,4 @@ func (s *verboseScanState) finalize(exitedNonZero bool) VerboseTestResult {
 
 func parseOutcomeTestName(rest string) string {
 	return strings.TrimSpace(outcomeDurationRe.ReplaceAllString(rest, ""))
-}
-
-// BuildTestFuncsRunRegex builds a -test.run regex matching any of the given top-level Test* functions.
-func BuildTestFuncsRunRegex(funcs []ChangedTestFunc) string {
-	if len(funcs) == 0 {
-		return ""
-	}
-	quoted := make([]string, 0, len(funcs))
-	for _, fn := range funcs {
-		quoted = append(quoted, regexp.QuoteMeta(fn.FuncName))
-	}
-	return "^(?:" + strings.Join(quoted, "|") + ")$"
-}
-
-// BuildSingleLeafRunRegex builds a slash-segmented -test.run pattern matching a single leaf test or subtest.
-func BuildSingleLeafRunRegex(leafName string) string {
-	segments := strings.Split(leafName, "/")
-	parts := make([]string, len(segments))
-	for i, seg := range segments {
-		parts[i] = "^" + regexp.QuoteMeta(seg) + "$"
-	}
-	return strings.Join(parts, "/")
-}
-
-// SplitTopAndSubtest splits a Go test name ("TestFoo/case_a") into ("TestFoo", "case_a").
-func SplitTopAndSubtest(leaf string) (string, string) {
-	top, sub, _ := strings.Cut(leaf, "/")
-	return top, sub
 }

@@ -20,17 +20,18 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+
 	v1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 )
 
+var _ apiv1connect.PopupServiceHandler = (*PopupServer)(nil)
+
 // PopupServer implements the PopupService Connect-RPC handler.
 type PopupServer struct {
 	manager *popup.PopupManager
 }
-
-var _ apiv1connect.PopupServiceHandler = (*PopupServer)(nil)
 
 // NewPopupServer creates a new instance of PopupServer.
 func NewPopupServer(manager *popup.PopupManager) *PopupServer {

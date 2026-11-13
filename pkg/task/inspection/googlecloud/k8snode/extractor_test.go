@@ -17,10 +17,11 @@ package k8snode
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestExtractK8sNodeLogCommon(t *testing.T) {

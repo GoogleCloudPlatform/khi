@@ -18,16 +18,23 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
 
 // LogChangeSetAsserter provides fluent, chainable assertions for LogChangeSet.
 type LogChangeSetAsserter struct {
 	t  *testing.T
 	cs *khifilev6.LogChangeSet
+}
+
+// TimelineChangeSetAsserter provides fluent, chainable assertions for TimelineChangeSet.
+type TimelineChangeSetAsserter struct {
+	t  *testing.T
+	cs *khifilev6.TimelineChangeSet
 }
 
 // AssertLog starts a fluent assertion chain for the given LogChangeSet.
@@ -70,12 +77,6 @@ func (a *LogChangeSetAsserter) HasTimestamp(want time.Time) *LogChangeSetAsserte
 		a.t.Errorf("LogChangeSet timestamp mismatch: want %v, got %v", want, a.cs.Timestamp)
 	}
 	return a
-}
-
-// TimelineChangeSetAsserter provides fluent, chainable assertions for TimelineChangeSet.
-type TimelineChangeSetAsserter struct {
-	t  *testing.T
-	cs *khifilev6.TimelineChangeSet
 }
 
 // AssertTimeline starts a fluent assertion chain for the given TimelineChangeSet.

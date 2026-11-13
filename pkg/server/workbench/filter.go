@@ -19,26 +19,24 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/sparsebitset"
-	"github.com/RoaringBitmap/roaring/v2"
 )
 
 // FilterContext holds the mutable sets of matching timeline and log IDs across pipeline filter stages.
 type FilterContext struct {
-	TimelineIDs  *roaring.Bitmap
-	LogIDs       *roaring.Bitmap
+	// TimelineIDs holds the bitmap of currently matching timeline IDs.
+	TimelineIDs *roaring.Bitmap
+	// LogIDs holds the bitmap of currently matching log IDs.
+	LogIDs *roaring.Bitmap
+	// HasTimeRange reports whether a time range filter is active.
 	HasTimeRange bool
-	StartTimeNs  int64
-	EndTimeNs    int64
-}
-
-// NewFilterContext initializes an empty FilterContext.
-func NewFilterContext() *FilterContext {
-	return &FilterContext{
-		TimelineIDs: roaring.NewBitmap(),
-		LogIDs:      roaring.NewBitmap(),
-	}
+	// StartTimeNs is the inclusive start timestamp in Unix nanoseconds.
+	StartTimeNs int64
+	// EndTimeNs is the inclusive end timestamp in Unix nanoseconds.
+	EndTimeNs int64
 }
 
 // ProgressReporter is a callback invoked during filter execution to stream progress updates.
@@ -55,6 +53,14 @@ type TimelineFilter interface {
 // Pipeline executes a sequential chain of TimelineFilter stages.
 type Pipeline struct {
 	filters []TimelineFilter
+}
+
+// NewFilterContext initializes an empty FilterContext.
+func NewFilterContext() *FilterContext {
+	return &FilterContext{
+		TimelineIDs: roaring.NewBitmap(),
+		LogIDs:      roaring.NewBitmap(),
+	}
 }
 
 // NewPipeline creates a new Pipeline with the specified sequence of TimelineFilter stages.

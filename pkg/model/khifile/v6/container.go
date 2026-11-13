@@ -26,33 +26,80 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	// ChunkTypeMetadata identifies chunks containing inspection metadata items.
+	ChunkTypeMetadata ChunkType = 1
+	// ChunkTypeInternPool identifies chunks containing client-visible interned strings, field sets, and structs.
+	ChunkTypeInternPool ChunkType = 2
+	// ChunkTypeLog identifies chunks containing log entries.
+	ChunkTypeLog ChunkType = 3
+	// ChunkTypeTimelineStyle identifies chunks containing timeline style definitions and icon atlas.
+	ChunkTypeTimelineStyle ChunkType = 4
+	// ChunkTypeTimeline identifies chunks containing timeline hierarchy and item entries.
+	ChunkTypeTimeline ChunkType = 5
+	// ChunkTypeServerInternPool identifies chunks containing server-only interned strings and structs.
+	ChunkTypeServerInternPool ChunkType = 6
+)
+
 var (
 	// MagicBytes are the first 3 bytes of a KHI file ("KHI").
 	MagicBytes = []byte{'K', 'H', 'I'}
 	// Version is the supported version of the KHI file format.
 	Version = byte(0x06)
 
-	ErrInvalidMagicBytes  = errors.New("invalid magic bytes")
+	// ErrInvalidMagicBytes indicates that the file header does not start with the KHI magic bytes.
+	ErrInvalidMagicBytes = errors.New("invalid magic bytes")
+	// ErrUnsupportedVersion indicates that the file format version is not supported.
 	ErrUnsupportedVersion = errors.New("unsupported version")
+)
+
+var (
+	gzipWriterPool = sync.Pool{
+		New: func() any {
+			return gzip.NewWriter(io.Discard)
+		},
+	}
+	gzipReaderPool = sync.Pool{
+		New: func() any {
+			return new(gzip.Reader)
+		},
+	}
+	gzipBufferPool = sync.Pool{
+		New: func() any {
+			return new(bytes.Buffer)
+		},
+	}
 )
 
 // ChunkType represents the type of a chunk in the KHI file.
 type ChunkType uint32
-
-const (
-	ChunkTypeMetadata         ChunkType = 1
-	ChunkTypeInternPool       ChunkType = 2
-	ChunkTypeLog              ChunkType = 3
-	ChunkTypeTimelineStyle    ChunkType = 4
-	ChunkTypeTimeline         ChunkType = 5
-	ChunkTypeServerInternPool ChunkType = 6
-)
 
 // Writer writes chunks to a KHI v6 file.
 // It is safe for concurrent use by multiple goroutines.
 type Writer struct {
 	w  io.Writer
 	mu sync.Mutex
+}
+
+// RawChunk represents a parsed chunk container with compressed payload bytes from a KHI v6 file.
+type RawChunk struct {
+	// Type identifies the kind of data stored in the chunk.
+	Type ChunkType
+	// Data holds the gzip-compressed protobuf payload bytes.
+	Data []byte
+}
+
+// Chunk represents a parsed chunk from a KHI v6 file.
+type Chunk struct {
+	// Type identifies the kind of data stored in the chunk.
+	Type ChunkType
+	// Data holds the uncompressed protobuf binary payload bytes.
+	Data []byte
+}
+
+// Reader reads chunks from a KHI v6 file.
+type Reader struct {
+	r io.Reader
 }
 
 // NewWriter creates a new Writer and writes the magic bytes and version.
@@ -82,64 +129,6 @@ func (w *Writer) Close() error {
 		return closer.Close()
 	}
 	return nil
-}
-
-var (
-	gzipWriterPool = sync.Pool{
-		New: func() any {
-			return gzip.NewWriter(io.Discard)
-		},
-	}
-	gzipReaderPool = sync.Pool{
-		New: func() any {
-			return new(gzip.Reader)
-		},
-	}
-	gzipBufferPool = sync.Pool{
-		New: func() any {
-			return new(bytes.Buffer)
-		},
-	}
-)
-
-// CompressChunk serializes and gzip-compresses the given protobuf message into a RawChunk.
-func CompressChunk(chunkType ChunkType, message proto.Message) (*RawChunk, error) {
-	b, err := proto.Marshal(message)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal proto message: %w", err)
-	}
-
-	buf := gzipBufferPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	defer func() {
-		if buf.Cap() <= 32*1024*1024 {
-			gzipBufferPool.Put(buf)
-		}
-	}()
-
-	gw := gzipWriterPool.Get().(*gzip.Writer)
-	gw.Reset(buf)
-	defer func() {
-		gw.Reset(io.Discard)
-		gzipWriterPool.Put(gw)
-	}()
-
-	if _, err := gw.Write(b); err != nil {
-		return nil, fmt.Errorf("failed to compress payload: %w", err)
-	}
-	if err := gw.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
-	}
-
-	const maxChunkSize = 64 * 1024 * 1024 // 64MB hard limit based on Protobuf constraints
-	if buf.Len() > maxChunkSize {
-		return nil, fmt.Errorf("payload size %d exceeds maximum allowed chunk size (64MB)", buf.Len())
-	}
-
-	return &RawChunk{
-		Type: chunkType,
-		Data: bytes.Clone(buf.Bytes()),
-	}, nil
 }
 
 // WriteRawChunk writes a pre-compressed chunk header and payload directly to the underlying writer.
@@ -188,12 +177,6 @@ func (w *Writer) WriteGenerator(gen ChunkGenerator) error {
 			return err
 		}
 	}
-}
-
-// RawChunk represents a parsed chunk container with compressed payload bytes from a KHI v6 file.
-type RawChunk struct {
-	Type ChunkType
-	Data []byte // Compressed gzip data
 }
 
 // DecompressWith decompresses the gzip payload using pooled resources and passes the uncompressed byte slice
@@ -246,17 +229,6 @@ func (rc *RawChunk) Decompress() (*Chunk, error) {
 		return nil, err
 	}
 	return chunk, nil
-}
-
-// Chunk represents a parsed chunk from a KHI v6 file.
-type Chunk struct {
-	Type ChunkType
-	Data []byte // Uncompressed protobuf binary data
-}
-
-// Reader reads chunks from a KHI v6 file.
-type Reader struct {
-	r io.Reader
 }
 
 // NewReader reads and validates the file header.
@@ -316,4 +288,44 @@ func (r *Reader) NextChunk() (*Chunk, error) {
 		return nil, err
 	}
 	return rawChunk.Decompress()
+}
+
+// CompressChunk serializes and gzip-compresses the given protobuf message into a RawChunk.
+func CompressChunk(chunkType ChunkType, message proto.Message) (*RawChunk, error) {
+	b, err := proto.Marshal(message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal proto message: %w", err)
+	}
+
+	buf := gzipBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer func() {
+		if buf.Cap() <= 32*1024*1024 {
+			gzipBufferPool.Put(buf)
+		}
+	}()
+
+	gw := gzipWriterPool.Get().(*gzip.Writer)
+	gw.Reset(buf)
+	defer func() {
+		gw.Reset(io.Discard)
+		gzipWriterPool.Put(gw)
+	}()
+
+	if _, err := gw.Write(b); err != nil {
+		return nil, fmt.Errorf("failed to compress payload: %w", err)
+	}
+	if err := gw.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
+	}
+
+	const maxChunkSize = 64 * 1024 * 1024 // 64MB hard limit based on Protobuf constraints
+	if buf.Len() > maxChunkSize {
+		return nil, fmt.Errorf("payload size %d exceeds maximum allowed chunk size (64MB)", buf.Len())
+	}
+
+	return &RawChunk{
+		Type: chunkType,
+		Data: bytes.Clone(buf.Bytes()),
+	}, nil
 }

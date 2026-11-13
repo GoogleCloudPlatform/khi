@@ -20,20 +20,21 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/importinspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"google.golang.org/protobuf/proto"
 )
+
+var _ apiv1connect.ImportInspectionServiceHandler = (*ImportInspectionServiceServer)(nil)
 
 // ImportInspectionServiceServer implements the apiv1connect.ImportInspectionServiceHandler interface.
 type ImportInspectionServiceServer struct {
 	manager      *importinspection.ImportSessionManager
 	indexManager *workbench.InspectionIndexManager
 }
-
-var _ apiv1connect.ImportInspectionServiceHandler = (*ImportInspectionServiceServer)(nil)
 
 // NewImportInspectionServiceServer creates a new ImportInspectionServiceServer backed by the given manager.
 func NewImportInspectionServiceServer(manager *importinspection.ImportSessionManager, indexManager *workbench.InspectionIndexManager) *ImportInspectionServiceServer {

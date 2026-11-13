@@ -27,6 +27,44 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// listLogEntriesTask queries the Kubernetes control plane component logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	k8scontrolplane.ListLogEntriesTaskID,
+	"K8s control plane logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &controlPlaneLogQuerySource{
+			clusterIdentity:     coretask.Use(b, k8scontrolplane.ClusterIdentityTaskID.Ref()),
+			componentNameFilter: coretask.Use(b, k8scontrolplane.InputControlPlaneComponentNameFilterTaskID.Ref()),
+		}
+	},
+)
+
+var _ gcpcommon.StructuredLogQuerySource = (*controlPlaneLogQuerySource)(nil)
+
+// controlPlaneLogQuerySource builds the Cloud Logging query for the Kubernetes control plane component logs of the cluster.
+type controlPlaneLogQuerySource struct {
+	clusterIdentity     coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	componentNameFilter coretask.Input[*gcpqueryutil.SetFilterParseResult]
+}
+
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *controlPlaneLogQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
+}
+
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *controlPlaneLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	controlplaneComponentNameFilter := s.componentNameFilter.Get(ctx)
+	return []*logestimator.StructuredLogQuery{generateK8sControlPlaneStructuredQuery(cluster, controlplaneComponentNameFilter)}, nil
+}
+
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *controlPlaneLogQuerySource) TimePartitionCount() int {
+	return 10
+}
+
 // generateK8sControlPlaneStructuredQuery generates a structured query for Kubernetes control plane logs.
 func generateK8sControlPlaneStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) *logestimator.StructuredLogQuery {
 	filters := []logestimator.LoggingMonitoringMatcher{
@@ -58,41 +96,3 @@ func generateK8sControlPlaneStructuredQuery(cluster k8scommon.GoogleCloudCluster
 		Filters:       filters,
 	}
 }
-
-// controlPlaneLogQuerySource builds the Cloud Logging query for the Kubernetes control plane component logs of the cluster.
-type controlPlaneLogQuerySource struct {
-	clusterIdentity     coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	componentNameFilter coretask.Input[*gcpqueryutil.SetFilterParseResult]
-}
-
-// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
-func (s *controlPlaneLogQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := s.clusterIdentity.Get(ctx)
-	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
-}
-
-// Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *controlPlaneLogQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
-	cluster := s.clusterIdentity.Get(ctx)
-	controlplaneComponentNameFilter := s.componentNameFilter.Get(ctx)
-	return []*logestimator.StructuredLogQuery{generateK8sControlPlaneStructuredQuery(cluster, controlplaneComponentNameFilter)}, nil
-}
-
-// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *controlPlaneLogQuerySource) TimePartitionCount() int {
-	return 10
-}
-
-var _ gcpcommon.StructuredLogQuerySource = (*controlPlaneLogQuerySource)(nil)
-
-// listLogEntriesTask queries the Kubernetes control plane component logs of the cluster from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	k8scontrolplane.ListLogEntriesTaskID,
-	"K8s control plane logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &controlPlaneLogQuerySource{
-			clusterIdentity:     coretask.Use(b, k8scontrolplane.ClusterIdentityTaskID.Ref()),
-			componentNameFilter: coretask.Use(b, k8scontrolplane.InputControlPlaneComponentNameFilterTaskID.Ref()),
-		}
-	},
-)

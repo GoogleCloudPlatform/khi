@@ -18,7 +18,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,12 +35,9 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-)
 
-type defaultMergeConfigSourceItem struct {
-	group     schema.GroupVersion
-	Resources []interface{}
-}
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+)
 
 var defaultMergeConfigSources []defaultMergeConfigSourceItem = []defaultMergeConfigSourceItem{
 	{
@@ -221,6 +217,12 @@ var defaultMergeConfigSources []defaultMergeConfigSourceItem = []defaultMergeCon
 	},
 }
 
+type defaultMergeConfigSourceItem struct {
+	group     schema.GroupVersion
+	Resources []interface{}
+}
+
+// GenerateDefaultMergeConfig constructs a K8sManifestMergeConfigRegistry populated with default Kubernetes resource merge rules.
 func GenerateDefaultMergeConfig() (*K8sManifestMergeConfigRegistry, error) {
 	type defaultResource struct {
 		metav1.ObjectMeta `json:"metadata,omitempty"`

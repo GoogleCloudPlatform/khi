@@ -26,8 +26,16 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
+const (
+	propertyKindString propertyKind = iota
+	propertyKindInt
+	propertyKindSet
+)
+
 // MetadataKey holds the typed metadata key for retrieving Collector.
 var MetadataKey = inspectionmetadata.NewMetadataKey[*Collector]("inspectionSummary")
+
+var _ inspectionmetadata.Metadata = (*Collector)(nil)
 
 // KeyValue represents a single key-value pair.
 type KeyValue struct {
@@ -81,13 +89,17 @@ type Snapshot struct {
 	Sections []Section
 }
 
-type propertyKind int
+// Collector aggregates structured facts and observations during an inspection run.
+type Collector struct {
+	resolver   *sectionResolver
+	coreLabels map[string]string
+	common     *propertyTable
+	sections   map[string]*section
+	shared     *section
+	mu         sync.Mutex
+}
 
-const (
-	propertyKindString propertyKind = iota
-	propertyKindInt
-	propertyKindSet
-)
+type propertyKind int
 
 type property struct {
 	kind      propertyKind
@@ -102,97 +114,9 @@ type propertyTable struct {
 	properties map[string]*property
 }
 
-func newPropertyTable() *propertyTable {
-	return &propertyTable{
-		properties: make(map[string]*property),
-	}
-}
-
-func (p *propertyTable) set(key, value string) {
-	p.properties[key] = &property{
-		kind:   propertyKindString,
-		strVal: value,
-	}
-}
-
-func (p *propertyTable) addInt(key string, delta int) {
-	prop, ok := p.properties[key]
-	if !ok || prop.kind != propertyKindInt {
-		prop = &property{
-			kind:   propertyKindInt,
-			intVal: 0,
-		}
-		p.properties[key] = prop
-	}
-	prop.intVal += delta
-}
-
-func (p *propertyTable) addToSet(key, value string) {
-	prop, ok := p.properties[key]
-	if !ok || prop.kind != propertyKindSet {
-		prop = &property{
-			kind:      propertyKindSet,
-			setValues: make(map[string]struct{}),
-		}
-		p.properties[key] = prop
-	}
-	prop.setValues[value] = struct{}{}
-}
-
-func (p *propertyTable) toKeyValues() []KeyValue {
-	if len(p.properties) == 0 {
-		return nil
-	}
-	keys := make([]string, 0, len(p.properties))
-	for k := range p.properties {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	rows := make([]KeyValue, len(keys))
-	for i, k := range keys {
-		prop := p.properties[k]
-		var val string
-		switch prop.kind {
-		case propertyKindString:
-			val = prop.strVal
-		case propertyKindInt:
-			val = strconv.Itoa(prop.intVal)
-		case propertyKindSet:
-			elements := make([]string, 0, len(prop.setValues))
-			for elem := range prop.setValues {
-				elements = append(elements, elem)
-			}
-			slices.Sort(elements)
-			val = strings.Join(elements, ", ")
-		}
-		rows[i] = KeyValue{
-			Key:   k,
-			Value: val,
-		}
-	}
-	return rows
-}
-
 type taskReport struct {
 	properties *propertyTable
 	markdown   []string
-}
-
-func newTaskReport() *taskReport {
-	return &taskReport{
-		properties: newPropertyTable(),
-	}
-}
-
-func (tr *taskReport) appendMarkdown(md string) {
-	if md == "" {
-		return
-	}
-	tr.markdown = append(tr.markdown, md)
-}
-
-func (tr *taskReport) hasWrites() bool {
-	return len(tr.properties.properties) > 0 || len(tr.markdown) > 0
 }
 
 type section struct {
@@ -202,60 +126,12 @@ type section struct {
 	insights    []string
 }
 
-func newSection() *section {
-	return &section{
-		queries:     make(map[string]Query),
-		properties:  newPropertyTable(),
-		taskReports: make(map[string]*taskReport),
-	}
+type featureSectionEntry struct {
+	id    string
+	order int
+	title string
+	sec   *section
 }
-
-func (sec *section) getOrCreateTaskReport(taskID string) *taskReport {
-	tr, ok := sec.taskReports[taskID]
-	if !ok {
-		tr = newTaskReport()
-		sec.taskReports[taskID] = tr
-	}
-	return tr
-}
-
-func (sec *section) appendInsight(md string) {
-	if md == "" {
-		return
-	}
-	sec.insights = append(sec.insights, md)
-}
-
-func (sec *section) recordQuery(id, name, text string) {
-	existing := sec.queries[id]
-	sec.queries[id] = Query{
-		Name:     name,
-		Text:     text,
-		LogCount: existing.LogCount,
-	}
-}
-
-func (sec *section) recordQueryLogCount(id string, logCount int) {
-	q := sec.queries[id]
-	q.LogCount = &logCount
-	sec.queries[id] = q
-}
-
-func (sec *section) hasWrites() bool {
-	return len(sec.queries) > 0 || len(sec.properties.properties) > 0 || len(sec.taskReports) > 0 || len(sec.insights) > 0
-}
-
-// Collector aggregates structured facts and observations during an inspection run.
-type Collector struct {
-	resolver   *sectionResolver
-	coreLabels map[string]string
-	common     *propertyTable
-	sections   map[string]*section
-	shared     *section
-	mu         sync.Mutex
-}
-
-var _ inspectionmetadata.Metadata = (*Collector)(nil)
 
 // NewCollector creates a new Collector instance initialized with the given task graph.
 func NewCollector(taskGraph *coretask.TaskSet) *Collector {
@@ -275,6 +151,23 @@ func (c *Collector) Labels() *typedmap.ReadonlyTypedMap {
 // ToSerializable returns the immutable summary snapshot for serialization.
 func (c *Collector) ToSerializable() interface{} {
 	return c.Snapshot()
+}
+
+// Snapshot captures the current summary state as an immutable Snapshot.
+func (c *Collector) Snapshot() Snapshot {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	sections := c.featureSections()
+	if c.shared != nil && c.shared.hasWrites() {
+		sections = append(sections, c.renderSection("Shared & Filter Context", c.shared))
+	}
+
+	return Snapshot{
+		CoreLabels:       sortedKeyValues(c.coreLabels),
+		CommonProperties: c.common.toKeyValues(),
+		Sections:         sections,
+	}
 }
 
 func (c *Collector) getOrCreateSection(featureID string) *section {
@@ -356,32 +249,6 @@ func (c *Collector) renderTaskReports(sec *section) []TaskReport {
 	return taskReports
 }
 
-func sortedKeyValues(m map[string]string) []KeyValue {
-	if len(m) == 0 {
-		return nil
-	}
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	result := make([]KeyValue, len(keys))
-	for i, k := range keys {
-		result[i] = KeyValue{
-			Key:   k,
-			Value: m[k],
-		}
-	}
-	return result
-}
-
-type featureSectionEntry struct {
-	id    string
-	order int
-	title string
-	sec   *section
-}
-
 func (c *Collector) featureSections() []Section {
 	var featureEntries []featureSectionEntry
 	for featID, sec := range c.sections {
@@ -414,19 +281,152 @@ func (c *Collector) featureSections() []Section {
 	return sections
 }
 
-// Snapshot captures the current summary state as an immutable Snapshot.
-func (c *Collector) Snapshot() Snapshot {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	sections := c.featureSections()
-	if c.shared != nil && c.shared.hasWrites() {
-		sections = append(sections, c.renderSection("Shared & Filter Context", c.shared))
+func newPropertyTable() *propertyTable {
+	return &propertyTable{
+		properties: make(map[string]*property),
 	}
+}
 
-	return Snapshot{
-		CoreLabels:       sortedKeyValues(c.coreLabels),
-		CommonProperties: c.common.toKeyValues(),
-		Sections:         sections,
+func (p *propertyTable) set(key, value string) {
+	p.properties[key] = &property{
+		kind:   propertyKindString,
+		strVal: value,
 	}
+}
+
+func (p *propertyTable) addInt(key string, delta int) {
+	prop, ok := p.properties[key]
+	if !ok || prop.kind != propertyKindInt {
+		prop = &property{
+			kind:   propertyKindInt,
+			intVal: 0,
+		}
+		p.properties[key] = prop
+	}
+	prop.intVal += delta
+}
+
+func (p *propertyTable) addToSet(key, value string) {
+	prop, ok := p.properties[key]
+	if !ok || prop.kind != propertyKindSet {
+		prop = &property{
+			kind:      propertyKindSet,
+			setValues: make(map[string]struct{}),
+		}
+		p.properties[key] = prop
+	}
+	prop.setValues[value] = struct{}{}
+}
+
+func (p *propertyTable) toKeyValues() []KeyValue {
+	if len(p.properties) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(p.properties))
+	for k := range p.properties {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	rows := make([]KeyValue, len(keys))
+	for i, k := range keys {
+		prop := p.properties[k]
+		var val string
+		switch prop.kind {
+		case propertyKindString:
+			val = prop.strVal
+		case propertyKindInt:
+			val = strconv.Itoa(prop.intVal)
+		case propertyKindSet:
+			elements := make([]string, 0, len(prop.setValues))
+			for elem := range prop.setValues {
+				elements = append(elements, elem)
+			}
+			slices.Sort(elements)
+			val = strings.Join(elements, ", ")
+		}
+		rows[i] = KeyValue{
+			Key:   k,
+			Value: val,
+		}
+	}
+	return rows
+}
+
+func newTaskReport() *taskReport {
+	return &taskReport{
+		properties: newPropertyTable(),
+	}
+}
+
+func (tr *taskReport) appendMarkdown(md string) {
+	if md == "" {
+		return
+	}
+	tr.markdown = append(tr.markdown, md)
+}
+
+func (tr *taskReport) hasWrites() bool {
+	return len(tr.properties.properties) > 0 || len(tr.markdown) > 0
+}
+
+func newSection() *section {
+	return &section{
+		queries:     make(map[string]Query),
+		properties:  newPropertyTable(),
+		taskReports: make(map[string]*taskReport),
+	}
+}
+
+func (sec *section) getOrCreateTaskReport(taskID string) *taskReport {
+	tr, ok := sec.taskReports[taskID]
+	if !ok {
+		tr = newTaskReport()
+		sec.taskReports[taskID] = tr
+	}
+	return tr
+}
+
+func (sec *section) appendInsight(md string) {
+	if md == "" {
+		return
+	}
+	sec.insights = append(sec.insights, md)
+}
+
+func (sec *section) recordQuery(id, name, text string) {
+	existing := sec.queries[id]
+	sec.queries[id] = Query{
+		Name:     name,
+		Text:     text,
+		LogCount: existing.LogCount,
+	}
+}
+
+func (sec *section) recordQueryLogCount(id string, logCount int) {
+	q := sec.queries[id]
+	q.LogCount = &logCount
+	sec.queries[id] = q
+}
+
+func (sec *section) hasWrites() bool {
+	return len(sec.queries) > 0 || len(sec.properties.properties) > 0 || len(sec.taskReports) > 0 || len(sec.insights) > 0
+}
+
+func sortedKeyValues(m map[string]string) []KeyValue {
+	if len(m) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	result := make([]KeyValue, len(keys))
+	for i, k := range keys {
+		result[i] = KeyValue{
+			Key:   k,
+			Value: m[k],
+		}
+	}
+	return result
 }

@@ -18,8 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
 func TestSummarizeRevisionStates(t *testing.T) {

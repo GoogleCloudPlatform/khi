@@ -27,10 +27,14 @@ import (
 // It is set to 60MB to safely stay under the typical 64MB Protobuf parser limit.
 const DefaultChunkSizeLimit = 60 * 1024 * 1024
 
+// splittingGenerator implements ChunkGenerator.
+var _ ChunkGenerator = (*splittingGenerator[proto.Message, proto.Message])(nil)
+
 // ChunkGenerator is an interface for generating chunks sequentially.
 // Implementations must ensure that the size of the generated messages respects
 // the KHI file chunk limit (typically ~64MB).
 type ChunkGenerator interface {
+	// ChunkType returns the ChunkType produced by this generator.
 	ChunkType() ChunkType
 	// Next returns the next chunk. It returns io.EOF when done.
 	Next() (proto.Message, error)
@@ -72,6 +76,33 @@ func NewSplittingGenerator[T proto.Message, C proto.Message](
 		sizeLimit: sizeLimit,
 		wrapper:   wrapper,
 	}
+}
+
+// NewTimelineGenerator creates a SplittingGenerator for Timeline chunks.
+// It groups pb.Timeline messages into pb.TimelineChunk respecting the size limit.
+func NewTimelineGenerator(seq iter.Seq[*pb.Timeline]) ChunkGenerator {
+	wrapper := func(batch []*pb.Timeline) *pb.TimelineChunk {
+		return &pb.TimelineChunk{Timelines: batch}
+	}
+	return NewSplittingGenerator(ChunkTypeTimeline, seq, DefaultChunkSizeLimit, wrapper)
+}
+
+// NewTimelineItemsGenerator creates a SplittingGenerator for Timeline chunks containing timeline items.
+// It groups pb.TimelineItems messages into pb.TimelineChunk respecting the size limit.
+func NewTimelineItemsGenerator(seq iter.Seq[*pb.TimelineItems]) ChunkGenerator {
+	wrapper := func(batch []*pb.TimelineItems) *pb.TimelineChunk {
+		return &pb.TimelineChunk{TimelineItems: batch}
+	}
+	return NewSplittingGenerator(ChunkTypeTimeline, seq, DefaultChunkSizeLimit, wrapper)
+}
+
+// NewMetadataGenerator creates a SplittingGenerator for Metadata chunks.
+// It groups pb.MetadataItem messages into pb.MetadataChunk respecting the size limit.
+func NewMetadataGenerator(seq iter.Seq[*pb.MetadataItem]) ChunkGenerator {
+	wrapper := func(batch []*pb.MetadataItem) *pb.MetadataChunk {
+		return &pb.MetadataChunk{Metadata: batch}
+	}
+	return NewSplittingGenerator(ChunkTypeMetadata, seq, DefaultChunkSizeLimit, wrapper)
 }
 
 func (g *splittingGenerator[T, C]) ChunkType() ChunkType {
@@ -126,34 +157,4 @@ func (g *splittingGenerator[T, C]) Close() error {
 		g.stop()
 	}
 	return nil
-}
-
-// splittingGenerator implements ChunkGenerator
-var _ ChunkGenerator = (*splittingGenerator[proto.Message, proto.Message])(nil)
-
-// NewTimelineGenerator creates a SplittingGenerator for Timeline chunks.
-// It groups pb.Timeline messages into pb.TimelineChunk respecting the size limit.
-func NewTimelineGenerator(seq iter.Seq[*pb.Timeline]) ChunkGenerator {
-	wrapper := func(batch []*pb.Timeline) *pb.TimelineChunk {
-		return &pb.TimelineChunk{Timelines: batch}
-	}
-	return NewSplittingGenerator(ChunkTypeTimeline, seq, DefaultChunkSizeLimit, wrapper)
-}
-
-// NewTimelineItemsGenerator creates a SplittingGenerator for Timeline chunks containing timeline items.
-// It groups pb.TimelineItems messages into pb.TimelineChunk respecting the size limit.
-func NewTimelineItemsGenerator(seq iter.Seq[*pb.TimelineItems]) ChunkGenerator {
-	wrapper := func(batch []*pb.TimelineItems) *pb.TimelineChunk {
-		return &pb.TimelineChunk{TimelineItems: batch}
-	}
-	return NewSplittingGenerator(ChunkTypeTimeline, seq, DefaultChunkSizeLimit, wrapper)
-}
-
-// NewMetadataGenerator creates a SplittingGenerator for Metadata chunks.
-// It groups pb.MetadataItem messages into pb.MetadataChunk respecting the size limit.
-func NewMetadataGenerator(seq iter.Seq[*pb.MetadataItem]) ChunkGenerator {
-	wrapper := func(batch []*pb.MetadataItem) *pb.MetadataChunk {
-		return &pb.MetadataChunk{Metadata: batch}
-	}
-	return NewSplittingGenerator(ChunkTypeMetadata, seq, DefaultChunkSizeLimit, wrapper)
 }

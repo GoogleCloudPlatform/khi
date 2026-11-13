@@ -19,10 +19,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
 func TestWorkbenchHandler_HandleValidateReport(t *testing.T) {

@@ -40,6 +40,14 @@ func RenderText(w io.Writer, rep *rule.Report, style gotestutil.TermStyle) {
 	}
 }
 
+// FormatBudgetValue formats a Finding's measured value, optional base value, and limit concisely.
+func FormatBudgetValue(f rule.Finding) string {
+	if f.HasBefore {
+		return fmt.Sprintf("%d -> %d (<= %d)", f.Before, f.After, f.Limit)
+	}
+	return fmt.Sprintf("%d (<= %d)", f.After, f.Limit)
+}
+
 func renderDashboardHeader(w io.Writer, rep *rule.Report, style gotestutil.TermStyle) {
 	modeNote := ""
 	if rep.FastMode {
@@ -195,14 +203,6 @@ func renderSuppressedSummary(w io.Writer, suppressed []rule.SuppressedItem, styl
 	for _, s := range suppressed {
 		fmt.Fprintf(w, "  %s:%d (%s) [%s / %s]: %s\n", s.File, s.Line, s.Subject, s.Rule, s.Category, s.Reason)
 	}
-}
-
-// FormatBudgetValue formats a Finding's measured value, optional base value, and limit concisely.
-func FormatBudgetValue(f rule.Finding) string {
-	if f.HasBefore {
-		return fmt.Sprintf("%d -> %d (<= %d)", f.Before, f.After, f.Limit)
-	}
-	return fmt.Sprintf("%d (<= %d)", f.After, f.Limit)
 }
 
 func indexOrFallback(globalIdx int, fallback int) int {

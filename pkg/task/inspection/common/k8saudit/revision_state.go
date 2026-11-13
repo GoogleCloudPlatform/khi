@@ -25,8 +25,9 @@ import (
 var (
 	// =============================================================================
 	// Kubernetes Cluster States
-	// =============================================================================
+	// =============================================================================.
 
+	// RevisionStateK8sClusterProvisioning represents a Kubernetes cluster being provisioned.
 	RevisionStateK8sClusterProvisioning = style.MustRegisterRevisionState(
 		"Cluster is being provisioned",
 		"deployed_code_history",
@@ -34,6 +35,7 @@ var (
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sClusterExisting represents an active Kubernetes cluster.
 	RevisionStateK8sClusterExisting = style.MustRegisterRevisionState(
 		"Cluster exists",
 		"deployed_code",
@@ -41,6 +43,7 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sClusterDeleting represents a Kubernetes cluster undergoing deletion.
 	RevisionStateK8sClusterDeleting = style.MustRegisterRevisionState(
 		"Cluster is being deleted",
 		"auto_delete",
@@ -48,6 +51,7 @@ var (
 		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sClusterDeleted represents a deleted Kubernetes cluster.
 	RevisionStateK8sClusterDeleted = style.MustRegisterRevisionState(
 		"Cluster is deleted",
 		"delete_forever",
@@ -55,6 +59,7 @@ var (
 		style.Color{R: 0.8, G: 0.0, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateK8sClusterProvisioningLogNotFound represents a provisioning cluster whose starting log was not found.
 	RevisionStateK8sClusterProvisioningLogNotFound = style.MustRegisterRevisionState(
 		"Cluster is being provisioned, but starting log not found",
 		"deployed_code_history",
@@ -62,6 +67,7 @@ var (
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateK8sClusterExistingLogNotFound represents an existing cluster whose creation log was not found.
 	RevisionStateK8sClusterExistingLogNotFound = style.MustRegisterRevisionState(
 		"Cluster exists, but creation log not found",
 		"deployed_code",
@@ -69,6 +75,7 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateK8sClusterDeletingLogNotFound represents a deleting cluster whose deletion starting log was not found.
 	RevisionStateK8sClusterDeletingLogNotFound = style.MustRegisterRevisionState(
 		"Cluster is being deleted, but starting log not found",
 		"auto_delete",
@@ -79,8 +86,9 @@ var (
 
 	// =============================================================================
 	// Kubernetes Node Pool States
-	// =============================================================================
+	// =============================================================================.
 
+	// RevisionStateK8sNodepoolProvisioning represents a Kubernetes node pool being provisioned.
 	RevisionStateK8sNodepoolProvisioning = style.MustRegisterRevisionState(
 		"Node pool is being provisioned",
 		"deployed_code_history",
@@ -88,6 +96,7 @@ var (
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sNodepoolExisting represents an active Kubernetes node pool.
 	RevisionStateK8sNodepoolExisting = style.MustRegisterRevisionState(
 		"Node pool exists",
 		"deployed_code",
@@ -95,6 +104,7 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sNodepoolDeleting represents a Kubernetes node pool undergoing deletion.
 	RevisionStateK8sNodepoolDeleting = style.MustRegisterRevisionState(
 		"Node pool is being deleted",
 		"auto_delete",
@@ -102,6 +112,7 @@ var (
 		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sNodepoolDeleted represents a deleted Kubernetes node pool.
 	RevisionStateK8sNodepoolDeleted = style.MustRegisterRevisionState(
 		"Node pool is deleted",
 		"delete_forever",
@@ -109,6 +120,7 @@ var (
 		style.Color{R: 0.8, G: 0.0, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateK8sNodepoolProvisioningLogNotFound represents a provisioning node pool whose starting log was not found.
 	RevisionStateK8sNodepoolProvisioningLogNotFound = style.MustRegisterRevisionState(
 		"Node pool is being provisioned, but starting log not found",
 		"deployed_code_history",
@@ -116,6 +128,7 @@ var (
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateK8sNodepoolExistingLogNotFound represents an existing node pool whose creation log was not found.
 	RevisionStateK8sNodepoolExistingLogNotFound = style.MustRegisterRevisionState(
 		"Node pool exists, but creation log not found",
 		"deployed_code",
@@ -123,6 +136,7 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateK8sNodepoolDeletingLogNotFound represents a deleting node pool whose deletion starting log was not found.
 	RevisionStateK8sNodepoolDeletingLogNotFound = style.MustRegisterRevisionState(
 		"Node pool is being deleted, but starting log not found",
 		"auto_delete",
@@ -133,8 +147,9 @@ var (
 
 	// =============================================================================
 	// Kubernetes Generic Resource States
-	// =============================================================================
+	// =============================================================================.
 
+	// RevisionStateK8sResourceExisting represents an active Kubernetes resource.
 	RevisionStateK8sResourceExisting = style.MustRegisterRevisionState(
 		"Resource exists",
 		"deployed_code",
@@ -144,6 +159,7 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sResourceExistingLogNotFound represents an existing resource whose creation log was not found.
 	RevisionStateK8sResourceExistingLogNotFound = style.MustRegisterRevisionState(
 		"Resource exists, but creation log not found",
 		"deployed_code",
@@ -151,6 +167,7 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateK8sResourceTruncated represents a resource whose audit log payload was truncated.
 	RevisionStateK8sResourceTruncated = style.MustRegisterRevisionState(
 		"Resource exists, but log details were truncated",
 		"deployed_code",
@@ -160,6 +177,7 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateK8sResourceDeleting represents a Kubernetes resource undergoing deletion.
 	RevisionStateK8sResourceDeleting = style.MustRegisterRevisionState(
 		"Resource is being deleted",
 		"auto_delete",
@@ -167,6 +185,7 @@ var (
 		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateK8sResourceDeleted represents a deleted Kubernetes resource.
 	RevisionStateK8sResourceDeleted = style.MustRegisterRevisionState(
 		"Resource is deleted",
 		"delete_forever",
@@ -177,8 +196,9 @@ var (
 
 	// =============================================================================
 	// Pod Phase States
-	// =============================================================================
+	// =============================================================================.
 
+	// RevisionStatePodPhasePending represents a Pod in the Pending phase.
 	RevisionStatePodPhasePending = style.MustRegisterRevisionState(
 		"Pod is pending",
 		"hourglass_empty",
@@ -186,6 +206,7 @@ var (
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStatePodPhaseScheduled represents a Pod scheduled to a node.
 	RevisionStatePodPhaseScheduled = style.MustRegisterRevisionState(
 		"Pod is scheduled",
 		"schedule",
@@ -193,6 +214,7 @@ var (
 		style.MustForceConvertSRGBHex("#4444ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStatePodPhaseRunning represents a Pod in the Running phase.
 	RevisionStatePodPhaseRunning = style.MustRegisterRevisionState(
 		"Pod is running",
 		"motion_play",
@@ -200,6 +222,7 @@ var (
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStatePodPhaseSucceeded represents a Pod in the Succeeded phase.
 	RevisionStatePodPhaseSucceeded = style.MustRegisterRevisionState(
 		"Pod has succeeded",
 		"check_circle",
@@ -207,6 +230,7 @@ var (
 		style.MustForceConvertSRGBHex("#113333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStatePodPhaseFailed represents a Pod in the Failed phase.
 	RevisionStatePodPhaseFailed = style.MustRegisterRevisionState(
 		"Pod has failed",
 		"error",
@@ -214,6 +238,7 @@ var (
 		style.MustForceConvertSRGBHex("#331111"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStatePodPhaseUnknown represents a Pod whose phase status is unavailable.
 	RevisionStatePodPhaseUnknown = style.MustRegisterRevisionState(
 		"Pod status is unavailable",
 		"unknown_document",
@@ -226,8 +251,9 @@ var (
 
 	// =============================================================================
 	// Container States
-	// =============================================================================
+	// =============================================================================.
 
+	// RevisionStateContainerWaiting represents a container in the Waiting state.
 	RevisionStateContainerWaiting = style.MustRegisterRevisionState(
 		"Container is waiting",
 		"deployed_code_history",
@@ -235,6 +261,7 @@ var (
 		style.MustForceConvertSRGBHex("#4444ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateContainerRunningNonReady represents a running container that is not ready.
 	RevisionStateContainerRunningNonReady = style.MustRegisterRevisionState(
 		"Container is not ready",
 		"heart_broken",
@@ -242,6 +269,7 @@ var (
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateContainerRunningReady represents a running container that is ready.
 	RevisionStateContainerRunningReady = style.MustRegisterRevisionState(
 		"Container is ready",
 		"heart_check",
@@ -249,6 +277,7 @@ var (
 		style.MustForceConvertSRGBHex("#007700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateContainerTerminatedWithSuccess represents a container that terminated with exit code 0.
 	RevisionStateContainerTerminatedWithSuccess = style.MustRegisterRevisionState(
 		"Container exited successfully",
 		"check_circle",
@@ -256,6 +285,7 @@ var (
 		style.MustForceConvertSRGBHex("#113333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateContainerTerminatedWithError represents a container that terminated with a non-zero exit code.
 	RevisionStateContainerTerminatedWithError = style.MustRegisterRevisionState(
 		"Container exited with error",
 		"error",
@@ -263,6 +293,7 @@ var (
 		style.MustForceConvertSRGBHex("#551111"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateContainerStatusNotAvailable represents a container whose status is unavailable.
 	RevisionStateContainerStatusNotAvailable = style.MustRegisterRevisionState(
 		"Container status is unavailable",
 		"unknown_document",
@@ -272,6 +303,7 @@ var (
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateContainerStarted represents a started container whose readiness is unknown.
 	RevisionStateContainerStarted = style.MustRegisterRevisionState(
 		"Container is started, readiness unknown",
 		"siren_question",
@@ -282,8 +314,9 @@ var (
 
 	// =============================================================================
 	// Endpoint States
-	// =============================================================================
+	// =============================================================================.
 
+	// RevisionStateEndpointReady represents an endpoint that is ready to serve traffic.
 	RevisionStateEndpointReady = style.MustRegisterRevisionState(
 		"Endpoint is ready",
 		"heart_check",
@@ -291,6 +324,7 @@ var (
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateEndpointUnready represents an endpoint that is not ready to serve traffic.
 	RevisionStateEndpointUnready = style.MustRegisterRevisionState(
 		"Endpoint is not ready",
 		"heart_broken",
@@ -298,6 +332,7 @@ var (
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateEndpointTerminating represents an endpoint undergoing termination.
 	RevisionStateEndpointTerminating = style.MustRegisterRevisionState(
 		"Endpoint is being terminated",
 		"auto_delete",
@@ -308,8 +343,9 @@ var (
 
 	// =============================================================================
 	// Condition States
-	// =============================================================================
+	// =============================================================================.
 
+	// RevisionStateConditionTrue represents a resource condition with status True.
 	RevisionStateConditionTrue = style.MustRegisterRevisionState(
 		"Condition is True",
 		"lightbulb",
@@ -319,6 +355,7 @@ var (
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateConditionFalse represents a resource condition with status False.
 	RevisionStateConditionFalse = style.MustRegisterRevisionState(
 		"Condition is False",
 		"light_off",
@@ -328,6 +365,7 @@ var (
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateConditionUnknown represents a resource condition with status Unknown.
 	RevisionStateConditionUnknown = style.MustRegisterRevisionState(
 		"Condition is Unknown",
 		"siren_question",
@@ -335,6 +373,7 @@ var (
 		style.MustForceConvertSRGBHex("#663366"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateConditionNotGiven represents a resource condition that has not been defined.
 	RevisionStateConditionNotGiven = style.MustRegisterRevisionState(
 		"Condition is not defined",
 		"select",
@@ -342,6 +381,7 @@ var (
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateConditionNoAvailableInfo represents a resource condition whose status is unavailable.
 	RevisionStateConditionNoAvailableInfo = style.MustRegisterRevisionState(
 		"Condition info is unavailable",
 		"unknown_document",

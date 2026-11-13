@@ -18,15 +18,37 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
+var _ Metadata = (*ErrorMessageSetMetadata)(nil)
+
+// ErrorMessage represents an inspection error message displayed to users.
 type ErrorMessage struct {
-	ErrorId int    `json:"errorId"`
+	// ErrorId is the numeric identifier of the error.
+	ErrorId int `json:"errorId"`
+	// Message is the human-readable error description.
 	Message string `json:"message"`
-	Link    string `json:"link"`
+	// Link is an optional documentation URL with details about the error.
+	Link string `json:"link"`
 }
 
 // ErrorMessageSetMetadata is a metadata type containing errors exposed to frontend.
 type ErrorMessageSetMetadata struct {
+	// ErrorMessages holds the deduplicated list of error messages collected during inspection.
 	ErrorMessages []*ErrorMessage `json:"errorMessages"`
+}
+
+// NewUnauthorizedErrorMessage creates an ErrorMessage indicating an unauthorized access token.
+func NewUnauthorizedErrorMessage() *ErrorMessage {
+	return &ErrorMessage{
+		ErrorId: 2,
+		Message: "Access token is not authorized. (Token expired?)",
+	}
+}
+
+// NewErrorMessageSetMetadata creates an empty ErrorMessageSetMetadata instance.
+func NewErrorMessageSetMetadata() *ErrorMessageSetMetadata {
+	return &ErrorMessageSetMetadata{
+		ErrorMessages: []*ErrorMessage{},
+	}
 }
 
 // Labels implements metadata.Metadata.
@@ -39,8 +61,6 @@ func (e *ErrorMessageSetMetadata) ToSerializable() interface{} {
 	return e
 }
 
-var _ Metadata = (*ErrorMessageSetMetadata)(nil)
-
 // AddErrorMessage stores a new ErrorMessage. Duplicated error message will be ignored.
 func (e *ErrorMessageSetMetadata) AddErrorMessage(newError *ErrorMessage) {
 	for _, msg := range e.ErrorMessages {
@@ -49,17 +69,4 @@ func (e *ErrorMessageSetMetadata) AddErrorMessage(newError *ErrorMessage) {
 		}
 	}
 	e.ErrorMessages = append(e.ErrorMessages, newError)
-}
-
-func NewUnauthorizedErrorMessage() *ErrorMessage {
-	return &ErrorMessage{
-		ErrorId: 2,
-		Message: "Access token is not authorized. (Token expired?)",
-	}
-}
-
-func NewErrorMessageSetMetadata() *ErrorMessageSetMetadata {
-	return &ErrorMessageSetMetadata{
-		ErrorMessages: []*ErrorMessage{},
-	}
 }

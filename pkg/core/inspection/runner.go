@@ -44,32 +44,23 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// InspectionInterceptor is a function that can intercept the execution of an inspection task.
-type InspectionInterceptor func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error
+// DefaultFeatureTaskOrder is a number used for sorting feature task when the task has no LabelKeyFeatureTaskOrder label.
+var DefaultFeatureTaskOrder = 1000000
+
+// ErrRunTaskGraphNotStarted is returned when an inspection has no observable task graph execution yet.
+// Inspections restored from a KHI file also fall into this case because they never execute a task graph.
+var ErrRunTaskGraphNotStarted = errors.New("inspection has no observable task graph execution")
 
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
 
-// onceWriteCloser wraps an io.WriteCloser so that Close is executed at most once.
-type onceWriteCloser struct {
-	io.WriteCloser
-	once sync.Once
-	err  error
-}
-
-func (c *onceWriteCloser) Close() error {
-	c.once.Do(func() {
-		c.err = c.WriteCloser.Close()
-	})
-	return c.err
-}
-
-// DefaultFeatureTaskOrder is a number used for sorting feature task when the task has no LabelKeyFeatureTaskOrder label.
-var DefaultFeatureTaskOrder = 1000000
+// InspectionInterceptor is a function that can intercept the execution of an inspection task.
+type InspectionInterceptor func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error
 
 // InspectionTaskRunner manages the lifecycle of a single inspection instance.
 // It handles task graph resolution, execution, and result retrieval for a given inspection type and feature set.
 type InspectionTaskRunner struct {
-	inspectionServer       *InspectionTaskServer
+	inspectionServer *InspectionTaskServer
+	// ID uniquely identifies this inspection task runner instance.
 	ID                     string
 	runIDGenerator         idgenerator.IDGenerator
 	enabledFeatures        map[string]bool
@@ -90,6 +81,24 @@ type InspectionTaskRunner struct {
 	inspectionCreationTime time.Time
 	interceptors           []InspectionInterceptor
 	runComplete            chan (struct{})
+}
+
+// RunTaskGraphSnapshot is a point-in-time view of the task graph executed by an inspection run.
+type RunTaskGraphSnapshot struct {
+	// DAG is the API representation of the task graph passed to the task runner when the run started.
+	// The topology never changes during a run, so it is built once and shared by every snapshot.
+	DAG *apiv1.TaskDAGInfo
+	// TaskRunStatuses holds the execution state of each task keyed by the task implementation ID.
+	TaskRunStatuses map[string]coretask.TaskRunStatus
+	// IsRunFinished reports whether the whole inspection run has already completed.
+	IsRunFinished bool
+}
+
+// onceWriteCloser wraps an io.WriteCloser so that Close is executed at most once.
+type onceWriteCloser struct {
+	io.WriteCloser
+	once sync.Once
+	err  error
 }
 
 // NewInspectionRunner creates a new InspectionTaskRunner.
@@ -119,80 +128,6 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore.
 	runner.addDefaultRunContextOptions()
 	runner.interceptors = append(runner.interceptors, InspectionTaskLogger(slog.LevelDebug, slog.LevelInfo, parameters.Debug.NoColor == nil || !*parameters.Debug.NoColor))
 	return runner
-}
-
-func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
-	// Options common for any run from this runner.
-	defaultRunContextOptions := []RunContextOption{
-		RunContextOptionFromFunc(inspectioncore.InspectionTaskType, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
-			return i.currentInspectionType, nil
-		}),
-		RunContextOptionFromFunc(inspectioncore.InspectionTypeName, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
-			if inspectionType := i.inspectionServer.GetInspectionType(i.currentInspectionType); inspectionType != nil && inspectionType.Name != "" {
-				return inspectionType.Name, nil
-			}
-			return "Inspection", nil
-		}),
-		RunContextOptionFromFunc(inspectioncore.InspectionNameRegistryKey, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (inspectioncore.InspectionNameRegistry, error) {
-			return i.inspectionServer.InspectionNameRegistry(), nil
-		}),
-		RunContextOptionFromFunc(inspectioncore.InspectionTaskEnabledFeatures, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) ([]string, error) {
-			var enabledFeatures []string
-			for f, enabled := range i.enabledFeatures {
-				if enabled {
-					enabledFeatures = append(enabledFeatures, f)
-				}
-			}
-			return enabledFeatures, nil
-		}),
-		RunContextOptionFromValue(inspectioncore.InspectionCreationTime, i.inspectionCreationTime),
-
-		RunContextOptionFromValue(inspectioncore.InspectionContext, i.inspectionCtx),
-		RunContextOptionFromFunc(inspectioncore.InspectionTaskRunID, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
-			return i.runIDGenerator.Generate(), nil
-		}),
-		RunContextOptionFromValue(inspectioncore.InspectionTaskInspectionID, i.ID),
-		RunContextOptionFromValue(inspectioncore.InspectionSharedMap, i.inspectionSharedMap),
-		RunContextOptionFromValue(inspectioncore.GlobalSharedMap, inspectionRunnerGlobalSharedMap),
-		RunContextOptionFromValue(inspectioncore.CurrentIOConfig, i.ioconfig),
-		RunContextOptionFromFunc(inspectioncore.IDGenerator, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (*id.Generator, error) {
-			return id.NewGenerator(), nil
-		}),
-		RunContextOptionFromFunc(inspectioncore.Builder, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (*khifilev6.Builder, error) {
-			var writer *khifilev6.Writer
-			var closer io.Closer
-			if mode == inspectioncore.TaskModeDryRun {
-				var err error
-				writer, err = khifilev6.NewWriter(io.Discard)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				store := inspectioncore.NewFileSystemInspectionResultRepository(filepath.Join(i.ioconfig.DataDestination, i.ID+".khi"))
-				fileWriter, err := store.GetWriter()
-				if err != nil {
-					return nil, err
-				}
-				onceCloser := &onceWriteCloser{WriteCloser: fileWriter}
-				writer, err = khifilev6.NewWriter(onceCloser)
-				if err != nil {
-					_ = onceCloser.Close()
-					return nil, err
-				}
-				closer = onceCloser
-			}
-			builder := khifilev6.NewBuilder(khictx.MustGetValue(ctx, inspectioncore.IDGenerator), writer)
-			context.AfterFunc(ctx, func() {
-				builder.Dispose()
-				if closer != nil {
-					_ = closer.Close()
-				}
-			})
-			return builder, nil
-		}),
-	}
-
-	i.runContextOptions = append(i.runContextOptions, defaultRunContextOptions...)
 }
 
 // AddInterceptors adds interceptors to the runner.
@@ -245,39 +180,6 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	}
 	i.currentInspectionType = inspectionType
 	return i.SetFeatureList(defaultFeatureIds)
-}
-
-// deduplicateTasksByPriority retains only the task with the highest LabelKeyTaskSelectionPriority for each TaskRef, sorted by reference name.
-func deduplicateTasksByPriority(tasks []coretask.UntypedTask) []coretask.UntypedTask {
-	bestTaskForRef := map[string]coretask.UntypedTask{}
-	for _, task := range tasks {
-		refID := task.UntypedID().ReferenceIDString()
-		existing, found := bestTaskForRef[refID]
-		if !found {
-			bestTaskForRef[refID] = task
-			continue
-		}
-
-		priorityExisting := typedmap.GetOrDefault(existing.Labels(), coretask.LabelKeyTaskSelectionPriority, 0)
-		priorityNew := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskSelectionPriority, 0)
-		if priorityNew > priorityExisting {
-			bestTaskForRef[refID] = task
-		} else if priorityNew == priorityExisting {
-			if strings.Compare(task.UntypedID().String(), existing.UntypedID().String()) > 0 {
-				slog.Warn("Multiple tasks for same RefID. Choosing the lexicographically larger task ID.", "refID", refID, "taskID1", task.UntypedID().String(), "taskID2", existing.UntypedID().String())
-				bestTaskForRef[refID] = task
-			}
-		}
-	}
-
-	deduplicated := make([]coretask.UntypedTask, 0, len(bestTaskForRef))
-	for _, task := range bestTaskForRef {
-		deduplicated = append(deduplicated, task)
-	}
-	slices.SortFunc(deduplicated, func(a, b coretask.UntypedTask) int {
-		return strings.Compare(a.UntypedID().ReferenceIDString(), b.UntypedID().ReferenceIDString())
-	})
-	return deduplicated
 }
 
 // FeatureList returns the list of available features for the current inspection type.
@@ -351,26 +253,6 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 		i.enabledFeatures[featureId] = featureMap[featureId]
 	}
 	return nil
-}
-
-// withRunContextValues returns a cancelable context populated with the values specific to a single task run and its cancel function.
-func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runner coretask.TaskRunner, runMode inspectioncore.InspectionTaskModeType, taskInput map[string]any) (context.Context, context.CancelFunc, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	opts := make([]RunContextOption, 0, len(i.runContextOptions)+3)
-	opts = append(opts, i.runContextOptions...)
-	// Add option values determined for this run call.
-	opts = append(opts, RunContextOptionFromValue(inspectioncore.TaskRunner, runner))
-	opts = append(opts, RunContextOptionFromValue(inspectioncore.InspectionTaskInput, taskInput))
-	opts = append(opts, RunContextOptionFromValue(inspectioncore.InspectionTaskMode, runMode))
-
-	var err error
-	for _, opt := range opts {
-		if ctx, err = opt(ctx, runMode); err != nil {
-			cancel()
-			return nil, nil, err
-		}
-	}
-	return ctx, cancel, nil
 }
 
 // Run executes the inspection. It resolves the task graph, sets up the context
@@ -593,34 +475,6 @@ func (i *InspectionTaskRunner) ResolveTaskGraph() (*coretask.TaskSet, error) {
 	return coretask.ResolveGraph(i.featureTasks.GetAll(), i.availableTasks.GetAll(), disabledTasks)
 }
 
-// ErrRunTaskGraphNotStarted is returned when an inspection has no observable task graph execution yet.
-// Inspections restored from a KHI file also fall into this case because they never execute a task graph.
-var ErrRunTaskGraphNotStarted = errors.New("inspection has no observable task graph execution")
-
-// RunTaskGraphSnapshot is a point-in-time view of the task graph executed by an inspection run.
-type RunTaskGraphSnapshot struct {
-	// DAG is the API representation of the task graph passed to the task runner when the run started.
-	// The topology never changes during a run, so it is built once and shared by every snapshot.
-	DAG *apiv1.TaskDAGInfo
-	// TaskRunStatuses holds the execution state of each task keyed by the task implementation ID.
-	TaskRunStatuses map[string]coretask.TaskRunStatus
-	// IsRunFinished reports whether the whole inspection run has already completed.
-	IsRunFinished bool
-}
-
-// runTaskGraphView returns the runner and the memoized DAG of the current run under runnerLock.
-func (i *InspectionTaskRunner) runTaskGraphView() (coretask.TaskRunner, *apiv1.TaskDAGInfo, error) {
-	i.runnerLock.Lock()
-	defer i.runnerLock.Unlock()
-	if i.runTaskGraph == nil {
-		return nil, nil, fmt.Errorf("inspection %s: %w", i.ID, ErrRunTaskGraphNotStarted)
-	}
-	if i.runTaskGraphDAGInfo == nil {
-		i.runTaskGraphDAGInfo = buildTaskDAGInfoFromTaskSet(i.runTaskGraph)
-	}
-	return i.runner, i.runTaskGraphDAGInfo, nil
-}
-
 // TakeRunTaskGraphSnapshot returns the task graph being executed along with the latest run status of
 // each task. It returns ErrRunTaskGraphNotStarted when the inspection has no task graph execution to observe.
 func (i *InspectionTaskRunner) TakeRunTaskGraphSnapshot() (*RunTaskGraphSnapshot, error) {
@@ -641,6 +495,113 @@ func (i *InspectionTaskRunner) TakeRunTaskGraphSnapshot() (*RunTaskGraphSnapshot
 		TaskRunStatuses: runner.TaskRunStatuses(),
 		IsRunFinished:   isRunFinished,
 	}, nil
+}
+
+func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
+	// Options common for any run from this runner.
+	defaultRunContextOptions := []RunContextOption{
+		RunContextOptionFromFunc(inspectioncore.InspectionTaskType, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
+			return i.currentInspectionType, nil
+		}),
+		RunContextOptionFromFunc(inspectioncore.InspectionTypeName, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
+			if inspectionType := i.inspectionServer.GetInspectionType(i.currentInspectionType); inspectionType != nil && inspectionType.Name != "" {
+				return inspectionType.Name, nil
+			}
+			return "Inspection", nil
+		}),
+		RunContextOptionFromFunc(inspectioncore.InspectionNameRegistryKey, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (inspectioncore.InspectionNameRegistry, error) {
+			return i.inspectionServer.InspectionNameRegistry(), nil
+		}),
+		RunContextOptionFromFunc(inspectioncore.InspectionTaskEnabledFeatures, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) ([]string, error) {
+			var enabledFeatures []string
+			for f, enabled := range i.enabledFeatures {
+				if enabled {
+					enabledFeatures = append(enabledFeatures, f)
+				}
+			}
+			return enabledFeatures, nil
+		}),
+		RunContextOptionFromValue(inspectioncore.InspectionCreationTime, i.inspectionCreationTime),
+
+		RunContextOptionFromValue(inspectioncore.InspectionContext, i.inspectionCtx),
+		RunContextOptionFromFunc(inspectioncore.InspectionTaskRunID, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (string, error) {
+			return i.runIDGenerator.Generate(), nil
+		}),
+		RunContextOptionFromValue(inspectioncore.InspectionTaskInspectionID, i.ID),
+		RunContextOptionFromValue(inspectioncore.InspectionSharedMap, i.inspectionSharedMap),
+		RunContextOptionFromValue(inspectioncore.GlobalSharedMap, inspectionRunnerGlobalSharedMap),
+		RunContextOptionFromValue(inspectioncore.CurrentIOConfig, i.ioconfig),
+		RunContextOptionFromFunc(inspectioncore.IDGenerator, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (*id.Generator, error) {
+			return id.NewGenerator(), nil
+		}),
+		RunContextOptionFromFunc(inspectioncore.Builder, func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (*khifilev6.Builder, error) {
+			var writer *khifilev6.Writer
+			var closer io.Closer
+			if mode == inspectioncore.TaskModeDryRun {
+				var err error
+				writer, err = khifilev6.NewWriter(io.Discard)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				store := inspectioncore.NewFileSystemInspectionResultRepository(filepath.Join(i.ioconfig.DataDestination, i.ID+".khi"))
+				fileWriter, err := store.GetWriter()
+				if err != nil {
+					return nil, err
+				}
+				onceCloser := &onceWriteCloser{WriteCloser: fileWriter}
+				writer, err = khifilev6.NewWriter(onceCloser)
+				if err != nil {
+					_ = onceCloser.Close()
+					return nil, err
+				}
+				closer = onceCloser
+			}
+			builder := khifilev6.NewBuilder(khictx.MustGetValue(ctx, inspectioncore.IDGenerator), writer)
+			context.AfterFunc(ctx, func() {
+				builder.Dispose()
+				if closer != nil {
+					_ = closer.Close()
+				}
+			})
+			return builder, nil
+		}),
+	}
+
+	i.runContextOptions = append(i.runContextOptions, defaultRunContextOptions...)
+}
+
+// withRunContextValues returns a cancelable context populated with the values specific to a single task run and its cancel function.
+func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runner coretask.TaskRunner, runMode inspectioncore.InspectionTaskModeType, taskInput map[string]any) (context.Context, context.CancelFunc, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	opts := make([]RunContextOption, 0, len(i.runContextOptions)+3)
+	opts = append(opts, i.runContextOptions...)
+	// Add option values determined for this run call.
+	opts = append(opts, RunContextOptionFromValue(inspectioncore.TaskRunner, runner))
+	opts = append(opts, RunContextOptionFromValue(inspectioncore.InspectionTaskInput, taskInput))
+	opts = append(opts, RunContextOptionFromValue(inspectioncore.InspectionTaskMode, runMode))
+
+	var err error
+	for _, opt := range opts {
+		if ctx, err = opt(ctx, runMode); err != nil {
+			cancel()
+			return nil, nil, err
+		}
+	}
+	return ctx, cancel, nil
+}
+
+// runTaskGraphView returns the runner and the memoized DAG of the current run under runnerLock.
+func (i *InspectionTaskRunner) runTaskGraphView() (coretask.TaskRunner, *apiv1.TaskDAGInfo, error) {
+	i.runnerLock.Lock()
+	defer i.runnerLock.Unlock()
+	if i.runTaskGraph == nil {
+		return nil, nil, fmt.Errorf("inspection %s: %w", i.ID, ErrRunTaskGraphNotStarted)
+	}
+	if i.runTaskGraphDAGInfo == nil {
+		i.runTaskGraphDAGInfo = buildTaskDAGInfoFromTaskSet(i.runTaskGraph)
+	}
+	return i.runner, i.runTaskGraphDAGInfo, nil
 }
 
 func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *inspectionmetadata.HeaderMetadata, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
@@ -671,6 +632,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, summary.MetadataKey, summary.NewCollector(taskGraph))
 }
 
+// InspectionTaskLogger returns an InspectionInterceptor that registers per-task slog handlers for the inspection run.
 func InspectionTaskLogger(logLevelForRun slog.Level, logLevelForDryRun slog.Level, withColor bool) InspectionInterceptor {
 	return func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
 		logMetadata := inspectionmetadata.NewLogMetadata()
@@ -696,6 +658,46 @@ func InspectionTaskLogger(logLevelForRun slog.Level, logLevelForDryRun slog.Leve
 		}
 		return nil
 	}
+}
+
+func (c *onceWriteCloser) Close() error {
+	c.once.Do(func() {
+		c.err = c.WriteCloser.Close()
+	})
+	return c.err
+}
+
+// deduplicateTasksByPriority retains only the task with the highest LabelKeyTaskSelectionPriority for each TaskRef, sorted by reference name.
+func deduplicateTasksByPriority(tasks []coretask.UntypedTask) []coretask.UntypedTask {
+	bestTaskForRef := map[string]coretask.UntypedTask{}
+	for _, task := range tasks {
+		refID := task.UntypedID().ReferenceIDString()
+		existing, found := bestTaskForRef[refID]
+		if !found {
+			bestTaskForRef[refID] = task
+			continue
+		}
+
+		priorityExisting := typedmap.GetOrDefault(existing.Labels(), coretask.LabelKeyTaskSelectionPriority, 0)
+		priorityNew := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskSelectionPriority, 0)
+		if priorityNew > priorityExisting {
+			bestTaskForRef[refID] = task
+		} else if priorityNew == priorityExisting {
+			if strings.Compare(task.UntypedID().String(), existing.UntypedID().String()) > 0 {
+				slog.Warn("Multiple tasks for same RefID. Choosing the lexicographically larger task ID.", "refID", refID, "taskID1", task.UntypedID().String(), "taskID2", existing.UntypedID().String())
+				bestTaskForRef[refID] = task
+			}
+		}
+	}
+
+	deduplicated := make([]coretask.UntypedTask, 0, len(bestTaskForRef))
+	for _, task := range bestTaskForRef {
+		deduplicated = append(deduplicated, task)
+	}
+	slices.SortFunc(deduplicated, func(a, b coretask.UntypedTask) int {
+		return strings.Compare(a.UntypedID().ReferenceIDString(), b.UntypedID().ReferenceIDString())
+	})
+	return deduplicated
 }
 
 func makeLogger(minLevel slog.Level, logBuffer *bytes.Buffer, withColor bool) slog.Handler {

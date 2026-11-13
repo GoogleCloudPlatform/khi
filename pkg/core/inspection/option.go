@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// RunContextOption modify the given context before passing it to the task runner.
+// RunContextOption modifies the given context before passing it to the task runner.
 type RunContextOption = func(ctx context.Context, mode inspectioncore.InspectionTaskModeType) (context.Context, error)
 
 // RunContextOptionFromValue creates a RunContextOption that adds a static value to the run context.

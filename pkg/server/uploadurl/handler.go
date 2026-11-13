@@ -33,6 +33,12 @@ const StatusProcessing = "PROCESSING"
 // errIncompleteBody marks failures caused by a request body shorter than its Content-Length.
 var errIncompleteBody = errors.New("request body ended before Content-Length bytes were received")
 
+// Handler stores files sent to upload URLs. It uses the same persistence and verification path as Web UI uploads.
+type Handler struct {
+	issuer  *Issuer
+	manager *upload.FileParameterUploadManager
+}
+
 type uploadResponse struct {
 	FieldID   string `json:"fieldId"`
 	Status    string `json:"status"`
@@ -41,12 +47,6 @@ type uploadResponse struct {
 
 type errorResponse struct {
 	Error string `json:"error"`
-}
-
-// Handler stores files sent to upload URLs. It uses the same persistence and verification path as Web UI uploads.
-type Handler struct {
-	issuer  *Issuer
-	manager *upload.FileParameterUploadManager
 }
 
 // NewHandler returns a Handler that accepts uploads for URLs issued by issuer and stores them with manager.

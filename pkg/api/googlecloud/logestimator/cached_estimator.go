@@ -23,18 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
-type flightCall struct {
-	done   chan struct{}
-	res    *EstimateResult
-	err    error
-	cancel context.CancelFunc
-}
-
-type taskFlight struct {
-	cacheKey string
-	cancel   context.CancelFunc
-}
-
 // EstimatorProvider is a factory function to construct a StructuredLogEstimator for a container.
 type EstimatorProvider func(ctx context.Context, container googlecloud.ResourceContainer) (*StructuredLogEstimator, error)
 
@@ -45,6 +33,18 @@ type CachedStructuredLogEstimator struct {
 	cache       map[string]*EstimateResult
 	flights     map[string]*flightCall
 	activeTasks map[string]*taskFlight
+}
+
+type flightCall struct {
+	done   chan struct{}
+	res    *EstimateResult
+	err    error
+	cancel context.CancelFunc
+}
+
+type taskFlight struct {
+	cacheKey string
+	cancel   context.CancelFunc
 }
 
 // NewCachedStructuredLogEstimator creates a new CachedStructuredLogEstimator instance.
@@ -94,6 +94,22 @@ func (e *CachedStructuredLogEstimator) EstimateWithTaskSlotNonBlocking(
 ) (*EstimateResult, bool, error) {
 	res, _, pending, err := e.estimateWithTaskSlotInternal(ctx, taskSlotKey, container, query, startTime, endTime, provider)
 	return res, pending, err
+}
+
+// Close cancels all active in-flight requests and clears the estimation cache.
+func (e *CachedStructuredLogEstimator) Close() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	for _, task := range e.activeTasks {
+		task.cancel()
+	}
+	for _, flight := range e.flights {
+		flight.cancel()
+	}
+	e.activeTasks = make(map[string]*taskFlight)
+	e.flights = make(map[string]*flightCall)
+	e.cache = make(map[string]*EstimateResult)
 }
 
 // estimateWithTaskSlotInternal handles the core estimation logic under lock and returns the active flightCall pointer.
@@ -198,20 +214,4 @@ func (e *CachedStructuredLogEstimator) estimateWithTaskSlotInternal(
 	}()
 
 	return nil, flight, true, nil
-}
-
-// Close cancels all active in-flight requests and clears the estimation cache.
-func (e *CachedStructuredLogEstimator) Close() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	for _, task := range e.activeTasks {
-		task.cancel()
-	}
-	for _, flight := range e.flights {
-		flight.cancel()
-	}
-	e.activeTasks = make(map[string]*taskFlight)
-	e.flights = make(map[string]*flightCall)
-	e.cache = make(map[string]*EstimateResult)
 }

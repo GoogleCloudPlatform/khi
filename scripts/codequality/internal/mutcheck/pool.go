@@ -39,12 +39,6 @@ type pkgRedundancyTracker struct {
 	mutantRuns       map[int]redundancy.VerboseTestResult
 }
 
-func (t *pkgRedundancyTracker) recordMutantRun(mutantID int, res redundancy.VerboseTestResult) {
-	t.mu.Lock()
-	t.mutantRuns[mutantID] = res
-	t.mu.Unlock()
-}
-
 type mutantJob struct {
 	mutant           *Mutant
 	binPath          string
@@ -65,6 +59,26 @@ type trackerSetup struct {
 	changedFuncs  []redundancy.ChangedTestFunc
 	pkgPlans      []*FilePlan
 	progress      ProgressHooks
+}
+
+type leafTask struct {
+	idx  int
+	leaf string
+}
+
+type leafTraceCollector struct {
+	mu        sync.Mutex
+	cfg       trackerSetup
+	total     int
+	doneCount int
+	baseEnv   []string
+	result    map[string]map[string]struct{}
+}
+
+func (t *pkgRedundancyTracker) recordMutantRun(mutantID int, res redundancy.VerboseTestResult) {
+	t.mu.Lock()
+	t.mutantRuns[mutantID] = res
+	t.mu.Unlock()
 }
 
 func prepareRedundancyTracker(ctx context.Context, cfg trackerSetup) *pkgRedundancyTracker {
@@ -99,20 +113,6 @@ func prepareRedundancyTracker(ctx context.Context, cfg trackerSetup) *pkgRedunda
 		targetedRunRegex: targetedRegex,
 		mutantRuns:       make(map[int]redundancy.VerboseTestResult),
 	}
-}
-
-type leafTask struct {
-	idx  int
-	leaf string
-}
-
-type leafTraceCollector struct {
-	mu        sync.Mutex
-	cfg       trackerSetup
-	total     int
-	doneCount int
-	baseEnv   []string
-	result    map[string]map[string]struct{}
 }
 
 func (c *leafTraceCollector) runWorker(ctx context.Context, taskCh <-chan leafTask) {

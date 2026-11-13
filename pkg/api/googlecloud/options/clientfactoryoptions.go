@@ -15,20 +15,14 @@
 package options
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/ratelimit"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
-)
 
-func fromClientFactoryOptionsModifier(modifier googlecloud.ClientFactoryOptionsModifiers) googlecloud.ClientFactoryOption {
-	return func(s *googlecloud.ClientFactory) error {
-		s.ClientOptions = append(s.ClientOptions, modifier)
-		return nil
-	}
-}
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/ratelimit"
+)
 
 // ServiceAccountKey returns a googlecloud.ClientFactoryOption to use the given service account key for any projects.
 func ServiceAccountKey(keyPath string) googlecloud.ClientFactoryOption {
@@ -100,6 +94,13 @@ func AdaptiveRateLimiter(pool *ratelimit.Pool) googlecloud.ClientFactoryOption {
 			opts = append(opts, option.WithGRPCDialOption(grpc.WithChainUnaryInterceptor(ratelimit.PoolUnaryClientInterceptor(pool, c))))
 			return opts, nil
 		})
+		return nil
+	}
+}
+
+func fromClientFactoryOptionsModifier(modifier googlecloud.ClientFactoryOptionsModifiers) googlecloud.ClientFactoryOption {
+	return func(s *googlecloud.ClientFactory) error {
+		s.ClientOptions = append(s.ClientOptions, modifier)
 		return nil
 	}
 }

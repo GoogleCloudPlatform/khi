@@ -35,14 +35,6 @@ type permissionDeniedError struct {
 	err error
 }
 
-func (e *permissionDeniedError) Error() string {
-	return e.msg
-}
-
-func (e *permissionDeniedError) Unwrap() error {
-	return e.err
-}
-
 // WrapPermissionDenied annotates Google Cloud permission errors with missing permissions and recommended IAM roles.
 // It preserves the underlying error chain and returns non-permission or SERVICE_DISABLED errors unchanged.
 func WrapPermissionDenied(err error, defaultResource, defaultPermission string) error {
@@ -84,6 +76,14 @@ func WrapPermissionDenied(err error, defaultResource, defaultPermission string) 
 		msg: fmt.Sprintf("%s%s: %s", subject, resolution, err.Error()),
 		err: err,
 	}
+}
+
+func (e *permissionDeniedError) Error() string {
+	return e.msg
+}
+
+func (e *permissionDeniedError) Unwrap() error {
+	return e.err
 }
 
 func extractDeniedPermission(meta map[string]string, message, fallback string) string {

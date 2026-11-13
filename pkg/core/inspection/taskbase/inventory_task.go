@@ -21,6 +21,7 @@
 //  1. Discovery Tasks: Extract inventory data from individual sources and publish it via coretask.ProvidesTag(tag).
 //  2. Inventory Tasks: Demand-driven aggregators created via DefineInventoryTask, which use tag references
 //     (coretask.FromActiveFeatures) to pull in and merge data only from producers whose prerequisite data sources are active.
+
 package inspectiontaskbase
 
 import (

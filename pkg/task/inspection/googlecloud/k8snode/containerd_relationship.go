@@ -14,8 +14,12 @@
 
 package k8snode
 
+// PodSandboxIDInfo maps a containerd pod sandbox ID to the Kubernetes Pod's name and namespace.
 type PodSandboxIDInfo struct {
-	PodName      string
+	// PodName is the name of the Kubernetes Pod.
+	PodName string
+	// PodNamespace is the namespace of the Kubernetes Pod.
 	PodNamespace string
+	// PodSandboxID is the containerd sandbox identifier for the Pod.
 	PodSandboxID string
 }

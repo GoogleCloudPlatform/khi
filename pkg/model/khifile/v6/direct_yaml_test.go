@@ -19,12 +19,13 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/google/go-cmp/cmp"
+	"gopkg.in/yaml.v3"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-	"github.com/google/go-cmp/cmp"
-	"gopkg.in/yaml.v3"
 )
 
 func TestDirectYAMLSerializer_SerializeStruct(t *testing.T) {

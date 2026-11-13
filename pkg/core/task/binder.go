@@ -20,9 +20,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// InputKind classifies how a task depends on an input after all declarations of the input are merged.
-type InputKind int
-
 const (
 	// InputKindRequired is an input whose value the task reads and whose producer must be in the graph.
 	// Use declares it. An input declared with UseOptional also becomes required when an ordering dependency
@@ -36,6 +33,26 @@ const (
 	// InputKindOrdering is a dependency declared only with After. The task waits for it but never reads its value.
 	InputKindOrdering
 )
+
+// InputKind classifies how a task depends on an input after all declarations of the input are merged.
+type InputKind int
+
+// InputSpec describes one input declared on a Binder.
+type InputSpec struct {
+	// Dependency is the dependency descriptor registered in the task graph for this input.
+	Dependency Dependency
+	// Kind is the merged kind of every declaration of the input.
+	Kind InputKind
+}
+
+// Binder collects the inputs of a task defined with Define.
+// Inputs can only be declared while the bind function passed to Define is running.
+type Binder struct {
+	owner          taskid.UntypedTaskImplementationID
+	specs          []InputSpec
+	specIndexByKey map[string]int
+	sealed         bool
+}
 
 // String returns a human readable name of the input kind.
 // It panics for values other than the declared InputKind constants because they indicate a programming error.
@@ -54,21 +71,45 @@ func (k InputKind) String() string {
 	}
 }
 
-// InputSpec describes one input declared on a Binder.
-type InputSpec struct {
-	// Dependency is the dependency descriptor registered in the task graph for this input.
-	Dependency Dependency
-	// Kind is the merged kind of every declaration of the input.
-	Kind InputKind
+// Use declares a required input and returns the handle to read its value.
+// The reference must use ScopeAll, the default scope, so that the producer is always pulled into the graph.
+// Use UseOptional for references with a narrower scope. Define prefixes the panic for a wrong scope with the task ID.
+func Use[T any](b *Binder, ref taskid.TaskReference[T]) Input[T] {
+	if ref.DescriptorScope() != taskid.ScopeAll {
+		panic(fmt.Sprintf("declares required input %s with a scope other than ScopeAll; use UseOptional for inputs whose producer may be absent", ref.ReferenceIDString()))
+	}
+	b.add(ref, InputKindRequired)
+	return Input[T]{owner: b.owner, ref: ref}
 }
 
-// Binder collects the inputs of a task defined with Define.
-// Inputs can only be declared while the bind function passed to Define is running.
-type Binder struct {
-	owner          taskid.UntypedTaskImplementationID
-	specs          []InputSpec
-	specIndexByKey map[string]int
-	sealed         bool
+// UseOptional declares an input whose producer may be absent from the graph and returns the handle to read it.
+// The reference must use a scope narrower than ScopeAll, such as ScopeActiveGraph or ScopeActiveFeatures.
+// Define prefixes the panic for a wrong scope with the task ID.
+func UseOptional[T any](b *Binder, ref taskid.TaskReference[T]) OptionalInput[T] {
+	if ref.DescriptorScope() == taskid.ScopeAll {
+		panic(fmt.Sprintf("declares optional input %s with ScopeAll; pass a reference with a narrower scope such as FromActiveGraph, or use Use for a required input", ref.ReferenceIDString()))
+	}
+	b.add(ref, InputKindOptional)
+	return OptionalInput[T]{owner: b.owner, ref: ref}
+}
+
+// UseTag declares a fan-in input over all producers of a tag and returns the handle to read their results.
+// The tag reference must not use ScopeAll because fan-in resolution only supports ScopeActiveFeatures and ScopeActiveGraph.
+func UseTag[T any](b *Binder, ref TagReference[T]) TagInput[T] {
+	if ref.DescriptorScope() == taskid.ScopeAll {
+		panic(fmt.Sprintf("declares tag input %s with ScopeAll; tag references only support FromActiveFeatures or FromActiveGraph", ref.Tag()))
+	}
+	b.add(ref, InputKindTag)
+	return TagInput[T]{owner: b.owner, ref: ref}
+}
+
+// After declares a dependency that the task only waits for. It intentionally returns no handle,
+// so the task cannot read the value and the declaration cannot become an unused input.
+func After(b *Binder, dep Dependency) {
+	if tag, ok := dep.(taskid.FanInDescriptor); ok && tag.DescriptorScope() == taskid.ScopeAll {
+		panic(fmt.Sprintf("declares ordering dependency on tag %s with ScopeAll; tag references only support FromActiveFeatures or FromActiveGraph", tag.Tag()))
+	}
+	b.add(dep, InputKindOrdering)
 }
 
 func newBinder(owner taskid.UntypedTaskImplementationID) *Binder {
@@ -125,45 +166,4 @@ func mergeInputSpecs(existing, incoming InputSpec) InputSpec {
 		merged.Kind = InputKindOptional
 	}
 	return merged
-}
-
-// Use declares a required input and returns the handle to read its value.
-// The reference must use ScopeAll, the default scope, so that the producer is always pulled into the graph.
-// Use UseOptional for references with a narrower scope. Define prefixes the panic for a wrong scope with the task ID.
-func Use[T any](b *Binder, ref taskid.TaskReference[T]) Input[T] {
-	if ref.DescriptorScope() != taskid.ScopeAll {
-		panic(fmt.Sprintf("declares required input %s with a scope other than ScopeAll; use UseOptional for inputs whose producer may be absent", ref.ReferenceIDString()))
-	}
-	b.add(ref, InputKindRequired)
-	return Input[T]{owner: b.owner, ref: ref}
-}
-
-// UseOptional declares an input whose producer may be absent from the graph and returns the handle to read it.
-// The reference must use a scope narrower than ScopeAll, such as ScopeActiveGraph or ScopeActiveFeatures.
-// Define prefixes the panic for a wrong scope with the task ID.
-func UseOptional[T any](b *Binder, ref taskid.TaskReference[T]) OptionalInput[T] {
-	if ref.DescriptorScope() == taskid.ScopeAll {
-		panic(fmt.Sprintf("declares optional input %s with ScopeAll; pass a reference with a narrower scope such as FromActiveGraph, or use Use for a required input", ref.ReferenceIDString()))
-	}
-	b.add(ref, InputKindOptional)
-	return OptionalInput[T]{owner: b.owner, ref: ref}
-}
-
-// UseTag declares a fan-in input over all producers of a tag and returns the handle to read their results.
-// The tag reference must not use ScopeAll because fan-in resolution only supports ScopeActiveFeatures and ScopeActiveGraph.
-func UseTag[T any](b *Binder, ref TagReference[T]) TagInput[T] {
-	if ref.DescriptorScope() == taskid.ScopeAll {
-		panic(fmt.Sprintf("declares tag input %s with ScopeAll; tag references only support FromActiveFeatures or FromActiveGraph", ref.Tag()))
-	}
-	b.add(ref, InputKindTag)
-	return TagInput[T]{owner: b.owner, ref: ref}
-}
-
-// After declares a dependency that the task only waits for. It intentionally returns no handle,
-// so the task cannot read the value and the declaration cannot become an unused input.
-func After(b *Binder, dep Dependency) {
-	if tag, ok := dep.(taskid.FanInDescriptor); ok && tag.DescriptorScope() == taskid.ScopeAll {
-		panic(fmt.Sprintf("declares ordering dependency on tag %s with ScopeAll; tag references only support FromActiveFeatures or FromActiveGraph", tag.Tag()))
-	}
-	b.add(dep, InputKindOrdering)
 }

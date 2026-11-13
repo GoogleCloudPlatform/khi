@@ -22,9 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-// TaskProgressPhase represents the lifecycle phase of a task's progress.
-type TaskProgressPhase string
-
 // Constants defining the possible phases of a task's progress.
 const (
 	// TaskPhaseRunning indicates that the task is currently executing.
@@ -37,6 +34,14 @@ const (
 	TaskPhaseCancelled = "CANCELLED"
 )
 
+var (
+	_ json.Marshaler = (*TaskProgressMetadata)(nil)
+	_ json.Marshaler = (*Progress)(nil)
+)
+
+// TaskProgressPhase represents the lifecycle phase of a task's progress.
+type TaskProgressPhase string
+
 // TaskProgressMetadata represents the progress of a single task within an inspection.
 type TaskProgressMetadata struct {
 	snapshot TaskProgressSnapshot
@@ -44,7 +49,40 @@ type TaskProgressMetadata struct {
 	lock     sync.RWMutex
 }
 
-var _ json.Marshaler = (*TaskProgressMetadata)(nil)
+// TaskProgressSnapshot represents an immutable, point-in-time snapshot of TaskProgressMetadata without mutex locks.
+type TaskProgressSnapshot struct {
+	// ID is the task identifier.
+	ID string `json:"id"`
+	// Label is the human-readable display label of the task.
+	Label string `json:"label"`
+	// Message is the current progress status message.
+	Message string `json:"message"`
+	// Ratio is the completion fraction between 0.0 and 1.0.
+	Ratio float32 `json:"percentage"`
+	// Indeterminate indicates whether progress completion percentage is unknown.
+	Indeterminate bool `json:"indeterminate"`
+}
+
+// Progress aggregates the progress of all tasks in an inspection run.
+// It tracks the overall phase, total progress, and the progress of individual active tasks.
+type Progress struct {
+	phase             TaskProgressPhase
+	totalProgress     *TaskProgressMetadata
+	taskProgresses    []*TaskProgressMetadata
+	totalTaskCount    int
+	resolvedTaskCount int
+	lock              sync.Mutex
+}
+
+// ProgressSnapshot represents an immutable, point-in-time snapshot of Progress.
+type ProgressSnapshot struct {
+	// Phase is the current overall lifecycle phase of the inspection.
+	Phase TaskProgressPhase `json:"phase"`
+	// TotalProgress is the snapshot of aggregate progress across all tasks.
+	TotalProgress *TaskProgressSnapshot `json:"totalProgress"`
+	// TaskProgresses lists snapshots of currently active tasks.
+	TaskProgresses []TaskProgressSnapshot `json:"progresses"`
+}
 
 // NewTaskProgressMetadata creates and initializes a new TaskProgressMetadata object with the given ID.
 func NewTaskProgressMetadata(id string) *TaskProgressMetadata {
@@ -108,15 +146,6 @@ func (tp *TaskProgressMetadata) SetLabel(label string) {
 	tp.snapshot.Label = label
 }
 
-// TaskProgressSnapshot represents an immutable, point-in-time snapshot of TaskProgressMetadata without mutex locks.
-type TaskProgressSnapshot struct {
-	ID            string  `json:"id"`
-	Label         string  `json:"label"`
-	Message       string  `json:"message"`
-	Ratio         float32 `json:"percentage"`
-	Indeterminate bool    `json:"indeterminate"`
-}
-
 // Snapshot returns a thread-safe value copy of TaskProgressMetadata.
 func (tp *TaskProgressMetadata) Snapshot() TaskProgressSnapshot {
 	tp.lock.RLock()
@@ -127,26 +156,6 @@ func (tp *TaskProgressMetadata) Snapshot() TaskProgressSnapshot {
 // MarshalJSON implements json.Marshaler in a thread-safe manner.
 func (tp *TaskProgressMetadata) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tp.Snapshot())
-}
-
-// Progress aggregates the progress of all tasks in an inspection run.
-// It tracks the overall phase, total progress, and the progress of individual active tasks.
-type Progress struct {
-	phase             TaskProgressPhase
-	totalProgress     *TaskProgressMetadata
-	taskProgresses    []*TaskProgressMetadata
-	totalTaskCount    int
-	resolvedTaskCount int
-	lock              sync.Mutex
-}
-
-var _ json.Marshaler = (*Progress)(nil)
-
-// ProgressSnapshot represents an immutable, point-in-time snapshot of Progress.
-type ProgressSnapshot struct {
-	Phase          TaskProgressPhase      `json:"phase"`
-	TotalProgress  *TaskProgressSnapshot  `json:"totalProgress"`
-	TaskProgresses []TaskProgressSnapshot `json:"progresses"`
 }
 
 // NewProgress creates and initializes a new Progress object.

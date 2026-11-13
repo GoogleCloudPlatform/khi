@@ -34,7 +34,98 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
-const tsMinPerMutantTimeout = 3 * time.Second
+const (
+	tsMinPerMutantTimeout  = 3 * time.Second
+	tsconfigMutantTemplate = `{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/spec",
+    "preserveSymlinks": true,
+    "types": ["jasmine", "@types/gtag.js"]
+  },
+  "include": ["src/**/*.spec.ts", "src/**/*.d.ts"]
+}
+`
+	angularJSONMutantTemplate = `{
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "frontend": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app",
+      "architect": {
+        "test": {
+          "builder": "@angular/build:karma",
+          "options": {
+            "polyfills": ["zone.js", "zone.js/testing"],
+            "tsConfig": "tsconfig.mutant.json",
+            "karmaConfig": "karma.mutant.conf.js",
+            "preserveSymlinks": true,
+            "sourceMap": false,
+            "inlineStyleLanguage": "sass",
+            "assets": ["src/favicon.ico", "src/assets"],
+            "styles": [
+              "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
+              "src/styles.scss"
+            ],
+            "scripts": [%q]
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "analytics": false
+  }
+}
+`
+	karmaMutantConfTemplate = `module.exports = function (config) {
+  config.set({
+    basePath: '',
+    frameworks: ['jasmine', 'khi-mutation'],
+    plugins: [
+      require('karma-jasmine'),
+      require('karma-chrome-launcher'),
+      require(%q),
+    ],
+    client: {
+      jasmine: {
+        random: false,
+      },
+      clearContext: true,
+    },
+    reporters: [],
+    port: parseInt(process.env.KARMA_PORT, 10) || 9876,
+    hostname: '127.0.0.1',
+    listenAddress: '127.0.0.1',
+    colors: false,
+    logLevel: config.LOG_ERROR,
+    autoWatch: false,
+    singleRun: false,
+    restartOnFileChange: false,
+    captureTimeout: 180 * 1000,
+    browserDisconnectTimeout: 30 * 1000,
+    browserDisconnectTolerance: 0,
+    browserNoActivityTimeout: 60 * 1000,
+    customLaunchers: {
+      ChromeHeadlessNoSandbox: {
+        base: 'ChromeHeadless',
+        flags: [
+          '--no-sandbox',
+          '--disable-extensions',
+          '--enable-unsafe-swiftshader',
+          '--enable-webgl',
+          '--disable-gpu',
+          '--remote-debugging-port=0',
+        ],
+      },
+    },
+  });
+};
+`
+)
 
 type tsStagedFile struct {
 	plan    *TSFilePlan
@@ -76,6 +167,15 @@ type karmaPluginResults struct {
 	SpecOrder      []redundancy.TSSpecOrderEntry         `json:"specOrder"`
 	SpecPolarities map[string][]string                   `json:"specPolarities"`
 	MutantRuns     map[string]redundancy.TSMutantSpecRun `json:"mutantRuns"`
+}
+
+type containerMutCmdSpec struct {
+	absRepo   string
+	absWork   string
+	tmpWebDir string
+	port      string
+	cfgPath   string
+	ngArgs    []string
 }
 
 func prepareTSMutationWorkspace(req karmaWorkspaceRequest) (string, string, error) {
@@ -238,15 +338,6 @@ func buildKarmaMutationArgs(includeSpecs []string) []string {
 	return ngArgs
 }
 
-type containerMutCmdSpec struct {
-	absRepo   string
-	absWork   string
-	tmpWebDir string
-	port      string
-	cfgPath   string
-	ngArgs    []string
-}
-
 func buildContainerKarmaMutationCmd(ctx context.Context, spec containerMutCmdSpec) (*exec.Cmd, error) {
 	containerCmd, builderImage, err := gotestutil.ResolveContainerCommand()
 	if err != nil {
@@ -304,95 +395,3 @@ func applyKarmaOutcomes(pending []*TSMutant, outcomes map[string]string) {
 		}
 	}
 }
-
-const tsconfigMutantTemplate = `{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "outDir": "./out-tsc/spec",
-    "preserveSymlinks": true,
-    "types": ["jasmine", "@types/gtag.js"]
-  },
-  "include": ["src/**/*.spec.ts", "src/**/*.d.ts"]
-}
-`
-
-const angularJSONMutantTemplate = `{
-  "version": 1,
-  "newProjectRoot": "projects",
-  "projects": {
-    "frontend": {
-      "projectType": "application",
-      "root": "",
-      "sourceRoot": "src",
-      "prefix": "app",
-      "architect": {
-        "test": {
-          "builder": "@angular/build:karma",
-          "options": {
-            "polyfills": ["zone.js", "zone.js/testing"],
-            "tsConfig": "tsconfig.mutant.json",
-            "karmaConfig": "karma.mutant.conf.js",
-            "preserveSymlinks": true,
-            "sourceMap": false,
-            "inlineStyleLanguage": "sass",
-            "assets": ["src/favicon.ico", "src/assets"],
-            "styles": [
-              "./node_modules/@angular/material/prebuilt-themes/indigo-pink.css",
-              "src/styles.scss"
-            ],
-            "scripts": [%q]
-          }
-        }
-      }
-    }
-  },
-  "cli": {
-    "analytics": false
-  }
-}
-`
-
-const karmaMutantConfTemplate = `module.exports = function (config) {
-  config.set({
-    basePath: '',
-    frameworks: ['jasmine', 'khi-mutation'],
-    plugins: [
-      require('karma-jasmine'),
-      require('karma-chrome-launcher'),
-      require(%q),
-    ],
-    client: {
-      jasmine: {
-        random: false,
-      },
-      clearContext: true,
-    },
-    reporters: [],
-    port: parseInt(process.env.KARMA_PORT, 10) || 9876,
-    hostname: '127.0.0.1',
-    listenAddress: '127.0.0.1',
-    colors: false,
-    logLevel: config.LOG_ERROR,
-    autoWatch: false,
-    singleRun: false,
-    restartOnFileChange: false,
-    captureTimeout: 180 * 1000,
-    browserDisconnectTimeout: 30 * 1000,
-    browserDisconnectTolerance: 0,
-    browserNoActivityTimeout: 60 * 1000,
-    customLaunchers: {
-      ChromeHeadlessNoSandbox: {
-        base: 'ChromeHeadless',
-        flags: [
-          '--no-sandbox',
-          '--disable-extensions',
-          '--enable-unsafe-swiftshader',
-          '--enable-webgl',
-          '--disable-gpu',
-          '--remote-debugging-port=0',
-        ],
-      },
-    },
-  });
-};
-`

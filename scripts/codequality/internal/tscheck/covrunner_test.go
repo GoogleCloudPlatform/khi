@@ -24,8 +24,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 func TestRunTSTestCoverage(t *testing.T) {

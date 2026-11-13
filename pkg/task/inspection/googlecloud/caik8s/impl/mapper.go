@@ -27,6 +27,21 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// tailTask is the feature task that pulls in the CAI Kubernetes and GKE resource snapshot suites when enabled.
+var tailTask = coretask.DefineTailTask(
+	caik8s.TailTaskID,
+	[]coretask.Dependency{
+		caik8s.ClusterResourceTaskIDs.TimelineMapper.Ref(),
+		caik8s.GKEResourceTaskIDs.TimelineMapper.Ref(),
+	},
+	inspectioncore.FeatureTaskLabel(
+		"Cloud Asset Inventory Resource Snapshots",
+		"Query Cloud Asset Inventory for pre-existing resource snapshots to populate initial resource manifests and revisions before the inspection start time. Note: Querying asset history can take a long time on large clusters.",
+		8500,
+		true,
+	),
+)
+
 func bindClusterResourceInitialRevisionMapper(b *coretask.Binder) gcpcommon.CAIInitialRevisionMapper[*k8saudit.ResourceIdentity] {
 	cluster := coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref())
 	return func(ctx context.Context, l *log.Log, identity *k8saudit.ResourceIdentity, observedTime time.Time) (gcpcommon.CAIInitialSnapshotRevisionSpec, bool, error) {
@@ -53,18 +68,3 @@ func mapClusterResourceInitialRevision(
 		SnapshotStateType: caik8s.RevisionStateK8sResourceExistingFromCAI,
 	}, false, nil
 }
-
-// tailTask is the feature task that pulls in the CAI Kubernetes and GKE resource snapshot suites when enabled.
-var tailTask = coretask.DefineTailTask(
-	caik8s.TailTaskID,
-	[]coretask.Dependency{
-		caik8s.ClusterResourceTaskIDs.TimelineMapper.Ref(),
-		caik8s.GKEResourceTaskIDs.TimelineMapper.Ref(),
-	},
-	inspectioncore.FeatureTaskLabel(
-		"Cloud Asset Inventory Resource Snapshots",
-		"Query Cloud Asset Inventory for pre-existing resource snapshots to populate initial resource manifests and revisions before the inspection start time. Note: Querying asset history can take a long time on large clusters.",
-		8500,
-		true,
-	),
-)

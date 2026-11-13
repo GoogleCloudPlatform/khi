@@ -25,24 +25,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// csmControlPlaneDefaultResourceNames returns default Cloud Logging resource names for querying CSM control plane logs.
-func csmControlPlaneDefaultResourceNames(fleetProjectID string) []string {
-	if fleetProjectID == "" {
-		return []string{}
-	}
-	return []string{fmt.Sprintf("projects/%s", fleetProjectID)}
-}
+// listCSMControlPlaneLogEntriesTask queries CSM control plane logs from Cloud Logging.
+var listCSMControlPlaneLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	csm.ListCSMControlPlaneLogEntriesTaskID,
+	"CSM Control Plane logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &csmControlPlaneQuerySource{
+			fleetProjectID: coretask.Use(b, csm.InputFleetProjectIDTaskID.Ref()),
+		}
+	},
+)
 
-// generateCSMControlPlaneStructuredQuery generates the structured query for CSM control plane logs.
-func generateCSMControlPlaneStructuredQuery(fleetProjectID string) *logestimator.StructuredLogQuery {
-	return &logestimator.StructuredLogQuery{
-		Incomplete:    fleetProjectID == "",
-		ResourceTypes: []string{"istio_control_plane"},
-		Filters: []logestimator.LoggingMonitoringMatcher{
-			logestimator.ResourceLabel("project_id", logestimator.Exact(fleetProjectID)),
-		},
-	}
-}
+var _ gcpcommon.StructuredLogQuerySource = (*csmControlPlaneQuerySource)(nil)
 
 // csmControlPlaneQuerySource implements gcpcommon.StructuredLogQuerySource for CSM control plane logs.
 type csmControlPlaneQuerySource struct {
@@ -66,15 +60,21 @@ func (s *csmControlPlaneQuerySource) TimePartitionCount() int {
 	return 10
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*csmControlPlaneQuerySource)(nil)
+// csmControlPlaneDefaultResourceNames returns default Cloud Logging resource names for querying CSM control plane logs.
+func csmControlPlaneDefaultResourceNames(fleetProjectID string) []string {
+	if fleetProjectID == "" {
+		return []string{}
+	}
+	return []string{fmt.Sprintf("projects/%s", fleetProjectID)}
+}
 
-// listCSMControlPlaneLogEntriesTask queries CSM control plane logs from Cloud Logging.
-var listCSMControlPlaneLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	csm.ListCSMControlPlaneLogEntriesTaskID,
-	"CSM Control Plane logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &csmControlPlaneQuerySource{
-			fleetProjectID: coretask.Use(b, csm.InputFleetProjectIDTaskID.Ref()),
-		}
-	},
-)
+// generateCSMControlPlaneStructuredQuery generates the structured query for CSM control plane logs.
+func generateCSMControlPlaneStructuredQuery(fleetProjectID string) *logestimator.StructuredLogQuery {
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    fleetProjectID == "",
+		ResourceTypes: []string{"istio_control_plane"},
+		Filters: []logestimator.LoggingMonitoringMatcher{
+			logestimator.ResourceLabel("project_id", logestimator.Exact(fleetProjectID)),
+		},
+	}
+}

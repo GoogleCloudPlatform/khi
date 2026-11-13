@@ -22,14 +22,14 @@ import (
 	"github.com/RoaringBitmap/roaring/v2"
 )
 
+var _ TimelineFilter = (*TimeRangeFilter)(nil)
+
 // TimeRangeFilter filters timelines based on whether they have activity within a specified time range.
 type TimeRangeFilter struct {
 	hasRange bool
 	startNs  int64
 	endNs    int64
 }
-
-var _ TimelineFilter = (*TimeRangeFilter)(nil)
 
 // NewTimeRangeFilter creates a new TimeRangeFilter.
 // If both startTime and endTime are nil, no time range filtering is performed.

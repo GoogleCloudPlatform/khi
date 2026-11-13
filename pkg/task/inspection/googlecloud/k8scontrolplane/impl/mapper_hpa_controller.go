@@ -53,6 +53,20 @@ var hpaControllerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// hpaControllerLogToTimelineMapperTask creates timeline events for HPA controller logs.
+var hpaControllerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.HpaControllerLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.HpaControllerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &hpaControllerTimelineMapper{}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*hpaControllerTimelineMapper)(nil)
+
 // hpaControllerTimelineMapper maps HPA controller logs to timeline paths.
 type hpaControllerTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
@@ -113,17 +127,3 @@ func (m *hpaControllerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *
 
 	return cs, struct{}{}, nil
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*hpaControllerTimelineMapper)(nil)
-
-// hpaControllerLogToTimelineMapperTask creates timeline events for HPA controller logs.
-var hpaControllerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8scontrolplane.HpaControllerLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8scontrolplane.HpaControllerLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &hpaControllerTimelineMapper{}
-	},
-)

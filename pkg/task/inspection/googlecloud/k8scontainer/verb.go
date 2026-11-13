@@ -22,14 +22,19 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// VerbContainerWaiting represents a container entering a waiting state.
 	// TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbContainerWaiting = style.MustRegisterVerb("Waiting", style.MustForceConvertSRGBHex("#FDD835"), style.ColorWhite, true)
+	// VerbContainerReady represents a container becoming ready.
 	// TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbContainerReady = style.MustRegisterVerb("Ready", style.MustForceConvertSRGBHex("#22CC22"), style.ColorWhite, true)
+	// VerbContainerNonReady represents a container becoming non-ready.
 	// TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbContainerNonReady = style.MustRegisterVerb("NonReady", style.MustForceConvertSRGBHex("#FF7700"), style.ColorWhite, true)
+	// VerbContainerSuccess represents a container terminating successfully.
 	// TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbContainerSuccess = style.MustRegisterVerb("Success", style.MustForceConvertSRGBHex("#007700"), style.ColorWhite, true)
+	// VerbContainerError represents a container terminating with an error.
 	// TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbContainerError = style.MustRegisterVerb("Error", style.MustForceConvertSRGBHex("#A51915"), style.ColorWhite, true)
 )

@@ -22,81 +22,19 @@ import (
 	"sync"
 	"time"
 
-	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/proto"
+
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 )
 
-// oauthTokenSource is an implementation of oauth2.TokenSource that requests tokens from the OAuthServer.
-type oauthTokenSource struct {
-	server *OAuthServer
-}
-
-// Token retrieves an OAuth2 token from the associated OAuthServer.
-// Token implements oauth2.TokenSource.
-func (o *oauthTokenSource) Token() (*oauth2.Token, error) {
-	return o.server.requestToken()
-}
-
-var _ oauth2.TokenSource = (*oauthTokenSource)(nil)
-
-type oauthTokenPopup struct {
-	oauthCodeURL string
-}
-
-// BuildProtoForm implements popup.PopupForm.
-func (o *oauthTokenPopup) BuildProtoForm(id string) *apiv1.PopupForm {
-	return &apiv1.PopupForm{
-		Id:          proto.String(id),
-		Title:       proto.String("OAuth Token"),
-		Description: proto.String("Please login to your Google account to get the access token."),
-		Payload: &apiv1.PopupForm_OauthLogin{
-			OauthLogin: &apiv1.OAuthLoginPopupPayload{
-				AuthUrl: proto.String(o.oauthCodeURL),
-			},
-		},
-	}
-}
-
-// Validate implements popup.PopupForm.
-func (o *oauthTokenPopup) Validate(_ context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error) {
-	return &apiv1.ValidatePopupAnswerResponse{
-		Id:              proto.String(req.GetId()),
-		ValidationError: proto.String(""),
-	}, nil
-}
-
-// Answer implements popup.PopupForm.
-func (o *oauthTokenPopup) Answer(_ context.Context, _ *apiv1.SubmitPopupAnswerRequest) (string, error) {
-	return "", nil
-}
-
-var _ popup.PopupForm = (*oauthTokenPopup)(nil)
-
-func newoauthTokenPopup(redirectTarget string) *oauthTokenPopup {
-	return &oauthTokenPopup{
-		oauthCodeURL: redirectTarget,
-	}
-}
-
-// tokenExchanger defines an interface for exchanging an authorization code for an OAuth2 token.
-// This interface is introduced for testing the exchange call.
-type tokenExchanger interface {
-	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
-}
-
-type defaultTokenExchanger struct {
-	oauthConfig *oauth2.Config
-}
-
-// Exchange implements tokenExchanger.
-func (d *defaultTokenExchanger) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
-	return d.oauthConfig.Exchange(ctx, code)
-}
-
-var _ tokenExchanger = (*defaultTokenExchanger)(nil)
+var (
+	_ oauth2.TokenSource = (*oauthTokenSource)(nil)
+	_ popup.PopupForm    = (*oauthTokenPopup)(nil)
+	_ tokenExchanger     = (*defaultTokenExchanger)(nil)
+)
 
 // OAuthServer provides server logic to use OAuth token of the user.
 // !!VERY IMPORTANT; PLEASE READ!!: KHI is not expected to be shared by multiple users because it's designed as just a log visualizer used in local environment of each engineers.
@@ -120,6 +58,25 @@ type OAuthServer struct {
 	tokenSource oauth2.TokenSource
 }
 
+// oauthTokenSource is an implementation of oauth2.TokenSource that requests tokens from the OAuthServer.
+type oauthTokenSource struct {
+	server *OAuthServer
+}
+
+type oauthTokenPopup struct {
+	oauthCodeURL string
+}
+
+// tokenExchanger defines an interface for exchanging an authorization code for an OAuth2 token.
+// This interface is introduced for testing the exchange call.
+type tokenExchanger interface {
+	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
+}
+
+type defaultTokenExchanger struct {
+	oauthConfig *oauth2.Config
+}
+
 // NewOAuthServer creates and initializes a new OAuthServer.
 func NewOAuthServer(engine *gin.Engine, oauthConfig *oauth2.Config, oauthRedirectTargetServingPath string, oauthStateCodeSuffix string) *OAuthServer {
 	server := &OAuthServer{
@@ -138,6 +95,11 @@ func NewOAuthServer(engine *gin.Engine, oauthConfig *oauth2.Config, oauthRedirec
 		server: server,
 	})
 	return server
+}
+
+// TokenSource returns an oauth2.TokenSource that can be used to retrieve OAuth2 tokens from this server. This is the primary method for external components to obtain tokens managed by this OAuthServer.
+func (s *OAuthServer) TokenSource() oauth2.TokenSource {
+	return s.tokenSource
 }
 
 // configureServer configures the Gin engine to handle OAuth redirect callbacks. It registers a GET handler for the specified
@@ -210,11 +172,6 @@ func (s *OAuthServer) requestToken() (*oauth2.Token, error) {
 	}
 }
 
-// TokenSource returns an oauth2.TokenSource that can be used to retrieve OAuth2 tokens from this server. This is the primary method for external components to obtain tokens managed by this OAuthServer.
-func (s *OAuthServer) TokenSource() oauth2.TokenSource {
-	return s.tokenSource
-}
-
 // generateStateCode generates a random state code for OAuth authentication. This state code is used to prevent CSRF attacks.
 func (s *OAuthServer) generateStateCode() (string, error) {
 	randomSeed := make([]byte, 32)
@@ -223,6 +180,50 @@ func (s *OAuthServer) generateStateCode() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x%s", randomSeed, s.oauthStateCodeSuffix), nil
+}
+
+// Token retrieves an OAuth2 token from the associated OAuthServer.
+// Token implements oauth2.TokenSource.
+func (o *oauthTokenSource) Token() (*oauth2.Token, error) {
+	return o.server.requestToken()
+}
+
+func newoauthTokenPopup(redirectTarget string) *oauthTokenPopup {
+	return &oauthTokenPopup{
+		oauthCodeURL: redirectTarget,
+	}
+}
+
+// BuildProtoForm implements popup.PopupForm.
+func (o *oauthTokenPopup) BuildProtoForm(id string) *apiv1.PopupForm {
+	return &apiv1.PopupForm{
+		Id:          proto.String(id),
+		Title:       proto.String("OAuth Token"),
+		Description: proto.String("Please login to your Google account to get the access token."),
+		Payload: &apiv1.PopupForm_OauthLogin{
+			OauthLogin: &apiv1.OAuthLoginPopupPayload{
+				AuthUrl: proto.String(o.oauthCodeURL),
+			},
+		},
+	}
+}
+
+// Validate implements popup.PopupForm.
+func (o *oauthTokenPopup) Validate(_ context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error) {
+	return &apiv1.ValidatePopupAnswerResponse{
+		Id:              proto.String(req.GetId()),
+		ValidationError: proto.String(""),
+	}, nil
+}
+
+// Answer implements popup.PopupForm.
+func (o *oauthTokenPopup) Answer(_ context.Context, _ *apiv1.SubmitPopupAnswerRequest) (string, error) {
+	return "", nil
+}
+
+// Exchange implements tokenExchanger.
+func (d *defaultTokenExchanger) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
+	return d.oauthConfig.Exchange(ctx, code)
 }
 
 // handleErrorRedirect checks for OAuth error parameters in the redirect URL. If an error is found, it sends an HTTP 400 Bad Request response and returns true.

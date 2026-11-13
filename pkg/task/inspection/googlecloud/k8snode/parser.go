@@ -18,12 +18,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 )
 
-// NodeLogContext defines the contextual metadata of a node log used for parser routing.
-type NodeLogContext struct {
-	SyslogIdentifier string
-	NodeName         string
-}
-
 // DefaultNodeLogParser is the default SelectorLogParser for GKE node logs.
 var DefaultNodeLogParser = logutil.NewSelectorLogParser[NodeLogContext](
 	logutil.NewMultiTextLogParser(
@@ -45,3 +39,11 @@ var DefaultNodeLogParser = logutil.NewSelectorLogParser[NodeLogContext](
 		Parser: logutil.NewLogfmtTextParser(),
 	},
 )
+
+// NodeLogContext defines the contextual metadata of a node log used for parser routing.
+type NodeLogContext struct {
+	// SyslogIdentifier is the node component identifier (e.g., kubelet, containerd).
+	SyslogIdentifier string
+	// NodeName is the name of the node that emitted the log.
+	NodeName string
+}

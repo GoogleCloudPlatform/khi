@@ -20,17 +20,30 @@ import (
 
 	compute "cloud.google.com/go/compute/apiv1"
 	"cloud.google.com/go/compute/apiv1/computepb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"google.golang.org/api/iterator"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
+var _ LocationFetcher = (*locationFetcherImpl)(nil)
+
+// LocationFetcher fetches available Compute Engine regions for a Google Cloud project.
 type LocationFetcher interface {
+	// FetchRegions returns the list of Compute Engine region names available in the given project.
 	FetchRegions(ctx context.Context, projectId string) ([]string, error)
 }
 
 type locationFetcherImpl struct {
 	client             *compute.RegionsClient
 	callOptionInjector *googlecloud.CallOptionInjector
+}
+
+// NewLocationFetcher creates a LocationFetcher backed by the given Compute Engine RegionsClient.
+func NewLocationFetcher(client *compute.RegionsClient, callOptionInjector *googlecloud.CallOptionInjector) LocationFetcher {
+	return &locationFetcherImpl{
+		client:             client,
+		callOptionInjector: callOptionInjector,
+	}
 }
 
 // FetchRegions implements LocationFetcher.
@@ -55,12 +68,3 @@ func (l *locationFetcherImpl) FetchRegions(ctx context.Context, projectId string
 	}
 	return result, nil
 }
-
-func NewLocationFetcher(client *compute.RegionsClient, callOptionInjector *googlecloud.CallOptionInjector) LocationFetcher {
-	return &locationFetcherImpl{
-		client:             client,
-		callOptionInjector: callOptionInjector,
-	}
-}
-
-var _ LocationFetcher = (*locationFetcherImpl)(nil)

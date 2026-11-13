@@ -20,19 +20,20 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"google.golang.org/protobuf/proto"
 )
+
+var _ apiv1connect.FileParameterUploadServiceHandler = (*FileParameterUploadServiceServer)(nil)
 
 // FileParameterUploadServiceServer implements the apiv1connect.FileParameterUploadServiceHandler interface.
 type FileParameterUploadServiceServer struct {
 	manager *upload.FileParameterUploadManager
 }
-
-var _ apiv1connect.FileParameterUploadServiceHandler = (*FileParameterUploadServiceServer)(nil)
 
 // NewFileParameterUploadServiceServer creates a new FileParameterUploadServiceServer backed by the given manager.
 func NewFileParameterUploadServiceServer(manager *upload.FileParameterUploadManager) *FileParameterUploadServiceServer {

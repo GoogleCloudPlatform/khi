@@ -29,26 +29,42 @@ import (
 
 // Options configures Stage-2 differential coverage and func_uncovered_lines evaluation.
 type Options struct {
-	RepoRoot               string
-	ModulePath             string
-	WorkDir                string
-	Full                   bool
+	// RepoRoot is the repository root directory path.
+	RepoRoot string
+	// ModulePath is the Go module path declared in go.mod.
+	ModulePath string
+	// WorkDir is the temporary working directory for coverage profiles.
+	WorkDir string
+	// Full enables full-repository coverage in addition to touched-package coverage.
+	Full bool
+	// PrecomputedProfilePath points to an optional existing Go coverprofile file.
 	PrecomputedProfilePath string
-	Thresholds             rule.Thresholds
+	// Thresholds specifies quality limits for coverage rules.
+	Thresholds rule.Thresholds
+	// ChangedProdLinesByFile maps changed production file paths to modified 1-based line sets.
 	ChangedProdLinesByFile map[string]map[int]struct{}
-	ASTResult              *astcheck.Result
-	ReadTargetFile         func(relPath string) ([]byte, error)
-	EnsureBaseOverlay      func() (*overlay.Snapshot, error)
-	ErrOut                 io.Writer
+	// ASTResult holds Stage-1 AST analysis results shared with Stage-2 coverage checks.
+	ASTResult *astcheck.Result
+	// ReadTargetFile reads raw bytes for a target working-tree file.
+	ReadTargetFile func(relPath string) ([]byte, error)
+	// EnsureBaseOverlay lazily materializes the base-revision overlay workspace.
+	EnsureBaseOverlay func() (*overlay.Snapshot, error)
+	// ErrOut receives diagnostic progress and command error output.
+	ErrOut io.Writer
 }
 
 // Result holds coverage summary metrics, func_uncovered_lines findings, and parsed CoverBlocks for mutcheck.
 type Result struct {
-	Summary           rule.CoverageSummary
-	Findings          []rule.Finding
-	Suppressed        []rule.SuppressedItem
+	// Summary holds aggregated patch and overall statement coverage counts.
+	Summary rule.CoverageSummary
+	// Findings contains func_uncovered_lines violations.
+	Findings []rule.Finding
+	// Suppressed contains coverage findings suppressed by CODEQUALITY_ALLOW.
+	Suppressed []rule.SuppressedItem
+	// CoverBlocksByFile maps file paths to parsed Go coverprofile blocks.
 	CoverBlocksByFile map[string][]gotestutil.CoverBlock
-	HasCoverProfile   bool
+	// HasCoverProfile reports whether coverage profile data was loaded.
+	HasCoverProfile bool
 }
 
 type pendingBaseCov struct {
@@ -59,6 +75,12 @@ type pendingBaseCov struct {
 	baseFn   astcheck.FuncMetrics
 	after    int
 	spans    []rule.UncoveredSpan
+}
+
+type targetCoverLoaded struct {
+	blocks         map[string][]gotestutil.CoverBlock
+	hasProfile     bool
+	includeOverall bool
 }
 
 // Evaluate runs target coverage, evaluates func_uncovered_lines, and lazily runs base -overlay coverage when needed.
@@ -92,12 +114,6 @@ func Evaluate(ctx context.Context, opts Options) (*Result, error) {
 		}
 	}
 	return res, nil
-}
-
-type targetCoverLoaded struct {
-	blocks         map[string][]gotestutil.CoverBlock
-	hasProfile     bool
-	includeOverall bool
 }
 
 func loadTargetBlocks(ctx context.Context, opts Options) (targetCoverLoaded, error) {

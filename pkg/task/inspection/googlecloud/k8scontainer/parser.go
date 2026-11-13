@@ -18,13 +18,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 )
 
-// ContainerLogContext defines the contextual metadata of a container log used for parser routing.
-type ContainerLogContext struct {
-	Namespace     string
-	PodName       string
-	ContainerName string
-}
-
 // DefaultContainerLogParser is the default SelectorLogParser for container logs.
 var DefaultContainerLogParser = logutil.NewSelectorLogParser[ContainerLogContext](
 	logutil.NewMultiTextLogParser(
@@ -43,3 +36,13 @@ var DefaultContainerLogParser = logutil.NewSelectorLogParser[ContainerLogContext
 		),
 	},
 )
+
+// ContainerLogContext defines the contextual metadata of a container log used for parser routing.
+type ContainerLogContext struct {
+	// Namespace is the Kubernetes namespace of the container's Pod.
+	Namespace string
+	// PodName is the name of the container's Pod.
+	PodName string
+	// ContainerName is the name of the container.
+	ContainerName string
+}

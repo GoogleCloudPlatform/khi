@@ -22,14 +22,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 )
 
-// Resource identifier itself couldn't be found
+// NoResourceFound indicates that the resource identifier could not be found.
 var NoResourceFound = errors.New("no resource identifier found")
 
-// Resource identifier was found, but no holder found at the given time
+// NoResourceLeaseHolderFoundAtTheTime indicates that the resource was found, but no holder existed at the given time.
 var NoResourceLeaseHolderFoundAtTheTime = errors.New("no resource holder at the time")
 
+// LeaseHolder represents an entity capable of holding a lease on a resource.
 type LeaseHolder interface {
+	// Equals reports whether this lease holder matches the given holder.
 	Equals(holder LeaseHolder) bool
+}
+
+// ResourceLeaseHistory is a common structure for memorizing resources used in the cluster.
+// This is used for tracking associations such as IPs on a Pod or load balancer names on an Ingress.
+type ResourceLeaseHistory[H LeaseHolder] struct {
+	leaseHolders *common.ShardingMap[[]*lease[H]]
 }
 
 type lease[H LeaseHolder] struct {
@@ -37,18 +45,14 @@ type lease[H LeaseHolder] struct {
 	Holder  H
 }
 
-// ResourceLeaseHistory is a common interface for memorizing resources used in the cluster.
-// This is used for example: IPs associated to a Pod, Load balancer names associated to Ingress ..etc.
-type ResourceLeaseHistory[H LeaseHolder] struct {
-	leaseHolders *common.ShardingMap[[]*lease[H]]
-}
-
+// NewResourceLeaseHistory creates a new empty ResourceLeaseHistory.
 func NewResourceLeaseHistory[H LeaseHolder]() *ResourceLeaseHistory[H] {
 	return &ResourceLeaseHistory[H]{
 		leaseHolders: common.NewShardingMap[[]*lease[H]](common.NewSuffixShardingProvider(128, 4)),
 	}
 }
 
+// TouchResourceLease records that holder held the lease on resourceIdentifier at holdsAtLeastAt.
 func (r *ResourceLeaseHistory[H]) TouchResourceLease(resourceIdentifier string, holdsAtLeastAt time.Time, holder H) {
 	leaseHolderMap := r.leaseHolders.AcquireShard(resourceIdentifier)
 	defer r.leaseHolders.ReleaseShard(resourceIdentifier)
@@ -99,11 +103,17 @@ func (r *ResourceLeaseHistory[H]) TouchResourceLease(resourceIdentifier string, 
 	leaseHolderMap[resourceIdentifier] = current
 }
 
+// GetResourceLeaseHolderAt returns the lease entry active for resourceIdentifier at the given time.
 func (r *ResourceLeaseHistory[H]) GetResourceLeaseHolderAt(resourceIdentifier string, time time.Time) (*lease[H], error) {
 	leaseHolderMap := r.leaseHolders.AcquireShard(resourceIdentifier)
 	defer r.leaseHolders.ReleaseShard(resourceIdentifier)
 	lease, _, err := r.getResourceLeaseHolderAtWithIndex(leaseHolderMap, resourceIdentifier, time)
 	return lease, err
+}
+
+// GetAllIdentifiers returns all resource identifiers tracked in the history.
+func (r *ResourceLeaseHistory[H]) GetAllIdentifiers() []string {
+	return r.leaseHolders.AllKeys()
 }
 
 func (r *ResourceLeaseHistory[H]) getResourceLeaseHolderAtWithIndex(leaseHolderMap map[string][]*lease[H], resourceIdentifier string, time time.Time) (*lease[H], int, error) {
@@ -133,11 +143,7 @@ func (r *ResourceLeaseHistory[H]) getResourceLeaseHolderAtWithIndex(leaseHolderM
 	}
 }
 
-func (r *ResourceLeaseHistory[H]) GetAllIdentifiers() []string {
-	return r.leaseHolders.AllKeys()
-}
-
-// MergeResourceLeaseHistories merges multiple ResourceLeaseHistory into one.
+// MergeResourceLeaseHistories merges multiple ResourceLeaseHistory instances into one.
 func MergeResourceLeaseHistories[H LeaseHolder](histories ...*ResourceLeaseHistory[H]) *ResourceLeaseHistory[H] {
 	history := NewResourceLeaseHistory[H]()
 	for _, h := range histories {

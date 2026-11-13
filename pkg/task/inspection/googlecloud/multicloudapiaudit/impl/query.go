@@ -26,20 +26,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generateMultiCloudAPIStructuredQuery generates a structured query for multicloud API logs.
-func generateMultiCloudAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
-	return &logestimator.StructuredLogQuery{
-		Incomplete:    !clusterIdentity.IsComplete(),
-		ResourceTypes: []string{"audited_resource"},
-		Filters: []logestimator.LoggingMonitoringMatcher{
-			logestimator.ResourceLabel("service", logestimator.Exact("gkemulticloud.googleapis.com")),
-			logestimator.ResourceLabel("method", logestimator.ContainsAny("Update", "Create", "Delete")),
-			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
-			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"projects/%s/locations/%s/"`, clusterIdentity.ProjectID, clusterIdentity.Location)),
-			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"%s"`, clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sPlatformAudit))),
-		},
-	}
-}
+// listLogEntriesTask queries multicloud API logs from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(multicloudapiaudit.ListLogEntriesTaskID, "Multicloud API Logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+	return &multiCloudAuditQuerySource{clusterIdentity: coretask.Use(b, multicloudapiaudit.ClusterIdentityTaskID.Ref())}
+})
+
+var _ gcpcommon.StructuredLogQuerySource = (*multiCloudAuditQuerySource)(nil)
 
 // multiCloudAuditQuerySource builds the multicloud API audit log query for the cluster read through the cluster identity input.
 type multiCloudAuditQuerySource struct {
@@ -61,9 +53,17 @@ func (s *multiCloudAuditQuerySource) TimePartitionCount() int {
 	return 1
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*multiCloudAuditQuerySource)(nil)
-
-// listLogEntriesTask queries multicloud API logs from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(multicloudapiaudit.ListLogEntriesTaskID, "Multicloud API Logs", func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-	return &multiCloudAuditQuerySource{clusterIdentity: coretask.Use(b, multicloudapiaudit.ClusterIdentityTaskID.Ref())}
-})
+// generateMultiCloudAPIStructuredQuery generates a structured query for multicloud API logs.
+func generateMultiCloudAPIStructuredQuery(clusterIdentity k8scommon.GoogleCloudClusterIdentity) *logestimator.StructuredLogQuery {
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !clusterIdentity.IsComplete(),
+		ResourceTypes: []string{"audited_resource"},
+		Filters: []logestimator.LoggingMonitoringMatcher{
+			logestimator.ResourceLabel("service", logestimator.Exact("gkemulticloud.googleapis.com")),
+			logestimator.ResourceLabel("method", logestimator.ContainsAny("Update", "Create", "Delete")),
+			logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"projects/%s/locations/%s/"`, clusterIdentity.ProjectID, clusterIdentity.Location)),
+			logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"%s"`, clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sPlatformAudit))),
+		},
+	}
+}
