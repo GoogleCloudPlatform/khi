@@ -47,6 +47,8 @@ func TestExtractTSUnitsAndFilterBoilerplate(t *testing.T) {
 		t.Fatalf("ExtractBaseKeys(nil) = (%v, %v), want (nil, nil)", emptyKeys, err)
 	}
 
+	skipIfTypeScriptUnavailable(t)
+
 	src := `import { Component, computed, input, output } from '@angular/core';
 
 export function tinyHelper(x: number): number {
@@ -144,6 +146,8 @@ export class SampleComponent {
 }
 
 func TestTSASTNormalizationEquivalence(t *testing.T) {
+	skipIfTypeScriptUnavailable(t)
+
 	analyzer := NewAnalyzer("")
 
 	funcA := `/** Formats cluster labels. */
@@ -288,6 +292,8 @@ func TestExtractAllRepositoryProductionTSFiles(t *testing.T) {
 		t.Fatalf("expected non-empty production TypeScript corpus in %s", repoRoot)
 	}
 
+	skipIfTypeScriptUnavailable(t)
+
 	inputs := make([]simcheck.FileInput, 0, len(files))
 	for _, rel := range files {
 		raw, readErr := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
@@ -308,5 +314,16 @@ func TestExtractAllRepositoryProductionTSFiles(t *testing.T) {
 	t.Logf("Extracted %d qualifying TypeScript units across %d production files", totalUnits, len(files))
 	if totalUnits == 0 {
 		t.Errorf("expected >0 qualifying TypeScript units across KHI web/src")
+	}
+}
+
+func skipIfTypeScriptUnavailable(t *testing.T) {
+	t.Helper()
+	webDir, err := NewAnalyzer("").resolveWebDir()
+	if err != nil {
+		t.Skipf("skipping TypeScript AST test: could not locate web directory (%v)", err)
+	}
+	if _, err := os.Stat(filepath.Join(webDir, "node_modules", "typescript")); err != nil {
+		t.Skipf("skipping TypeScript AST test: web/node_modules/typescript not installed (%v)", err)
 	}
 }

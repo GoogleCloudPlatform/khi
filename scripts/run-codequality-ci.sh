@@ -63,6 +63,7 @@ prepare_workspace_artifacts() {
   local has_go="false"
   local has_server_or_cmd="false"
   local has_ts="false"
+  local has_codequality="false"
 
   local path
   while IFS= read -r path; do
@@ -86,6 +87,12 @@ prepare_workspace_artifacts() {
         has_ts="true"
         ;;
     esac
+
+    case "${path}" in
+      scripts/codequality/*)
+        has_codequality="true"
+        ;;
+    esac
   done <<< "${changed_files}"
 
   if [[ "${has_go}" == "false" && "${has_ts}" == "false" ]]; then
@@ -106,6 +113,11 @@ prepare_workspace_artifacts() {
     (cd ./web && npm ci)
     touch scripts/make/build-proto.done
     make generate-frontend
+  fi
+
+  if [[ "${has_ts}" == "false" && "${has_codequality}" == "true" ]]; then
+    echo "Codequality tool changes detected; installing web dependencies for TypeScript AST tests..."
+    (cd ./web && npm ci)
   fi
 
   if [[ "${has_go}" == "true" ]]; then

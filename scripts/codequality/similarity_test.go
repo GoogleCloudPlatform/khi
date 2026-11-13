@@ -120,15 +120,6 @@ func dedupNames(names []string) []string {
 	runGitCmd(t, repoDir, "add", ".")
 	runGitCmd(t, repoDir, "commit", "-m", "add similar helpers")
 
-	if err := os.Symlink(filepath.Join(realRepoRoot, "web", "node_modules"), filepath.Join(repoDir, "web", "node_modules")); err != nil {
-		t.Fatalf("Symlink node_modules failed: %v", err)
-	}
-
-	tsCovPath := filepath.Join(t.TempDir(), "coverage-final.json")
-	if err := os.WriteFile(tsCovPath, []byte(`{}`), 0o600); err != nil {
-		t.Fatalf("WriteFile(tsCovPath) failed: %v", err)
-	}
-
 	emb := &stubClosableEmbedder{}
 	var factoryCalls atomic.Int32
 	summaryPath := filepath.Join(t.TempDir(), "sim_summary.md")
@@ -198,19 +189,18 @@ func dedupNames(names []string) []string {
 		t.Errorf("factoryCalls=%d, closed=%d; want 1 each", factoryCalls.Load(), emb.closed.Load())
 	}
 
-	var gotTSProject string
-	var tsOut bytes.Buffer
+	var gotGoOverrideProject string
+	var goOverrideOut bytes.Buffer
 	code, err = runCLI(context.Background(), cliEnv{
 		args: []string{
 			"--repo-root=" + repoDir,
-			"--lang=ts",
-			"--ts-coverage=" + tsCovPath,
-			"--similarity-project=cli-override-project",
 			"--vcs=git",
 			"--base=HEAD~1",
+			"--fast",
+			"--similarity-project=cli-override-project",
 			"--color=never",
 		},
-		stdout: &tsOut,
+		stdout: &goOverrideOut,
 		stderr: &stderr,
 		getenv: func(k string) string {
 			if k == "CODEQUALITY_SIMILARITY" {
@@ -222,19 +212,23 @@ func dedupNames(names []string) []string {
 			return ""
 		},
 		embedFactory: func(_ context.Context, opts simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
-			gotTSProject = opts.ProjectID
+			gotGoOverrideProject = opts.ProjectID
 			return &stubNonCloserEmbedder{}, "", nil
 		},
 	})
 	if err != nil || code != 0 {
-		t.Fatalf("runCLI(--lang=ts) = (%d, %v), stderr=%s", code, err, stderr.String())
+		t.Fatalf("runCLI(Go CLI project override) = (%d, %v), stderr=%s", code, err, stderr.String())
 	}
-	if gotTSProject != "cli-override-project" {
-		t.Errorf("gotTSProject = %q, want cli-override-project", gotTSProject)
+	if gotGoOverrideProject != "cli-override-project" {
+		t.Errorf("gotGoOverrideProject = %q, want cli-override-project", gotGoOverrideProject)
 	}
-	if !strings.Contains(tsOut.String(), "Similar Existing TypeScript Functions") || !strings.Contains(tsOut.String(), "formatBytes") {
-		t.Errorf("ts stdout missing TypeScript similarity advisory:\n%s", tsOut.String())
+	if !strings.Contains(goOverrideOut.String(), "Similar Existing Go Functions") || !strings.Contains(goOverrideOut.String(), "DedupItems") {
+		t.Errorf("go override stdout missing Go similarity advisory:\n%s", goOverrideOut.String())
 	}
+
+	t.Run("TypeScript", func(t *testing.T) {
+		verifySimilarityTypeScriptCLI(t, realRepoRoot, repoDir)
+	})
 
 	var nilFactoryOut bytes.Buffer
 	code, err = runCLI(context.Background(), cliEnv{
@@ -315,5 +309,58 @@ func TestSimilaritySessionIdempotentCloseAndNilSafety(t *testing.T) {
 	emptySum, err := sess.evaluateTS(ctx, t.TempDir(), gotestutil.DiffResult{})
 	if err != nil || emptySum.Enabled {
 		t.Errorf("evaluateTS(empty diff) = (%+v, %v), want disabled", emptySum, err)
+	}
+}
+
+func verifySimilarityTypeScriptCLI(t *testing.T, realRepoRoot string, repoDir string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(realRepoRoot, "web", "node_modules", "typescript")); err != nil {
+		t.Skipf("skipping TypeScript similarity CLI integration check: web/node_modules/typescript not installed (%v)", err)
+	}
+	if err := os.Symlink(filepath.Join(realRepoRoot, "web", "node_modules"), filepath.Join(repoDir, "web", "node_modules")); err != nil {
+		t.Fatalf("Symlink node_modules failed: %v", err)
+	}
+
+	tsCovPath := filepath.Join(t.TempDir(), "coverage-final.json")
+	if err := os.WriteFile(tsCovPath, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("WriteFile(tsCovPath) failed: %v", err)
+	}
+
+	var gotTSProject string
+	var tsOut, stderr bytes.Buffer
+	code, err := runCLI(context.Background(), cliEnv{
+		args: []string{
+			"--repo-root=" + repoDir,
+			"--lang=ts",
+			"--ts-coverage=" + tsCovPath,
+			"--similarity-project=cli-override-project",
+			"--vcs=git",
+			"--base=HEAD~1",
+			"--color=never",
+		},
+		stdout: &tsOut,
+		stderr: &stderr,
+		getenv: func(k string) string {
+			if k == "CODEQUALITY_SIMILARITY" {
+				return "1"
+			}
+			if k == "CODEQUALITY_SIMILARITY_PROJECT" {
+				return "env-sim-project"
+			}
+			return ""
+		},
+		embedFactory: func(_ context.Context, opts simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
+			gotTSProject = opts.ProjectID
+			return &stubNonCloserEmbedder{}, "", nil
+		},
+	})
+	if err != nil || code != 0 {
+		t.Fatalf("runCLI(--lang=ts) = (%d, %v), stderr=%s", code, err, stderr.String())
+	}
+	if gotTSProject != "cli-override-project" {
+		t.Errorf("gotTSProject = %q, want cli-override-project", gotTSProject)
+	}
+	if !strings.Contains(tsOut.String(), "Similar Existing TypeScript Functions") || !strings.Contains(tsOut.String(), "formatBytes") {
+		t.Errorf("ts stdout missing TypeScript similarity advisory:\n%s", tsOut.String())
 	}
 }
