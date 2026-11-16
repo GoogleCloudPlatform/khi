@@ -26,26 +26,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generatePolicyActionStructuredQuery generates a structured query for GKE Dataplane V2 network policy logs.
-func generatePolicyActionStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, nodeNameSubstrings []string) *logestimator.StructuredLogQuery {
-	filters := []logestimator.LoggingMonitoringMatcher{
-		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
-		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
-		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
-		logestimator.LogID(logestimator.Exact("policy-action")),
-	}
+// listLogEntriesTask queries the GKE Dataplane V2 network policy logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	dpv2policy.ListLogEntriesTaskID,
+	"Dataplane V2 network policy logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &policyActionQuerySource{
+			clusterIdentity:    coretask.Use(b, dpv2policy.ClusterIdentityTaskID.Ref()),
+			nodeNameSubstrings: coretask.Use(b, k8scommon.InputNodeNameFilterTaskID.Ref()),
+		}
+	},
+)
 
-	// Network policy logs are node logs, so the node name filter shared with the other node logs applies to them as well.
-	if len(nodeNameSubstrings) > 0 {
-		filters = append(filters, logestimator.ResourceLabel("node_name", logestimator.ContainsAny(nodeNameSubstrings...)))
-	}
-
-	return &logestimator.StructuredLogQuery{
-		Incomplete:    !cluster.IsComplete(),
-		ResourceTypes: []string{"k8s_node"},
-		Filters:       filters,
-	}
-}
+var _ gcpcommon.StructuredLogQuerySource = (*policyActionQuerySource)(nil)
 
 // policyActionQuerySource builds the Cloud Logging query for the network policy logs of the cluster.
 type policyActionQuerySource struct {
@@ -71,16 +64,20 @@ func (s *policyActionQuerySource) TimePartitionCount() int {
 	return 10
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*policyActionQuerySource)(nil)
+// generatePolicyActionStructuredQuery generates a structured query for GKE Dataplane V2 network policy logs.
+func generatePolicyActionStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, nodeNameSubstrings []string) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
+		logestimator.LogID(logestimator.Exact("policy-action")),
+		// Network policy logs are node logs, so the node name filter shared with the other node logs applies to them as well.
+		logestimator.ResourceLabel("node_name", logestimator.ContainsAny(nodeNameSubstrings...)),
+	}
 
-// listLogEntriesTask queries the GKE Dataplane V2 network policy logs of the cluster from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	dpv2policy.ListLogEntriesTaskID,
-	"Dataplane V2 network policy logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &policyActionQuerySource{
-			clusterIdentity:    coretask.Use(b, dpv2policy.ClusterIdentityTaskID.Ref()),
-			nodeNameSubstrings: coretask.Use(b, k8scommon.InputNodeNameFilterTaskID.Ref()),
-		}
-	},
-)
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !cluster.IsComplete(),
+		ResourceTypes: []string{"k8s_node"},
+		Filters:       filters,
+	}
+}

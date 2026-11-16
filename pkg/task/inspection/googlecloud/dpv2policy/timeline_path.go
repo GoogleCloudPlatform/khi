@@ -32,7 +32,7 @@ const (
 )
 
 // MustNetworkPolicyTimeline returns the timeline path for network policy decisions nested under a Pod or Node resource timeline.
-// Constructs a path like: <apiVersion>/<kind>/<namespace>/<name>/<timelineName>
+// Constructs a path like: <apiVersion>/<kind>/<namespace>/<name>/<timelineName>.
 func MustNetworkPolicyTimeline(ctx context.Context, resourceTimeline *khifilev6.TimelinePath, timelineName string) *khifilev6.TimelinePath {
 	if resourceTimeline == nil || resourceTimeline.Type.GetId() != inspectioncore.TimelineTypeResource.GetId() {
 		panic("parent timeline path must be Resource type")

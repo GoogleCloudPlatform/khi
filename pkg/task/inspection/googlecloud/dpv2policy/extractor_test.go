@@ -17,8 +17,9 @@ package dpv2policy
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 func TestExtractPolicyAction(t *testing.T) {
@@ -429,6 +430,78 @@ jsonPayload:
 			input: `logName: projects/test-project/logs/policy-action`,
 			want:  PolicyActionFieldSet{},
 		},
+		{
+			desc: "policy without labels and non-string labels",
+			input: `
+resource:
+  type: k8s_node
+  labels:
+    node_name: gke-test-cluster-default-pool-12345678-abcd
+jsonPayload:
+  connection:
+    dest_ip: 10.0.1.20
+    dest_port: 80
+    direction: ingress
+    protocol: tcp
+    src_ip: 10.0.0.10
+    src_port: 50000
+  count: 1
+  dest:
+    pod_name: httpbin-0
+    pod_namespace: default
+  disposition: allow
+  policies:
+  - kind: NetworkPolicy
+    name: no-labels-policy
+    namespace: default
+    revision: "9"
+  - kind: NetworkPolicy
+    labels:
+    - 123
+    - key: value
+    - "k8s:io.cilium.k8s.policy.uid=00000000-0000-0000-0000-000000000005"
+    name: non-string-label-policy
+    namespace: default
+    revision: "9"
+  src:
+    pod_name: sleep-abcde
+    pod_namespace: default
+`,
+			want: PolicyActionFieldSet{
+				Disposition: DispositionAllow,
+				Count:       1,
+				NodeName:    "gke-test-cluster-default-pool-12345678-abcd",
+				Direction:   "ingress",
+				Protocol:    "tcp",
+				Source: PolicyActionEndpoint{
+					IP:           "10.0.0.10",
+					Port:         50000,
+					PodNamespace: "default",
+					PodName:      "sleep-abcde",
+				},
+				Destination: PolicyActionEndpoint{
+					IP:           "10.0.1.20",
+					Port:         80,
+					PodNamespace: "default",
+					PodName:      "httpbin-0",
+				},
+				Policies: []PolicyActionPolicy{
+					{
+						Kind:      "NetworkPolicy",
+						Name:      "no-labels-policy",
+						Namespace: "default",
+						Revision:  "9",
+					},
+					{
+						Kind:      "NetworkPolicy",
+						Name:      "non-string-label-policy",
+						Namespace: "default",
+						Revision:  "9",
+						UID:       "00000000-0000-0000-0000-000000000005",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -459,6 +532,21 @@ func TestExtractPolicyAction_Mock(t *testing.T) {
 		NodeName:    "gke-test-cluster-default-pool-12345678-abcd",
 	}
 	reader := structured.NewNodeReader(structured.NewMockNode(want))
+
+	got := ExtractPolicyAction(reader)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ExtractPolicyAction() mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestExtractPolicyAction_Cache(t *testing.T) {
+	want := PolicyActionFieldSet{
+		Disposition: DispositionDeny,
+		Count:       3,
+		NodeName:    "gke-test-cluster-default-pool-12345678-abcd",
+	}
+	reader := structured.NewNodeReader(structured.NewEmptyMapNode())
+	structured.SetCache(reader, policyActionCacheKey, want)
 
 	got := ExtractPolicyAction(reader)
 	if diff := cmp.Diff(want, got); diff != "" {

@@ -32,6 +32,55 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// knownPolicyResourceTypes maps the policy kinds recorded in policy-action logs to their resource types.
+// It is used when the UID of a policy is not found in the resources recorded by audit logs.
+var knownPolicyResourceTypes = map[string]policyResourceType{
+	"NetworkPolicy":        {apiVersion: "networking.k8s.io/v1", kind: "networkpolicy", namespaced: true},
+	"FQDNNetworkPolicy":    {apiVersion: "networking.gke.io/v1alpha1", kind: "fqdnnetworkpolicy", namespaced: true},
+	"ClusterNetworkPolicy": {apiVersion: "policy.networking.k8s.io/v1alpha2", kind: "clusternetworkpolicy", namespaced: false},
+}
+
+// logIngesterTask ingests the metadata of network policy logs.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	dpv2policy.LogIngesterTaskID,
+	dpv2policy.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processPolicyActionLog
+	},
+)
+
+// logGrouperTask groups network policy logs by their reporting node.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	dpv2policy.LogGrouperTaskID,
+	dpv2policy.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return groupPolicyActionLog
+	},
+)
+
+// logToTimelineMapperTask maps network policy logs to timelines.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	dpv2policy.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: dpv2policy.LogIngesterTaskID.Ref(),
+		GroupedLogs: dpv2policy.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &policyActionTimelineMapper{
+			clusterIdentity: coretask.Use(b, dpv2policy.ClusterIdentityTaskID.Ref()),
+			resourceUIDs:    coretask.Use(b, k8saudit.ResourceUIDInventoryTaskID.Ref()),
+		}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"Dataplane V2 Network Policy Logs",
+		"Gather GKE Dataplane V2 network policy logs (policy-action) to visualize allowed and denied connections on the timelines of the source and destination Pods and the network policies that decided them. Note: Network policy logging must be enabled on the cluster, and the log volume can be large in clusters with heavy traffic.",
+		3500,
+		false,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*policyActionTimelineMapper)(nil)
+
 // policyResourceType is the API version and the kind that Kubernetes audit log timelines use for a kind of policy resources.
 type policyResourceType struct {
 	apiVersion string
@@ -39,12 +88,18 @@ type policyResourceType struct {
 	namespaced bool
 }
 
-// knownPolicyResourceTypes maps the policy kinds recorded in policy-action logs to their resource types.
-// It is used when the UID of a policy is not found in the resources recorded by audit logs.
-var knownPolicyResourceTypes = map[string]policyResourceType{
-	"NetworkPolicy":        {apiVersion: "networking.k8s.io/v1", kind: "networkpolicy", namespaced: true},
-	"FQDNNetworkPolicy":    {apiVersion: "networking.gke.io/v1alpha1", kind: "fqdnnetworkpolicy", namespaced: true},
-	"ClusterNetworkPolicy": {apiVersion: "policy.networking.k8s.io/v1alpha2", kind: "clusternetworkpolicy", namespaced: false},
+// policyActionTimelineMapper maps network policy logs to the timelines of Pods, network policies and Nodes.
+type policyActionTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	resourceUIDs    coretask.Input[k8saudit.UIDToResourceIdentity]
+}
+
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (m *policyActionTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	clusterIdentity := m.clusterIdentity.Get(ctx)
+	cs := mapPolicyActionLog(ctx, l, clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster), m.resourceUIDs.Get(ctx))
+	return cs, struct{}{}, nil
 }
 
 // processPolicyActionLog sets the log type, timestamp, severity and summary of a network policy log.
@@ -153,15 +208,6 @@ func formatPolicyActionPolicy(policy dpv2policy.PolicyActionPolicy) string {
 	}
 }
 
-// logIngesterTask ingests the metadata of network policy logs.
-var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
-	dpv2policy.LogIngesterTaskID,
-	dpv2policy.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		return processPolicyActionLog
-	},
-)
-
 // groupPolicyActionLog returns the name of the node that reported the log so that the logs of each node are mapped in parallel.
 func groupPolicyActionLog(ctx context.Context, l *log.Log) string {
 	policyAction := dpv2policy.ExtractPolicyAction(l.NodeReader)
@@ -170,31 +216,6 @@ func groupPolicyActionLog(ctx context.Context, l *log.Log) string {
 	}
 	return policyAction.NodeName
 }
-
-// logGrouperTask groups network policy logs by their reporting node.
-var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
-	dpv2policy.LogGrouperTaskID,
-	dpv2policy.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
-		return groupPolicyActionLog
-	},
-)
-
-// policyActionTimelineMapper maps network policy logs to the timelines of Pods, network policies and Nodes.
-type policyActionTimelineMapper struct {
-	inspectiontaskbase.StatelessMapperBase
-	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	resourceUIDs    coretask.Input[k8saudit.UIDToResourceIdentity]
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
-func (m *policyActionTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	clusterIdentity := m.clusterIdentity.Get(ctx)
-	cs := mapPolicyActionLog(ctx, l, clusterIdentity.NameFor(k8scommon.ClusterNameUsageK8sCluster), m.resourceUIDs.Get(ctx))
-	return cs, struct{}{}, nil
-}
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*policyActionTimelineMapper)(nil)
 
 // mapPolicyActionLog adds events for a network policy log to the timelines of its source and destination Pods and of the network policies that decided the connection.
 // It adds the event to the timeline of the reporting node instead when neither endpoint is a Pod.
@@ -272,24 +293,3 @@ func mustNodeTimeline(ctx context.Context, clusterName string, nodeName string) 
 		Name:       nodeName,
 	})
 }
-
-// logToTimelineMapperTask maps network policy logs to timelines.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	dpv2policy.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: dpv2policy.LogIngesterTaskID.Ref(),
-		GroupedLogs: dpv2policy.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &policyActionTimelineMapper{
-			clusterIdentity: coretask.Use(b, dpv2policy.ClusterIdentityTaskID.Ref()),
-			resourceUIDs:    coretask.Use(b, k8saudit.ResourceUIDInventoryTaskID.Ref()),
-		}
-	},
-	inspectioncore.FeatureTaskLabel(
-		"Dataplane V2 Network Policy Logs",
-		"Gather GKE Dataplane V2 network policy logs (policy-action) to visualize allowed and denied connections on the timelines of the source and destination Pods and the network policies that decided them. Note: Network policy logging must be enabled on the cluster, and the log volume can be large in clusters with heavy traffic.",
-		3500,
-		false,
-	),
-)

@@ -19,11 +19,16 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/dpv2policy"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -199,6 +204,38 @@ func TestProcessPolicyActionLog(t *testing.T) {
 			input:        dpv2policy.PolicyActionFieldSet{},
 			wantSummary:  "[UNKNOWN] unknown -> unknown",
 			wantSeverity: inspectioncore.SeverityInfo,
+		},
+		{
+			desc: "endpoint uses instance when IP differs and policy has no kind",
+			input: dpv2policy.PolicyActionFieldSet{
+				Disposition: dpv2policy.DispositionAllow,
+				Count:       1,
+				Direction:   "egress",
+				Protocol:    "tcp",
+				Source:      dpv2policy.PolicyActionEndpoint{IP: "10.0.0.10", Port: 40000, PodNamespace: "default", PodName: "sleep-abcde"},
+				Destination: dpv2policy.PolicyActionEndpoint{IP: "198.51.100.1", Port: 443, Instance: "external-api"},
+				Policies: []dpv2policy.PolicyActionPolicy{
+					{Name: "allow-external", Namespace: "default"},
+				},
+			},
+			wantSummary:  "[ALLOW] egress TCP default/sleep-abcde:40000 -> external-api:443 (by default/allow-external)",
+			wantSeverity: inspectioncore.SeverityInfo,
+		},
+		{
+			desc: "policies with only unrecognized entries omit the policy suffix",
+			input: dpv2policy.PolicyActionFieldSet{
+				Disposition: dpv2policy.DispositionDeny,
+				Count:       1,
+				Direction:   "ingress",
+				Protocol:    "tcp",
+				Source:      dpv2policy.PolicyActionEndpoint{IP: "10.0.0.23", Port: 53538, PodNamespace: "default", PodName: "sleep-abcde"},
+				Destination: dpv2policy.PolicyActionEndpoint{IP: "10.0.0.20", Port: 8080, PodNamespace: "default", PodName: "httpbin-0"},
+				Policies: []dpv2policy.PolicyActionPolicy{
+					{Revision: "9"},
+				},
+			},
+			wantSummary:  "[DENY] ingress TCP default/sleep-abcde:53538 -> default/httpbin-0:8080",
+			wantSeverity: inspectioncore.SeverityWarning,
 		},
 	}
 
@@ -406,4 +443,104 @@ func nodeNetworkPolicyPath(builder *khifilev6.Builder, nodeName string) *khifile
 	return builder.TimelineAccumulator.GetPath(resourcePath(builder, "core/v1", "node", "cluster-scope", nodeName),
 		khifilev6.PathSegment{Name: "policy-action", Type: dpv2policy.TimelineTypeNetworkPolicy},
 	)
+}
+
+func TestLogToTimelineMapperTask(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		taskMode  inspectioncore.InspectionTaskModeType
+		wantItems bool
+	}{
+		{desc: "dry run does not map logs", taskMode: inspectioncore.TaskModeDryRun, wantItems: false},
+		{desc: "run maps logs to timelines", taskMode: inspectioncore.TaskModeRun, wantItems: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+			input := dpv2policy.PolicyActionFieldSet{
+				Disposition: dpv2policy.DispositionAllow,
+				Count:       1,
+				NodeName:    "gke-test-cluster-default-pool-12345678-abcd",
+				Direction:   "egress",
+				Protocol:    "tcp",
+				Source:      dpv2policy.PolicyActionEndpoint{IP: "10.0.0.10", Port: 41952, PodNamespace: "default", PodName: "sleep-abcde"},
+				Destination: dpv2policy.PolicyActionEndpoint{IP: "10.0.0.20", Port: 8080, PodNamespace: "default", PodName: "httpbin-0"},
+				Policies: []dpv2policy.PolicyActionPolicy{
+					{Kind: "NetworkPolicy", Name: "allow-http", Namespace: "default", UID: "00000000-0000-0000-0000-000000000099"},
+				},
+			}
+			l := testlog.NewMockLog(testLogTime, input)
+			// The mapper flushes timeline changes only for logs whose metadata is already ingested.
+			severityID := uint32(1)
+			logTypeID := uint32(2)
+			if err := builder.LogAccumulator.AddLog(&khifilev6.StagingLog{
+				Log:       l,
+				Summary:   "test",
+				Timestamp: testLogTime,
+				Severity:  &pb.Severity{Id: &severityID},
+				LogType:   &pb.LogType{Id: &logTypeID},
+			}); err != nil {
+				t.Fatalf("failed to add log to the log accumulator: %v", err)
+			}
+
+			cluster := k8scommon.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+				ProjectID:   "test-project",
+				Location:    "us-central1-a",
+				PrefixPolicy: k8scommon.ClusterPrefixPolicy{
+					Prefix:         "awsClusters/",
+					RequiredUsages: []k8scommon.ClusterNameUsage{k8scommon.ClusterNameUsageK8sCluster},
+				},
+			}
+			resourceUIDs := k8saudit.UIDToResourceIdentity{
+				"00000000-0000-0000-0000-000000000099": {
+					APIVersion: "networking.k8s.io/v1beta1",
+					Kind:       "networkpolicy",
+					Namespace:  "default",
+					Name:       "allow-http",
+				},
+			}
+			groupedLogs := inspectiontaskbase.LogGroupMap{
+				"gke-test-cluster-default-pool-12345678-abcd": {
+					Group: "gke-test-cluster-default-pool-12345678-abcd",
+					Logs:  []*log.Log{l},
+				},
+			}
+
+			_, _, err := inspectiontest.Run(t, ctx, logToTimelineMapperTask, tc.taskMode, map[string]any{},
+				tasktest.Given(dpv2policy.LogGrouperTaskID.Ref(), groupedLogs),
+				tasktest.Given(dpv2policy.ClusterIdentityTaskID.Ref(), cluster),
+				tasktest.Given(k8saudit.ResourceUIDInventoryTaskID.Ref(), resourceUIDs),
+			)
+			if err != nil {
+				t.Fatalf("logToTimelineMapperTask returned unexpected error: %v", err)
+			}
+
+			podTimeline := builder.TimelineAccumulator.GetPath(nil,
+				khifilev6.PathSegment{Name: "awsClusters/test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+				khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore.TimelineTypeAPIVersion},
+				khifilev6.PathSegment{Name: "pod", Type: inspectioncore.TimelineTypeKind},
+				khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+				khifilev6.PathSegment{Name: "sleep-abcde", Type: inspectioncore.TimelineTypeResource},
+				khifilev6.PathSegment{Name: dpv2policy.PodOutboundTimelineName, Type: dpv2policy.TimelineTypeNetworkPolicy},
+			)
+			if got := builder.TimelineAccumulator.GetBuilder(podTimeline).HasItems(); got != tc.wantItems {
+				t.Errorf("pod outbound timeline HasItems() = %v, want %v", got, tc.wantItems)
+			}
+
+			policyTimeline := builder.TimelineAccumulator.GetPath(nil,
+				khifilev6.PathSegment{Name: "awsClusters/test-cluster", Type: inspectioncore.TimelineTypeK8sCluster},
+				khifilev6.PathSegment{Name: "networking.k8s.io/v1beta1", Type: inspectioncore.TimelineTypeAPIVersion},
+				khifilev6.PathSegment{Name: "networkpolicy", Type: inspectioncore.TimelineTypeKind},
+				khifilev6.PathSegment{Name: "default", Type: inspectioncore.TimelineTypeNamespace},
+				khifilev6.PathSegment{Name: "allow-http", Type: inspectioncore.TimelineTypeResource},
+			)
+			if got := builder.TimelineAccumulator.GetBuilder(policyTimeline).HasItems(); got != tc.wantItems {
+				t.Errorf("policy timeline HasItems() = %v, want %v", got, tc.wantItems)
+			}
+		})
+	}
 }

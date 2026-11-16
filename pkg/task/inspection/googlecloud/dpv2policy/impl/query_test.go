@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -29,7 +31,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestGeneratePolicyActionStructuredQuery(t *testing.T) {
@@ -225,5 +226,61 @@ timestamp <= "2026-01-01T01:01:00+0000"`
 	}
 	if serialized[0].Name != "Dataplane V2 network policy logs" {
 		t.Errorf("query name mismatch: got %q, want %q", serialized[0].Name, "Dataplane V2 network policy logs")
+	}
+}
+
+func TestGeneratePolicyActionStructuredQuery_Incomplete(t *testing.T) {
+	testCases := []struct {
+		name           string
+		cluster        k8scommon.GoogleCloudClusterIdentity
+		wantIncomplete bool
+	}{
+		{
+			name: "complete cluster",
+			cluster: k8scommon.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+				Location:    "us-central1-a",
+				ProjectID:   "test-project",
+			},
+			wantIncomplete: false,
+		},
+		{
+			name: "incomplete cluster without location",
+			cluster: k8scommon.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+				ProjectID:   "test-project",
+			},
+			wantIncomplete: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sq := generatePolicyActionStructuredQuery(tc.cluster, nil)
+			if sq.Incomplete != tc.wantIncomplete {
+				t.Errorf("Incomplete = %v, want %v", sq.Incomplete, tc.wantIncomplete)
+			}
+		})
+	}
+}
+
+func TestPolicyActionQuerySource_TimePartitionCount(t *testing.T) {
+	testCases := []struct {
+		name string
+		want int
+	}{
+		{
+			name: "returns 10 partitions",
+			want: 10,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			source := &policyActionQuerySource{}
+			if got := source.TimePartitionCount(); got != tc.want {
+				t.Errorf("TimePartitionCount() = %d, want %d", got, tc.want)
+			}
+		})
 	}
 }

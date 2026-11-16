@@ -20,6 +20,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
+const (
+	// DispositionAllow is the disposition of a connection allowed by network policies.
+	DispositionAllow = "allow"
+	// DispositionDeny is the disposition of a connection denied by network policies.
+	DispositionDeny = "deny"
+)
+
+const (
+	// policyUIDLabelPrefix is the prefix of the Cilium policy label holding the UID of the Kubernetes resource that the policy rule derives from.
+	policyUIDLabelPrefix = "k8s:io.cilium.k8s.policy.uid="
+	// reservedRuleLabelPrefix is the prefix of the Cilium policy label naming a rule that Cilium adds implicitly instead of deriving it from a Kubernetes resource.
+	reservedRuleLabelPrefix = "reserved:io.cilium.policy.derived-from="
+)
+
 var (
 	pathDisposition      = structured.CompileFieldPath("jsonPayload.disposition")
 	pathCount            = structured.CompileFieldPath("jsonPayload.count")
@@ -46,20 +60,6 @@ var (
 	pathName         = structured.CompileFieldPath("name")
 	pathRevision     = structured.CompileFieldPath("revision")
 	pathLabels       = structured.CompileFieldPath("labels")
-)
-
-const (
-	// DispositionAllow is the disposition of a connection allowed by network policies.
-	DispositionAllow = "allow"
-	// DispositionDeny is the disposition of a connection denied by network policies.
-	DispositionDeny = "deny"
-)
-
-const (
-	// policyUIDLabelPrefix is the prefix of the Cilium policy label holding the UID of the Kubernetes resource that the policy rule derives from.
-	policyUIDLabelPrefix = "k8s:io.cilium.k8s.policy.uid="
-	// reservedRuleLabelPrefix is the prefix of the Cilium policy label naming a rule that Cilium adds implicitly instead of deriving it from a Kubernetes resource.
-	reservedRuleLabelPrefix = "reserved:io.cilium.policy.derived-from="
 )
 
 // policyActionCacheKey is the cache key of PolicyActionFieldSet because the ingester, the grouper and the mapper read the same log.
@@ -104,12 +104,6 @@ type PolicyActionEndpoint struct {
 	Instance string
 }
 
-// IsPod reports whether the endpoint is a Pod.
-// It only checks the namespace and the name because Cilium omits the workload fields for Pods on remote nodes.
-func (e PolicyActionEndpoint) IsPod() bool {
-	return e.PodNamespace != "" && e.PodName != ""
-}
-
 // PolicyActionPolicy is a policy rule that decided a connection recorded in a policy-action log.
 type PolicyActionPolicy struct {
 	// Kind is the kind of the Kubernetes resource defining the rule (e.g., "NetworkPolicy"). It is empty for reserved rules.
@@ -124,6 +118,12 @@ type PolicyActionPolicy struct {
 	UID string
 	// ReservedRule is the name of the rule that Cilium adds implicitly (e.g., "allow-localhost-ingress"). It is empty for rules derived from Kubernetes resources.
 	ReservedRule string
+}
+
+// IsPod reports whether the endpoint is a Pod.
+// It only checks the namespace and the name because Cilium omits the workload fields for Pods on remote nodes.
+func (e PolicyActionEndpoint) IsPod() bool {
+	return e.PodNamespace != "" && e.PodName != ""
 }
 
 // ExtractPolicyAction extracts PolicyActionFieldSet from a policy-action log.
@@ -181,26 +181,30 @@ func extractPolicyActionPolicies(reader *structured.NodeReader) []PolicyActionPo
 	}
 	var policies []PolicyActionPolicy
 	for _, policyReader := range policiesReader.Children() {
-		policy := PolicyActionPolicy{
-			Kind:      policyReader.ReadStringOrDefault(pathKind, ""),
-			Name:      policyReader.ReadStringOrDefault(pathName, ""),
-			Namespace: policyReader.ReadStringOrDefault(pathNamespace, ""),
-			Revision:  policyReader.ReadStringOrDefault(pathRevision, ""),
-		}
-		if labelsReader, err := policyReader.GetReader(pathLabels); err == nil {
-			for _, labelReader := range labelsReader.Children() {
-				label, err := labelReader.ReadString(structured.EmptyFieldPath)
-				if err != nil {
-					continue
-				}
-				if uid, found := strings.CutPrefix(label, policyUIDLabelPrefix); found {
-					policy.UID = uid
-				} else if rule, found := strings.CutPrefix(label, reservedRuleLabelPrefix); found {
-					policy.ReservedRule = rule
-				}
-			}
-		}
-		policies = append(policies, policy)
+		policies = append(policies, extractPolicyActionPolicy(policyReader))
 	}
 	return policies
+}
+
+// extractPolicyActionPolicy reads a single policy rule entry from jsonPayload.policies.
+func extractPolicyActionPolicy(policyReader structured.NodeReader) PolicyActionPolicy {
+	policy := PolicyActionPolicy{
+		Kind:      policyReader.ReadStringOrDefault(pathKind, ""),
+		Name:      policyReader.ReadStringOrDefault(pathName, ""),
+		Namespace: policyReader.ReadStringOrDefault(pathNamespace, ""),
+		Revision:  policyReader.ReadStringOrDefault(pathRevision, ""),
+	}
+	labelsReader, err := policyReader.GetReader(pathLabels)
+	if err != nil {
+		return policy
+	}
+	for _, labelReader := range labelsReader.Children() {
+		label := labelReader.ReadStringOrDefault(structured.EmptyFieldPath, "")
+		if uid, found := strings.CutPrefix(label, policyUIDLabelPrefix); found {
+			policy.UID = uid
+		} else if rule, found := strings.CutPrefix(label, reservedRuleLabelPrefix); found {
+			policy.ReservedRule = rule
+		}
+	}
+	return policy
 }
