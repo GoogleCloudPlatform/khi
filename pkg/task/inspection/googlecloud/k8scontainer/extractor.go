@@ -24,6 +24,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// CiliumAgentContainerName is the name of the Cilium agent container in the anetd DaemonSets of GKE Dataplane V2 and in Cilium DaemonSets.
+const CiliumAgentContainerName = "cilium-agent"
+
+// The following constants are the field names that cilium-agent writes in its structured logs.
+const (
+	ciliumFieldSubsystem    = "subsys"
+	ciliumFieldModule       = "module"
+	ciliumFieldLevel        = "level"
+	ciliumFieldError        = "error"
+	ciliumFieldK8sNamespace = "k8sNamespace"
+	ciliumFieldK8sPodName   = "k8sPodName"
+	ciliumFieldEndpointName = "ciliumEndpointName"
+)
+
 var (
 	pathClusterName   = structured.CompileFieldPath("resource.labels.cluster_name")
 	pathNamespaceName = structured.CompileFieldPath("resource.labels.namespace_name")
@@ -51,20 +65,6 @@ var (
 	pathCiliumEndpointName = structured.CompileFieldPath("jsonPayload." + ciliumFieldEndpointName)
 )
 
-// CiliumAgentContainerName is the name of the Cilium agent container in the anetd DaemonSets of GKE Dataplane V2 and in Cilium DaemonSets.
-const CiliumAgentContainerName = "cilium-agent"
-
-// The following constants are the field names that cilium-agent writes in its structured logs.
-const (
-	ciliumFieldSubsystem    = "subsys"
-	ciliumFieldModule       = "module"
-	ciliumFieldLevel        = "level"
-	ciliumFieldError        = "error"
-	ciliumFieldK8sNamespace = "k8sNamespace"
-	ciliumFieldK8sPodName   = "k8sPodName"
-	ciliumFieldEndpointName = "ciliumEndpointName"
-)
-
 // K8sContainerLogFieldSet contains extracted fields from a Kubernetes container log entry.
 type K8sContainerLogFieldSet struct {
 	// ClusterName is the name of the Kubernetes cluster that emitted the log.
@@ -87,6 +87,21 @@ type GCPContainerLogNodeNameLabelFieldSet struct {
 	NodeName string
 	// PodLabels holds the Kubernetes Pod labels extracted from `k8s-pod/*` log labels.
 	PodLabels map[string]string
+}
+
+// CiliumAgentLogFieldSet holds the structured fields of a cilium-agent log.
+type CiliumAgentLogFieldSet struct {
+	// Subsystem is the logrus "subsys" field, or the last segment of the Hive slog "module" field (e.g., "endpoint-api" of "agent.controlplane.endpoint-api").
+	Subsystem string
+	// Error is the "error" field.
+	Error string
+	// Severity is the severity of the "level" field in a JSON payload. It is nil when the level is unknown or the log has a text payload,
+	// because the logfmt parser already reads the level of text payloads.
+	Severity *pb.Severity
+	// PodNamespace is the namespace of the Pod that the log refers to.
+	PodNamespace string
+	// PodName is the name of the Pod that the log refers to.
+	PodName string
 }
 
 // GroupKey returns the group key string for this container's Pod.
@@ -179,21 +194,6 @@ func ExtractGCPContainerLogNodeNameLabel(reader *structured.NodeReader) (GCPCont
 	}, nil
 }
 
-// CiliumAgentLogFieldSet holds the structured fields of a cilium-agent log.
-type CiliumAgentLogFieldSet struct {
-	// Subsystem is the logrus "subsys" field, or the last segment of the Hive slog "module" field (e.g., "endpoint-api" of "agent.controlplane.endpoint-api").
-	Subsystem string
-	// Error is the "error" field.
-	Error string
-	// Severity is the severity of the "level" field in a JSON payload. It is nil when the level is unknown or the log has a text payload,
-	// because the logfmt parser already reads the level of text payloads.
-	Severity *pb.Severity
-	// PodNamespace is the namespace of the Pod that the log refers to.
-	PodNamespace string
-	// PodName is the name of the Pod that the log refers to.
-	PodName string
-}
-
 // HasPodReference reports whether the log refers to a Pod.
 func (c CiliumAgentLogFieldSet) HasPodReference() bool {
 	return c.PodNamespace != "" && c.PodName != ""
@@ -246,7 +246,8 @@ func readParsedStringField(parsed *logutil.ParseStructuredLogResult, field strin
 	return value
 }
 
-// parseCiliumLogLevel returns the severity of a level written by cilium-agent, or nil for unknown levels.
+// parseCiliumLogLevel converts a cilium-agent log level string ("debug", "info", "warn", "warning", "error", "fatal", or "panic") into a Severity.
+// Unlike gcpcommon.ParseGCPSeverity, it handles logrus/slog level names such as "warn" and "panic" and returns nil for unknown levels so callers preserve GCP or logfmt severity.
 func parseCiliumLogLevel(level string) *pb.Severity {
 	switch strings.ToLower(level) {
 	case "debug", "info":
@@ -265,23 +266,20 @@ func parseCiliumLogLevel(level string) *pb.Severity {
 // resolveCiliumPodReference returns the namespace and the name of the Pod that a cilium-agent log refers to.
 // Legacy logrus logs write "<namespace>/<pod>" in k8sPodName or ciliumEndpointName, while Hive slog logs write the namespace in k8sNamespace and the name in k8sPodName.
 func resolveCiliumPodReference(k8sNamespace, k8sPodName, endpointName string) (string, string) {
-	if namespace, name, found := splitNamespacedName(k8sPodName); found {
+	if namespace, name := splitNamespacedName(k8sPodName); namespace != "" {
 		return namespace, name
 	}
 	if k8sNamespace != "" && k8sPodName != "" && !strings.Contains(k8sPodName, "/") {
 		return k8sNamespace, k8sPodName
 	}
-	if namespace, name, found := splitNamespacedName(endpointName); found {
-		return namespace, name
-	}
-	return "", ""
+	return splitNamespacedName(endpointName)
 }
 
-// splitNamespacedName splits a "<namespace>/<name>" string into its namespace and name.
-func splitNamespacedName(namespacedName string) (string, string, bool) {
-	namespace, name, found := strings.Cut(namespacedName, "/")
-	if !found || namespace == "" || name == "" || strings.Contains(name, "/") {
-		return "", "", false
+// splitNamespacedName splits a "<namespace>/<name>" string into its namespace and name, returning empty strings when malformed.
+func splitNamespacedName(namespacedName string) (string, string) {
+	namespace, name, _ := strings.Cut(namespacedName, "/")
+	if namespace == "" || name == "" || strings.Contains(name, "/") {
+		return "", ""
 	}
-	return namespace, name, true
+	return namespace, name
 }

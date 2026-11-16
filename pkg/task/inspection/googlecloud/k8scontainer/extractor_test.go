@@ -359,7 +359,7 @@ func TestExtractCiliumAgentLog(t *testing.T) {
 			desc: "logrus log with a pod reference combining the namespace and the name",
 			input: `
 jsonPayload:
-  ciliumEndpointName: kube-system/kube-dns-123456789a-abcde
+  ciliumEndpointName: default/ignored-endpoint
   containerID: 2bbd0dd28e
   endpointID: 688
   ipv4: 10.0.0.9
@@ -428,9 +428,24 @@ jsonPayload:
 			},
 		},
 		{
+			desc: "fatal log keeps subsys when both subsys and module are set",
+			input: `
+jsonPayload:
+  level: fatal
+  module: agent.controlplane.endpoint-api
+  msg: Daemon initialization failed
+  subsys: daemon
+`,
+			want: CiliumAgentLogFieldSet{
+				Subsystem: "daemon",
+				Severity:  inspectioncore.SeverityFatal,
+			},
+		},
+		{
 			desc: "malformed pod reference and unknown level",
 			input: `
 jsonPayload:
+  k8sNamespace: default
   k8sPodName: default/httpbin/0
   level: trace
   msg: Unexpected pod reference
@@ -438,13 +453,45 @@ jsonPayload:
 			want: CiliumAgentLogFieldSet{},
 		},
 		{
+			desc: "namespace without pod name does not produce a pod reference",
+			input: `
+jsonPayload:
+  k8sNamespace: kube-system
+  level: debug
+  msg: Starting watcher
+`,
+			want: CiliumAgentLogFieldSet{
+				Severity: inspectioncore.SeverityInfo,
+			},
+		},
+		{
+			desc: "pod reference with empty namespace is ignored",
+			input: `
+jsonPayload:
+  k8sPodName: /httpbin-0
+  msg: Ignoring invalid pod reference
+`,
+			want: CiliumAgentLogFieldSet{},
+		},
+		{
 			desc:   "text payload in logfmt",
-			input:  `textPayload: 'time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc k8sNamespace=default k8sPodName=httpbin-0'`,
-			parsed: logfmtParser.TryParse(`time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc k8sNamespace=default k8sPodName=httpbin-0`),
+			input:  `textPayload: 'time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc error="dial timeout" k8sNamespace=default k8sPodName=httpbin-0'`,
+			parsed: logfmtParser.TryParse(`time=2026-01-01T00:00:00.000000000Z level=info msg=Reconciling subsys=sfc error="dial timeout" k8sNamespace=default k8sPodName=httpbin-0`),
 			want: CiliumAgentLogFieldSet{
 				Subsystem:    "sfc",
+				Error:        "dial timeout",
 				PodNamespace: "default",
 				PodName:      "httpbin-0",
+			},
+		},
+		{
+			desc:   "text payload in logfmt with module and endpoint name",
+			input:  `textPayload: 'time=2026-01-01T00:00:00.000000000Z level=warn msg="Endpoint failed" module=agent.controlplane.endpoint-api ciliumEndpointName=kube-system/coredns-0'`,
+			parsed: logfmtParser.TryParse(`time=2026-01-01T00:00:00.000000000Z level=warn msg="Endpoint failed" module=agent.controlplane.endpoint-api ciliumEndpointName=kube-system/coredns-0`),
+			want: CiliumAgentLogFieldSet{
+				Subsystem:    "endpoint-api",
+				PodNamespace: "kube-system",
+				PodName:      "coredns-0",
 			},
 		},
 		{
