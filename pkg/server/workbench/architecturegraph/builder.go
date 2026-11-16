@@ -21,13 +21,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/RoaringBitmap/roaring/v2"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/sparsebitset"
-	"github.com/RoaringBitmap/roaring/v2"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -73,6 +74,13 @@ var (
 	pathMessage                     = structured.CompileFieldPath("message")
 )
 
+// Builder constructs the Kubernetes architecture graph at a specified timestamp.
+type Builder struct {
+	timelines   []*cel.TimelineData
+	timelineMap map[uint32]*cel.TimelineData
+	internPool  khifilev6model.ReadonlyPool
+}
+
 // podPhaseInfo stores pod placement and phase metadata resolved from a node's child pod-phase timeline.
 type podPhaseInfo struct {
 	timelineID     uint32
@@ -86,34 +94,8 @@ type podPhaseInfo struct {
 	deletedAtNs    int64
 }
 
-// isPodPhaseHealthy evaluates whether the given Kubernetes Pod phase indicates a healthy state.
-func isPodPhaseHealthy(phase string) bool {
-	return phase == "Running" || phase == "Succeeded" || phase == "Completed"
-}
-
-// parsePodPhaseState parses a PodPhase timeline revision state string into a Kubernetes Pod phase and health status.
-func parsePodPhaseState(state string) (phase string, isHealthy bool) {
-	lower := strings.ToLower(state)
-	switch {
-	case strings.Contains(lower, "running"):
-		phase = "Running"
-	case strings.Contains(lower, "succeeded"):
-		phase = "Succeeded"
-	case strings.Contains(lower, "pending"), strings.Contains(lower, "scheduled"):
-		phase = "Pending"
-	case strings.Contains(lower, "failed"):
-		phase = "Failed"
-	default:
-		phase = "Unknown"
-	}
-	return phase, isPodPhaseHealthy(phase)
-}
-
-// Builder constructs the Kubernetes architecture graph at a specified timestamp.
-type Builder struct {
-	timelines   []*cel.TimelineData
-	timelineMap map[uint32]*cel.TimelineData
-	internPool  khifilev6model.ReadonlyPool
+type identifiable interface {
+	GetId() string
 }
 
 // NewBuilder creates a new Builder instance.
@@ -330,21 +312,6 @@ func (b *Builder) Build(
 		PodOwnerOwners: podOwnerOwners,
 		Edges:          edges,
 	}, nil
-}
-
-type identifiable interface {
-	GetId() string
-}
-
-func sortedValuesByID[T identifiable](m map[string]T) []T {
-	res := make([]T, 0, len(m))
-	for _, v := range m {
-		res = append(res, v)
-	}
-	sort.Slice(res, func(i, j int) bool {
-		return res[i].GetId() < res[j].GetId()
-	})
-	return res
 }
 
 func (b *Builder) buildEdges(
@@ -924,4 +891,38 @@ func readConditions(reader *structured.NodeReader, isPod bool) []*apiv1.GraphCon
 		})
 	}
 	return conditions
+}
+
+// isPodPhaseHealthy evaluates whether the given Kubernetes Pod phase indicates a healthy state.
+func isPodPhaseHealthy(phase string) bool {
+	return phase == "Running" || phase == "Succeeded" || phase == "Completed"
+}
+
+// parsePodPhaseState parses a PodPhase timeline revision state string into a Kubernetes Pod phase and health status.
+func parsePodPhaseState(state string) (phase string, isHealthy bool) {
+	lower := strings.ToLower(state)
+	switch {
+	case strings.Contains(lower, "running"):
+		phase = "Running"
+	case strings.Contains(lower, "succeeded"):
+		phase = "Succeeded"
+	case strings.Contains(lower, "pending"), strings.Contains(lower, "scheduled"):
+		phase = "Pending"
+	case strings.Contains(lower, "failed"):
+		phase = "Failed"
+	default:
+		phase = "Unknown"
+	}
+	return phase, isPodPhaseHealthy(phase)
+}
+
+func sortedValuesByID[T identifiable](m map[string]T) []T {
+	res := make([]T, 0, len(m))
+	for _, v := range m {
+		res = append(res, v)
+	}
+	sort.Slice(res, func(i, j int) bool {
+		return res[i].GetId() < res[j].GetId()
+	})
+	return res
 }

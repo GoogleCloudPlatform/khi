@@ -34,6 +34,114 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+var pathMetadataUID = structured.CompileFieldPath("metadata.uid")
+
+// logIngesterTask is the task that ingests log metadata into KHI v6 builder.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	k8scontainer.LogIngesterTaskID,
+	k8scontainer.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processContainerLog
+	},
+)
+
+// logGrouperTask groups logs by associated Pod path.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	k8scontainer.LogGrouperTaskID,
+	k8scontainer.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			containerFields, err := k8scontainer.ExtractK8sContainerLog(l.NodeReader, nil)
+			if err != nil {
+				return "unknown"
+			}
+			return containerFields.GroupKey()
+		}
+	},
+)
+
+// logToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontainer.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontainer.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontainer.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &containerLogTimelineMapper{
+			clusterIdentity: coretask.Use(b, k8scontainer.ClusterIdentityTaskID.Ref()),
+		}
+	},
+)
+
+// podPhaseTimelineMapperTask maps container logs to Pod phase timelines.
+var podPhaseTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontainer.PodPhaseTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontainer.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontainer.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*containerLogPodPhaseMapperState] {
+		return &containerLogPodPhaseTimelineMapper{
+			clusterIdentity:       coretask.Use(b, k8scontainer.ClusterIdentityTaskID.Ref()),
+			initialStateProvider:  coretask.Use(b, k8saudit.InitialResourceStateProviderRef),
+			timelineCreationTimes: coretask.Use(b, k8saudit.TimelineCreationTimeInventoryTaskID.Ref()),
+		}
+	},
+)
+
+// tailTask is a nop task that depends on all container log mappers.
+var tailTask = coretask.DefineTailTask(
+	k8scontainer.TailTaskID,
+	[]coretask.Dependency{
+		k8scontainer.LogToTimelineMapperTaskID.Ref(),
+		k8scontainer.PodPhaseTimelineMapperTaskID.Ref(),
+		csmcp.LogToTimelineMapperTaskID.Ref(),
+	},
+	inspectioncore.FeatureTaskLabel(
+		"Kubernetes Container Logs",
+		"Gather stdout/stderr logs of containers to visualize application runtime behaviors under associated Pod timelines. Note: The log volume can be very large if the cluster contains many Pods.",
+		4000,
+		false,
+	),
+)
+
+var (
+	_ inspectiontaskbase.TimelineMapper[struct{}]                         = (*containerLogTimelineMapper)(nil)
+	_ inspectiontaskbase.TimelineMapper[*containerLogPodPhaseMapperState] = (*containerLogPodPhaseTimelineMapper)(nil)
+)
+
+// containerLogTimelineMapper maps container logs to resource timelines.
+type containerLogTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+}
+
+type containerLogPodPhaseMapperState struct {
+	LastNodeName  string
+	LastLabels    map[string]string
+	AuditLogFound bool
+}
+
+// containerLogPodPhaseTimelineMapper infers Pod phase, Pod and binding revisions from the node names and labels in container logs when no audit log recorded them.
+type containerLogPodPhaseTimelineMapper struct {
+	inspectiontaskbase.SinglePassMapperBase[*containerLogPodPhaseMapperState]
+	clusterIdentity       coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	initialStateProvider  coretask.Input[k8saudit.InitialResourceStateProvider]
+	timelineCreationTimes coretask.Input[k8saudit.TimelineCreationTimes]
+}
+
+// ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
+func (m *containerLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapContainerLog(ctx, l, m.clusterIdentity.Get(ctx).ClusterName)
+	return cs, struct{}{}, err
+}
+
+// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
+func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, state *containerLogPodPhaseMapperState) (*khifilev6.TimelineChangeSet, *containerLogPodPhaseMapperState, error) {
+	return mapContainerLogPodPhase(ctx, l, state, m.clusterIdentity.Get(ctx).ClusterName, m.initialStateProvider.Get(ctx), m.timelineCreationTimes.Get(ctx))
+}
+
 // processContainerLog sets the log type, timestamp, severity and summary of a Kubernetes container log.
 func processContainerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
@@ -64,44 +172,6 @@ func processContainerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeS
 	return cs, nil
 }
 
-// logIngesterTask is the task that ingests log metadata into KHI v6 builder.
-var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
-	k8scontainer.LogIngesterTaskID,
-	k8scontainer.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		return processContainerLog
-	},
-)
-
-// logGrouperTask groups logs by associated Pod path.
-var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
-	k8scontainer.LogGrouperTaskID,
-	k8scontainer.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
-		return func(ctx context.Context, l *log.Log) string {
-			containerFields, err := k8scontainer.ExtractK8sContainerLog(l.NodeReader, nil)
-			if err != nil {
-				return "unknown"
-			}
-			return containerFields.GroupKey()
-		}
-	},
-)
-
-// containerLogTimelineMapper maps container logs to resource timelines.
-type containerLogTimelineMapper struct {
-	inspectiontaskbase.StatelessMapperBase
-	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-}
-
-// ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
-func (m *containerLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	cs, err := mapContainerLog(ctx, l, m.clusterIdentity.Get(ctx).ClusterName)
-	return cs, struct{}{}, err
-}
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*containerLogTimelineMapper)(nil)
-
 // mapContainerLog adds an event for a Kubernetes container log to the timeline of its container.
 // It uses fallbackClusterName when the cluster name in the log is empty or "unknown".
 func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string) (*khifilev6.TimelineChangeSet, error) {
@@ -131,43 +201,6 @@ func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string
 
 	return cs, nil
 }
-
-// logToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8scontainer.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8scontainer.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8scontainer.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &containerLogTimelineMapper{
-			clusterIdentity: coretask.Use(b, k8scontainer.ClusterIdentityTaskID.Ref()),
-		}
-	},
-)
-
-var pathMetadataUID = structured.CompileFieldPath("metadata.uid")
-
-type containerLogPodPhaseMapperState struct {
-	LastNodeName  string
-	LastLabels    map[string]string
-	AuditLogFound bool
-}
-
-// containerLogPodPhaseTimelineMapper infers Pod phase, Pod and binding revisions from the node names and labels in container logs when no audit log recorded them.
-type containerLogPodPhaseTimelineMapper struct {
-	inspectiontaskbase.SinglePassMapperBase[*containerLogPodPhaseMapperState]
-	clusterIdentity       coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	initialStateProvider  coretask.Input[k8saudit.InitialResourceStateProvider]
-	timelineCreationTimes coretask.Input[k8saudit.TimelineCreationTimes]
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
-func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, state *containerLogPodPhaseMapperState) (*khifilev6.TimelineChangeSet, *containerLogPodPhaseMapperState, error) {
-	return mapContainerLogPodPhase(ctx, l, state, m.clusterIdentity.Get(ctx).ClusterName, m.initialStateProvider.Get(ctx), m.timelineCreationTimes.Get(ctx))
-}
-
-var _ inspectiontaskbase.TimelineMapper[*containerLogPodPhaseMapperState] = (*containerLogPodPhaseTimelineMapper)(nil)
 
 // mapContainerLogPodPhase supplements the Pod phase, Pod and binding revisions of the Pod that a container log belongs to from the node name and labels in the log.
 // It skips Pods whose revisions audit logs already recorded, adds Pod and binding revisions only when initialStateProvider does not know the Pod,
@@ -350,35 +383,3 @@ func mustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 		Type: k8saudit.TimelineTypePodPhase,
 	})
 }
-
-// podPhaseTimelineMapperTask maps container logs to Pod phase timelines.
-var podPhaseTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8scontainer.PodPhaseTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8scontainer.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8scontainer.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*containerLogPodPhaseMapperState] {
-		return &containerLogPodPhaseTimelineMapper{
-			clusterIdentity:       coretask.Use(b, k8scontainer.ClusterIdentityTaskID.Ref()),
-			initialStateProvider:  coretask.Use(b, k8saudit.InitialResourceStateProviderRef),
-			timelineCreationTimes: coretask.Use(b, k8saudit.TimelineCreationTimeInventoryTaskID.Ref()),
-		}
-	},
-)
-
-// tailTask is a nop task that depends on all container log mappers.
-var tailTask = coretask.DefineTailTask(
-	k8scontainer.TailTaskID,
-	[]coretask.Dependency{
-		k8scontainer.LogToTimelineMapperTaskID.Ref(),
-		k8scontainer.PodPhaseTimelineMapperTaskID.Ref(),
-		csmcp.LogToTimelineMapperTaskID.Ref(),
-	},
-	inspectioncore.FeatureTaskLabel(
-		"Kubernetes Container Logs",
-		"Gather stdout/stderr logs of containers to visualize application runtime behaviors under associated Pod timelines. Note: The log volume can be very large if the cluster contains many Pods.",
-		4000,
-		false,
-	),
-)

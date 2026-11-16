@@ -18,20 +18,23 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // LogGroup holds a collection of logs that belong to the same group.
 type LogGroup struct {
+	// Group is the identifier key shared by all logs in this group.
 	Group string
-	Logs  []*log.Log
+	// Logs holds the slice of logs belonging to this group.
+	Logs []*log.Log
 }
 
 // LogGroupMap is a map of log groups, where the key is the group identifier.

@@ -19,45 +19,110 @@ import (
 	"strings"
 )
 
+const (
+	// EnvoyResponseFlagNoError indicates no response flag was set by Envoy.
+	EnvoyResponseFlagNoError EnvoyResponseFlag = "-"
+	// EnvoyResponseFlagNoHealthyUpstream indicates no healthy upstream host was available.
+	EnvoyResponseFlagNoHealthyUpstream EnvoyResponseFlag = "UH"
+	// EnvoyResponseFlagUpstreamConnectionFailure indicates a connection failure to the upstream host.
+	EnvoyResponseFlagUpstreamConnectionFailure EnvoyResponseFlag = "UF"
+	// EnvoyResponseFlagUpstreamOverflow indicates upstream circuit breaker overflow.
+	EnvoyResponseFlagUpstreamOverflow EnvoyResponseFlag = "UO"
+	// EnvoyResponseFlagNoRouteFound indicates no matching route was found for the request.
+	EnvoyResponseFlagNoRouteFound EnvoyResponseFlag = "NR"
+	// EnvoyResponseFlagUpstreamRetryLimitExceeded indicates the upstream retry limit was exceeded.
+	EnvoyResponseFlagUpstreamRetryLimitExceeded EnvoyResponseFlag = "URX"
+	// EnvoyResponseFlagNoClusterFound indicates no matching upstream cluster was found.
+	EnvoyResponseFlagNoClusterFound EnvoyResponseFlag = "NC"
+	// EnvoyResponseFlagDurationTimeout indicates the request exceeded the configured max duration timeout.
+	EnvoyResponseFlagDurationTimeout EnvoyResponseFlag = "DT"
+
+	// EnvoyResponseFlagDownstreamConnectionTermination indicates the downstream connection was terminated (HTTP only).
+	EnvoyResponseFlagDownstreamConnectionTermination EnvoyResponseFlag = "DC"
+	// EnvoyResponseFlagFailedLocalHealthCheck indicates the request failed a local health check.
+	EnvoyResponseFlagFailedLocalHealthCheck EnvoyResponseFlag = "LH"
+	// EnvoyResponseFlagUpstreamRequestTimeout indicates the upstream request timed out.
+	EnvoyResponseFlagUpstreamRequestTimeout EnvoyResponseFlag = "UT"
+	// EnvoyResponseFlagLocalReset indicates the stream was reset locally by Envoy.
+	EnvoyResponseFlagLocalReset EnvoyResponseFlag = "LR"
+	// EnvoyResponseFlagUpstreamRemoteReset indicates the stream was reset remotely by the upstream.
+	EnvoyResponseFlagUpstreamRemoteReset EnvoyResponseFlag = "UR"
+	// EnvoyResponseFlagUpstreamConnectionTermination indicates the upstream connection was terminated.
+	EnvoyResponseFlagUpstreamConnectionTermination EnvoyResponseFlag = "UC"
+	// EnvoyResponseFlagDelayInjected indicates fault injection delay was applied.
+	EnvoyResponseFlagDelayInjected EnvoyResponseFlag = "DI"
+	// EnvoyResponseFlagFaultInjected indicates a fault injection abort was applied.
+	EnvoyResponseFlagFaultInjected EnvoyResponseFlag = "FI"
+	// EnvoyResponseFlagRateLimited indicates the request was rate limited.
+	EnvoyResponseFlagRateLimited EnvoyResponseFlag = "RL"
+	// EnvoyResponseFlagUnauthorizedExternalService indicates authorization failed for an external service.
+	EnvoyResponseFlagUnauthorizedExternalService EnvoyResponseFlag = "UAEX"
+	// EnvoyResponseFlagRateLimitServiceError indicates an error calling the rate limit service.
+	EnvoyResponseFlagRateLimitServiceError EnvoyResponseFlag = "RLSE"
+	// EnvoyResponseFlagInvalidEnvoyRequestHeaders indicates invalid Envoy request headers were received.
+	EnvoyResponseFlagInvalidEnvoyRequestHeaders EnvoyResponseFlag = "IH"
+	// EnvoyResponseFlagStreamIdleTimeout indicates the stream exceeded its idle timeout.
+	EnvoyResponseFlagStreamIdleTimeout EnvoyResponseFlag = "SI"
+	// EnvoyResponseFlagDownstreamProtocolError indicates a downstream protocol error occurred.
+	EnvoyResponseFlagDownstreamProtocolError EnvoyResponseFlag = "DPE"
+	// EnvoyResponseFlagUpstreamProtocolError indicates an upstream protocol error occurred.
+	EnvoyResponseFlagUpstreamProtocolError EnvoyResponseFlag = "UPE"
+	// EnvoyResponseFlagUpstreamMaxStreamDurationReached indicates the upstream reached max stream duration.
+	EnvoyResponseFlagUpstreamMaxStreamDurationReached EnvoyResponseFlag = "UMSDR"
+	// EnvoyResponseFlagResponseFromCacheFilter indicates the response was served from the cache filter.
+	EnvoyResponseFlagResponseFromCacheFilter EnvoyResponseFlag = "RFCF"
+	// EnvoyResponseFlagNoFilterConfigFound indicates no filter configuration was found.
+	EnvoyResponseFlagNoFilterConfigFound EnvoyResponseFlag = "NFCF"
+	// EnvoyResponseFlagOverloadManagerTerminated indicates the stream was terminated by the overload manager.
+	EnvoyResponseFlagOverloadManagerTerminated EnvoyResponseFlag = "OM"
+	// EnvoyResponseFlagDnsResolutionFailed indicates DNS resolution failed for the upstream.
+	EnvoyResponseFlagDnsResolutionFailed EnvoyResponseFlag = "DF"
+	// EnvoyResponseFlagDropOverload indicates the request was dropped due to overload.
+	EnvoyResponseFlagDropOverload EnvoyResponseFlag = "DO"
+	// EnvoyResponseFlagDownstreamRemoteReset indicates the stream was reset remotely by the downstream.
+	EnvoyResponseFlagDownstreamRemoteReset EnvoyResponseFlag = "DR"
+	// EnvoyResponseFlagUnconditionalDropOverload indicates the request was dropped due to unconditional drop overload.
+	EnvoyResponseFlagUnconditionalDropOverload EnvoyResponseFlag = "UDO"
+)
+
+// EnvoyResponseFlagDescriptions maps Envoy response flags to their human-readable descriptions.
+var EnvoyResponseFlagDescriptions = map[EnvoyResponseFlag]string{
+	EnvoyResponseFlagNoError:                          "OK",
+	EnvoyResponseFlagNoHealthyUpstream:                "No healthy upstream",
+	EnvoyResponseFlagUpstreamConnectionFailure:        "Upstream connection failure",
+	EnvoyResponseFlagUpstreamOverflow:                 "Upstream overflow",
+	EnvoyResponseFlagNoRouteFound:                     "No route found",
+	EnvoyResponseFlagUpstreamRetryLimitExceeded:       "Upstream retry limit exceeded",
+	EnvoyResponseFlagNoClusterFound:                   "No cluster found",
+	EnvoyResponseFlagDurationTimeout:                  "Duration timeout",
+	EnvoyResponseFlagDownstreamConnectionTermination:  "Downstream connection termination",
+	EnvoyResponseFlagFailedLocalHealthCheck:           "Failed local health check",
+	EnvoyResponseFlagUpstreamRequestTimeout:           "Upstream request timeout",
+	EnvoyResponseFlagLocalReset:                       "Local reset",
+	EnvoyResponseFlagUpstreamRemoteReset:              "Upstream remote reset",
+	EnvoyResponseFlagUpstreamConnectionTermination:    "Upstream connection termination",
+	EnvoyResponseFlagDelayInjected:                    "Delay injected",
+	EnvoyResponseFlagFaultInjected:                    "Fault injected",
+	EnvoyResponseFlagRateLimited:                      "Rate limited",
+	EnvoyResponseFlagUnauthorizedExternalService:      "Unauthorized external service",
+	EnvoyResponseFlagRateLimitServiceError:            "Rate limit service error",
+	EnvoyResponseFlagInvalidEnvoyRequestHeaders:       "Invalid Envoy request headers",
+	EnvoyResponseFlagStreamIdleTimeout:                "Stream idle timeout",
+	EnvoyResponseFlagDownstreamProtocolError:          "Downstream protocol error",
+	EnvoyResponseFlagUpstreamProtocolError:            "Upstream protocol error",
+	EnvoyResponseFlagUpstreamMaxStreamDurationReached: "Upstream max stream duration reached",
+	EnvoyResponseFlagResponseFromCacheFilter:          "Response from cache filter",
+	EnvoyResponseFlagNoFilterConfigFound:              "No filter config found",
+	EnvoyResponseFlagOverloadManagerTerminated:        "Overload manager terminated",
+	EnvoyResponseFlagDnsResolutionFailed:              "DNS resolution failed",
+	EnvoyResponseFlagDropOverload:                     "Drop overload",
+	EnvoyResponseFlagDownstreamRemoteReset:            "Downstream remote reset",
+	EnvoyResponseFlagUnconditionalDropOverload:        "Unconditional drop overload",
+}
+
 // EnvoyResponseFlag represents standard Envoy response flags.
 // See: https://github.com/envoyproxy/envoy/blob/main/docs/root/configuration/advanced/substitution_formatter.rst
 type EnvoyResponseFlag string
-
-const (
-	EnvoyResponseFlagNoError                    EnvoyResponseFlag = "-"
-	EnvoyResponseFlagNoHealthyUpstream          EnvoyResponseFlag = "UH"
-	EnvoyResponseFlagUpstreamConnectionFailure  EnvoyResponseFlag = "UF"
-	EnvoyResponseFlagUpstreamOverflow           EnvoyResponseFlag = "UO"
-	EnvoyResponseFlagNoRouteFound               EnvoyResponseFlag = "NR"
-	EnvoyResponseFlagUpstreamRetryLimitExceeded EnvoyResponseFlag = "URX"
-	EnvoyResponseFlagNoClusterFound             EnvoyResponseFlag = "NC"
-	EnvoyResponseFlagDurationTimeout            EnvoyResponseFlag = "DT"
-
-	// HTTP only
-	EnvoyResponseFlagDownstreamConnectionTermination  EnvoyResponseFlag = "DC"
-	EnvoyResponseFlagFailedLocalHealthCheck           EnvoyResponseFlag = "LH"
-	EnvoyResponseFlagUpstreamRequestTimeout           EnvoyResponseFlag = "UT"
-	EnvoyResponseFlagLocalReset                       EnvoyResponseFlag = "LR"
-	EnvoyResponseFlagUpstreamRemoteReset              EnvoyResponseFlag = "UR"
-	EnvoyResponseFlagUpstreamConnectionTermination    EnvoyResponseFlag = "UC"
-	EnvoyResponseFlagDelayInjected                    EnvoyResponseFlag = "DI"
-	EnvoyResponseFlagFaultInjected                    EnvoyResponseFlag = "FI"
-	EnvoyResponseFlagRateLimited                      EnvoyResponseFlag = "RL"
-	EnvoyResponseFlagUnauthorizedExternalService      EnvoyResponseFlag = "UAEX"
-	EnvoyResponseFlagRateLimitServiceError            EnvoyResponseFlag = "RLSE"
-	EnvoyResponseFlagInvalidEnvoyRequestHeaders       EnvoyResponseFlag = "IH"
-	EnvoyResponseFlagStreamIdleTimeout                EnvoyResponseFlag = "SI"
-	EnvoyResponseFlagDownstreamProtocolError          EnvoyResponseFlag = "DPE"
-	EnvoyResponseFlagUpstreamProtocolError            EnvoyResponseFlag = "UPE"
-	EnvoyResponseFlagUpstreamMaxStreamDurationReached EnvoyResponseFlag = "UMSDR"
-	EnvoyResponseFlagResponseFromCacheFilter          EnvoyResponseFlag = "RFCF"
-	EnvoyResponseFlagNoFilterConfigFound              EnvoyResponseFlag = "NFCF"
-	EnvoyResponseFlagOverloadManagerTerminated        EnvoyResponseFlag = "OM"
-	EnvoyResponseFlagDnsResolutionFailed              EnvoyResponseFlag = "DF"
-	EnvoyResponseFlagDropOverload                     EnvoyResponseFlag = "DO"
-	EnvoyResponseFlagDownstreamRemoteReset            EnvoyResponseFlag = "DR"
-	EnvoyResponseFlagUnconditionalDropOverload        EnvoyResponseFlag = "UDO"
-)
 
 // EnvoyResponseFlags represents a collection of Envoy response flags.
 type EnvoyResponseFlags []EnvoyResponseFlag
@@ -118,41 +183,6 @@ func (f EnvoyResponseFlags) Contains(flag EnvoyResponseFlag) bool {
 		}
 	}
 	return false
-}
-
-// EnvoyResponseFlagDescriptions maps Envoy response flags to their human-readable descriptions.
-var EnvoyResponseFlagDescriptions = map[EnvoyResponseFlag]string{
-	EnvoyResponseFlagNoError:                          "OK",
-	EnvoyResponseFlagNoHealthyUpstream:                "No healthy upstream",
-	EnvoyResponseFlagUpstreamConnectionFailure:        "Upstream connection failure",
-	EnvoyResponseFlagUpstreamOverflow:                 "Upstream overflow",
-	EnvoyResponseFlagNoRouteFound:                     "No route found",
-	EnvoyResponseFlagUpstreamRetryLimitExceeded:       "Upstream retry limit exceeded",
-	EnvoyResponseFlagNoClusterFound:                   "No cluster found",
-	EnvoyResponseFlagDurationTimeout:                  "Duration timeout",
-	EnvoyResponseFlagDownstreamConnectionTermination:  "Downstream connection termination",
-	EnvoyResponseFlagFailedLocalHealthCheck:           "Failed local health check",
-	EnvoyResponseFlagUpstreamRequestTimeout:           "Upstream request timeout",
-	EnvoyResponseFlagLocalReset:                       "Local reset",
-	EnvoyResponseFlagUpstreamRemoteReset:              "Upstream remote reset",
-	EnvoyResponseFlagUpstreamConnectionTermination:    "Upstream connection termination",
-	EnvoyResponseFlagDelayInjected:                    "Delay injected",
-	EnvoyResponseFlagFaultInjected:                    "Fault injected",
-	EnvoyResponseFlagRateLimited:                      "Rate limited",
-	EnvoyResponseFlagUnauthorizedExternalService:      "Unauthorized external service",
-	EnvoyResponseFlagRateLimitServiceError:            "Rate limit service error",
-	EnvoyResponseFlagInvalidEnvoyRequestHeaders:       "Invalid Envoy request headers",
-	EnvoyResponseFlagStreamIdleTimeout:                "Stream idle timeout",
-	EnvoyResponseFlagDownstreamProtocolError:          "Downstream protocol error",
-	EnvoyResponseFlagUpstreamProtocolError:            "Upstream protocol error",
-	EnvoyResponseFlagUpstreamMaxStreamDurationReached: "Upstream max stream duration reached",
-	EnvoyResponseFlagResponseFromCacheFilter:          "Response from cache filter",
-	EnvoyResponseFlagNoFilterConfigFound:              "No filter config found",
-	EnvoyResponseFlagOverloadManagerTerminated:        "Overload manager terminated",
-	EnvoyResponseFlagDnsResolutionFailed:              "DNS resolution failed",
-	EnvoyResponseFlagDropOverload:                     "Drop overload",
-	EnvoyResponseFlagDownstreamRemoteReset:            "Downstream remote reset",
-	EnvoyResponseFlagUnconditionalDropOverload:        "Unconditional drop overload",
 }
 
 // FormatEnvoySummary formats an Envoy access log summary line with status code, method, request URL, and optional response flags.

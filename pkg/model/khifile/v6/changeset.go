@@ -24,6 +24,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+const (
+	defaultSliceCapacity     = 4
+	maxRetainedSliceCapacity = 32
+	maxRetainedMapEntries    = 32
+)
+
+var timelineChangeSetPool = sync.Pool{
+	New: func() any {
+		return &TimelineChangeSet{
+			Events:    make([]*TimelinePath, 0, defaultSliceCapacity),
+			Revisions: make(map[*TimelinePath][]*StagingRevision),
+			Aliases:   make(map[*TimelinePath]*TimelinePath),
+		}
+	},
+}
+
 // StagingRevision represents a resource revision in parser-side domain model before serialization.
 // It holds the raw information about resource change to be processed and interned later during serialization.
 type StagingRevision struct {
@@ -43,16 +59,22 @@ type StagingRevision struct {
 
 // StagingFieldAnnotation represents a staged metadata annotation for a specific field.
 type StagingFieldAnnotation struct {
-	FieldPath       string
+	// FieldPath is the path to the annotated field in the resource body.
+	FieldPath string
+	// MutatingWebhook holds mutating webhook details if the field was modified by a webhook.
 	MutatingWebhook *StagingMutatingWebhook
 }
 
 // StagingMutatingWebhook represents the payload for a mutating webhook annotation.
 type StagingMutatingWebhook struct {
+	// Configuration is the name of the MutatingWebhookConfiguration.
 	Configuration string
-	Webhook       string
-	Round         int32
-	Index         int32
+	// Webhook is the name of the webhook within the configuration.
+	Webhook string
+	// Round is the admission review mutation round index.
+	Round int32
+	// Index is the webhook invocation index within the round.
+	Index int32
 }
 
 // LogChangeSet accumulates metadata updates for a specific log during parsing.
@@ -68,6 +90,20 @@ type LogChangeSet struct {
 	LogType *pb.LogType
 	// Severity represents the styled severity.
 	Severity *pb.Severity
+}
+
+// TimelineChangeSet stages events and revisions for multiple timeline paths.
+// It acts as a localized buffer during the parsing phase of a single log.
+// Instances are pooled via sync.Pool to eliminate allocation overhead.
+type TimelineChangeSet struct {
+	// Log holds the reference to the parser-side log model.
+	Log *log.Log
+	// Events lists timeline paths on which an event is staged for this log.
+	Events []*TimelinePath
+	// Revisions maps timeline paths to their staged resource revisions.
+	Revisions map[*TimelinePath][]*StagingRevision
+	// Aliases maps alias timeline paths to their target timeline paths.
+	Aliases map[*TimelinePath]*TimelinePath
 }
 
 // NewLogChangeSet creates a new LogChangeSet for staging mutations on the given log.
@@ -109,34 +145,6 @@ func (cs *LogChangeSet) Flush(logAcc *LogAccumulator) error {
 		LogType:   cs.LogType,
 		Severity:  cs.Severity,
 	})
-}
-
-const (
-	defaultSliceCapacity     = 4
-	maxRetainedSliceCapacity = 32
-	maxRetainedMapEntries    = 32
-)
-
-var timelineChangeSetPool = sync.Pool{
-	New: func() any {
-		return &TimelineChangeSet{
-			Events:    make([]*TimelinePath, 0, defaultSliceCapacity),
-			Revisions: make(map[*TimelinePath][]*StagingRevision),
-			Aliases:   make(map[*TimelinePath]*TimelinePath),
-		}
-	},
-}
-
-// TimelineChangeSet stages events and revisions for multiple timeline paths.
-// It acts as a localized buffer during the parsing phase of a single log.
-// Instances are pooled via sync.Pool to eliminate allocation overhead.
-type TimelineChangeSet struct {
-	// Log holds the reference to the parser-side log model.
-	Log *log.Log
-
-	Events    []*TimelinePath
-	Revisions map[*TimelinePath][]*StagingRevision
-	Aliases   map[*TimelinePath]*TimelinePath
 }
 
 // NewTimelineChangeSet retrieves a TimelineChangeSet from the pool or allocates a new one.

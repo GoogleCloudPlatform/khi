@@ -26,12 +26,15 @@ import (
 
 // Builder orchestrates the accumulators, pools, and final file generation for KHI v6 format.
 type Builder struct {
-	idGenerator         *id.Generator
-	writer              *Writer
-	internPool          *InternPool
-	serverInternPool    *InternPool
+	idGenerator      *id.Generator
+	writer           *Writer
+	internPool       *InternPool
+	serverInternPool *InternPool
+	// TimelineAccumulator accumulates timeline paths, events, and revisions.
 	TimelineAccumulator *TimelineAccumulator
-	LogAccumulator      *LogAccumulator
+	// LogAccumulator accumulates parsed log entries and streams log chunks.
+	LogAccumulator *LogAccumulator
+	// MetadataAccumulator accumulates inspection metadata items.
 	MetadataAccumulator *MetadataAccumulator
 }
 

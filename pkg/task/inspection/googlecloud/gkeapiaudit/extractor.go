@@ -26,7 +26,9 @@ var (
 
 // GKEAuditLogResourceFieldSet represents the resource-related fields extracted from a GKE audit log entry.
 type GKEAuditLogResourceFieldSet struct {
-	ClusterName  string
+	// ClusterName is the GKE cluster name from the log resource labels.
+	ClusterName string
+	// NodepoolName is the GKE node pool name from resource labels or desiredNodePoolId.
 	NodepoolName string
 }
 

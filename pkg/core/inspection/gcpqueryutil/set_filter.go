@@ -28,37 +28,24 @@ import (
 // * `-item` : a subtractive element
 // * `@alias_name` :  alias is predefined set of items. It will be expanded in the additive field.
 
-type SetFilterAliasToItemsMap = map[string][]string
-
 var validElementRegex = regexp.MustCompile(`^[@a-zA-Z0-9\-_]+$`)
 
+// SetFilterAliasToItemsMap maps alias names (without the leading @) to their expanded filter item lists.
+type SetFilterAliasToItemsMap = map[string][]string
+
+// SetFilterParseResult holds the parsed additive items, subtractive items, mode, and any validation error from a set filter.
 type SetFilterParseResult struct {
-	Additives       []string
-	Subtractives    []string
+	// Additives holds the sorted list of items explicitly included by the filter.
+	Additives []string
+	// Subtractives holds the sorted list of items excluded by the filter.
+	Subtractives []string
+	// ValidationError describes a syntax or alias lookup error when the filter string is invalid.
 	ValidationError string
-	// The default mode is additive mode. The empty filter means none should be selected.
-	// SubtractMode will match anything. The empty filter means anything should be selected, this field will be true when user specify @any in the field.
+	// SubtractMode indicates whether the filter matches anything except Subtractives (when @any is specified) instead of additive matching.
 	SubtractMode bool
 }
 
-// AdditivesWithQuotes returns the additive filter item with wrapped by quotes for every items.
-func (r *SetFilterParseResult) AdditivesWithQuotes() []string {
-	result := make([]string, 0, len(r.Additives))
-	for _, additive := range r.Additives {
-		result = append(result, fmt.Sprintf(`"%s"`, additive))
-	}
-	return result
-}
-
-// SubtractivesWithQuotes returns the subtractive filter item with wrapped by quote for every items.
-func (r *SetFilterParseResult) SubtractivesWithQuotes() []string {
-	result := make([]string, 0, len(r.Subtractives))
-	for _, subtractive := range r.Subtractives {
-		result = append(result, fmt.Sprintf(`"%s"`, subtractive))
-	}
-	return result
-}
-
+// ParseSetFilter parses a space-separated set filter string using the given aliases and matching options.
 func ParseSetFilter(filter string, aliases SetFilterAliasToItemsMap, allowAny bool, allowSubtract bool, convertToLowerCase bool) (*SetFilterParseResult, error) {
 	filterElements := strings.Split(filter, " ")
 	for i := 0; i < len(filterElements); i++ {
@@ -152,4 +139,22 @@ func ParseSetFilter(filter string, aliases SetFilterAliasToItemsMap, allowAny bo
 		result.Subtractives = ToLowerForStringArray(result.Subtractives)
 	}
 	return result, nil
+}
+
+// AdditivesWithQuotes returns the additive filter item with wrapped by quotes for every items.
+func (r *SetFilterParseResult) AdditivesWithQuotes() []string {
+	result := make([]string, 0, len(r.Additives))
+	for _, additive := range r.Additives {
+		result = append(result, fmt.Sprintf(`"%s"`, additive))
+	}
+	return result
+}
+
+// SubtractivesWithQuotes returns the subtractive filter item with wrapped by quote for every items.
+func (r *SetFilterParseResult) SubtractivesWithQuotes() []string {
+	result := make([]string, 0, len(r.Subtractives))
+	for _, subtractive := range r.Subtractives {
+		result = append(result, fmt.Sprintf(`"%s"`, subtractive))
+	}
+	return result
 }

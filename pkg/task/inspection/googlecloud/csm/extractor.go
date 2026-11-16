@@ -25,6 +25,13 @@ import (
 	commoncsmcp "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/csmcp"
 )
 
+const (
+	// AccessLogTypeClient identifies an Envoy access log recorded by a client sidecar proxy.
+	AccessLogTypeClient AccessLogType = "client"
+	// AccessLogTypeServer identifies an Envoy access log recorded by a server sidecar proxy.
+	AccessLogTypeServer AccessLogType = "server"
+)
+
 var (
 	pathResponseFlag           = structured.CompileFieldPath("labels.response_flag")
 	pathSourceNamespace        = structured.CompileFieldPath("labels.source_namespace")
@@ -45,29 +52,52 @@ var (
 	pathTextPayload            = structured.CompileFieldPath("textPayload")
 )
 
+// AccessLogType identifies whether an Istio access log was emitted by a client or server proxy.
 type AccessLogType string
-
-const (
-	AccessLogTypeClient AccessLogType = "client"
-	AccessLogTypeServer AccessLogType = "server"
-)
 
 // IstioAccessLogFieldSet holds structured fields for Istio access logs.
 type IstioAccessLogFieldSet struct {
-	Type          AccessLogType
+	// Type indicates whether the log was recorded by a client or server proxy.
+	Type AccessLogType
+	// ResponseFlags contains parsed Envoy response flags explaining the request outcome.
 	ResponseFlags logutil.EnvoyResponseFlags
 
+	// SourceNamespace is the Kubernetes namespace of the source workload.
 	SourceNamespace string
-	SourceName      string
+	// SourceName is the name of the source workload or pod.
+	SourceName string
 
-	DestinationNamespace        string
-	DestinationName             string
-	DestinationServiceName      string
+	// DestinationNamespace is the Kubernetes namespace of the destination workload.
+	DestinationNamespace string
+	// DestinationName is the name of the destination workload or pod.
+	DestinationName string
+	// DestinationServiceName is the short name of the destination Kubernetes Service.
+	DestinationServiceName string
+	// DestinationServiceNamespace is the namespace parsed from the destination service host.
 	DestinationServiceNamespace string
 
-	ReporterPodName       string
-	ReporterPodNamespace  string
+	// ReporterPodName is the name of the pod whose proxy reported this access log.
+	ReporterPodName string
+	// ReporterPodNamespace is the namespace of the reporting pod.
+	ReporterPodNamespace string
+	// ReporterContainerName is the container name of the reporting proxy.
 	ReporterContainerName string
+}
+
+// CSMControlPlaneLogFieldSet holds structured fields extracted from CSM control plane logs.
+type CSMControlPlaneLogFieldSet struct {
+	// ProjectID is the GCP project ID where the control plane runs.
+	ProjectID string
+	// Location is the GCP region or zone of the control plane resource.
+	Location string
+	// Revision is the Istio control plane revision label.
+	Revision string
+	// Message is the log payload text extracted from jsonPayload or textPayload.
+	Message string
+	// Timestamp is the optional log entry timestamp parsed from jsonPayload.timestamp.
+	Timestamp *time.Time
+	// Pods lists Kubernetes pod identifiers referenced in the control plane log message.
+	Pods []commoncsmcp.PodIdentifier
 }
 
 // ExtractIstioAccessLog extracts Istio access log fields from a NodeReader.
@@ -108,16 +138,6 @@ func ExtractIstioAccessLog(reader *structured.NodeReader) (IstioAccessLogFieldSe
 	}
 
 	return result, nil
-}
-
-// CSMControlPlaneLogFieldSet holds structured fields extracted from CSM control plane logs.
-type CSMControlPlaneLogFieldSet struct {
-	ProjectID string
-	Location  string
-	Revision  string
-	Message   string
-	Timestamp *time.Time
-	Pods      []commoncsmcp.PodIdentifier
 }
 
 // ExtractCSMControlPlaneLog extracts CSM control plane log fields from a NodeReader.

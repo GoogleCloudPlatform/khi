@@ -17,11 +17,12 @@ package k8saudit_impl
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/google/go-cmp/cmp"
 )
 
 func newTestK8sAuditLogFieldSet(verb *pb.Verb, apiVersion string, pluralKind string) k8saudit.K8sAuditLogFieldSet {

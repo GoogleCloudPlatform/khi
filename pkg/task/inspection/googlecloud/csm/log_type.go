@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeCSMTrafficLog is the registered timeline style LogType for Cloud Service Mesh traffic logs.
 	LogTypeCSMTrafficLog = style.MustRegisterLogType("CSM traffic", "Cloud Service Mesh Traffic Logs", style.MustForceConvertSRGBHex("#FF8500"), style.ColorWhite)
 )

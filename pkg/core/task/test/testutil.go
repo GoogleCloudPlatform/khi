@@ -22,18 +22,11 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
+var _ coretask.Task[any] = (*retainedTask[any])(nil)
+
 // retainedTask overlays the result retention label on a task so that its result stays readable after the graph finishes.
 type retainedTask[T any] struct {
 	coretask.Task[T]
-}
-
-var _ coretask.Task[any] = (*retainedTask[any])(nil)
-
-// Labels returns the labels of the wrapped task with the result retention label set to true.
-func (r *retainedTask[T]) Labels() *typedmap.ReadonlyTypedMap {
-	retentionLabels := typedmap.NewTypedMap()
-	coretask.NewTaskResultRetentionLabel(true).Write(retentionLabels)
-	return typedmap.Merge(r.Task.Labels(), retentionLabels)
 }
 
 // RunTaskWithDependency runs a task as a graph. Supply the dependencies of the main task to resolve the graph correctly.
@@ -75,4 +68,11 @@ func RunTaskWithDependency[T any](baseContext context.Context, mainTask coretask
 	}
 
 	return result, nil
+}
+
+// Labels returns the labels of the wrapped task with the result retention label set to true.
+func (r *retainedTask[T]) Labels() *typedmap.ReadonlyTypedMap {
+	retentionLabels := typedmap.NewTypedMap()
+	coretask.NewTaskResultRetentionLabel(true).Write(retentionLabels)
+	return typedmap.Merge(r.Task.Labels(), retentionLabels)
 }

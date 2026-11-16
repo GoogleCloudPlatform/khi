@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeSerialPort is the registered timeline style TimelineType for node serial ports.
 	TimelineTypeSerialPort = style.MustRegisterTimelineType(
 		"serialport",
 		"Serial port logs of the node",

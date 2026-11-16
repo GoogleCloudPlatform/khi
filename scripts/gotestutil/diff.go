@@ -33,17 +33,64 @@ var hunkHeaderRegex = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @
 
 // DiffOptions configures how VCS changes are collected.
 type DiffOptions struct {
-	VCS    string
-	Base   string
+	// VCS selects the version control backend ("auto", "jj", or "git").
+	VCS string
+	// Base specifies the base revision for differential comparison.
+	Base string
+	// Target specifies the target revision for differential comparison.
 	Target string
 }
 
-// DiffResult holds the resolved VCS metadata and changed 1-based line numbers per production and test Go file.
+// DiffResult holds the resolved VCS metadata and changed 1-based line numbers per file.
 type DiffResult struct {
-	VCS              string
-	BaseLabel        string
-	ChangedLines     map[string]map[int]struct{}
+	// VCS is the resolved version control backend ("jj" or "git").
+	VCS string
+	// BaseLabel is the human-readable base revision label.
+	BaseLabel string
+	// ResolvedBaseRev is the resolved revision identifier used to read base files.
+	ResolvedBaseRev string
+	// ChangedLines maps modified Go production file paths to changed 1-based line sets.
+	ChangedLines map[string]map[int]struct{}
+	// ChangedTestLines maps modified Go test file paths to changed 1-based line sets.
 	ChangedTestLines map[string]map[int]struct{}
+	// TSChangedLines maps modified TypeScript production file paths to changed 1-based line sets.
+	TSChangedLines map[string]map[int]struct{}
+	// TSChangedTestLines maps modified TypeScript spec file paths to changed 1-based line sets.
+	TSChangedTestLines map[string]map[int]struct{}
+	// DeletedGoFiles lists Go file paths deleted relative to the base revision.
+	DeletedGoFiles []string
+	// OtherChangedGoFiles lists modified Go files outside primary analysis targets.
+	OtherChangedGoFiles []string
+}
+
+// UnifiedDiffDetails holds parsed line maps and deleted/non-target Go files extracted from a unified diff stream.
+type UnifiedDiffDetails struct {
+	// ProdLines maps modified Go production file paths to changed 1-based line sets.
+	ProdLines map[string]map[int]struct{}
+	// TestLines maps modified Go test file paths to changed 1-based line sets.
+	TestLines map[string]map[int]struct{}
+	// TSLines maps modified TypeScript production file paths to changed 1-based line sets.
+	TSLines map[string]map[int]struct{}
+	// TSTestLines maps modified TypeScript spec file paths to changed 1-based line sets.
+	TSTestLines map[string]map[int]struct{}
+	// DeletedGoFiles lists Go file paths deleted in the diff.
+	DeletedGoFiles []string
+	// OtherChangedGoFiles lists modified Go files outside primary analysis targets.
+	OtherChangedGoFiles []string
+}
+
+type diffScanState struct {
+	prodLines           map[string]map[int]struct{}
+	testLines           map[string]map[int]struct{}
+	tsLines             map[string]map[int]struct{}
+	tsTestLines         map[string]map[int]struct{}
+	deletedGoFiles      []string
+	otherChangedGoFiles []string
+	oldFile             string
+	currentFile         string
+	targetMap           map[string]map[int]struct{}
+	inHunk              bool
+	newLine             int
 }
 
 // IsTargetGoFile reports whether relPath is a non-test Go source file eligible for coverage and mutation analysis.
@@ -64,111 +111,77 @@ func IsTargetGoTestFile(relPath string) bool {
 	return isAllowedGoPath(clean)
 }
 
-func isAllowedGoPath(clean string) bool {
-	excludedPrefixes := []string{
-		"pkg/generated/",
-		"pkg/testutil/",
-		"web/",
+// IsTargetProductionTSFile reports whether relPath is a production TypeScript source file eligible for analysis.
+func IsTargetProductionTSFile(relPath string) bool {
+	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
+	if !strings.HasPrefix(clean, "web/src/") || !strings.HasSuffix(clean, ".ts") {
+		return false
 	}
-	for _, prefix := range excludedPrefixes {
-		if strings.HasPrefix(clean, prefix) {
-			return false
-		}
+	if strings.HasSuffix(clean, ".spec.ts") ||
+		strings.HasSuffix(clean, ".stories.ts") ||
+		strings.HasSuffix(clean, ".d.ts") ||
+		strings.HasSuffix(clean, ".mock.ts") {
+		return false
+	}
+	if strings.HasPrefix(clean, "web/src/app/generated/") ||
+		strings.HasPrefix(clean, "web/src/environments/") {
+		return false
+	}
+	if clean == "web/src/test.ts" || clean == "web/src/polyfills.ts" {
+		return false
+	}
+	if strings.Contains(clean, "/mock/") || strings.Contains(clean, "/test/") {
+		return false
 	}
 	baseName := path.Base(clean)
-	return !strings.HasPrefix(baseName, "zzz_")
+	return !strings.HasPrefix(baseName, "zzz_") && !strings.HasPrefix(baseName, "zzz-")
 }
 
-// ParseUnifiedDiff extracts added and modified 1-based line numbers per production Go file from a unified diff stream.
-func ParseUnifiedDiff(r io.Reader) (map[string]map[int]struct{}, error) {
-	prod, _, err := ParseUnifiedDiffSplit(r)
-	return prod, err
+// IsTargetTSTestFile reports whether relPath is a TypeScript unit spec (*.spec.ts) file under web/src/.
+func IsTargetTSTestFile(relPath string) bool {
+	clean := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
+	if !strings.HasPrefix(clean, "web/src/") || !strings.HasSuffix(clean, ".spec.ts") {
+		return false
+	}
+	if strings.HasPrefix(clean, "web/src/app/generated/") ||
+		strings.HasPrefix(clean, "web/src/environments/") {
+		return false
+	}
+	baseName := path.Base(clean)
+	return !strings.HasPrefix(baseName, "zzz_") && !strings.HasPrefix(baseName, "zzz-")
 }
 
-// ParseUnifiedDiffSplit extracts added and modified 1-based line numbers split into production Go files and *_test.go files.
-func ParseUnifiedDiffSplit(r io.Reader) (map[string]map[int]struct{}, map[string]map[int]struct{}, error) {
-	prodResult := make(map[string]map[int]struct{})
-	testResult := make(map[string]map[int]struct{})
+// ParseUnifiedDiffDetails extracts changed line numbers for Go, *_test.go, TypeScript, and *.spec.ts files plus deleted Go file paths.
+func ParseUnifiedDiffDetails(r io.Reader) (UnifiedDiffDetails, error) {
+	state := &diffScanState{
+		prodLines:   make(map[string]map[int]struct{}),
+		testLines:   make(map[string]map[int]struct{}),
+		tsLines:     make(map[string]map[int]struct{}),
+		tsTestLines: make(map[string]map[int]struct{}),
+	}
 	scanner := bufio.NewScanner(r)
 	// Allow up to 16 MiB per line so diffs containing large generated JSON/lockfiles never fail scanning.
 	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
 
-	var currentFile string
-	var currentIsTest bool
-	inHunk := false
-	newLine := 0
-
 	for scanner.Scan() {
-		line := scanner.Text()
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			currentFile = ""
-			inHunk = false
-		case strings.HasPrefix(line, "--- "):
-			inHunk = false
-		case strings.HasPrefix(line, "+++ "):
-			inHunk = false
-			rawPath := strings.TrimSpace(strings.TrimPrefix(line, "+++ "))
-			if rawPath == "/dev/null" {
-				currentFile = ""
-				continue
-			}
-			rawPath = strings.TrimPrefix(rawPath, "b/")
-			switch {
-			case IsTargetGoFile(rawPath):
-				currentFile = strings.TrimPrefix(filepath.ToSlash(rawPath), "./")
-				currentIsTest = false
-			case IsTargetGoTestFile(rawPath):
-				currentFile = strings.TrimPrefix(filepath.ToSlash(rawPath), "./")
-				currentIsTest = true
-			default:
-				currentFile = ""
-			}
-		case strings.HasPrefix(line, "@@ "):
-			matches := hunkHeaderRegex.FindStringSubmatch(line)
-			if matches == nil {
-				inHunk = false
-				continue
-			}
-			start, err := strconv.Atoi(matches[1])
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to parse hunk start line in %q: %w", line, err)
-			}
-			newLine = start
-			inHunk = currentFile != ""
-		case inHunk:
-			if line == "" {
-				newLine++
-				continue
-			}
-			switch line[0] {
-			case '+':
-				targetMap := prodResult
-				if currentIsTest {
-					targetMap = testResult
-				}
-				lines, ok := targetMap[currentFile]
-				if !ok {
-					lines = make(map[int]struct{})
-					targetMap[currentFile] = lines
-				}
-				lines[newLine] = struct{}{}
-				newLine++
-			case ' ':
-				newLine++
-			case '-', '\\':
-				// Deleted lines and "\ No newline at end of file" markers do not advance the new-file line counter.
-			}
+		if err := state.step(scanner.Text()); err != nil {
+			return UnifiedDiffDetails{}, err
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
-		return nil, nil, fmt.Errorf("failed while scanning unified diff: %w", err)
+		return UnifiedDiffDetails{}, fmt.Errorf("failed while scanning unified diff: %w", err)
 	}
-	return prodResult, testResult, nil
+	return UnifiedDiffDetails{
+		ProdLines:           state.prodLines,
+		TestLines:           state.testLines,
+		TSLines:             state.tsLines,
+		TSTestLines:         state.tsTestLines,
+		DeletedGoFiles:      state.deletedGoFiles,
+		OtherChangedGoFiles: state.otherChangedGoFiles,
+	}, nil
 }
 
-// CollectChangedLines executes VCS diff in repoRoot and returns changed line numbers for matching Go files.
+// CollectChangedLines executes VCS diff in repoRoot and returns changed line numbers for matching Go and TypeScript files.
 func CollectChangedLines(ctx context.Context, repoRoot string, opts DiffOptions) (DiffResult, error) {
 	vcs, err := resolveVCS(ctx, repoRoot, opts.VCS)
 	if err != nil {
@@ -188,6 +201,167 @@ func CollectChangedLines(ctx context.Context, repoRoot string, opts DiffOptions)
 		return collectGitDiff(ctx, repoRoot, opts)
 	default:
 		return DiffResult{}, fmt.Errorf("unsupported vcs %q", vcs)
+	}
+}
+
+// ReadBaseFile reads relPath from the base revision recorded in res.
+// It returns (nil, false, nil) when relPath did not exist at the base revision.
+func ReadBaseFile(ctx context.Context, repoRoot string, res DiffResult, relPath string) ([]byte, bool, error) {
+	cleanPath := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
+	if cleanPath == "" {
+		return nil, false, fmt.Errorf("empty relative file path")
+	}
+	if res.ResolvedBaseRev == "" {
+		return nil, false, fmt.Errorf("missing resolved base revision for vcs %q", res.VCS)
+	}
+	switch res.VCS {
+	case "jj":
+		return readJJBaseFile(ctx, repoRoot, res.ResolvedBaseRev, cleanPath)
+	case "git":
+		return readGitBaseFile(ctx, repoRoot, res.ResolvedBaseRev, cleanPath)
+	default:
+		return nil, false, fmt.Errorf("unsupported vcs %q", res.VCS)
+	}
+}
+
+// RunCommandOutput executes name with args in dir and returns captured stdout or an enriched error containing stderr.
+func RunCommandOutput(ctx context.Context, dir string, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg != "" {
+			return nil, fmt.Errorf("%w: %s", err, errMsg)
+		}
+		return nil, err
+	}
+	return stdout.Bytes(), nil
+}
+
+func isAllowedGoPath(clean string) bool {
+	excludedPrefixes := []string{
+		"pkg/generated/",
+		"pkg/testutil/",
+		"web/",
+	}
+	for _, prefix := range excludedPrefixes {
+		if strings.HasPrefix(clean, prefix) {
+			return false
+		}
+	}
+	baseName := path.Base(clean)
+	return !strings.HasPrefix(baseName, "zzz_")
+}
+
+func (s *diffScanState) step(line string) error {
+	switch {
+	case strings.HasPrefix(line, "diff --git "):
+		s.oldFile = ""
+		s.targetMap = nil
+		s.inHunk = false
+	case strings.HasPrefix(line, "--- "):
+		s.inHunk = false
+		s.handleOldHeader(line)
+	case strings.HasPrefix(line, "+++ "):
+		s.inHunk = false
+		s.handleNewHeader(line)
+	case strings.HasPrefix(line, "@@ "):
+		return s.handleHunkHeader(line)
+	case s.inHunk:
+		s.handleHunkLine(line)
+	}
+	return nil
+}
+
+func (s *diffScanState) handleOldHeader(line string) {
+	rawPath := strings.TrimSpace(strings.TrimPrefix(line, "--- "))
+	if rawPath == "/dev/null" {
+		s.oldFile = ""
+		return
+	}
+	s.oldFile = strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(rawPath, "a/")), "./")
+}
+
+func (s *diffScanState) handleNewHeader(line string) {
+	rawPath := strings.TrimSpace(strings.TrimPrefix(line, "+++ "))
+	if rawPath == "/dev/null" {
+		s.recordDeletedFile()
+		s.targetMap = nil
+		return
+	}
+	clean := strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(rawPath, "b/")), "./")
+	s.selectTargetMap(clean)
+}
+
+func (s *diffScanState) recordDeletedFile() {
+	if !strings.HasSuffix(s.oldFile, ".go") {
+		return
+	}
+	if IsTargetGoFile(s.oldFile) || IsTargetGoTestFile(s.oldFile) {
+		s.deletedGoFiles = append(s.deletedGoFiles, s.oldFile)
+		return
+	}
+	s.otherChangedGoFiles = append(s.otherChangedGoFiles, s.oldFile)
+}
+
+func (s *diffScanState) selectTargetMap(clean string) {
+	switch {
+	case IsTargetGoFile(clean):
+		s.currentFile = clean
+		s.targetMap = s.prodLines
+	case IsTargetGoTestFile(clean):
+		s.currentFile = clean
+		s.targetMap = s.testLines
+	case IsTargetProductionTSFile(clean):
+		s.currentFile = clean
+		s.targetMap = s.tsLines
+	case IsTargetTSTestFile(clean):
+		s.currentFile = clean
+		s.targetMap = s.tsTestLines
+	default:
+		if strings.HasSuffix(clean, ".go") {
+			s.otherChangedGoFiles = append(s.otherChangedGoFiles, clean)
+		}
+		s.targetMap = nil
+	}
+}
+
+func (s *diffScanState) handleHunkHeader(line string) error {
+	matches := hunkHeaderRegex.FindStringSubmatch(line)
+	if matches == nil {
+		s.inHunk = false
+		return nil
+	}
+	start, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return fmt.Errorf("failed to parse hunk start line in %q: %w", line, err)
+	}
+	s.newLine = start
+	s.inHunk = s.targetMap != nil
+	return nil
+}
+
+func (s *diffScanState) handleHunkLine(line string) {
+	if line == "" {
+		s.newLine++
+		return
+	}
+	switch line[0] {
+	case '+':
+		lines, ok := s.targetMap[s.currentFile]
+		if !ok {
+			lines = make(map[int]struct{})
+			s.targetMap[s.currentFile] = lines
+		}
+		lines[s.newLine] = struct{}{}
+		s.newLine++
+	case ' ':
+		s.newLine++
+	case '-', '\\':
+		// Deleted lines and "\ No newline at end of file" markers do not advance the new-file line counter.
 	}
 }
 
@@ -230,23 +404,35 @@ func collectJJDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Diff
 	}
 
 	fromRevset := fmt.Sprintf("fork_point((%s) | (%s))", target, base)
-	diffBytes, err := runCommandOutput(ctx, repoRoot, "jj", "diff", "--git", "--context=0", "--from", fromRevset, "--to", target)
+	resolvedRev := fromRevset
+	diffBytes, err := RunCommandOutput(ctx, repoRoot, "jj", "diff", "--git", "--context=0", "--from", fromRevset, "--to", target)
 	if err != nil {
-		diffBytes, err = runCommandOutput(ctx, repoRoot, "jj", "diff", "--git", "--context=0", "--from", base, "--to", target)
+		resolvedRev = base
+		diffBytes, err = RunCommandOutput(ctx, repoRoot, "jj", "diff", "--git", "--context=0", "--from", base, "--to", target)
 		if err != nil {
 			return DiffResult{}, fmt.Errorf("failed to run jj diff (base=%s, target=%s): %w", base, target, err)
 		}
 	}
+	if idOut, idErr := RunCommandOutput(ctx, repoRoot, "jj", "log", "--ignore-working-copy", "--no-graph", "-T", "commit_id", "-r", resolvedRev); idErr == nil {
+		if trimmed := strings.TrimSpace(string(idOut)); trimmed != "" {
+			resolvedRev = trimmed
+		}
+	}
 
-	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes))
+	details, err := ParseUnifiedDiffDetails(bytes.NewReader(diffBytes))
 	if err != nil {
 		return DiffResult{}, err
 	}
 	return DiffResult{
-		VCS:              "jj",
-		BaseLabel:        base,
-		ChangedLines:     changed,
-		ChangedTestLines: changedTests,
+		VCS:                 "jj",
+		BaseLabel:           base,
+		ResolvedBaseRev:     resolvedRev,
+		ChangedLines:        details.ProdLines,
+		ChangedTestLines:    details.TestLines,
+		TSChangedLines:      details.TSLines,
+		TSChangedTestLines:  details.TSTestLines,
+		DeletedGoFiles:      details.DeletedGoFiles,
+		OtherChangedGoFiles: details.OtherChangedGoFiles,
 	}, nil
 }
 
@@ -260,58 +446,79 @@ func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Dif
 		base = resolved
 	}
 
+	resolvedRev := base
 	var args []string
 	if opts.Target != "" {
 		args = []string{"diff", "--unified=0", base, opts.Target}
 	} else {
 		diffBase := base
-		if mbOut, err := runCommandOutput(ctx, repoRoot, "git", "merge-base", base, "HEAD"); err == nil {
+		if mbOut, err := RunCommandOutput(ctx, repoRoot, "git", "merge-base", base, "HEAD"); err == nil {
 			if trimmed := strings.TrimSpace(string(mbOut)); trimmed != "" {
 				diffBase = trimmed
 			}
 		}
+		resolvedRev = diffBase
 		args = []string{"diff", "--unified=0", diffBase}
 	}
 
-	diffBytes, err := runCommandOutput(ctx, repoRoot, "git", args...)
+	diffBytes, err := RunCommandOutput(ctx, repoRoot, "git", args...)
 	if err != nil {
 		return DiffResult{}, fmt.Errorf("failed to run git %s: %w", strings.Join(args, " "), err)
 	}
 
-	changed, changedTests, err := ParseUnifiedDiffSplit(bytes.NewReader(diffBytes))
+	details, err := ParseUnifiedDiffDetails(bytes.NewReader(diffBytes))
 	if err != nil {
 		return DiffResult{}, err
 	}
 	return DiffResult{
-		VCS:              "git",
-		BaseLabel:        base,
-		ChangedLines:     changed,
-		ChangedTestLines: changedTests,
+		VCS:                 "git",
+		BaseLabel:           base,
+		ResolvedBaseRev:     resolvedRev,
+		ChangedLines:        details.ProdLines,
+		ChangedTestLines:    details.TestLines,
+		TSChangedLines:      details.TSLines,
+		TSChangedTestLines:  details.TSTestLines,
+		DeletedGoFiles:      details.DeletedGoFiles,
+		OtherChangedGoFiles: details.OtherChangedGoFiles,
 	}, nil
+}
+
+func readJJBaseFile(ctx context.Context, repoRoot string, rev string, cleanPath string) ([]byte, bool, error) {
+	listed, err := RunCommandOutput(ctx, repoRoot, "jj", "file", "list", "--ignore-working-copy", "-r", rev, "--", cleanPath)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to query jj base file %s at %s: %w", cleanPath, rev, err)
+	}
+	if strings.TrimSpace(string(listed)) == "" {
+		return nil, false, nil
+	}
+	data, err := RunCommandOutput(ctx, repoRoot, "jj", "file", "show", "--ignore-working-copy", "-r", rev, "--", cleanPath)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to read jj base file %s at %s: %w", cleanPath, rev, err)
+	}
+	return data, true, nil
+}
+
+func readGitBaseFile(ctx context.Context, repoRoot string, rev string, cleanPath string) ([]byte, bool, error) {
+	spec := rev + ":" + cleanPath
+	if _, err := RunCommandOutput(ctx, repoRoot, "git", "cat-file", "-e", spec); err != nil {
+		if _, revErr := RunCommandOutput(ctx, repoRoot, "git", "rev-parse", "--verify", rev); revErr != nil {
+			return nil, false, fmt.Errorf("invalid git base revision %q: %w", rev, revErr)
+		}
+		return nil, false, nil
+	}
+	data, err := RunCommandOutput(ctx, repoRoot, "git", "show", spec)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to read git base file %s: %w", spec, err)
+	}
+	return data, true, nil
 }
 
 func resolveDefaultGitBase(ctx context.Context, repoRoot string) (string, error) {
 	candidates := []string{"origin/main", "main", "HEAD~1", "HEAD"}
 	for _, ref := range candidates {
-		if _, err := runCommandOutput(ctx, repoRoot, "git", "rev-parse", "--verify", ref); err == nil {
+		if _, err := RunCommandOutput(ctx, repoRoot, "git", "rev-parse", "--verify", ref); err == nil {
 			return ref, nil
 		}
 	}
 	return "", fmt.Errorf("could not resolve a default git base revision (tried %s)", strings.Join(candidates, ", "))
-}
-
-func runCommandOutput(ctx context.Context, dir string, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		errMsg := strings.TrimSpace(stderr.String())
-		if errMsg != "" {
-			return nil, fmt.Errorf("%w: %s", err, errMsg)
-		}
-		return nil, err
-	}
-	return stdout.Bytes(), nil
 }

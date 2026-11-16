@@ -20,11 +20,26 @@ import (
 	"log/slog"
 )
 
+var (
+	_ TokenRefresher = (*NopTokenRefresher)(nil)
+	_ TokenRefresher = (*MultiTokenStoreRefresher)(nil)
+)
+
+// TokenRefresher refreshes expired or invalid authentication tokens.
 type TokenRefresher interface {
+	// Refresh attempts to obtain a new valid token.
 	Refresh(ctx context.Context) error
 }
 
+// NopTokenRefresher is a no-op TokenRefresher implementation.
 type NopTokenRefresher struct {
+}
+
+// MultiTokenStoreRefresher implements the TokenRefresher to refresh tokens in multiple stores.
+// This rotate the next token store to be refreshed but it will ignore if the token is assured to be alive from the expiry time.
+type MultiTokenStoreRefresher struct {
+	tokenStores             []TokenStore
+	nextStoreIndexToRefresh int
 }
 
 // Refresh implements TokenRefresher.
@@ -32,13 +47,11 @@ func (n *NopTokenRefresher) Refresh(ctx context.Context) error {
 	return nil
 }
 
-var _ TokenRefresher = (*NopTokenRefresher)(nil)
-
-// MultiTokenStoreRefresher implements the TokenRefresher to refresh tokens in multiple stores.
-// This rotate the next token store to be refreshed but it will ignore if the token is assured to be alive from the expiry time.
-type MultiTokenStoreRefresher struct {
-	tokenStores             []TokenStore
-	nextStoreIndexToRefresh int
+// NewMultiTokenStoreRefresher creates a MultiTokenStoreRefresher rotating across tokenStores.
+func NewMultiTokenStoreRefresher(tokenStores ...TokenStore) *MultiTokenStoreRefresher {
+	return &MultiTokenStoreRefresher{
+		tokenStores: tokenStores,
+	}
 }
 
 // Refresh implements TokenRefresher.
@@ -58,11 +71,3 @@ func (m *MultiTokenStoreRefresher) Refresh(ctx context.Context) error {
 	}
 	return fmt.Errorf("there were no token store to refresh its token")
 }
-
-func NewMultiTokenStoreRefresher(tokenStores ...TokenStore) *MultiTokenStoreRefresher {
-	return &MultiTokenStoreRefresher{
-		tokenStores: tokenStores,
-	}
-}
-
-var _ TokenRefresher = (*MultiTokenStoreRefresher)(nil)

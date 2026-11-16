@@ -18,8 +18,9 @@ import (
 	"container/heap"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 func createHeapTestTask(refID string, hash string) UntypedTask {

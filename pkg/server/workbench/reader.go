@@ -22,12 +22,13 @@ import (
 	"runtime"
 	"sync"
 
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
 )
 
 // ProgressCallback receives streaming progress updates during dataset loading.
@@ -37,26 +38,6 @@ type ProgressCallback func(stage apiv1.OpenWorkbenchResponse_Stage, progressPerc
 type countingReader struct {
 	r         io.Reader
 	bytesRead int64
-}
-
-func (c *countingReader) Read(p []byte) (int, error) {
-	n, err := c.r.Read(p)
-	c.bytesRead += int64(n)
-	return n, err
-}
-
-// formatByteSize formats a byte count into a human-readable string with units (B, KB, MB, GB, etc.).
-func formatByteSize(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
 type rawChunkTask struct {
@@ -436,4 +417,24 @@ func (w *Workbench) ingestTimelineChunk(chunk *khifilev6.TimelineChunk) {
 			w.rawTimelineItems[rawItem.id] = rawItem
 		}
 	}
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// formatByteSize formats a byte count into a human-readable string with units (B, KB, MB, GB, etc.).
+func formatByteSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

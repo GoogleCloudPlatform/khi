@@ -16,20 +16,23 @@ package gcpcommon
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
 // LogFetcher is an interface for fetching logs from Cloud Logging with a given filter
 // and sending them to a specified channel.
 // The implementation must close the destination channel after the query is done.
 type LogFetcher interface {
+	// FetchLogs queries Cloud Logging with the given filter and streams matching entries to dest.
 	FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, container googlecloud.ResourceContainer, resourceContainers []string) error
 }
 
@@ -71,7 +74,7 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 
 	for {
 		entry, err := iter.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 

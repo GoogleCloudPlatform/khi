@@ -27,40 +27,84 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 )
 
+const (
+	defaultTimelineRenderTimeout      = 30 * time.Second
+	defaultTimelineDeviceScaleFactor  = 2
+	fallbackTimelineDeviceScaleFactor = 1
+	// maxTimelinePhysicalDimension caps the rendered backing store dimension so SwiftShader
+	// WebGL2 and Chromium Canvas2D stay safely within an 8192px texture and renderbuffer limit.
+	maxTimelinePhysicalDimension = 8192
+)
+
+var _ TimelineImageRenderer = (*ChromeTimelineImageRenderer)(nil)
+
 // TimelineRenderRequest holds the parameters passed to the frontend /render/mcp-timeline page.
 type TimelineRenderRequest struct {
-	SceneID                string         `json:"sceneId,omitempty"`
-	ParentSceneID          string         `json:"parentSceneId,omitempty"`
-	InspectionID           string         `json:"inspectionId"`
-	TimelineQuery          string         `json:"timelineQuery,omitempty"`
-	TimelineExclusionQuery string         `json:"timelineExclusionQuery,omitempty"`
-	LogQuery               string         `json:"logQuery,omitempty"`
-	ExcludeNoLogs          bool           `json:"excludeNoLogs,omitempty"`
-	FilterStartTimeNs      string         `json:"filterStartTimeNs,omitempty"`
-	FilterEndTimeNs        string         `json:"filterEndTimeNs,omitempty"`
-	ViewStartTimeMs        *int64         `json:"viewStartTimeMs,omitempty"`
-	ViewEndTimeMs          *int64         `json:"viewEndTimeMs,omitempty"`
-	TimelineIDs            []uint32       `json:"timelineIds,omitempty"`
-	MaxDepth               int            `json:"maxDepth,omitempty"`
-	MaxNodes               int            `json:"maxNodes,omitempty"`
-	TimezoneShiftHours     float64        `json:"timezoneShiftHours,omitempty"`
-	Overlay                *scene.Overlay `json:"overlay,omitempty"`
+	// SceneID is the immutable scene ID associated with this render request, if any.
+	SceneID string `json:"sceneId,omitempty"`
+	// ParentSceneID is the parent scene ID from which this request was derived, if any.
+	ParentSceneID string `json:"parentSceneId,omitempty"`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId"`
+	// TimelineQuery is the Timeline CEL filter expression.
+	TimelineQuery string `json:"timelineQuery,omitempty"`
+	// TimelineExclusionQuery is the Timeline CEL exclusion filter expression.
+	TimelineExclusionQuery string `json:"timelineExclusionQuery,omitempty"`
+	// LogQuery is the Log CEL filter expression.
+	LogQuery string `json:"logQuery,omitempty"`
+	// ExcludeNoLogs controls whether timelines with no matching logs are omitted.
+	ExcludeNoLogs bool `json:"excludeNoLogs,omitempty"`
+	// FilterStartTimeNs is the inclusive filter start timestamp in Unix nanoseconds as a string.
+	FilterStartTimeNs string `json:"filterStartTimeNs,omitempty"`
+	// FilterEndTimeNs is the inclusive filter end timestamp in Unix nanoseconds as a string.
+	FilterEndTimeNs string `json:"filterEndTimeNs,omitempty"`
+	// ViewStartTimeMs is the optional viewport start timestamp in Unix milliseconds.
+	ViewStartTimeMs *int64 `json:"viewStartTimeMs,omitempty"`
+	// ViewEndTimeMs is the optional viewport end timestamp in Unix milliseconds.
+	ViewEndTimeMs *int64 `json:"viewEndTimeMs,omitempty"`
+	// TimelineIDs restricts rendering to the specified timelines and their ancestors when non-empty.
+	TimelineIDs []uint32 `json:"timelineIds,omitempty"`
+	// MaxDepth limits the rendered timeline tree depth (0 means unlimited).
+	MaxDepth int `json:"maxDepth,omitempty"`
+	// MaxNodes limits the number of timeline rows rendered.
+	MaxNodes int `json:"maxNodes,omitempty"`
+	// TimezoneShiftHours specifies the UTC offset in hours for the timeline ruler.
+	TimezoneShiftHours float64 `json:"timezoneShiftHours,omitempty"`
+	// Overlay holds resolved visual annotations and evidence cards to render on the timeline.
+	Overlay *scene.Overlay `json:"overlay,omitempty"`
 }
 
 // TimelineRenderResult holds the captured PNG image and measurement metadata.
 type TimelineRenderResult struct {
-	PNGBytes        []byte
-	RenderedCount   int
-	TotalMatched    int
-	HasMore         bool
+	// PNGBytes contains the encoded PNG screenshot bytes.
+	PNGBytes []byte
+	// RenderedCount is the number of timeline rows included in the screenshot.
+	RenderedCount int
+	// TotalMatched is the total number of timelines matching the filter before truncation.
+	TotalMatched int
+	// HasMore reports whether matching timelines were omitted due to MaxNodes.
+	HasMore bool
+	// ViewStartTimeMs is the rendered viewport start timestamp in Unix milliseconds.
 	ViewStartTimeMs int64
-	ViewEndTimeMs   int64
+	// ViewEndTimeMs is the rendered viewport end timestamp in Unix milliseconds.
+	ViewEndTimeMs int64
 }
 
 // TimelineImageRenderer renders timeline views into PNG screenshots.
 type TimelineImageRenderer interface {
+	// RenderTimeline applies req and captures a PNG screenshot of the rendered timeline view.
 	RenderTimeline(ctx context.Context, req TimelineRenderRequest) (*TimelineRenderResult, error)
+	// Close releases resources held by the renderer.
 	Close() error
+}
+
+// ChromeTimelineImageRenderer renders timelines using a warm headless Chrome page over CDP.
+type ChromeTimelineImageRenderer struct {
+	mu        sync.Mutex
+	browser   *cdp.Browser
+	baseURL   string
+	client    *cdp.Client
+	pageReady bool
 }
 
 type timelineMeasurePayload struct {
@@ -73,41 +117,12 @@ type timelineMeasurePayload struct {
 	ViewEndTimeMs   int64 `json:"viewEndTimeMs"`
 }
 
-// ChromeTimelineImageRenderer renders timelines using a warm headless Chrome page over CDP.
-type ChromeTimelineImageRenderer struct {
-	mu        sync.Mutex
-	browser   *cdp.Browser
-	baseURL   string
-	client    *cdp.Client
-	pageReady bool
-}
-
-var _ TimelineImageRenderer = (*ChromeTimelineImageRenderer)(nil)
-
 // NewChromeTimelineImageRenderer creates a new ChromeTimelineImageRenderer using the provided CDP Browser and server baseURL.
 func NewChromeTimelineImageRenderer(browser *cdp.Browser, baseURL string) *ChromeTimelineImageRenderer {
 	return &ChromeTimelineImageRenderer{
 		browser: browser,
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 	}
-}
-
-const (
-	defaultTimelineRenderTimeout      = 30 * time.Second
-	defaultTimelineDeviceScaleFactor  = 2
-	fallbackTimelineDeviceScaleFactor = 1
-	// maxTimelinePhysicalDimension caps the rendered backing store dimension so SwiftShader
-	// WebGL2 and Chromium Canvas2D stay safely within an 8192px texture and renderbuffer limit.
-	maxTimelinePhysicalDimension = 8192
-)
-
-// timelineDeviceScaleFactor returns Retina 2x scale when the physical dimensions fit within
-// WebGL backing store limits, and falls back to 1x for oversized layouts.
-func timelineDeviceScaleFactor(width, height int) int {
-	if max(width, height)*defaultTimelineDeviceScaleFactor > maxTimelinePhysicalDimension {
-		return fallbackTimelineDeviceScaleFactor
-	}
-	return defaultTimelineDeviceScaleFactor
 }
 
 // RenderTimeline applies the requested timeline parameters and captures a PNG screenshot.
@@ -234,4 +249,13 @@ func (r *ChromeTimelineImageRenderer) closeLocked() error {
 		return err
 	}
 	return nil
+}
+
+// timelineDeviceScaleFactor returns Retina 2x scale when the physical dimensions fit within
+// WebGL backing store limits, and falls back to 1x for oversized layouts.
+func timelineDeviceScaleFactor(width, height int) int {
+	if max(width, height)*defaultTimelineDeviceScaleFactor > maxTimelinePhysicalDimension {
+		return fallbackTimelineDeviceScaleFactor
+	}
+	return defaultTimelineDeviceScaleFactor
 }

@@ -28,14 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
-var (
-	// ErrIndexFailed indicates that search index construction encountered a terminal error.
-	ErrIndexFailed = errors.New("search index construction failed")
-)
-
-// IndexState represents the lifecycle phase of the search index construction.
-type IndexState int
-
 const (
 	// IndexStateNotStarted indicates that index construction has not started.
 	IndexStateNotStarted IndexState = iota
@@ -47,13 +39,26 @@ const (
 	IndexStateFailed
 )
 
+var (
+	// ErrIndexFailed indicates that search index construction encountered a terminal error.
+	ErrIndexFailed = errors.New("search index construction failed")
+)
+
+// IndexState represents the lifecycle phase of the search index construction.
+type IndexState int
+
 // IndexProgressEvent encapsulates an index progress notification broadcast to subscribers.
 type IndexProgressEvent struct {
-	InspectionID       string
-	State              IndexState
+	// InspectionID is the identifier of the inspection being indexed.
+	InspectionID string
+	// State is the current lifecycle phase of index construction.
+	State IndexState
+	// ProgressPercentage is the completion percentage from 0 to 100.
 	ProgressPercentage float64
-	Message            string
-	Err                error
+	// Message is a human-readable status message.
+	Message string
+	// Err holds any terminal error encountered during indexing.
+	Err error
 }
 
 // Workbench represents an active in-memory analysis workspace for an inspection dataset.
@@ -316,17 +321,6 @@ func (w *Workbench) AwaitIndex(ctx context.Context) error {
 	}
 }
 
-// notifyIndexSubscribersLocked broadcasts an index progress event to all active subscribers.
-// Caller must hold w.indexMu (either read or write lock).
-func (w *Workbench) notifyIndexSubscribersLocked(event IndexProgressEvent) {
-	for _, ch := range w.indexSubscribers {
-		select {
-		case ch <- event:
-		default:
-		}
-	}
-}
-
 // StartAsyncIndexing initiates background trigram search index construction if not already started.
 func (w *Workbench) StartAsyncIndexing(parentCtx context.Context) {
 	w.indexMu.Lock()
@@ -468,5 +462,16 @@ func (w *Workbench) Close() {
 	}
 	if w.maskedExportJobs != nil {
 		w.maskedExportJobs.Close()
+	}
+}
+
+// notifyIndexSubscribersLocked broadcasts an index progress event to all active subscribers.
+// Caller must hold w.indexMu (either read or write lock).
+func (w *Workbench) notifyIndexSubscribersLocked(event IndexProgressEvent) {
+	for _, ch := range w.indexSubscribers {
+		select {
+		case ch <- event:
+		default:
+		}
 	}
 }

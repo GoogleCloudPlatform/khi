@@ -19,6 +19,10 @@ import (
 	"math"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
@@ -26,9 +30,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func ingestTestPool(wb *Workbench, pool *khifilev6model.InternPool) {

@@ -18,7 +18,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -121,13 +120,11 @@ func TestFindAllWithStarterRunes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := FindAllWithStarterRunes(tc.text, finder, tc.includeFirst, tc.starters...)
-			// Use reflect.DeepEqual for slice comparison, especially since nil != empty slice
 			if tc.want == nil && len(got) == 0 {
-				// This is a valid success case
 				return
 			}
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("FindAllWithStarterRunes() = %v, want %v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("FindAllWithStarterRunes() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

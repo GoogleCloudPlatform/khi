@@ -18,10 +18,11 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 func TestTimelineBuilder_ToProto_SortsRevisionsByTime(t *testing.T) {

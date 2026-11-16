@@ -23,12 +23,16 @@ import (
 // TaskIDPrefix is the prefix for all task IDs in the googlecloudlogk8saudit package.
 const TaskIDPrefix = "cloud.google.com/log/k8s-audit/"
 
+// GCPK8sAuditLogListLogEntriesTaskID is the task ID for querying GCP Kubernetes audit logs from Cloud Logging.
 var GCPK8sAuditLogListLogEntriesTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogProviderRef, "gcp")
 
+// GCPK8sAuditLogExtractorTaskID is the task ID for the GCP Kubernetes audit log extractor task.
 var GCPK8sAuditLogExtractorTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogExtractorRef, "gcp")
 
+// GCPK8sAuditLogErrorExtractorTaskID is the task ID for the GCP Kubernetes audit log error extractor task.
 var GCPK8sAuditLogErrorExtractorTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogErrorExtractorRef, "gcp")
 
+// GCPK8sAuditLogParserTailTaskID is the task ID for the tail task waiting for all GCP Kubernetes audit log mappers.
 var GCPK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonk8saudit.K8sAuditLogParserTailRef, "gcp")
 
 // NEGToBackendServiceDiscoveryTaskID is the task ID for the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.

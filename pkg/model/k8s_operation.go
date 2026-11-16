@@ -34,15 +34,23 @@ var irregularPluralToSingularSuffixMap = map[string]string{
 	"capabilities": "capability",
 }
 
+// KubernetesObjectOperation represents an audited API operation targeting a Kubernetes resource or subresource.
 type KubernetesObjectOperation struct {
-	APIVersion      string
-	PluralKind      string
-	Namespace       string
-	Name            string
+	// APIVersion is the API group/version of the target resource.
+	APIVersion string
+	// PluralKind is the plural resource kind name from the request URI.
+	PluralKind string
+	// Namespace is the target namespace, or empty for cluster-scoped resources.
+	Namespace string
+	// Name is the target resource name, or empty for collection-level operations.
+	Name string
+	// SubResourceName is the subresource name (such as status or scale), if targeted.
 	SubResourceName string
-	Verb            *pb.Verb
+	// Verb is the styled Kubernetes API verb of the operation.
+	Verb *pb.Verb
 }
 
+// ResourcePath returns the normalized lower-case resource path key used to identify the target timeline.
 func (o *KubernetesObjectOperation) ResourcePath() string {
 	if o.SubResourceName != "" {
 		return strings.ToLower(strings.Join([]string{
@@ -71,6 +79,7 @@ func (o *KubernetesObjectOperation) ResourcePath() string {
 	}
 }
 
+// GetSingularKindName converts PluralKind into its singular Kubernetes resource kind name.
 func (o *KubernetesObjectOperation) GetSingularKindName() string {
 	if strings.HasSuffix(o.PluralKind, "ses") || strings.HasSuffix(o.PluralKind, "ies") {
 		for pluralSuffix, singularSuffix := range irregularPluralToSingularSuffixMap {

@@ -22,26 +22,6 @@ import (
 // UnifiedDiffContextLines is the number of unchanged lines shown around each change, matching `diff -u`.
 const UnifiedDiffContextLines = 3
 
-// maxMyersEditDistance bounds the Myers search so that memory stays O(maxMyersEditDistance^2).
-// Beyond this bound, the differing middle section is reported as a full replacement, which is still a valid diff.
-const maxMyersEditDistance = 1000
-
-// LineChangeCount holds the numbers of added and deleted lines in a diff.
-type LineChangeCount struct {
-	Added   int
-	Deleted int
-}
-
-// UnifiedDiff is a unified diff text together with the line change counts over the whole diff.
-type UnifiedDiff struct {
-	// Text is the unified diff including the `---` and `+++` headers, or empty when both inputs are identical.
-	Text    string
-	Changes LineChangeCount
-}
-
-// DiffOpKind classifies a single line operation in a line-based edit script.
-type DiffOpKind int
-
 const (
 	// DiffOpEqual represents an unchanged line present in both inputs.
 	DiffOpEqual DiffOpKind = iota
@@ -51,36 +31,41 @@ const (
 	DiffOpInsert
 )
 
+// maxMyersEditDistance bounds the Myers search so that memory stays O(maxMyersEditDistance^2).
+// Beyond this bound, the differing middle section is reported as a full replacement, which is still a valid diff.
+const maxMyersEditDistance = 1000
+
+// LineChangeCount holds the numbers of added and deleted lines in a diff.
+type LineChangeCount struct {
+	// Added is the number of inserted lines.
+	Added int
+	// Deleted is the number of removed lines.
+	Deleted int
+}
+
+// UnifiedDiff is a unified diff text together with the line change counts over the whole diff.
+type UnifiedDiff struct {
+	// Text is the unified diff including the `---` and `+++` headers, or empty when both inputs are identical.
+	Text string
+	// Changes holds the added and deleted line counts across the entire diff.
+	Changes LineChangeCount
+}
+
+// DiffOpKind classifies a single line operation in a line-based edit script.
+type DiffOpKind int
+
 // DiffOp represents a single line of an edit script.
 //
 // OldPos and NewPos are the 0-based numbers of old and new lines consumed before this operation.
 type DiffOp struct {
-	Kind   DiffOpKind
-	Line   string
+	// Kind classifies the diff operation as equal, delete, or insert.
+	Kind DiffOpKind
+	// Line is the line text without its trailing newline.
+	Line string
+	// OldPos is the 0-based number of old lines consumed before this operation.
 	OldPos int
+	// NewPos is the 0-based number of new lines consumed before this operation.
 	NewPos int
-}
-
-// computeUnifiedDiff returns the line-based unified diff that transforms oldText into newText.
-func computeUnifiedDiff(oldText, newText, oldLabel, newLabel string) UnifiedDiff {
-	ops := DiffLines(SplitLines(oldText), SplitLines(newText))
-	changes := CountDiffOps(ops)
-	if changes.Added == 0 && changes.Deleted == 0 {
-		return UnifiedDiff{}
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "--- %s\n+++ %s\n", oldLabel, newLabel)
-	writeUnifiedHunks(&sb, ops)
-	return UnifiedDiff{
-		Text:    sb.String(),
-		Changes: changes,
-	}
-}
-
-// countLineChanges returns the same change counts as computeUnifiedDiff without rendering the diff text.
-func countLineChanges(oldText, newText string) LineChangeCount {
-	return CountDiffOps(DiffLines(SplitLines(oldText), SplitLines(newText)))
 }
 
 // CountDiffOps totals the added and deleted line counts across ops.
@@ -141,6 +126,28 @@ func DiffLines(a, b []string) []DiffOp {
 		ops = append(ops, DiffOp{Kind: DiffOpEqual, Line: a[oldIdx], OldPos: oldIdx, NewPos: newIdx})
 	}
 	return ops
+}
+
+// computeUnifiedDiff returns the line-based unified diff that transforms oldText into newText.
+func computeUnifiedDiff(oldText, newText, oldLabel, newLabel string) UnifiedDiff {
+	ops := DiffLines(SplitLines(oldText), SplitLines(newText))
+	changes := CountDiffOps(ops)
+	if changes.Added == 0 && changes.Deleted == 0 {
+		return UnifiedDiff{}
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "--- %s\n+++ %s\n", oldLabel, newLabel)
+	writeUnifiedHunks(&sb, ops)
+	return UnifiedDiff{
+		Text:    sb.String(),
+		Changes: changes,
+	}
+}
+
+// countLineChanges returns the same change counts as computeUnifiedDiff without rendering the diff text.
+func countLineChanges(oldText, newText string) LineChangeCount {
+	return CountDiffOps(DiffLines(SplitLines(oldText), SplitLines(newText)))
 }
 
 // fullReplacementOps returns an edit script that deletes every line of a and then inserts every line of b.

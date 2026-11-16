@@ -25,37 +25,24 @@ import (
 // TimelineExampleNameLimit is the maximum number of example names recorded for each timeline type.
 const TimelineExampleNameLimit = 5
 
+var _ Metadata = (*FilterVocabularyMetadata)(nil)
+
 // FilterVocabulary lists the values that filter CEL can match in one inspection.
 type FilterVocabulary struct {
+	// TimelineTypes lists vocabulary summaries for each timeline type.
 	TimelineTypes []TimelineTypeVocabulary `json:"timelineTypes"`
-	LogTypes      []string                 `json:"logTypes"`
+	// LogTypes lists the distinct log types observed in the inspection.
+	LogTypes []string `json:"logTypes"`
 }
 
 // TimelineTypeVocabulary summarizes the timeline names of one timeline type.
 type TimelineTypeVocabulary struct {
-	Label        string   `json:"label"`
-	NameCount    int      `json:"nameCount"`
+	// Label is the display label of the timeline type.
+	Label string `json:"label"`
+	// NameCount is the total number of distinct timeline names of this type.
+	NameCount int `json:"nameCount"`
+	// ExampleNames contains up to TimelineExampleNameLimit sample timeline names.
 	ExampleNames []string `json:"exampleNames"`
-}
-
-// PathKey returns the key of path in timeline CEL, which is the lowercased label.
-func (v TimelineTypeVocabulary) PathKey() string {
-	return strings.ToLower(v.Label)
-}
-
-func cloneFilterVocabulary(v FilterVocabulary) FilterVocabulary {
-	timelineTypes := make([]TimelineTypeVocabulary, len(v.TimelineTypes))
-	for i, tt := range v.TimelineTypes {
-		timelineTypes[i] = TimelineTypeVocabulary{
-			Label:        tt.Label,
-			NameCount:    tt.NameCount,
-			ExampleNames: slices.Clone(tt.ExampleNames),
-		}
-	}
-	return FilterVocabulary{
-		TimelineTypes: timelineTypes,
-		LogTypes:      slices.Clone(v.LogTypes),
-	}
 }
 
 // FilterVocabularyMetadata holds the FilterVocabulary recorded when the inspection result is serialized.
@@ -64,7 +51,10 @@ type FilterVocabularyMetadata struct {
 	vocabulary FilterVocabulary
 }
 
-var _ Metadata = (*FilterVocabularyMetadata)(nil)
+// PathKey returns the key of path in timeline CEL, which is the lowercased label.
+func (v TimelineTypeVocabulary) PathKey() string {
+	return strings.ToLower(v.Label)
+}
 
 // NewFilterVocabularyMetadata creates an empty FilterVocabularyMetadata.
 func NewFilterVocabularyMetadata() *FilterVocabularyMetadata {
@@ -93,4 +83,19 @@ func (*FilterVocabularyMetadata) Labels() *typedmap.ReadonlyTypedMap {
 // ToSerializable returns a snapshot of the filter vocabulary for serialization.
 func (m *FilterVocabularyMetadata) ToSerializable() any {
 	return m.Get()
+}
+
+func cloneFilterVocabulary(v FilterVocabulary) FilterVocabulary {
+	timelineTypes := make([]TimelineTypeVocabulary, len(v.TimelineTypes))
+	for i, tt := range v.TimelineTypes {
+		timelineTypes[i] = TimelineTypeVocabulary{
+			Label:        tt.Label,
+			NameCount:    tt.NameCount,
+			ExampleNames: slices.Clone(tt.ExampleNames),
+		}
+	}
+	return FilterVocabulary{
+		TimelineTypes: timelineTypes,
+		LogTypes:      slices.Clone(v.LogTypes),
+	}
 }

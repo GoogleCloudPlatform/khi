@@ -16,6 +16,7 @@ package logestimator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -27,11 +28,12 @@ import (
 	logging "cloud.google.com/go/logging/apiv2"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/api/iterator"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
-	"github.com/google/go-cmp/cmp"
-	"google.golang.org/api/iterator"
 )
 
 func TestStructuredLogQuery_Generation(t *testing.T) {
@@ -326,7 +328,7 @@ func (f *realLogProbeFetcher) ProbeLogTimestamps(ctx context.Context, container 
 	var timestamps []time.Time
 	for {
 		entry, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {
@@ -829,7 +831,7 @@ protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."`),
 			var pageCount int
 			for {
 				_, err := it.Next()
-				if err == iterator.Done {
+				if errors.Is(err, iterator.Done) {
 					break
 				}
 				if err != nil {

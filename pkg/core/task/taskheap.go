@@ -18,10 +18,10 @@ import (
 	"container/heap"
 )
 
+var _ heap.Interface = (*taskMinHeap)(nil)
+
 // taskMinHeap implements heap.Interface for UntypedTask, sorted deterministically by task implementation ID string.
 type taskMinHeap []UntypedTask
-
-var _ heap.Interface = (*taskMinHeap)(nil)
 
 // Len returns the number of tasks in the heap.
 func (h taskMinHeap) Len() int { return len(h) }

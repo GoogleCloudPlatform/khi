@@ -16,6 +16,7 @@ package inspectioncore_impl
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -81,7 +82,7 @@ func TestInputInspectionNameTask(t *testing.T) {
 			wantHint:       "",
 			wantHintType:   inspectionmetadata.None,
 			verifyAfterExecution: func(t *testing.T, r inspectioncore.InspectionNameRegistry) {
-				if err := r.ReserveName("insp-2", "My Production Cluster"); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+				if err := r.ReserveName("insp-2", "My Production Cluster"); !errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
 					t.Errorf("expected ErrInspectionNameAlreadyInUse for My Production Cluster, got %v", err)
 				}
 			},
@@ -100,7 +101,7 @@ func TestInputInspectionNameTask(t *testing.T) {
 			wantHint:       "inspection name \"Taken Name\" is already in use",
 			wantHintType:   inspectionmetadata.Error,
 			verifyAfterExecution: func(t *testing.T, r inspectioncore.InspectionNameRegistry) {
-				if err := r.ReserveName("insp-3", "Taken Name"); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+				if err := r.ReserveName("insp-3", "Taken Name"); !errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
 					t.Errorf("expected Taken Name to remain reserved by insp-1, got %v", err)
 				}
 			},
@@ -120,10 +121,10 @@ func TestInputInspectionNameTask(t *testing.T) {
 			wantHint:       "inspection name \"Taken Name\" is already in use",
 			wantHintType:   inspectionmetadata.Error,
 			verifyAfterExecution: func(t *testing.T, r inspectioncore.InspectionNameRegistry) {
-				if err := r.ReserveName("other-insp", "Previous Custom Name"); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+				if err := r.ReserveName("other-insp", "Previous Custom Name"); !errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
 					t.Errorf("expected Previous Custom Name to remain reserved for insp-1, got %v", err)
 				}
-				if err := r.ReserveName("other-insp", "Taken Name"); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+				if err := r.ReserveName("other-insp", "Taken Name"); !errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
 					t.Errorf("expected Taken Name to remain reserved for insp-2, got %v", err)
 				}
 			},
@@ -142,7 +143,7 @@ func TestInputInspectionNameTask(t *testing.T) {
 			wantHint:       "inspection name must not be empty",
 			wantHintType:   inspectionmetadata.Error,
 			verifyAfterExecution: func(t *testing.T, r inspectioncore.InspectionNameRegistry) {
-				if err := r.ReserveName("other-insp", "Previous Custom Name"); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+				if err := r.ReserveName("other-insp", "Previous Custom Name"); !errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
 					t.Errorf("expected Previous Custom Name to remain reserved for insp-1, got %v", err)
 				}
 			},

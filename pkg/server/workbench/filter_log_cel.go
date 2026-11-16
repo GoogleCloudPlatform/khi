@@ -21,17 +21,18 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/RoaringBitmap/roaring/v2"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
+
+var _ TimelineFilter = (*LogCELFilter)(nil)
 
 // LogCELFilter evaluates a CEL query against candidate logs associated with retained timelines.
 type LogCELFilter struct {
 	query string
 }
-
-var _ TimelineFilter = (*LogCELFilter)(nil)
 
 // NewLogCELFilter creates a new LogCELFilter with the specified CEL expression.
 func NewLogCELFilter(query string) *LogCELFilter {

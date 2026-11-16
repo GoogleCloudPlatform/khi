@@ -24,23 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/composerairflow"
 )
 
-// componentFilterTask creates a log filter task that filters logs for a specific Composer component.
-func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source taskid.TaskReference[[]*log.Log], componentName string) coretask.Task[[]*log.Log] {
-	return inspectiontaskbase.DefineLogFilterTask(
-		taskID,
-		source,
-		func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
-			return func(ctx context.Context, l *log.Log) bool {
-				component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
-				if err != nil {
-					return false
-				}
-				return component == componentName
-			}
-		},
-	)
-}
-
 // airflowWorkerLogFilterTask filters logs for the Airflow worker component.
 var airflowWorkerLogFilterTask = componentFilterTask(composerairflow.AirflowWorkerLogFilterTaskID, composerairflow.ComposerLogsQueryTaskID.Ref(), "airflow-worker")
 
@@ -65,3 +48,20 @@ var airflowOtherLogFilterTask = inspectiontaskbase.DefineLogFilterTask(
 		}
 	},
 )
+
+// componentFilterTask creates a log filter task that filters logs for a specific Composer component.
+func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source taskid.TaskReference[[]*log.Log], componentName string) coretask.Task[[]*log.Log] {
+	return inspectiontaskbase.DefineLogFilterTask(
+		taskID,
+		source,
+		func(b *coretask.Binder) inspectiontaskbase.LogFilterFunc {
+			return func(ctx context.Context, l *log.Log) bool {
+				component, err := composerairflow.ExtractComposerComponent(l.NodeReader)
+				if err != nil {
+					return false
+				}
+				return component == componentName
+			}
+		},
+	)
+}

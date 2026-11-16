@@ -22,9 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/asynctask"
 )
 
-// UploadStatus represents the status of an upload (Waiting, Uploading, Verifying, or Completed).
-type UploadStatus int
-
 const (
 	// UploadStatusWaiting indicates this file is not yet uploaded or in progress of upload.
 	UploadStatusWaiting UploadStatus = 0
@@ -39,8 +36,14 @@ const (
 	UploadStatusCompleted UploadStatus = 3
 )
 
+var _ Store = (*UploadFileStore)(nil)
+
+// UploadStatus represents the status of an upload (Waiting, Uploading, Verifying, or Completed).
+type UploadStatus int
+
 // UploadFileStore manages file uploads and coordinates non-blocking verification.
 type UploadFileStore struct {
+	// StoreProvider is the underlying storage backend used to read and write uploaded files.
 	StoreProvider        UploadFileStoreProvider
 	resultLock           sync.RWMutex
 	results              map[string]UploadResult
@@ -49,6 +52,17 @@ type UploadFileStore struct {
 	tokenHashes          map[string]struct{}
 	tokenHashLock        sync.RWMutex
 	asyncVerifierManager *asynctask.AsyncTaskManager[string, struct{}]
+}
+
+// NewUploadFileStore creates a new UploadFileStore.
+func NewUploadFileStore(storeProvider UploadFileStoreProvider) *UploadFileStore {
+	return &UploadFileStore{
+		StoreProvider:        storeProvider,
+		results:              make(map[string]UploadResult),
+		verifiers:            make(map[string]UploadFileVerifier),
+		tokenHashes:          make(map[string]struct{}),
+		asyncVerifierManager: asynctask.NewAsyncTaskManager[string, struct{}](),
+	}
 }
 
 // GetUploadToken returns the token to upload a file from the frontend.
@@ -236,16 +250,3 @@ func (s *UploadFileStore) ensureIssuedToken(token UploadToken) error {
 	}
 	return fmt.Errorf("unknown upload token specified")
 }
-
-// NewUploadFileStore creates a new UploadFileStore.
-func NewUploadFileStore(storeProvider UploadFileStoreProvider) *UploadFileStore {
-	return &UploadFileStore{
-		StoreProvider:        storeProvider,
-		results:              make(map[string]UploadResult),
-		verifiers:            make(map[string]UploadFileVerifier),
-		tokenHashes:          make(map[string]struct{}),
-		asyncVerifierManager: asynctask.NewAsyncTaskManager[string, struct{}](),
-	}
-}
-
-var _ Store = (*UploadFileStore)(nil)

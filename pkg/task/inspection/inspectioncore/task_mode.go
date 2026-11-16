@@ -14,12 +14,15 @@
 
 package inspectioncore
 
-type InspectionTaskModeType int
-
 const (
+	// TaskModeDryRun runs tasks to validate parameters and gather metadata without building the full timeline.
 	TaskModeDryRun InspectionTaskModeType = 1
-	TaskModeRun    InspectionTaskModeType = 2
+	// TaskModeRun runs tasks to execute the full log inspection and generate output.
+	TaskModeRun InspectionTaskModeType = 2
 )
+
+// InspectionTaskModeType identifies the execution mode of an inspection task run.
+type InspectionTaskModeType int
 
 // TaskModeToString converts an InspectionTaskModeType to a string.
 func TaskModeToString(mode InspectionTaskModeType) string {

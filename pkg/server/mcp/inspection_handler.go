@@ -24,17 +24,20 @@ import (
 	"sync"
 	"time"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/summary"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 //go:embed templates/*.md.tmpl
 var templateFS embed.FS
+
+var _ DomainHandler = (*InspectionHandler)(nil)
 
 // InspectionHandler exposes inspection types, inspection listing, inspection summaries, and inspection lifecycle tools over MCP.
 type InspectionHandler struct {
@@ -45,7 +48,42 @@ type InspectionHandler struct {
 	cacheMu         sync.Mutex
 }
 
-var _ DomainHandler = (*InspectionHandler)(nil)
+type inspectionTypeRow struct {
+	ID          string
+	Name        string
+	Description string
+}
+
+type inspectionTypesData struct {
+	Types []inspectionTypeRow
+}
+
+type inspectionListRow struct {
+	ID          string
+	Name        string
+	Type        string
+	Status      string
+	TimeRange   string
+	Labels      string
+	InspectTime int64
+}
+
+type inspectionListData struct {
+	Rows []inspectionListRow
+}
+
+type inspectionStatusData struct {
+	ID     string
+	Status string
+}
+
+type inspectionSummaryData struct {
+	ID               string
+	Header           *inspectionmetadata.HeaderMetadata
+	TimeRange        string
+	Summary          summary.Snapshot
+	FilterVocabulary *inspectionmetadata.FilterVocabulary
+}
 
 // NewInspectionHandler creates a new InspectionHandler using the provided InspectionTaskServer.
 // uploadURLIssuer issues the URLs that agents upload files for file form fields to.
@@ -117,16 +155,6 @@ func (h *InspectionHandler) Register(srv *mcpsdk.Server) {
 	}, h.handleCancelInspection)
 }
 
-type inspectionTypeRow struct {
-	ID          string
-	Name        string
-	Description string
-}
-
-type inspectionTypesData struct {
-	Types []inspectionTypeRow
-}
-
 func (h *InspectionHandler) handleListInspectionTypes(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
 	types := h.server.GetAllInspectionTypes()
 	slices.SortFunc(types, func(a, b *coreinspection.InspectionType) int {
@@ -146,20 +174,6 @@ func (h *InspectionHandler) handleListInspectionTypes(ctx context.Context, req *
 	}
 
 	return h.templates.ResourceResult("khi://inspection-types", "inspection_types.md.tmpl", inspectionTypesData{Types: rows})
-}
-
-type inspectionListRow struct {
-	ID          string
-	Name        string
-	Type        string
-	Status      string
-	TimeRange   string
-	Labels      string
-	InspectTime int64
-}
-
-type inspectionListData struct {
-	Rows []inspectionListRow
 }
 
 func (h *InspectionHandler) handleListInspections(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
@@ -235,19 +249,6 @@ func (h *InspectionHandler) handleListInspections(ctx context.Context, req *mcps
 	})
 
 	return h.templates.ResourceResult("khi://inspections", "inspections.md.tmpl", inspectionListData{Rows: rows})
-}
-
-type inspectionStatusData struct {
-	ID     string
-	Status string
-}
-
-type inspectionSummaryData struct {
-	ID               string
-	Header           *inspectionmetadata.HeaderMetadata
-	TimeRange        string
-	Summary          summary.Snapshot
-	FilterVocabulary *inspectionmetadata.FilterVocabulary
 }
 
 func (h *InspectionHandler) handleInspectionResource(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {

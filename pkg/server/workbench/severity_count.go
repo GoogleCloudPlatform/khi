@@ -23,8 +23,10 @@ import (
 
 // SeverityCount represents the number of logs with a severity defined in the style chunk of the inspection.
 type SeverityCount struct {
+	// Severity is the severity definition from the style chunk.
 	Severity *khifilev6.Severity
-	Count    int
+	// Count is the number of logs with this severity.
+	Count int
 }
 
 // severityCounter counts logs per severity definition in the style chunk of the inspection.

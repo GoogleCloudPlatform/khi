@@ -23,9 +23,6 @@ import (
 	"unicode/utf8"
 )
 
-// ColorMode controls whether ANSI terminal escape sequences are emitted.
-type ColorMode string
-
 const (
 	// ColorAuto enables ANSI color only on interactive terminals unless overridden by environment variables.
 	ColorAuto ColorMode = "auto"
@@ -34,6 +31,29 @@ const (
 	// ColorNever disables all ANSI color escape sequences.
 	ColorNever ColorMode = "never"
 )
+
+// ColorMode controls whether ANSI terminal escape sequences are emitted.
+type ColorMode string
+
+// TermStyle formats terminal text with optional ANSI SGR escape sequences.
+type TermStyle struct {
+	// Enabled reports whether ANSI escape sequences are active.
+	Enabled bool
+}
+
+// TableCell holds a table column's plain text (for width calculation) and pre-styled text.
+type TableCell struct {
+	// Plain is the unstyled string used to compute visible rune column width.
+	Plain string
+	// Styled is the rendered string (including optional ANSI codes); defaults to Plain when empty.
+	Styled string
+	// AlignRight right-aligns the cell within its column when true.
+	AlignRight bool
+}
+
+type statWriter interface {
+	Stat() (os.FileInfo, error)
+}
 
 // ParseColorMode validates and normalizes a --color flag value.
 func ParseColorMode(raw string) (ColorMode, error) {
@@ -47,10 +67,6 @@ func ParseColorMode(raw string) (ColorMode, error) {
 	default:
 		return "", fmt.Errorf("invalid --color %q (want auto, always, or never)", raw)
 	}
-}
-
-type statWriter interface {
-	Stat() (os.FileInfo, error)
 }
 
 // IsTerminal reports whether w is backed by a character-device terminal.
@@ -98,19 +114,6 @@ func ResolveInteractive(w io.Writer, getenv func(string) string) bool {
 	return true
 }
 
-// TermStyle formats terminal text with optional ANSI SGR escape sequences.
-type TermStyle struct {
-	// Enabled reports whether ANSI escape sequences are active.
-	Enabled bool
-}
-
-func (s TermStyle) wrap(code string, text string) string {
-	if !s.Enabled || text == "" {
-		return text
-	}
-	return "\x1b[" + code + "m" + text + "\x1b[0m"
-}
-
 // Bold formats text in bold weight when styling is enabled.
 func (s TermStyle) Bold(text string) string { return s.wrap("1", text) }
 
@@ -152,14 +155,11 @@ func (s TermStyle) ScoreText(pct float64, text string) string {
 	return s.BoldRed(text)
 }
 
-// TableCell holds a table column's plain text (for width calculation) and pre-styled text.
-type TableCell struct {
-	// Plain is the unstyled string used to compute visible rune column width.
-	Plain string
-	// Styled is the rendered string (including optional ANSI codes); defaults to Plain when empty.
-	Styled string
-	// AlignRight right-aligns the cell within its column when true.
-	AlignRight bool
+func (s TermStyle) wrap(code string, text string) string {
+	if !s.Enabled || text == "" {
+		return text
+	}
+	return "\x1b[" + code + "m" + text + "\x1b[0m"
 }
 
 // RenderAlignedTable writes a padded table to w using visible rune widths so ANSI colors never skew columns.

@@ -22,10 +22,11 @@ import (
 	"strings"
 	"time"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const (
@@ -35,14 +36,22 @@ const (
 
 // RenderTimelinesInput defines the input parameters for the render_timelines MCP tool.
 type RenderTimelinesInput struct {
-	InspectionID       string             `json:"inspectionId,omitempty" jsonschema:"The target inspection ID. Required when creating a new scene; inherited automatically when parentSceneId is specified."`
-	ParentSceneID      string             `json:"parentSceneId,omitempty" jsonschema:"Optional parent scene ID from a previous render_timelines call. Clones its inspectionId, filter, timelineIds, and annotations into a new immutable scene before applying overrides."`
-	Filter             workbench.Filter   `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. Non-empty fields override the inherited filter when parentSceneId is set. When startTime and endTime are omitted, the entire inspection time range is rendered. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
-	TimelineIDs        []string           `json:"timelineIds,omitempty" jsonschema:"Optional list of timeline IDs (from search_timelines or search_logs) to render along with their ancestor hierarchy nodes. Timelines referenced by annotations are also included automatically."`
-	MaxDepth           int                `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
-	MaxNodes           int                `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
-	TimezoneShiftHours float64            `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
-	Annotations        *scene.Annotations `json:"annotations,omitempty" jsonschema:"Optional named palette, visual overlays (markers, spans, rowHighlights, connectors, callouts), and bottom-deck evidence cards (diffExcerpts, logExcerpts), plus clearLayers and removeIds patch directives."`
+	// InspectionID is the unique identifier of the target inspection when creating a new scene.
+	InspectionID string `json:"inspectionId,omitempty" jsonschema:"The target inspection ID. Required when creating a new scene; inherited automatically when parentSceneId is specified."`
+	// ParentSceneID references an existing scene whose settings and annotations are cloned before applying patches.
+	ParentSceneID string `json:"parentSceneId,omitempty" jsonschema:"Optional parent scene ID from a previous render_timelines call. Clones its inspectionId, filter, timelineIds, and annotations into a new immutable scene before applying overrides."`
+	// Filter specifies CEL and time range filters for the rendered timelines and logs.
+	Filter workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. Non-empty fields override the inherited filter when parentSceneId is set. When startTime and endTime are omitted, the entire inspection time range is rendered. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
+	// TimelineIDs restricts rendering to the specified timeline IDs and their ancestor hierarchy nodes.
+	TimelineIDs []string `json:"timelineIds,omitempty" jsonschema:"Optional list of timeline IDs (from search_timelines or search_logs) to render along with their ancestor hierarchy nodes. Timelines referenced by annotations are also included automatically."`
+	// MaxDepth limits the rendered timeline tree depth (0 means unlimited).
+	MaxDepth int `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
+	// MaxNodes caps the number of timeline rows rendered.
+	MaxNodes int `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline rows to render (default 50, max 150)."`
+	// TimezoneShiftHours specifies the UTC offset in hours for the timeline ruler.
+	TimezoneShiftHours float64 `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
+	// Annotations specifies visual overlays, evidence deck cards, and patch directives for the scene.
+	Annotations *scene.Annotations `json:"annotations,omitempty" jsonschema:"Optional named palette, visual overlays (markers, spans, rowHighlights, connectors, callouts), and bottom-deck evidence cards (diffExcerpts, logExcerpts), plus clearLayers and removeIds patch directives."`
 }
 
 type renderTimelinesTemplateData struct {

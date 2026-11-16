@@ -21,20 +21,21 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/streamingutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"google.golang.org/protobuf/proto"
 )
+
+var _ apiv1connect.MaskServiceHandler = (*MaskServiceServer)(nil)
 
 // MaskServiceServer implements the apiv1connect.MaskServiceHandler interface.
 type MaskServiceServer struct {
 	manager *workbench.WorkbenchManager
 }
-
-var _ apiv1connect.MaskServiceHandler = (*MaskServiceServer)(nil)
 
 // NewMaskServiceServer creates a new MaskServiceServer backed by the given manager.
 func NewMaskServiceServer(manager *workbench.WorkbenchManager) *MaskServiceServer {
@@ -161,81 +162,6 @@ func (s *MaskServiceServer) ListWorkbenchStrings(
 		Values:     values,
 		TotalCount: proto.Uint32(uint32(total)),
 	}), nil
-}
-
-// resolveMaskRules validates incoming StringMaskRule messages and assigns non-colliding "<masked_N>" defaults when replacement is unset.
-func resolveMaskRules(protoRules []*apiv1.StringMaskRule) ([]khifilev6model.MaskRule, error) {
-	if len(protoRules) == 0 {
-		return nil, errors.New("at least one masking rule is required")
-	}
-
-	usedReplacements := make(map[string]struct{}, len(protoRules))
-	for _, r := range protoRules {
-		if r.Replacement != nil {
-			usedReplacements[*r.Replacement] = struct{}{}
-		}
-	}
-
-	nextDefaultIndex := 1
-	assignedDefaultByTarget := make(map[string]string, len(protoRules))
-	rules := make([]khifilev6model.MaskRule, 0, len(protoRules))
-	for _, r := range protoRules {
-		target := r.GetTarget()
-		if target == "" {
-			return nil, errors.New("masking rule target cannot be empty")
-		}
-		var replacement string
-		if r.Replacement == nil {
-			if existing, ok := assignedDefaultByTarget[target]; ok {
-				replacement = existing
-			} else {
-				for {
-					candidate := khifilev6model.DefaultMaskReplacement(nextDefaultIndex)
-					nextDefaultIndex++
-					if _, taken := usedReplacements[candidate]; !taken {
-						replacement = candidate
-						usedReplacements[candidate] = struct{}{}
-						assignedDefaultByTarget[target] = candidate
-						break
-					}
-				}
-			}
-		} else {
-			replacement = *r.Replacement
-		}
-		rules = append(rules, khifilev6model.MaskRule{
-			Target:      target,
-			Replacement: replacement,
-		})
-	}
-	return rules, nil
-}
-
-// runCreateMaskedInspection executes WorkbenchManager.CreateMaskedInspection and converts progress and result into Protobuf messages.
-func (s *MaskServiceServer) runCreateMaskedInspection(
-	ctx context.Context,
-	workbenchID string,
-	rules []khifilev6model.MaskRule,
-	onProgress func(*apiv1.MaskedInspectionProgress) error,
-) (*apiv1.MaskedInspectionResult, error) {
-	result, err := s.manager.CreateMaskedInspection(ctx, workbenchID, rules, func(pct float64, message string) error {
-		if onProgress == nil {
-			return nil
-		}
-		return onProgress(&apiv1.MaskedInspectionProgress{
-			ProgressPercentage: proto.Float64(pct),
-			Message:            proto.String(message),
-		})
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &apiv1.MaskedInspectionResult{
-		InspectionId:      proto.String(result.InspectionID),
-		InspectionName:    proto.String(result.InspectionName),
-		SuggestedFilename: proto.String(result.SuggestedFilename),
-		FileSizeBytes:     proto.Int64(result.FileSizeBytes),
-	}, nil
 }
 
 // CreateMaskedInspection creates and registers a new inspection archive with string masking rules applied, streaming progress updates followed by the final metadata.
@@ -378,6 +304,81 @@ func (s *MaskServiceServer) CancelCreateMaskedInspectionSync(
 	return connect.NewResponse(&apiv1.CancelCreateMaskedInspectionSyncResponse{
 		Canceled: proto.Bool(canceled),
 	}), nil
+}
+
+// runCreateMaskedInspection executes WorkbenchManager.CreateMaskedInspection and converts progress and result into Protobuf messages.
+func (s *MaskServiceServer) runCreateMaskedInspection(
+	ctx context.Context,
+	workbenchID string,
+	rules []khifilev6model.MaskRule,
+	onProgress func(*apiv1.MaskedInspectionProgress) error,
+) (*apiv1.MaskedInspectionResult, error) {
+	result, err := s.manager.CreateMaskedInspection(ctx, workbenchID, rules, func(pct float64, message string) error {
+		if onProgress == nil {
+			return nil
+		}
+		return onProgress(&apiv1.MaskedInspectionProgress{
+			ProgressPercentage: proto.Float64(pct),
+			Message:            proto.String(message),
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &apiv1.MaskedInspectionResult{
+		InspectionId:      proto.String(result.InspectionID),
+		InspectionName:    proto.String(result.InspectionName),
+		SuggestedFilename: proto.String(result.SuggestedFilename),
+		FileSizeBytes:     proto.Int64(result.FileSizeBytes),
+	}, nil
+}
+
+// resolveMaskRules validates incoming StringMaskRule messages and assigns non-colliding "<masked_N>" defaults when replacement is unset.
+func resolveMaskRules(protoRules []*apiv1.StringMaskRule) ([]khifilev6model.MaskRule, error) {
+	if len(protoRules) == 0 {
+		return nil, errors.New("at least one masking rule is required")
+	}
+
+	usedReplacements := make(map[string]struct{}, len(protoRules))
+	for _, r := range protoRules {
+		if r.Replacement != nil {
+			usedReplacements[*r.Replacement] = struct{}{}
+		}
+	}
+
+	nextDefaultIndex := 1
+	assignedDefaultByTarget := make(map[string]string, len(protoRules))
+	rules := make([]khifilev6model.MaskRule, 0, len(protoRules))
+	for _, r := range protoRules {
+		target := r.GetTarget()
+		if target == "" {
+			return nil, errors.New("masking rule target cannot be empty")
+		}
+		var replacement string
+		if r.Replacement == nil {
+			if existing, ok := assignedDefaultByTarget[target]; ok {
+				replacement = existing
+			} else {
+				for {
+					candidate := khifilev6model.DefaultMaskReplacement(nextDefaultIndex)
+					nextDefaultIndex++
+					if _, taken := usedReplacements[candidate]; !taken {
+						replacement = candidate
+						usedReplacements[candidate] = struct{}{}
+						assignedDefaultByTarget[target] = candidate
+						break
+					}
+				}
+			}
+		} else {
+			replacement = *r.Replacement
+		}
+		rules = append(rules, khifilev6model.MaskRule{
+			Target:      target,
+			Replacement: replacement,
+		})
+	}
+	return rules, nil
 }
 
 func toProtoIndexState(state workbench.IndexState) apiv1.WatchIndexProgressResponse_IndexState {

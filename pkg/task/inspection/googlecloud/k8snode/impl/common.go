@@ -30,6 +30,36 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// logIngesterTask ingests the metadata of Kubernetes node logs.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	k8snode.LogIngesterTaskID,
+	k8snode.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		podSandboxIDFinder := coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
+		containerIDPatternFinder := coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref())
+		resourceUIDPatternFinder := coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
+		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+			return processK8sNodeLog(ctx, l, podSandboxIDFinder.Get(ctx), containerIDPatternFinder.Get(ctx), resourceUIDPatternFinder.Get(ctx))
+		}
+	},
+)
+
+// tailTask is the feature task of Kubernetes node logs that completes after all node component log mappers.
+var tailTask = coretask.DefineTailTask(
+	k8snode.TailTaskID,
+	[]coretask.Dependency{
+		k8snode.ContainerdLogLogToTimelineMapperTaskID.Ref(),
+		k8snode.KubeletLogLogToTimelineMapperTaskID.Ref(),
+		k8snode.OtherLogLogToTimelineMapperTaskID.Ref(),
+	},
+	inspectioncore.FeatureTaskLabel(
+		"Kubernetes Node Logs",
+		"Gather logs from Kubernetes node components (e.g., Docker, containerd, or Kubelet) to troubleshoot node-level issues. Note: The log volume can be very large if the cluster contains many nodes.",
+		3000,
+		false,
+	),
+)
+
 // processK8sNodeLog sets the log type, timestamp, severity and summary of a Kubernetes node log.
 // The summary shows the pods, containers and resources that the finders resolve from the IDs in the log message.
 func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
@@ -128,36 +158,6 @@ func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patte
 
 	return cs, nil
 }
-
-// logIngesterTask ingests the metadata of Kubernetes node logs.
-var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
-	k8snode.LogIngesterTaskID,
-	k8snode.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		podSandboxIDFinder := coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref())
-		containerIDPatternFinder := coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref())
-		resourceUIDPatternFinder := coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
-		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-			return processK8sNodeLog(ctx, l, podSandboxIDFinder.Get(ctx), containerIDPatternFinder.Get(ctx), resourceUIDPatternFinder.Get(ctx))
-		}
-	},
-)
-
-// tailTask is the feature task of Kubernetes node logs that completes after all node component log mappers.
-var tailTask = coretask.DefineTailTask(
-	k8snode.TailTaskID,
-	[]coretask.Dependency{
-		k8snode.ContainerdLogLogToTimelineMapperTaskID.Ref(),
-		k8snode.KubeletLogLogToTimelineMapperTaskID.Ref(),
-		k8snode.OtherLogLogToTimelineMapperTaskID.Ref(),
-	},
-	inspectioncore.FeatureTaskLabel(
-		"Kubernetes Node Logs",
-		"Gather logs from Kubernetes node components (e.g., Docker, containerd, or Kubelet) to troubleshoot node-level issues. Note: The log volume can be very large if the cluster contains many nodes.",
-		3000,
-		false,
-	),
-)
 
 // defineParserTypeFilterTask defines a filter task that passes only the logs of the given parser type.
 func defineParserTypeFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], logSource taskid.TaskReference[[]*log.Log], parserType k8snode.K8sNodeParserType) coretask.Task[[]*log.Log] {

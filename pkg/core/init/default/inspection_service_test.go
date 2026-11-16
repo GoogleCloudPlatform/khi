@@ -22,10 +22,11 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/gin-gonic/gin"
+
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/gin-gonic/gin"
 )
 
 func TestInspectionServiceInitializer(t *testing.T) {

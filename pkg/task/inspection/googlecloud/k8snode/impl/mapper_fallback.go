@@ -33,6 +33,35 @@ var otherLogFilterTask = defineParserTypeFilterTask(k8snode.OtherLogFilterTaskID
 // otherLogGroupTask groups other logs by node and component.
 var otherLogGroupTask = defineNodeAndComponentNameGrouperTask(k8snode.OtherLogGroupTaskID, k8snode.OtherLogFilterTaskID.Ref())
 
+// otherLogLogToTimelineMapperTask maps the logs of the other node components to timelines.
+var otherLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8snode.OtherLogLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8snode.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8snode.OtherLogGroupTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &otherLogTimelineMapper{
+			startingMessagesByComponent: map[string]string{
+				"dockerd":             "Starting up",
+				"configure.sh":        "Start to install kubernetes files",
+				"configure-helper.sh": "Start to configure instance for kubernetes",
+			},
+			terminatingMessagesByComponent: map[string]string{
+				"dockerd":             "Daemon shutdown complete",
+				"configure.sh":        "Done for installing kubernetes files",
+				"configure-helper.sh": "Done for the configuration for kubernetes",
+			},
+			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
+			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
+			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
+			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
+		}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherLogTimelineMapper)(nil)
+
 // otherLogTimelineMapper maps the logs of node components other than containerd and kubelet to the timelines of their component and of the pods, containers, and resources they mention.
 type otherLogTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
@@ -51,8 +80,6 @@ func (o *otherLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.L
 	cs, err := o.mapLog(ctx, l, o.clusterIdentity.Get(ctx), o.podSandboxIDFinder.Get(ctx), o.containerIDPatternFinder.Get(ctx), o.resourceUIDPatternFinder.Get(ctx))
 	return cs, struct{}{}, err
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherLogTimelineMapper)(nil)
 
 // mapLog adds events for a node component log to the timeline of its component and to the timelines of the pods, containers, and resources it mentions.
 // It also adds a revision to the component timeline when the log message is the starting or terminating message of the component.
@@ -86,30 +113,3 @@ func (o *otherLogTimelineMapper) mapLog(ctx context.Context, l *log.Log, cluster
 
 	return cs, nil
 }
-
-// otherLogLogToTimelineMapperTask maps the logs of the other node components to timelines.
-var otherLogLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8snode.OtherLogLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8snode.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8snode.OtherLogGroupTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &otherLogTimelineMapper{
-			startingMessagesByComponent: map[string]string{
-				"dockerd":             "Starting up",
-				"configure.sh":        "Start to install kubernetes files",
-				"configure-helper.sh": "Start to configure instance for kubernetes",
-			},
-			terminatingMessagesByComponent: map[string]string{
-				"dockerd":             "Daemon shutdown complete",
-				"configure.sh":        "Done for installing kubernetes files",
-				"configure-helper.sh": "Done for the configuration for kubernetes",
-			},
-			clusterIdentity:          coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
-			podSandboxIDFinder:       coretask.Use(b, k8snode.PodSandboxIDDiscoveryTaskID.Ref()),
-			containerIDPatternFinder: coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref()),
-			resourceUIDPatternFinder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref()),
-		}
-	},
-)

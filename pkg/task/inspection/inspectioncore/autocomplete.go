@@ -16,7 +16,10 @@ package inspectioncore
 
 // AutocompleteResult is a list of cluster names/namespaces/node names/pod names for autocomplete.
 type AutocompleteResult[T any] struct {
+	// Values contains the suggested autocomplete values.
 	Values []T
-	Error  string
-	Hint   string
+	// Error contains an error message if autocomplete resolution failed.
+	Error string
+	// Hint provides additional guidance for the user.
+	Hint string
 }

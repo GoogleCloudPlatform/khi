@@ -21,9 +21,6 @@ import (
 	"strings"
 )
 
-// TabulateLineType indicates the classified type of a line in a tabulate format.
-type TabulateLineType int
-
 const (
 	// TabulateLineTypeUnknown represents an unrecognized or out-of-table line.
 	TabulateLineTypeUnknown TabulateLineType = iota
@@ -34,6 +31,12 @@ const (
 	// TabulateLineTypeBody represents a data row within a table.
 	TabulateLineTypeBody
 )
+
+// twoOrMoreSpaces matches 2 or more consecutive whitespace characters.
+var twoOrMoreSpaces = regexp.MustCompile(`\s{2,}`)
+
+// TabulateLineType indicates the classified type of a line in a tabulate format.
+type TabulateLineType int
 
 // TabulateParseResult holds the parsing result of a single line.
 type TabulateParseResult struct {
@@ -47,16 +50,26 @@ type TabulateParseResult struct {
 
 // ColumnBoundary defines the character indices bounding a single column.
 type ColumnBoundary struct {
-	Name  string
-	Left  int
+	// Name is the header name assigned to the column.
+	Name string
+	// Left is the inclusive starting character index of the column.
+	Left int
+	// Right is the exclusive ending character index of the column.
 	Right int
 }
 
 // TabulateReader is a stateful reader for space-padded tabulate tables.
 // It tracks headers and vertical column boundaries dynamically.
 type TabulateReader struct {
+	// ColumnBoundaries holds the active horizontal character bounds for each column.
 	ColumnBoundaries []ColumnBoundary
-	Headers          []string
+	// Headers holds the column header names extracted from the table header line.
+	Headers []string
+}
+
+type separatorGroup struct {
+	start int
+	end   int
 }
 
 // NewTabulateReader creates a new TabulateReader instance.
@@ -147,11 +160,6 @@ func (r *TabulateReader) isSeparatorLine(line string) bool {
 	return hasDash
 }
 
-type separatorGroup struct {
-	start int
-	end   int
-}
-
 // extractSeparatorGroups finds the start and end indices of each hyphen block.
 func (r *TabulateReader) extractSeparatorGroups(line string) []separatorGroup {
 	var groups []separatorGroup
@@ -202,9 +210,6 @@ func (r *TabulateReader) calculateBoundaries(groups []separatorGroup) []ColumnBo
 	}
 	return boundaries
 }
-
-// match 2 or more consecutive whitespace characters.
-var twoOrMoreSpaces = regexp.MustCompile(`\s{2,}`)
 
 // parseHeaderCandidate attempts to extract headers split by significant whitespace.
 func (r *TabulateReader) parseHeaderCandidate(line string) bool {

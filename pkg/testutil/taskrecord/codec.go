@@ -25,6 +25,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+// DefaultCodecRegistry is the package-level default codec registry.
+var DefaultCodecRegistry = NewCodecRegistry()
+
+var (
+	_ TaskResultCodec = (*DefaultJSONCodec)(nil)
+	_ TaskResultCodec = (*LogListCodec)(nil)
+)
+
 // TaskResultCodec serializes and deserializes intermediate task results.
 type TaskResultCodec interface {
 	// Serialize converts the task result value into byte slice.
@@ -36,6 +44,15 @@ type TaskResultCodec interface {
 
 // DefaultJSONCodec provides generic JSON serialization and deserialization.
 type DefaultJSONCodec struct{}
+
+// LogListCodec serializes and deserializes slices of log.Log objects.
+type LogListCodec struct{}
+
+// CodecRegistry manages codecs keyed by Go data types (reflect.Type).
+type CodecRegistry struct {
+	mu     sync.RWMutex
+	codecs map[reflect.Type]TaskResultCodec
+}
 
 // Serialize implements TaskResultCodec by marshaling into indented JSON.
 func (c *DefaultJSONCodec) Serialize(value any) ([]byte, error) {
@@ -50,11 +67,6 @@ func (c *DefaultJSONCodec) Deserialize(data []byte) (any, error) {
 	}
 	return v, nil
 }
-
-var _ TaskResultCodec = (*DefaultJSONCodec)(nil)
-
-// LogListCodec serializes and deserializes slices of log.Log objects.
-type LogListCodec struct{}
 
 // Serialize implements TaskResultCodec by converting each log's structured.Node into JSON.
 func (c *LogListCodec) Serialize(value any) ([]byte, error) {
@@ -97,14 +109,6 @@ func (c *LogListCodec) Deserialize(data []byte) (any, error) {
 	}
 
 	return result, nil
-}
-
-var _ TaskResultCodec = (*LogListCodec)(nil)
-
-// CodecRegistry manages codecs keyed by Go data types (reflect.Type).
-type CodecRegistry struct {
-	mu     sync.RWMutex
-	codecs map[reflect.Type]TaskResultCodec
 }
 
 // NewCodecRegistry creates a new CodecRegistry with default built-in type codecs.
@@ -150,9 +154,6 @@ func (r *CodecRegistry) DeserializeForType(data []byte, t reflect.Type) (any, er
 	}
 	return valPtr.Elem().Interface(), nil
 }
-
-// DefaultCodecRegistry is the package-level default codec registry.
-var DefaultCodecRegistry = NewCodecRegistry()
 
 // RegisterCodec registers a custom codec for type T in DefaultCodecRegistry.
 func RegisterCodec[T any](codec TaskResultCodec) {

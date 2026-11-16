@@ -21,9 +21,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
-	"github.com/gin-gonic/gin"
 )
 
 func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {

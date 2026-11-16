@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeNodeComponent is the registered timeline style TimelineType for node system components.
 	TimelineTypeNodeComponent = style.MustRegisterTimelineType(
 		"node-component",
 		"Logs of non-containerized system components on the node",

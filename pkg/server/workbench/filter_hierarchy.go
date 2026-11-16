@@ -20,10 +20,22 @@ import (
 	"github.com/RoaringBitmap/roaring/v2"
 )
 
+var (
+	_ TimelineFilter = (*IncludeDescendantsFilter)(nil)
+	_ TimelineFilter = (*IncludeAncestorsFilter)(nil)
+	_ TimelineFilter = (*ExcludeNoLogsFilter)(nil)
+)
+
 // IncludeDescendantsFilter expands the matching timeline set by recursively including all child and descendant timelines.
 type IncludeDescendantsFilter struct{}
 
-var _ TimelineFilter = (*IncludeDescendantsFilter)(nil)
+// IncludeAncestorsFilter expands the matching timeline set by recursively including all parent and ancestor timelines.
+type IncludeAncestorsFilter struct{}
+
+// ExcludeNoLogsFilter filters out timelines that do not directly contain any logs matching the current filter criteria.
+type ExcludeNoLogsFilter struct {
+	enabled bool
+}
 
 // NewIncludeDescendantsFilter creates a new IncludeDescendantsFilter.
 func NewIncludeDescendantsFilter() *IncludeDescendantsFilter {
@@ -76,11 +88,6 @@ func (f *IncludeDescendantsFilter) Process(
 	return nil
 }
 
-// IncludeAncestorsFilter expands the matching timeline set by recursively including all parent and ancestor timelines.
-type IncludeAncestorsFilter struct{}
-
-var _ TimelineFilter = (*IncludeAncestorsFilter)(nil)
-
 // NewIncludeAncestorsFilter creates a new IncludeAncestorsFilter.
 func NewIncludeAncestorsFilter() *IncludeAncestorsFilter {
 	return &IncludeAncestorsFilter{}
@@ -129,13 +136,6 @@ func (f *IncludeAncestorsFilter) Process(
 
 	return nil
 }
-
-// ExcludeNoLogsFilter filters out timelines that do not directly contain any logs matching the current filter criteria.
-type ExcludeNoLogsFilter struct {
-	enabled bool
-}
-
-var _ TimelineFilter = (*ExcludeNoLogsFilter)(nil)
 
 // NewExcludeNoLogsFilter creates a new ExcludeNoLogsFilter.
 func NewExcludeNoLogsFilter(enabled bool) *ExcludeNoLogsFilter {

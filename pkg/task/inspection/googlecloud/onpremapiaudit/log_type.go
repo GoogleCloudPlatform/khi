@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeOnPremAPI is the registered timeline style LogType for GDC On-Prem API audit logs.
 	LogTypeOnPremAPI = style.MustRegisterLogType("GDC onprem audit", "GDC On-Prem API Audit Logs", style.MustForceConvertSRGBHex("#AA00FF"), style.ColorWhite)
 )

@@ -41,13 +41,28 @@ var (
 	}
 )
 
+// K8sContainerLogFieldSet contains extracted fields from a Kubernetes container log entry.
 type K8sContainerLogFieldSet struct {
-	ClusterName   string
-	Namespace     string
-	PodName       string
+	// ClusterName is the name of the Kubernetes cluster that emitted the log.
+	ClusterName string
+	// Namespace is the Kubernetes namespace of the Pod.
+	Namespace string
+	// PodName is the name of the Pod that owns the container.
+	PodName string
+	// ContainerName is the name of the container that emitted the log.
 	ContainerName string
-	Message       string
+	// Message is the raw or extracted log message body.
+	Message string
+	// ParsedMessage holds the structured parse result for Message.
 	ParsedMessage *logutil.ParseStructuredLogResult
+}
+
+// GCPContainerLogNodeNameLabelFieldSet extracts the GCE resource name (Node name) if available.
+type GCPContainerLogNodeNameLabelFieldSet struct {
+	// NodeName is the GCE node name extracted from the log labels.
+	NodeName string
+	// PodLabels holds the Kubernetes Pod labels extracted from `k8s-pod/*` log labels.
+	PodLabels map[string]string
 }
 
 // GroupKey returns the group key string for this container's Pod.
@@ -111,12 +126,6 @@ func ExtractK8sContainerLog(reader *structured.NodeReader, parser *logutil.Selec
 	result.ParsedMessage = parser.TryParse(ctx, rawMessage)
 
 	return result, nil
-}
-
-// GCPContainerLogNodeNameLabelFieldSet extracts the GCE resource name (Node name) if available.
-type GCPContainerLogNodeNameLabelFieldSet struct {
-	NodeName  string
-	PodLabels map[string]string
 }
 
 // ExtractGCPContainerLogNodeNameLabel extracts NodeName and PodLabels from a NodeReader.

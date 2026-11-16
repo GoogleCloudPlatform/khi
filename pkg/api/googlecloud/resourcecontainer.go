@@ -16,6 +16,15 @@ package googlecloud
 
 import "fmt"
 
+const (
+	// ResourceContainerInvalid represents an invalid resource container type used for test mock types.
+	ResourceContainerInvalid ResourceContainerType = iota
+	// ResourceContainerProject represents a Google Cloud project resource container.
+	ResourceContainerProject ResourceContainerType = iota
+)
+
+var _ ProjectResourceContainer = (*projectResourceContainerImpl)(nil)
+
 // ResourceContainerType represents the type of a Google Cloud resource container.
 type ResourceContainerType int
 
@@ -28,16 +37,10 @@ type ResourceContainer interface {
 	Identifier() string
 }
 
-const (
-	// ResourceContainerInvalid represents an ResourceContainerInvalid resource container type. This is used for test mock types.
-	ResourceContainerInvalid ResourceContainerType = iota
-	// ResourceContainerProject represents a Google Cloud ResourceContainerProject resource container.
-	ResourceContainerProject ResourceContainerType = iota
-)
-
 // ProjectResourceContainer is an interface that represents a Google Cloud project resource container.
 type ProjectResourceContainer interface {
 	ResourceContainer
+	// ProjectID returns the Google Cloud project ID.
 	ProjectID() string
 }
 
@@ -68,5 +71,3 @@ func (p *projectResourceContainerImpl) ProjectID() string {
 func (p *projectResourceContainerImpl) Identifier() string {
 	return fmt.Sprintf("projects/%s", p.projectID)
 }
-
-var _ ProjectResourceContainer = (*projectResourceContainerImpl)(nil)

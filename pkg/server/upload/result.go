@@ -32,7 +32,7 @@ type UploadResult struct {
 	FileName string
 	// SizeBytes is the size in bytes of the file declared when the upload started.
 	SizeBytes int64
-	// UploadError contains any error that occurred during the upload process itself
+	// UploadError contains any error that occurred during the upload process itself.
 	UploadError error
 	// VerificationError contains any error returned by the UploadFileVerifier.
 	VerificationError error

@@ -35,9 +35,13 @@ var (
 
 // FieldSet holds structured log data extracted from the log entry.
 type FieldSet struct {
-	Timestamp   *time.Time
-	Message     string
-	Pods        []commoncsmcp.PodIdentifier
+	// Timestamp is the optional log entry timestamp parsed from jsonPayload or top-level timestamp.
+	Timestamp *time.Time
+	// Message is the Istiod discovery log message text.
+	Message string
+	// Pods lists Kubernetes pod identifiers parsed from the message.
+	Pods []commoncsmcp.PodIdentifier
+	// ClusterName is the GKE cluster name from the log resource labels.
 	ClusterName string
 }
 

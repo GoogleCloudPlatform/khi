@@ -21,9 +21,15 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/RoaringBitmap/roaring/v2"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
+)
+
+var (
+	_ TimelineFilter = (*TimelineCELFilter)(nil)
+	_ TimelineFilter = (*TimelineCELExclusionFilter)(nil)
 )
 
 // TimelineCELFilter evaluates a CEL query against each timeline in the SearchIndex.
@@ -31,7 +37,10 @@ type TimelineCELFilter struct {
 	query string
 }
 
-var _ TimelineFilter = (*TimelineCELFilter)(nil)
+// TimelineCELExclusionFilter evaluates an exclusion CEL query and removes matching timelines and their descendant subtrees.
+type TimelineCELExclusionFilter struct {
+	exclusionQuery string
+}
 
 // NewTimelineCELFilter creates a new TimelineCELFilter with the specified CEL expression.
 func NewTimelineCELFilter(query string) *TimelineCELFilter {
@@ -147,13 +156,6 @@ func (f *TimelineCELFilter) Process(
 
 	return nil
 }
-
-// TimelineCELExclusionFilter evaluates an exclusion CEL query and removes matching timelines and their descendant subtrees.
-type TimelineCELExclusionFilter struct {
-	exclusionQuery string
-}
-
-var _ TimelineFilter = (*TimelineCELExclusionFilter)(nil)
 
 // NewTimelineCELExclusionFilter creates a new TimelineCELExclusionFilter.
 func NewTimelineCELExclusionFilter(exclusionQuery string) *TimelineCELExclusionFilter {

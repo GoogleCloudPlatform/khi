@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeNetworkAPI is the registered timeline style LogType for GCE Network API audit logs.
 	LogTypeNetworkAPI = style.MustRegisterLogType("network api audit", "Network API Audit Logs", style.MustForceConvertSRGBHex("#33CCFF"), style.ColorWhite)
 )

@@ -23,12 +23,13 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/proto"
 )
 
 func setupTestFileUploadServer(t *testing.T) (apiv1connect.FileParameterUploadServiceClient, *upload.UploadFileStore, *upload.LocalUploadFileStoreProvider, func()) {

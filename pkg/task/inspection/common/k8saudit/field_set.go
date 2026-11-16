@@ -21,40 +21,24 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
+// GeneratedNameWildcardSuffix is appended to metadata.generateName when a resource's final name
+// was not yet assigned by kube-apiserver (for example, when a create request fails).
+const GeneratedNameWildcardSuffix = "?????"
+
+const (
+	// MutatingWebhookMutationPrefix is the prefix for mutating webhook mutation labels.
+	MutatingWebhookMutationPrefix = "mutation.webhook.admission.k8s.io/"
+	// MutatingWebhookPatchPrefix is the prefix for mutating webhook patch labels.
+	MutatingWebhookPatchPrefix = "patch.webhook.admission.k8s.io/"
+	// MutatingWebhookFailedOpenPrefix is the prefix for mutating webhook failed-open labels.
+	MutatingWebhookFailedOpenPrefix = "failed-open.mutation.webhook.admission.k8s.io/"
+)
+
 var (
 	pathKind                 = structured.CompileFieldPath("kind")
 	pathMetadataName         = structured.CompileFieldPath("metadata.name")
 	pathMetadataGenerateName = structured.CompileFieldPath("metadata.generateName")
 )
-
-// GeneratedNameWildcardSuffix is appended to metadata.generateName when a resource's final name
-// was not yet assigned by kube-apiserver (for example, when a create request fails).
-const GeneratedNameWildcardSuffix = "?????"
-
-// ResolveResourceName determines the resource name by falling back to the response or request metadata
-// when the resource name from log fields is empty.
-func ResolveResourceName(nameFromLogFields string, request, response *structured.NodeReader) string {
-	if nameFromLogFields != "" {
-		return nameFromLogFields
-	}
-	if response != nil {
-		kind := response.ReadStringOrDefault(pathKind, "")
-		if !strings.EqualFold(kind, "Status") {
-			if name := response.ReadStringOrDefault(pathMetadataName, ""); name != "" {
-				return name
-			}
-		}
-	}
-	if request != nil {
-		if name := request.ReadStringOrDefault(pathMetadataName, ""); name != "" {
-			return name
-		}
-		if generateName := request.ReadStringOrDefault(pathMetadataGenerateName, ""); generateName != "" {
-			return generateName + GeneratedNameWildcardSuffix
-		}
-	}
-	return ""
-}
 
 var irregularPluralToSingularSuffixMap = map[string]string{
 	"classes":      "class",
@@ -68,61 +52,52 @@ var irregularPluralToSingularSuffixMap = map[string]string{
 	"capabilities": "capability",
 }
 
-// GetSingularKindName converts a plural Kubernetes resource kind to its singular form.
-func GetSingularKindName(pluralKind string) string {
-	if strings.HasSuffix(pluralKind, "ses") || strings.HasSuffix(pluralKind, "ies") {
-		for pluralSuffix, singularSuffix := range irregularPluralToSingularSuffixMap {
-			if strings.HasSuffix(pluralKind, pluralSuffix) {
-				return strings.TrimSuffix(pluralKind, pluralSuffix) + singularSuffix
-			}
-		}
-		return pluralKind
-	}
-	if strings.HasSuffix(pluralKind, "s") {
-		return strings.TrimSuffix(pluralKind, "s")
-	}
-	return pluralKind
-}
-
 // MutatingWebhookPatch represents a single JSON patch operation from a webhook.
 type MutatingWebhookPatch struct {
-	Op    string `json:"op"`
-	Path  string `json:"path"`
-	Value any    `json:"value"`
+	// Op is the JSON Patch operation (e.g., "add", "replace", "remove").
+	Op string `json:"op"`
+	// Path is the JSON Pointer target path for the patch operation.
+	Path string `json:"path"`
+	// Value is the value applied by the JSON Patch operation.
+	Value any `json:"value"`
 }
-
-const (
-	// MutatingWebhookMutationPrefix is the prefix for mutating webhook mutation labels.
-	MutatingWebhookMutationPrefix = "mutation.webhook.admission.k8s.io/"
-	// MutatingWebhookPatchPrefix is the prefix for mutating webhook patch labels.
-	MutatingWebhookPatchPrefix = "patch.webhook.admission.k8s.io/"
-	// MutatingWebhookFailedOpenPrefix is the prefix for mutating webhook failed-open labels.
-	MutatingWebhookFailedOpenPrefix = "failed-open.mutation.webhook.admission.k8s.io/"
-)
 
 // MutatingWebhookMutationInfo contains information about webhook mutation configuration.
 type MutatingWebhookMutationInfo struct {
+	// Configuration is the name of the MutatingWebhookConfiguration.
 	Configuration string `json:"configuration"`
-	Webhook       string `json:"webhook"`
-	Mutated       bool   `json:"mutated"`
+	// Webhook is the name of the webhook within the configuration.
+	Webhook string `json:"webhook"`
+	// Mutated reports whether the webhook mutated the object.
+	Mutated bool `json:"mutated"`
 }
 
 // MutatingWebhookPatchInfo contains information about webhook mutation patch.
 type MutatingWebhookPatchInfo struct {
-	Configuration string                 `json:"configuration"`
-	Webhook       string                 `json:"webhook"`
-	Patch         []MutatingWebhookPatch `json:"patch"`
+	// Configuration is the name of the MutatingWebhookConfiguration.
+	Configuration string `json:"configuration"`
+	// Webhook is the name of the webhook within the configuration.
+	Webhook string `json:"webhook"`
+	// Patch is the list of JSON patch operations applied by the webhook.
+	Patch []MutatingWebhookPatch `json:"patch"`
 }
 
 // MutatingWebhookResult holds the results of a mutating webhook invocation.
 type MutatingWebhookResult struct {
-	Round         int
-	Index         int
+	// Round is the admission invocation round index.
+	Round int
+	// Index is the webhook ordering index within the round.
+	Index int
+	// Configuration is the name of the MutatingWebhookConfiguration.
 	Configuration string
-	Webhook       string
-	Mutated       bool
-	Patch         []MutatingWebhookPatch
-	FailedOpen    bool
+	// Webhook is the name of the webhook within the configuration.
+	Webhook string
+	// Mutated reports whether the webhook mutated the object.
+	Mutated bool
+	// Patch is the list of JSON patch operations applied by the webhook.
+	Patch []MutatingWebhookPatch
+	// FailedOpen reports whether the webhook failed open during admission.
+	FailedOpen bool
 }
 
 // K8sAuditLogFieldSet is the field set for k8s audit log.
@@ -169,6 +144,47 @@ type K8sAuditLogFieldSet struct {
 	Response *structured.NodeReader
 	// MutatingWebhookResults are the assembled webhook results from audit annotations.
 	MutatingWebhookResults []*MutatingWebhookResult
+}
+
+// ResolveResourceName determines the resource name by falling back to the response or request metadata
+// when the resource name from log fields is empty.
+func ResolveResourceName(nameFromLogFields string, request, response *structured.NodeReader) string {
+	if nameFromLogFields != "" {
+		return nameFromLogFields
+	}
+	if response != nil {
+		kind := response.ReadStringOrDefault(pathKind, "")
+		if !strings.EqualFold(kind, "Status") {
+			if name := response.ReadStringOrDefault(pathMetadataName, ""); name != "" {
+				return name
+			}
+		}
+	}
+	if request != nil {
+		if name := request.ReadStringOrDefault(pathMetadataName, ""); name != "" {
+			return name
+		}
+		if generateName := request.ReadStringOrDefault(pathMetadataGenerateName, ""); generateName != "" {
+			return generateName + GeneratedNameWildcardSuffix
+		}
+	}
+	return ""
+}
+
+// GetSingularKindName converts a plural Kubernetes resource kind to its singular form.
+func GetSingularKindName(pluralKind string) string {
+	if strings.HasSuffix(pluralKind, "ses") || strings.HasSuffix(pluralKind, "ies") {
+		for pluralSuffix, singularSuffix := range irregularPluralToSingularSuffixMap {
+			if strings.HasSuffix(pluralKind, pluralSuffix) {
+				return strings.TrimSuffix(pluralKind, pluralSuffix) + singularSuffix
+			}
+		}
+		return pluralKind
+	}
+	if strings.HasSuffix(pluralKind, "s") {
+		return strings.TrimSuffix(pluralKind, "s")
+	}
+	return pluralKind
 }
 
 // LongRunning returns true if the log is a long-running operation.

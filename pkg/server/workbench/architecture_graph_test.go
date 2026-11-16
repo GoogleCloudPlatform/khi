@@ -19,9 +19,10 @@ import (
 	"errors"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestWorkbench_GetArchitectureGraph(t *testing.T) {

@@ -28,25 +28,7 @@ import (
 	ossk8s "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/oss/k8s"
 )
 
-// processOSSK8sEventLog sets the log type, timestamp, severity and summary of a Kubernetes event in an OSS audit log.
-// The summary shows the resources that finder resolves from the resource UIDs in the event message.
-func processOSSK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
-	cs, err := khifilev6.NewLogChangeSet(l)
-	if err != nil {
-		return nil, err
-	}
-	cs.SetLogType(k8saudit.LogTypeEvent)
-	cs.SetTimestamp(l.Timestamp)
-
-	event, err := ossk8s.ExtractOSSK8sEvent(l.NodeReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OSS k8s event fieldset: %w", err)
-	}
-	cs.SetSummary(k8saudit.FormatEventSummary(event.Reason, event.Message, finder))
-	cs.SetSeverity(inspectioncore.SeverityUnknown)
-
-	return cs, nil
-}
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*ossK8sEventTimelineMapper)(nil)
 
 // ossK8sEventLogIngesterTask is the log ingester task.
 var ossK8sEventLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
@@ -75,6 +57,24 @@ var ossK8sEventLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// ossK8sEventLogToTimelineMapperTask is the log to timeline mapper task.
+var ossK8sEventLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	ossk8s.OSSK8sEventLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: ossk8s.OSSK8sEventLogIngesterTaskID.Ref(),
+		GroupedLogs: ossk8s.OSSK8sEventLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &ossK8sEventTimelineMapper{finder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"OSS Kubernetes Event Logs",
+		"Gather and parse Kubernetes event logs from OSS Kubernetes JSONL audit logs to visualize resource lifecycle and operational events.",
+		2000,
+		true,
+	),
+)
+
 // ossK8sEventTimelineMapper maps grouped events to timeline paths.
 type ossK8sEventTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
@@ -87,7 +87,25 @@ func (m *ossK8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 	return cs, struct{}{}, err
 }
 
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*ossK8sEventTimelineMapper)(nil)
+// processOSSK8sEventLog sets the log type, timestamp, severity and summary of a Kubernetes event in an OSS audit log.
+// The summary shows the resources that finder resolves from the resource UIDs in the event message.
+func processOSSK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, err
+	}
+	cs.SetLogType(k8saudit.LogTypeEvent)
+	cs.SetTimestamp(l.Timestamp)
+
+	event, err := ossk8s.ExtractOSSK8sEvent(l.NodeReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OSS k8s event fieldset: %w", err)
+	}
+	cs.SetSummary(k8saudit.FormatEventSummary(event.Reason, event.Message, finder))
+	cs.SetSeverity(inspectioncore.SeverityUnknown)
+
+	return cs, nil
+}
 
 // mapOSSK8sEventLog adds an event for a Kubernetes event in an OSS audit log to the timeline of its involved resource
 // and to the timelines of the resources that finder resolves from the resource UIDs in the event message.
@@ -113,21 +131,3 @@ func mapOSSK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.Pat
 
 	return cs, nil
 }
-
-// ossK8sEventLogToTimelineMapperTask is the log to timeline mapper task.
-var ossK8sEventLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	ossk8s.OSSK8sEventLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: ossk8s.OSSK8sEventLogIngesterTaskID.Ref(),
-		GroupedLogs: ossk8s.OSSK8sEventLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &ossK8sEventTimelineMapper{finder: coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())}
-	},
-	inspectioncore.FeatureTaskLabel(
-		"OSS Kubernetes Event Logs",
-		"Gather and parse Kubernetes event logs from OSS Kubernetes JSONL audit logs to visualize resource lifecycle and operational events.",
-		2000,
-		true,
-	),
-)

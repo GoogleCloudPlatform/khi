@@ -19,12 +19,13 @@ import (
 	"errors"
 	"testing"
 
-	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
 func TestInternPool_Intern(t *testing.T) {

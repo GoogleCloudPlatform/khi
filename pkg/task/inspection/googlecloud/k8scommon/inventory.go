@@ -22,23 +22,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
-type NEGNameToResourceIdentityMap = map[string]k8saudit.ResourceIdentity
-
 var (
+	// NEGNamesInventoryTaskID is the task ID for the inventory task that aggregates discovered NEG names.
 	NEGNamesInventoryTaskID = taskid.NewDefaultImplementationID[NEGNameToResourceIdentityMap](GoogleCloudCommonK8STaskIDPrefix + "neg-names-inventory")
-	TagNEGNamesDiscovery    = coretask.NewTag[NEGNameToResourceIdentityMap]("googlecloud-neg-names-discovery")
-)
-
-// NEGToBackendServiceMap is a map from NEG name to BackendService name.
-type NEGToBackendServiceMap = map[string]string
-
-// NEGToBackendServiceInventoryTaskID is the task ID for the inventory task that provides NEG to BackendService mappings.
-var (
+	// TagNEGNamesDiscovery is the task tag for tasks that discover NEG name to resource identity mappings.
+	TagNEGNamesDiscovery = coretask.NewTag[NEGNameToResourceIdentityMap]("googlecloud-neg-names-discovery")
+	// NEGToBackendServiceInventoryTaskID is the task ID for the inventory task that provides NEG to BackendService mappings.
 	NEGToBackendServiceInventoryTaskID = taskid.NewDefaultImplementationID[NEGToBackendServiceMap](GoogleCloudCommonK8STaskIDPrefix + "neg-to-backend-service-inventory")
-	TagNEGToBackendServiceDiscovery    = coretask.NewTag[NEGToBackendServiceMap]("googlecloud-neg-to-backend-service-discovery")
+	// TagNEGToBackendServiceDiscovery is the task tag for tasks that discover NEG to BackendService mappings.
+	TagNEGToBackendServiceDiscovery = coretask.NewTag[NEGToBackendServiceMap]("googlecloud-neg-to-backend-service-discovery")
 )
 
 var negToBackendServiceRegex = regexp.MustCompile(`NEG "Key\{\\"([^"]+)\\"[^}]*\}" attached to BackendService "Key\{\\"([^"]+)\\"\}"`)
+
+// NEGNameToResourceIdentityMap maps NEG names to their Kubernetes ServiceNetworkEndpointGroup resource identities.
+type NEGNameToResourceIdentityMap = map[string]k8saudit.ResourceIdentity
+
+// NEGToBackendServiceMap is a map from NEG name to BackendService name.
+type NEGToBackendServiceMap = map[string]string
 
 // ExtractNEGToBackendService extracts the NEG name and BackendService name from a given message.
 func ExtractNEGToBackendService(message string) (negName string, backendServiceName string) {

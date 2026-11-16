@@ -34,18 +34,21 @@ var serialportSequenceConverters = []logutil.SpecialSequenceConverter{
 	logutil.MustNewRegexSequenceConverter(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[\+\-]\d{4}\s.\S+\s`, ""),
 }
 
-// GCESerialPortLogFieldSet contains fields extracted from GCE serial port logs.
-type GCESerialPortLogFieldSet struct {
-	Message  string
-	NodeName string
-	Port     string
-}
-
 var (
 	pathTextPayload  = structured.CompileFieldPath("textPayload")
 	pathResourceName = structured.CompileFieldPath("labels.compute\\.googleapis\\.com/resource_name")
 	pathLogName      = structured.CompileFieldPath("logName")
 )
+
+// GCESerialPortLogFieldSet contains fields extracted from GCE serial port logs.
+type GCESerialPortLogFieldSet struct {
+	// Message is the unescaped serial port output message.
+	Message string
+	// NodeName is the GCE instance resource name from the log labels.
+	NodeName string
+	// Port is the serial port identifier extracted from the log name.
+	Port string
+}
 
 // ExtractGCESerialPortMessage extracts only the escaped message from the structured node reader.
 func ExtractGCESerialPortMessage(reader *structured.NodeReader) (string, error) {

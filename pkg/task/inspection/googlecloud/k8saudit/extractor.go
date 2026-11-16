@@ -41,6 +41,12 @@ var (
 	pathLabels              = structured.CompileFieldPath("labels")
 )
 
+// mutatingWebhookKey identifies a mutating webhook result by its round and execution index.
+type mutatingWebhookKey struct {
+	round int
+	index int
+}
+
 // ExtractGCPK8sAuditLogError extracts whether the log represents an error from a GCP Cloud Logging NodeReader.
 func ExtractGCPK8sAuditLogError(reader *structured.NodeReader) (bool, error) {
 	if cached, ok := structured.GetCache(reader, commonk8saudit.K8sAuditLogCacheKey); ok {
@@ -91,12 +97,6 @@ func ExtractGCPK8sAuditLog(reader *structured.NodeReader) (*commonk8saudit.K8sAu
 
 	structured.SetCache(reader, commonk8saudit.K8sAuditLogCacheKey, result)
 	return result, nil
-}
-
-// mutatingWebhookKey identifies a mutating webhook result by its round and execution index.
-type mutatingWebhookKey struct {
-	round int
-	index int
 }
 
 // extractMutatingWebhookResults parses mutating webhook execution results recorded in the log labels.

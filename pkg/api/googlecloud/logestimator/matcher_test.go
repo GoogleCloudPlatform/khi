@@ -17,8 +17,9 @@ package logestimator
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 )
 
 func TestResourceLabelMatchers(t *testing.T) {

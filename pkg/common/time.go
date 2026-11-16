@@ -16,6 +16,7 @@ package common
 
 import "time"
 
+// ParseTime parses input in RFC3339Nano or RFC3339 format.
 func ParseTime(input string) (time.Time, error) {
 	t, err := time.Parse(time.RFC3339Nano, input)
 	if err == nil {

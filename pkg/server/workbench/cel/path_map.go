@@ -22,6 +22,15 @@ import (
 	"github.com/google/cel-go/common/types/traits"
 )
 
+var (
+	_ ref.Val            = pathMap{}
+	_ traits.Indexer     = pathMap{}
+	_ traits.FieldTester = pathMap{}
+	_ traits.Container   = pathMap{}
+	_ traits.Sizer       = pathMap{}
+	_ traits.Iterable    = pathMap{}
+)
+
 // pathMap is the CEL value bound to the `path` variable of timeline queries.
 // A timeline only has path levels for itself and its ancestors, so a query like `path["pod"] == "x"`
 // would fail with "no such key" on namespace or kind timelines and abort the whole filter.
@@ -34,13 +43,6 @@ import (
 type pathMap struct {
 	levels traits.Mapper
 }
-
-var _ ref.Val = pathMap{}
-var _ traits.Indexer = pathMap{}
-var _ traits.FieldTester = pathMap{}
-var _ traits.Container = pathMap{}
-var _ traits.Sizer = pathMap{}
-var _ traits.Iterable = pathMap{}
 
 // newPathMap wraps the path levels computed by TimelineData.ComputePath as a CEL value.
 func newPathMap(levels map[string]string) pathMap {

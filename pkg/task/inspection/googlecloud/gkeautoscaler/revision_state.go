@@ -23,6 +23,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// RevisionAutoscalerNoError represents the revision state when Cluster Autoscaler reports no errors.
 	RevisionAutoscalerNoError = style.MustRegisterRevisionState(
 		"Autoscaler has no error",
 		"heart_check",
@@ -30,6 +31,7 @@ var (
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionAutoscalerHasErrors represents the revision state when Cluster Autoscaler reports errors.
 	RevisionAutoscalerHasErrors = style.MustRegisterRevisionState(
 		"Autoscaler has errors",
 		"heart_broken",

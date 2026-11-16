@@ -24,6 +24,9 @@ var K8sAuditLogCacheKey = structured.NewCacheKey[*K8sAuditLogFieldSet]()
 // K8sAuditLogExtractor is a function type for extracting K8sAuditLogFieldSet from a NodeReader.
 type K8sAuditLogExtractor func(reader *structured.NodeReader) (*K8sAuditLogFieldSet, error)
 
+// K8sAuditLogErrorExtractor is a function type for extracting whether a log represents an error from a NodeReader.
+type K8sAuditLogErrorExtractor func(reader *structured.NodeReader) (bool, error)
+
 // ExtractK8sAuditLog extracts K8s audit log data from a NodeReader using the given extractor.
 func ExtractK8sAuditLog(reader *structured.NodeReader, extractor K8sAuditLogExtractor) (*K8sAuditLogFieldSet, error) {
 	if mock, ok := structured.GetMock[*K8sAuditLogFieldSet](reader); ok {
@@ -38,9 +41,6 @@ func ExtractK8sAuditLog(reader *structured.NodeReader, extractor K8sAuditLogExtr
 	}
 	return res, err
 }
-
-// K8sAuditLogErrorExtractor is a function type for extracting whether a log represents an error from a NodeReader.
-type K8sAuditLogErrorExtractor func(reader *structured.NodeReader) (bool, error)
 
 // ExtractK8sAuditLogError extracts whether the K8s audit log is an error using the given error extractor.
 func ExtractK8sAuditLogError(reader *structured.NodeReader, extractor K8sAuditLogErrorExtractor) (bool, error) {

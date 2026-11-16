@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeContainer is the registered timeline style LogType for Kubernetes container logs.
 	LogTypeContainer = style.MustRegisterLogType("container", "Kubernetes Container Logs", style.MustForceConvertSRGBHex("#fe9bab"), style.ColorWhite)
 )

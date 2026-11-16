@@ -107,23 +107,6 @@ var autocompleteClusterIdentityTask = inspectiontaskbase.DefineCachedTask(k8scom
 	}
 })
 
-// filterAndTrimPrefixFromClusterNames filters cluster names by prefix and trims the prefix from the filtered cluster names.
-func filterAndTrimPrefixFromClusterNames(metricsLabels []map[string]string, prefix string) []map[string]string {
-	filteredClusters := make([]map[string]string, 0, len(metricsLabels))
-	for _, labels := range metricsLabels {
-		clusterName := labels["cluster_name"]
-		if prefix == "" {
-			if !strings.Contains(clusterName, "/") {
-				filteredClusters = append(filteredClusters, labels)
-			}
-		} else if strings.HasPrefix(clusterName, prefix) {
-			labels["cluster_name"] = strings.TrimPrefix(clusterName, prefix)
-			filteredClusters = append(filteredClusters, labels)
-		}
-	}
-	return filteredClusters
-}
-
 // autocompleteLocationForClusterTask returns the location for the given cluster name.
 var autocompleteLocationForClusterTask = inspectiontaskbase.DefineCachedTask(k8scommon.AutocompleteLocationForClusterTaskID, func(b *coretask.Binder) inspectiontaskbase.CachedTaskSpec[*inspectioncore.AutocompleteResult[string]] {
 	clusterName := coretask.Use(b, k8scommon.InputClusterNameTaskID.Ref()) // This task must not depend on ClusterIdentity because this autocomplete will generate the source of it.
@@ -179,12 +162,65 @@ var autocompleteLocationForClusterTask = inspectiontaskbase.DefineCachedTask(k8s
 	}
 }, coretask.WithSelectionPriority(500))
 
+// autocompleteNamespacesTask provides namespace suggestions for autocomplete.
+var autocompleteNamespacesTask = defineClusterScopedAutocompleteTask(
+	k8scommon.AutocompleteNamespacesTaskID,
+	k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(),
+	clusterScopedAutocompleteConfig{
+		resourceType:       "k8s_container",
+		resourceLabelKey:   "namespace_name",
+		targetNameSingular: "namespace name",
+		targetNamePlural:   "namespace names",
+	},
+)
+
+// autocompletePodNamesTask provides pod name suggestions for autocomplete.
+var autocompletePodNamesTask = defineClusterScopedAutocompleteTask(
+	k8scommon.AutocompletePodNamesTaskID,
+	k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(),
+	clusterScopedAutocompleteConfig{
+		resourceType:       "k8s_container",
+		resourceLabelKey:   "pod_name",
+		targetNameSingular: "pod name",
+		targetNamePlural:   "pod names",
+	},
+)
+
+// autocompleteNodeNamesTask provides node name suggestions for autocomplete.
+var autocompleteNodeNamesTask = defineClusterScopedAutocompleteTask(
+	k8scommon.AutocompleteNodeNamesTaskID,
+	k8scommon.AutocompleteMetricsK8sNodeTaskID.Ref(),
+	clusterScopedAutocompleteConfig{
+		resourceType:       "k8s_node",
+		resourceLabelKey:   "node_name",
+		targetNameSingular: "node name",
+		targetNamePlural:   "node names",
+	},
+)
+
 // clusterScopedAutocompleteConfig defines parameters for querying cluster-scoped autocomplete suggestions from Cloud Monitoring metrics.
 type clusterScopedAutocompleteConfig struct {
 	resourceType       string
 	resourceLabelKey   string
 	targetNameSingular string
 	targetNamePlural   string
+}
+
+// filterAndTrimPrefixFromClusterNames filters cluster names by prefix and trims the prefix from the filtered cluster names.
+func filterAndTrimPrefixFromClusterNames(metricsLabels []map[string]string, prefix string) []map[string]string {
+	filteredClusters := make([]map[string]string, 0, len(metricsLabels))
+	for _, labels := range metricsLabels {
+		clusterName := labels["cluster_name"]
+		if prefix == "" {
+			if !strings.Contains(clusterName, "/") {
+				filteredClusters = append(filteredClusters, labels)
+			}
+		} else if strings.HasPrefix(clusterName, prefix) {
+			labels["cluster_name"] = strings.TrimPrefix(clusterName, prefix)
+			filteredClusters = append(filteredClusters, labels)
+		}
+	}
+	return filteredClusters
 }
 
 // defineClusterScopedAutocompleteTask defines a cached task for cluster-scoped autocomplete suggestions.
@@ -272,39 +308,3 @@ func queryClusterScopedAutocompleteMetrics(
 		Hint:   hintString,
 	}, nil
 }
-
-// autocompleteNamespacesTask provides namespace suggestions for autocomplete.
-var autocompleteNamespacesTask = defineClusterScopedAutocompleteTask(
-	k8scommon.AutocompleteNamespacesTaskID,
-	k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(),
-	clusterScopedAutocompleteConfig{
-		resourceType:       "k8s_container",
-		resourceLabelKey:   "namespace_name",
-		targetNameSingular: "namespace name",
-		targetNamePlural:   "namespace names",
-	},
-)
-
-// autocompletePodNamesTask provides pod name suggestions for autocomplete.
-var autocompletePodNamesTask = defineClusterScopedAutocompleteTask(
-	k8scommon.AutocompletePodNamesTaskID,
-	k8scommon.AutocompleteMetricsK8sContainerTaskID.Ref(),
-	clusterScopedAutocompleteConfig{
-		resourceType:       "k8s_container",
-		resourceLabelKey:   "pod_name",
-		targetNameSingular: "pod name",
-		targetNamePlural:   "pod names",
-	},
-)
-
-// autocompleteNodeNamesTask provides node name suggestions for autocomplete.
-var autocompleteNodeNamesTask = defineClusterScopedAutocompleteTask(
-	k8scommon.AutocompleteNodeNamesTaskID,
-	k8scommon.AutocompleteMetricsK8sNodeTaskID.Ref(),
-	clusterScopedAutocompleteConfig{
-		resourceType:       "k8s_node",
-		resourceLabelKey:   "node_name",
-		targetNameSingular: "node name",
-		targetNamePlural:   "node names",
-	},
-)

@@ -20,14 +20,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
+// Help holds the singleton instance of HelpParameters.
 var Help = &HelpParameters{}
 
+var _ ParameterStore = (*HelpParameters)(nil)
+
+// HelpParameters stores parameters for displaying CLI usage help.
 type HelpParameters struct {
-	// Help
-	// If this parameter is set, KHI exits with printing the usage.
+	// Help prints CLI usage and exits when set.
 	Help *bool
 }
 
+// PostProcess implements ParameterStore.
 func (h *HelpParameters) PostProcess() error {
 	if *h.Help {
 		flag.PrintDefaults()
@@ -37,9 +41,8 @@ func (h *HelpParameters) PostProcess() error {
 	return nil
 }
 
+// Prepare implements ParameterStore.
 func (h *HelpParameters) Prepare() error {
 	h.Help = flag.Bool("help", false, "If this flag is set, KHI exits with printing the usage.", "")
 	return nil
 }
-
-var _ ParameterStore = (*HelpParameters)(nil)

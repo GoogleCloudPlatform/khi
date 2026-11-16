@@ -19,6 +19,8 @@ import (
 	"time"
 	"unique"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
@@ -30,7 +32,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
-	"github.com/google/go-cmp/cmp"
 )
 
 func newTestClusterCreateTimeLog(t *testing.T, assetType string, createTimeStr string) *log.Log {

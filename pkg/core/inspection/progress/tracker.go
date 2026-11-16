@@ -26,19 +26,8 @@ import (
 
 const defaultUpdateInterval = 500 * time.Millisecond
 
-type trackerConfig struct {
-	unit string
-}
-
 // TrackerOption configures a Tracker or RatioTracker.
 type TrackerOption func(*trackerConfig)
-
-// WithUnit specifies the unit name for processed items, such as "logs", "chunks", or "manifests".
-func WithUnit(unit string) TrackerOption {
-	return func(c *trackerConfig) {
-		c.unit = unit
-	}
-}
 
 // Tracker manages thread-safe progress counting, throughput calculation, and ETA estimation for discrete items.
 type Tracker struct {
@@ -50,6 +39,33 @@ type Tracker struct {
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
 	doneOnce  sync.Once
+}
+
+// RatioUpdateOption provides additional context when updating a RatioTracker.
+type RatioUpdateOption func(*ratioUpdateState)
+
+// RatioTracker tracks continuous ratio progress combined with cumulative item counts, used for streaming log queries.
+type RatioTracker struct {
+	tp         *inspectionmetadata.TaskProgressMetadata
+	startTime  time.Time
+	cfg        trackerConfig
+	hasUpdated atomic.Bool
+}
+
+type trackerConfig struct {
+	unit string
+}
+
+type ratioUpdateState struct {
+	currentStep int
+	totalSteps  int
+}
+
+// WithUnit specifies the unit name for processed items, such as "logs", "chunks", or "manifests".
+func WithUnit(unit string) TrackerOption {
+	return func(c *trackerConfig) {
+		c.unit = unit
+	}
 }
 
 // NewTracker creates and starts a background progress tracker for a known total number of discrete items.
@@ -167,28 +183,12 @@ func ForEach[T any](ctx context.Context, items []T, fn func(index int, item T) e
 	return nil
 }
 
-type ratioUpdateState struct {
-	currentStep int
-	totalSteps  int
-}
-
-// RatioUpdateOption provides additional context when updating a RatioTracker.
-type RatioUpdateOption func(*ratioUpdateState)
-
 // WithStep annotates the progress message with multi-step call indices, such as "[2/5]".
 func WithStep(currentStep, totalSteps int) RatioUpdateOption {
 	return func(s *ratioUpdateState) {
 		s.currentStep = currentStep
 		s.totalSteps = totalSteps
 	}
-}
-
-// RatioTracker tracks continuous ratio progress combined with cumulative item counts, used for streaming log queries.
-type RatioTracker struct {
-	tp         *inspectionmetadata.TaskProgressMetadata
-	startTime  time.Time
-	cfg        trackerConfig
-	hasUpdated atomic.Bool
 }
 
 // NewRatioTracker creates a tracker tailored for streaming operations where completion ratio and item counts arrive asynchronously.

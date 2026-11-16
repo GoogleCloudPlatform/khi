@@ -23,10 +23,14 @@ import (
 	"slices"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2"
+
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
-	"github.com/RoaringBitmap/roaring/v2"
 )
+
+// maxOtherTimelines is the maximum number of other linked timelines returned by GetTimelineLogs.
+const maxOtherTimelines = 20
 
 var (
 	// ErrTimelineNotFound indicates that the requested timeline ID does not exist in the search index.
@@ -35,40 +39,54 @@ var (
 	ErrLogNotFound = errors.New("log not found")
 )
 
-// maxOtherTimelines is the maximum number of other linked timelines returned by GetTimelineLogs.
-const maxOtherTimelines = 20
-
 // TimelineLogFilter specifies log CEL and time range filter parameters for reading logs on a single timeline.
 type TimelineLogFilter struct {
-	LogQuery  string     `json:"logQuery,omitempty" jsonschema:"CEL expression to filter logs."`
+	// LogQuery is the CEL expression filtering logs.
+	LogQuery string `json:"logQuery,omitempty" jsonschema:"CEL expression to filter logs."`
+	// StartTime is the inclusive start of the time range in RFC3339 format.
 	StartTime *time.Time `json:"startTime,omitempty" jsonschema:"Inclusive start of the time range in RFC3339 format."`
-	EndTime   *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the time range in RFC3339 format."`
+	// EndTime is the inclusive end of the time range in RFC3339 format.
+	EndTime *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the time range in RFC3339 format."`
 }
 
 // TimelineLogEntry represents a single log entry on a timeline along with other timeline IDs linked to it.
 type TimelineLogEntry struct {
-	LogID            uint32
-	Time             time.Time
-	Severity         *khifilev6.Severity
-	LogType          string
-	Summary          string
+	// LogID is the 1-based identifier of the log entry.
+	LogID uint32
+	// Time is the log timestamp in UTC.
+	Time time.Time
+	// Severity is the resolved severity definition of the log.
+	Severity *khifilev6.Severity
+	// LogType is the resolved log type label.
+	LogType string
+	// Summary is the resolved summary string of the log.
+	Summary string
+	// OtherTimelineIDs lists other filtered timeline IDs linked to this log.
 	OtherTimelineIDs []uint32
 }
 
 // TimelineLogsResult contains the filtered logs for a timeline, applied filter settings, and other linked timelines.
 type TimelineLogsResult struct {
-	TimelineID              uint32
-	Segments                []TimelineSegment
-	Applied                 AppliedFilter
+	// TimelineID is the queried timeline identifier.
+	TimelineID uint32
+	// Segments holds the hierarchical path segments of the timeline.
+	Segments []TimelineSegment
+	// Applied holds the resolved filter configuration.
+	Applied AppliedFilter
+	// TotalOtherTimelineCount is the total number of other timelines linked to matched logs.
 	TotalOtherTimelineCount int
-	OtherTimelines          []OtherTimeline
-	Logs                    []TimelineLogEntry
+	// OtherTimelines holds the top other timelines ranked by matched log count.
+	OtherTimelines []OtherTimeline
+	// Logs holds the matched log entries on the queried timeline.
+	Logs []TimelineLogEntry
 }
 
 // LinkedTimeline represents a timeline linked to a log entry.
 type LinkedTimeline struct {
+	// TimelineID is the identifier of the linked timeline.
 	TimelineID uint32
-	Segments   []TimelineSegment
+	// Segments holds the hierarchical path segments of the linked timeline.
+	Segments []TimelineSegment
 }
 
 // OtherTimeline is a timeline other than the queried timeline that is linked to some of the matched logs.
@@ -80,24 +98,46 @@ type OtherTimeline struct {
 
 // LogDetail contains metadata, linked timelines, and the truncated YAML body for a single log entry.
 type LogDetail struct {
-	LogID           uint32
-	Time            time.Time
-	Severity        *khifilev6.Severity
-	LogType         string
-	Summary         string
+	// LogID is the 1-based identifier of the log entry.
+	LogID uint32
+	// Time is the log timestamp in UTC.
+	Time time.Time
+	// Severity is the resolved severity definition of the log.
+	Severity *khifilev6.Severity
+	// LogType is the resolved log type label.
+	LogType string
+	// Summary is the resolved summary string of the log.
+	Summary string
+	// LinkedTimelines lists all timelines linked to this log.
 	LinkedTimelines []LinkedTimeline
-	Body            BodyChunk
+	// Body holds the potentially truncated YAML body of the log.
+	Body BodyChunk
 }
 
 // RawLogDetail contains metadata, linked timelines, and the untruncated YAML body for a single log entry.
 type RawLogDetail struct {
-	LogID           uint32
-	Time            time.Time
-	Severity        *khifilev6.Severity
-	LogType         string
-	Summary         string
+	// LogID is the 1-based identifier of the log entry.
+	LogID uint32
+	// Time is the log timestamp in UTC.
+	Time time.Time
+	// Severity is the resolved severity definition of the log.
+	Severity *khifilev6.Severity
+	// LogType is the resolved log type label.
+	LogType string
+	// Summary is the resolved summary string of the log.
+	Summary string
+	// LinkedTimelines lists all timelines linked to this log.
 	LinkedTimelines []LinkedTimeline
-	YAMLBody        string
+	// YAMLBody holds the untruncated YAML body of the log.
+	YAMLBody string
+}
+
+// LogQueryMetadata holds the Cloud Logging insertId and UTC timestamp of a log entry.
+type LogQueryMetadata struct {
+	// InsertID is the Cloud Logging insertId of the log entry.
+	InsertID string
+	// Time is the log timestamp in UTC.
+	Time time.Time
 }
 
 // GetTimelineLogs filters logs on the specified timeline and aggregates other timelines linked to those logs across all matched entries.
@@ -146,6 +186,79 @@ func (w *Workbench) GetTimelineLogs(ctx context.Context, timelineID uint32, filt
 		OtherTimelines:          otherTimelines,
 		Logs:                    entries,
 	}, nil
+}
+
+// GetRawLogDetail returns the metadata, all linked timelines, and the untruncated YAML body for a single log ID.
+func (w *Workbench) GetRawLogDetail(logID uint32) (*RawLogDetail, error) {
+	index, styles, err := w.readyIndex()
+	if err != nil {
+		return nil, err
+	}
+
+	l := index.GetLog(logID)
+	if l == nil || l.ID == 0 {
+		return nil, fmt.Errorf("%w: %d", ErrLogNotFound, logID)
+	}
+
+	linkedIDs := slices.Clone(index.GetTimelineIDsForLog(l.ID))
+	slices.Sort(linkedIDs)
+	linked := make([]LinkedTimeline, 0, len(linkedIDs))
+	for _, linkedID := range linkedIDs {
+		segments, _ := index.TimelineSegments(linkedID)
+		linked = append(linked, LinkedTimeline{
+			TimelineID: linkedID,
+			Segments:   segments,
+		})
+	}
+
+	yamls, err := w.ReadStructYAMLs([]uint32{l.BodyStructID})
+	if err != nil {
+		return nil, err
+	}
+
+	return &RawLogDetail{
+		LogID:           l.ID,
+		Time:            logTime(l),
+		Severity:        styles.severityMap[l.SeverityTypeID],
+		LogType:         index.StyleResolver.ResolveLogType(l.LogTypeID),
+		Summary:         index.InternPool.ResolveStringFromID(l.SummaryStringID),
+		LinkedTimelines: linked,
+		YAMLBody:        yamls[l.BodyStructID],
+	}, nil
+}
+
+// GetLogDetail returns the metadata, all linked timelines, and the YAML body sliced from byteOffset for a single log ID.
+func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, error) {
+	raw, err := w.GetRawLogDetail(logID)
+	if err != nil {
+		return nil, err
+	}
+	return &LogDetail{
+		LogID:           raw.LogID,
+		Time:            raw.Time,
+		Severity:        raw.Severity,
+		LogType:         raw.LogType,
+		Summary:         raw.Summary,
+		LinkedTimelines: raw.LinkedTimelines,
+		Body:            truncateBody(raw.YAMLBody, byteOffset, bodyByteLimit),
+	}, nil
+}
+
+// GetLogQueryMetadata returns the Cloud Logging insertId and UTC timestamp for logID without serializing its YAML body.
+func (w *Workbench) GetLogQueryMetadata(logID uint32) (LogQueryMetadata, bool) {
+	if logID == 0 {
+		return LogQueryMetadata{}, false
+	}
+	index, _, err := w.readyIndex()
+	if err != nil {
+		return LogQueryMetadata{}, false
+	}
+	l := index.GetLog(logID)
+	if l == nil || l.ID == 0 {
+		return LogQueryMetadata{}, false
+	}
+	insertID, _ := index.InternPool.ResolveStructStringField(l.BodyStructID, "insertId")
+	return LogQueryMetadata{InsertID: insertID, Time: logTime(l)}, true
 }
 
 // readyIndex returns the search index and the style maps, or an error when the workbench is closed or not indexed yet.
@@ -248,83 +361,4 @@ func logTime(l *cel.LogData) time.Time {
 		return time.Time{}
 	}
 	return time.Unix(0, l.Timestamp).UTC()
-}
-
-// GetRawLogDetail returns the metadata, all linked timelines, and the untruncated YAML body for a single log ID.
-func (w *Workbench) GetRawLogDetail(logID uint32) (*RawLogDetail, error) {
-	index, styles, err := w.readyIndex()
-	if err != nil {
-		return nil, err
-	}
-
-	l := index.GetLog(logID)
-	if l == nil || l.ID == 0 {
-		return nil, fmt.Errorf("%w: %d", ErrLogNotFound, logID)
-	}
-
-	linkedIDs := slices.Clone(index.GetTimelineIDsForLog(l.ID))
-	slices.Sort(linkedIDs)
-	linked := make([]LinkedTimeline, 0, len(linkedIDs))
-	for _, linkedID := range linkedIDs {
-		segments, _ := index.TimelineSegments(linkedID)
-		linked = append(linked, LinkedTimeline{
-			TimelineID: linkedID,
-			Segments:   segments,
-		})
-	}
-
-	yamls, err := w.ReadStructYAMLs([]uint32{l.BodyStructID})
-	if err != nil {
-		return nil, err
-	}
-
-	return &RawLogDetail{
-		LogID:           l.ID,
-		Time:            logTime(l),
-		Severity:        styles.severityMap[l.SeverityTypeID],
-		LogType:         index.StyleResolver.ResolveLogType(l.LogTypeID),
-		Summary:         index.InternPool.ResolveStringFromID(l.SummaryStringID),
-		LinkedTimelines: linked,
-		YAMLBody:        yamls[l.BodyStructID],
-	}, nil
-}
-
-// GetLogDetail returns the metadata, all linked timelines, and the YAML body sliced from byteOffset for a single log ID.
-func (w *Workbench) GetLogDetail(logID uint32, byteOffset int) (*LogDetail, error) {
-	raw, err := w.GetRawLogDetail(logID)
-	if err != nil {
-		return nil, err
-	}
-	return &LogDetail{
-		LogID:           raw.LogID,
-		Time:            raw.Time,
-		Severity:        raw.Severity,
-		LogType:         raw.LogType,
-		Summary:         raw.Summary,
-		LinkedTimelines: raw.LinkedTimelines,
-		Body:            truncateBody(raw.YAMLBody, byteOffset, bodyByteLimit),
-	}, nil
-}
-
-// LogQueryMetadata holds the Cloud Logging insertId and UTC timestamp of a log entry.
-type LogQueryMetadata struct {
-	InsertID string
-	Time     time.Time
-}
-
-// GetLogQueryMetadata returns the Cloud Logging insertId and UTC timestamp for logID without serializing its YAML body.
-func (w *Workbench) GetLogQueryMetadata(logID uint32) (LogQueryMetadata, bool) {
-	if logID == 0 {
-		return LogQueryMetadata{}, false
-	}
-	index, _, err := w.readyIndex()
-	if err != nil {
-		return LogQueryMetadata{}, false
-	}
-	l := index.GetLog(logID)
-	if l == nil || l.ID == 0 {
-		return LogQueryMetadata{}, false
-	}
-	insertID, _ := index.InternPool.ResolveStructStringField(l.BodyStructID, "insertId")
-	return LogQueryMetadata{InsertID: insertID, Time: logTime(l)}, true
 }

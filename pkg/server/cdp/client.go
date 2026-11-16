@@ -26,6 +26,20 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// TransportError wraps WebSocket send and receive failures so callers can distinguish
+// unrecoverable connection errors from transient CDP protocol or JavaScript evaluation errors.
+type TransportError struct {
+	// Err is the underlying WebSocket transport error.
+	Err error
+}
+
+// Client manages a single Chrome DevTools Protocol WebSocket connection.
+type Client struct {
+	mu     sync.Mutex
+	ws     *websocket.Conn
+	nextID int
+}
+
 type request struct {
 	ID     int            `json:"id"`
 	Method string         `json:"method"`
@@ -55,13 +69,6 @@ type evaluateResult struct {
 	} `json:"exceptionDetails"`
 }
 
-// TransportError wraps WebSocket send and receive failures so callers can distinguish
-// unrecoverable connection errors from transient CDP protocol or JavaScript evaluation errors.
-type TransportError struct {
-	// Err is the underlying WebSocket transport error.
-	Err error
-}
-
 // Error returns the string representation of the underlying transport error.
 func (e *TransportError) Error() string {
 	return e.Err.Error()
@@ -70,13 +77,6 @@ func (e *TransportError) Error() string {
 // Unwrap returns the underlying transport error for errors.Is and errors.As checks.
 func (e *TransportError) Unwrap() error {
 	return e.Err
-}
-
-// Client manages a single Chrome DevTools Protocol WebSocket connection.
-type Client struct {
-	mu     sync.Mutex
-	ws     *websocket.Conn
-	nextID int
 }
 
 // Dial establishes a new Chrome DevTools Protocol WebSocket client connection to wsURL.

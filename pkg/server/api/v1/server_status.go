@@ -19,11 +19,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
-	"google.golang.org/protobuf/proto"
 )
+
+var _ apiv1connect.ServerStatusServiceHandler = (*ServerStatusServiceServer)(nil)
 
 // ServerStatusServiceServer implements the apiv1connect.ServerStatusServiceHandler interface.
 type ServerStatusServiceServer struct {
@@ -31,8 +34,6 @@ type ServerStatusServiceServer struct {
 	streamCycleDuration time.Duration
 	updateInterval      time.Duration
 }
-
-var _ apiv1connect.ServerStatusServiceHandler = (*ServerStatusServiceServer)(nil)
 
 // NewServerStatusServiceServer creates a new ServerStatusServiceServer with default 30s stream cycle and 1s interval.
 func NewServerStatusServiceServer(monitor server.ResourceMonitor) *ServerStatusServiceServer {

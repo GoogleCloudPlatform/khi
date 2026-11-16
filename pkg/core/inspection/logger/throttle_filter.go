@@ -19,6 +19,8 @@ import (
 	"log/slog"
 )
 
+var _ slog.Handler = (*ThrottleFilter)(nil)
+
 // ThrottleFilter is a slog.Handler that filters log records to prevent excessive
 // logging of similar messages.
 type ThrottleFilter struct {
@@ -71,7 +73,7 @@ func (t *ThrottleFilter) WithGroup(name string) slog.Handler {
 	}
 }
 
-// getLogKind returns the log kind from attrs in slog.Record
+// getLogKind returns the log kind from attrs in slog.Record.
 func (t *ThrottleFilter) getLogKind(r slog.Record) string {
 	kind := ""
 	r.Attrs(func(a slog.Attr) bool {
@@ -83,5 +85,3 @@ func (t *ThrottleFilter) getLogKind(r slog.Record) string {
 	})
 	return kind
 }
-
-var _ slog.Handler = (*ThrottleFilter)(nil)

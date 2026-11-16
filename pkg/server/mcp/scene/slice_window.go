@@ -42,27 +42,24 @@ const (
 
 // InvalidSliceWindowError reports an invalid SliceWindow configuration such as an empty query.
 type InvalidSliceWindowError struct {
+	// WindowIndex is the 0-based index of the invalid window.
 	WindowIndex int
-	Reason      string
-}
-
-// Error formats the invalid slice window error message.
-func (e *InvalidSliceWindowError) Error() string {
-	return fmt.Sprintf("invalid slice window %d: %s", e.WindowIndex, e.Reason)
+	// Reason describes why the slice window configuration is invalid.
+	Reason string
 }
 
 // SliceQueryNotFoundError reports that a SliceWindow query matched zero lines in the target diff or log.
 type SliceQueryNotFoundError struct {
-	WindowIndex  int
-	Query        string
+	// WindowIndex is the 0-based index of the window whose query matched nothing.
+	WindowIndex int
+	// Query is the literal search string that produced zero matches.
+	Query string
+	// TopLevelKeys lists available top-level YAML keys to help refine the query.
 	TopLevelKeys []string
-	Preview      string
-	Summary      string
-}
-
-// Error formats the missing query match error message.
-func (e *SliceQueryNotFoundError) Error() string {
-	return fmt.Sprintf("slice window %d query %q matched no lines", e.WindowIndex, e.Query)
+	// Preview holds a short preview of changed diff hunks when slicing a diff.
+	Preview string
+	// Summary holds the log summary when slicing a log entry.
+	Summary string
 }
 
 type byteSpan struct {
@@ -81,6 +78,16 @@ type compiledWindow struct {
 	before     int
 	after      int
 	maxMatches int
+}
+
+// Error formats the invalid slice window error message.
+func (e *InvalidSliceWindowError) Error() string {
+	return fmt.Sprintf("invalid slice window %d: %s", e.WindowIndex, e.Reason)
+}
+
+// Error formats the missing query match error message.
+func (e *SliceQueryNotFoundError) Error() string {
+	return fmt.Sprintf("slice window %d query %q matched no lines", e.WindowIndex, e.Query)
 }
 
 func normalizeMaxLines(maxLines int) int {

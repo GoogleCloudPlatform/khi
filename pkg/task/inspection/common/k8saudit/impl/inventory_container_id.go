@@ -26,26 +26,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+var (
+	pathContainerStatuses          = structured.CompileFieldPath("status.containerStatuses")
+	pathInitContainerStatuses      = structured.CompileFieldPath("status.initContainerStatuses")
+	pathEphemeralContainerStatuses = structured.CompileFieldPath("status.ephemeralContainerStatuses")
+	pathContainerID                = structured.CompileFieldPath("containerID")
+	pathContainerName              = structured.CompileFieldPath("name")
+)
+
 // containerIDInventoryTask merges container ID to container identity mappings discovered across tasks.
 var containerIDInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8saudit.ContainerIDInventoryTaskID,
 	k8saudit.TagContainerIDDiscovery,
 	mergeContainerIDs,
 )
-
-func mergeContainerIDs(results []k8saudit.ContainerIDToContainerIdentity) (k8saudit.ContainerIDToContainerIdentity, error) {
-	result := map[string]*k8saudit.ContainerIdentity{}
-	for _, r := range results {
-		for cid, s := range r {
-			if current, ok := result[cid]; ok {
-				result[cid] = current.Merge(s)
-			} else {
-				result[cid] = s
-			}
-		}
-	}
-	return result, nil
-}
 
 // containerIDPatternFinderTask builds a pattern finder for container IDs from the container ID inventory.
 var containerIDPatternFinderTask = inspectiontaskbase.DefineInspectionTask(
@@ -65,14 +59,6 @@ var containerIDPatternFinderTask = inspectiontaskbase.DefineInspectionTask(
 			return finder, nil
 		}
 	},
-)
-
-var (
-	pathContainerStatuses          = structured.CompileFieldPath("status.containerStatuses")
-	pathInitContainerStatuses      = structured.CompileFieldPath("status.initContainerStatuses")
-	pathEphemeralContainerStatuses = structured.CompileFieldPath("status.ephemeralContainerStatuses")
-	pathContainerID                = structured.CompileFieldPath("containerID")
-	pathContainerName              = structured.CompileFieldPath("name")
 )
 
 // containerIDDiscoveryTask extracts container IDs from pod manifests in audit logs.
@@ -110,6 +96,20 @@ var containerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	coretask.ProvidesTag(k8saudit.TagContainerIDDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
+
+func mergeContainerIDs(results []k8saudit.ContainerIDToContainerIdentity) (k8saudit.ContainerIDToContainerIdentity, error) {
+	result := map[string]*k8saudit.ContainerIdentity{}
+	for _, r := range results {
+		for cid, s := range r {
+			if current, ok := result[cid]; ok {
+				result[cid] = current.Merge(s)
+			} else {
+				result[cid] = s
+			}
+		}
+	}
+	return result, nil
+}
 
 func extractContainerIDs(reader *structured.NodeReader, fieldPath structured.FieldPath, podNamespace, podName string, result k8saudit.ContainerIDToContainerIdentity) {
 	statusesReader, err := reader.GetReader(fieldPath)

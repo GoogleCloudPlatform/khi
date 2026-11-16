@@ -18,6 +18,7 @@ import (
 	"time"
 
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
+
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
@@ -34,23 +35,21 @@ var LogTypeCAIResourceSnapshot = style.MustRegisterLogType(
 
 // CAIAssetSnapshot represents a single temporal asset snapshot captured from Cloud Asset Inventory.
 type CAIAssetSnapshot struct {
+	// TemporalAsset is the underlying Cloud Asset Inventory temporal asset message.
 	TemporalAsset *assetpb.TemporalAsset
-}
-
-// StartTime returns the start time of the temporal asset's validity window, or zero time if absent.
-func (s *CAIAssetSnapshot) StartTime() time.Time {
-	if st := s.TemporalAsset.GetWindow().GetStartTime(); st != nil {
-		return st.AsTime()
-	}
-	return time.Time{}
 }
 
 // CAITaskIDSet groups the task implementation IDs for a standard CAI inspection pipeline.
 type CAITaskIDSet struct {
-	Fetcher        taskid.TaskImplementationID[[]*CAIAssetSnapshot]
-	RawLog         taskid.TaskImplementationID[[]*log.Log]
-	LogGrouper     taskid.TaskImplementationID[inspectiontaskbase.LogGroupMap]
-	LogIngester    taskid.TaskImplementationID[struct{}]
+	// Fetcher is the task ID for fetching TemporalAsset snapshots from CAI.
+	Fetcher taskid.TaskImplementationID[[]*CAIAssetSnapshot]
+	// RawLog is the task ID for converting TemporalAsset snapshots into raw Log entities.
+	RawLog taskid.TaskImplementationID[[]*log.Log]
+	// LogGrouper is the task ID for grouping raw CAI snapshot logs by resource identity.
+	LogGrouper taskid.TaskImplementationID[inspectiontaskbase.LogGroupMap]
+	// LogIngester is the task ID for ingesting CAI snapshot log metadata.
+	LogIngester taskid.TaskImplementationID[struct{}]
+	// TimelineMapper is the task ID for staging initial timeline revisions from CAI snapshots.
 	TimelineMapper taskid.TaskImplementationID[struct{}]
 }
 
@@ -63,4 +62,12 @@ func NewCAITaskIDSet(prefix string) CAITaskIDSet {
 		LogIngester:    taskid.NewDefaultImplementationID[struct{}](prefix + "log-ingester"),
 		TimelineMapper: taskid.NewDefaultImplementationID[struct{}](prefix + "timeline-mapper"),
 	}
+}
+
+// StartTime returns the start time of the temporal asset's validity window, or zero time if absent.
+func (s *CAIAssetSnapshot) StartTime() time.Time {
+	if st := s.TemporalAsset.GetWindow().GetStartTime(); st != nil {
+		return st.AsTime()
+	}
+	return time.Time{}
 }

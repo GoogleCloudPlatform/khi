@@ -22,10 +22,16 @@ import (
 
 // TaskRunner receives the runnable TaskSet and run tasks with topological sorted order.
 type TaskRunner interface {
+	// Run starts executing the task graph asynchronously.
 	Run(ctx context.Context) error
+	// Wait returns a channel that closes when task graph execution completes.
 	Wait() <-chan interface{}
+	// Result returns the final task results map or an error if execution failed or has not finished.
 	Result() (*typedmap.ReadonlyTypedMap, error)
+	// Tasks returns all tasks in the resolved task set.
 	Tasks() []UntypedTask
+	// TaskRunStatuses returns a snapshot of the execution status for each task keyed by implementation ID.
 	TaskRunStatuses() map[string]TaskRunStatus
+	// AddInterceptor registers an interceptor to wrap task execution.
 	AddInterceptor(interceptor Interceptor)
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
+// TaskIDPrefix is the prefix for all task IDs in the serialport package.
 const TaskIDPrefix = "cloud.google.com/log/serialport/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.

@@ -15,6 +15,7 @@
 package khifilev6
 
 import (
+	"errors"
 	"io"
 	"testing"
 
@@ -54,7 +55,7 @@ func TestSplittingGenerator(t *testing.T) {
 	}
 
 	_, err = gen1.Next()
-	if err != io.EOF {
+	if !errors.Is(err, io.EOF) {
 		t.Fatalf("Expected EOF, got: %v", err)
 	}
 
@@ -66,7 +67,7 @@ func TestSplittingGenerator(t *testing.T) {
 	count := 0
 	for {
 		_, err := gen2.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -134,7 +135,7 @@ func (w *DummyWriter) WriteGenerator(gen ChunkGenerator) error {
 	chunkType := gen.ChunkType()
 	for {
 		msg, err := gen.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

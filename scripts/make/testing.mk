@@ -60,24 +60,75 @@ coverage-web-container: build-builder ## Run frontend tests and generate coverag
 		make coverage-web USE_CONTAINER=false
 
 COLOR ?= auto
-MUTATION_BASE ?=
-MUTATION_VCS ?=
-MUTATION_FULL ?= false
-MUTATION_MAX ?= 80
-MUTATION_COLOR ?= $(COLOR)
+CODEQUALITY_BASE ?=
+CODEQUALITY_TARGET ?=
+CODEQUALITY_VCS ?=
+CODEQUALITY_FULL ?= false
+CODEQUALITY_WORKERS ?= 0
+CODEQUALITY_MAX ?= 80
+CODEQUALITY_TIMEOUT ?= 3m
+-include $(HOME)/.config/khi/codequality.mk
+CODEQUALITY_SIMILARITY ?= false
+CODEQUALITY_SIMILARITY_PROJECT ?=
+CODEQUALITY_COLOR ?= $(COLOR)
+
+CODEQUALITY_FLAGS := --color=$(CODEQUALITY_COLOR) --similarity=$(CODEQUALITY_SIMILARITY) $(if $(CODEQUALITY_SIMILARITY_PROJECT),--similarity-project=$(CODEQUALITY_SIMILARITY_PROJECT),) --workers=$(CODEQUALITY_WORKERS) --max-mutants=$(CODEQUALITY_MAX) --timeout=$(CODEQUALITY_TIMEOUT) $(if $(CODEQUALITY_VCS),--vcs=$(CODEQUALITY_VCS),) $(if $(CODEQUALITY_BASE),--base=$(CODEQUALITY_BASE),) $(if $(CODEQUALITY_TARGET),--target=$(CODEQUALITY_TARGET),) $(if $(filter true 1,$(CODEQUALITY_FULL)),--full,)
 
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
 	KHI_SKIP_CLOUD_LOGGING=true go test -cover ./... -coverprofile=./go-cover.output
 	go tool cover -html=./go-cover.output -o=go-cover.html
 
-.PHONY: mutation-diff
-mutation-diff: $(GENERATE_BACKEND_DUMMY) ## Run unified Go differential coverage, mutation testing, and redundant test detection
+.PHONY: codequality-fast
+codequality-fast: ## Run fast Go AST structural complexity, size, naming, ratchet, and function similarity checks on changed files
+	go run ./scripts/codequality --lang=go --fast --similarity=$(CODEQUALITY_SIMILARITY) $(if $(CODEQUALITY_SIMILARITY_PROJECT),--similarity-project=$(CODEQUALITY_SIMILARITY_PROJECT),) --color=$(CODEQUALITY_COLOR) $(if $(CODEQUALITY_VCS),--vcs=$(CODEQUALITY_VCS),) $(if $(CODEQUALITY_BASE),--base=$(CODEQUALITY_BASE),) $(if $(CODEQUALITY_TARGET),--target=$(CODEQUALITY_TARGET),)
+
+.PHONY: codequality-ci
+codequality-ci: ## Run unified differential code quality checks for Cloud Build CI
+	/bin/bash ./scripts/run-codequality-ci.sh
+
+.PHONY: post-codequality-comment
+post-codequality-comment: ## Post or update sticky GitHub PR comment from completed Cloud Build Check Run
+	/bin/bash ./scripts/post-codequality-pr-comment.sh
+
+.PHONY: codequality
+ifneq ($(filter true 1,$(USE_CONTAINER)),)
+codequality: $(GENERATE_BACKEND_DUMMY) $(GENERATE_FRONTEND_DUMMY) build-builder ## Run unified Go and TypeScript code and test quality checks
 	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
 		$(MAKE) build-web; \
 	fi
-	go run ./scripts/mutation-diff --color=$(MUTATION_COLOR) --max-mutants=$(MUTATION_MAX) $(if $(MUTATION_VCS),--vcs=$(MUTATION_VCS),) $(if $(MUTATION_BASE),--base=$(MUTATION_BASE),) $(if $(filter true 1,$(MUTATION_FULL)),--full,)
-	@touch scripts/make/mutation-diff.done
+	USE_CONTAINER=true CONTAINER_CMD="$(CONTAINER_CMD)" BUILDER_IMAGE="$(BUILDER_IMAGE)" go run ./scripts/codequality --lang=all $(CODEQUALITY_FLAGS)
+	@touch scripts/make/codequality.done
+else
+codequality: $(GENERATE_BACKEND_DUMMY) $(GENERATE_FRONTEND_DUMMY) ## Run unified Go and TypeScript code and test quality checks
+	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
+		$(MAKE) build-web; \
+	fi
+	go run ./scripts/codequality --lang=all $(CODEQUALITY_FLAGS)
+	@touch scripts/make/codequality.done
+endif
+
+.PHONY: codequality-go
+codequality-go: $(GENERATE_BACKEND_DUMMY) ## Run unified Go quality rules and ratchets (AST structure, coverage, mutation testing, and test redundancy)
+	@if [ ! -f $(FRONTEND_ARTIFACT_FILES_DUMMY) ]; then \
+		$(MAKE) build-web; \
+	fi
+	go run ./scripts/codequality --lang=go $(CODEQUALITY_FLAGS)
+	@touch scripts/make/codequality.done
+
+.PHONY: codequality-web
+ifneq ($(filter true 1,$(USE_CONTAINER)),)
+codequality-web: codequality-web-container
+else
+codequality-web: $(GENERATE_FRONTEND_DUMMY) ## Run unified TypeScript differential coverage, mutation testing, and redundant spec detection
+	go run ./scripts/codequality --lang=ts $(CODEQUALITY_FLAGS)
+	@touch scripts/make/codequality.done
+endif
+
+.PHONY: codequality-web-container
+codequality-web-container: $(GENERATE_FRONTEND_DUMMY) build-builder ## Run unified TypeScript differential coverage and mutation testing using container Karma
+	USE_CONTAINER=true CONTAINER_CMD="$(CONTAINER_CMD)" BUILDER_IMAGE="$(BUILDER_IMAGE)" go run ./scripts/codequality --lang=ts $(CODEQUALITY_FLAGS)
+	@touch scripts/make/codequality.done
 
 FIXTURES_GCS_BUCKET ?= gs://khi-fixtures
 

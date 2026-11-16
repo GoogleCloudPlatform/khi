@@ -30,6 +30,67 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// resourceLifetimeTrackerTask is the task to track the lifetime of resources.
+var resourceLifetimeTrackerTask = inspectiontaskbase.DefineInspectionTask[k8saudit.ResourceManifestLogGroupMap](
+	k8saudit.ResourceLifetimeTrackerTaskID,
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceManifestLogGroupMap] {
+		groupedLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
+			if taskMode == inspectioncore.TaskModeDryRun {
+				slog.DebugContext(ctx, "Skipping task because this is dry run mode")
+				return k8saudit.ResourceManifestLogGroupMap{}, nil
+			}
+
+			groupedLogs := groupedLogsInput.Get(ctx)
+
+			totalLogCount := 0
+			for _, group := range groupedLogs {
+				totalLogCount += len(group.Logs)
+			}
+
+			tracker := progress.NewTracker(ctx, totalLogCount, progress.WithUnit("logs"))
+			defer tracker.Done()
+
+			setting := &lifeTimeTrackerTaskSetting{
+				kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
+					"core/v1#pod": {},
+				},
+			}
+
+			pool := worker.NewPool(runtime.GOMAXPROCS(0))
+			for _, group := range groupedLogs {
+				pool.Run(func() {
+					var groupData *lifeTimeTrackerGroupState
+					// Lifetimetracker doesn't handle namespace resources.
+					if group.Resource.Type() == k8saudit.Namespace {
+						tracker.Add(len(group.Logs))
+						return
+					}
+					for _, l := range group.Logs {
+						var err error
+						groupData, err = setting.DetectLifetimeLogEvent(ctx, l, groupData)
+						if err != nil {
+							var yaml string
+							yamlBytes, err2 := l.Log.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
+							if err2 != nil {
+								yaml = "ERROR!! failed to dump in yaml"
+							} else {
+								yaml = string(yamlBytes)
+							}
+							slog.WarnContext(ctx, "parser ended with an error", "error", err, "logContent", yaml)
+							continue
+						}
+					}
+					tracker.Add(len(group.Logs))
+				})
+			}
+			pool.Wait()
+
+			return groupedLogs, nil
+		}
+	},
+)
+
 type lifeTimeTrackerGroupState struct {
 	// WasCompletelyRemoved is true if the resource was completely removed.
 	WasCompletelyRemoved bool
@@ -42,21 +103,6 @@ type lifeTimeTrackerGroupState struct {
 type lifeTimeTrackerTaskSetting struct {
 	// kindsToWaitExactDeletionToDetermineDeletion is the map of kinds to wait exact deletion to determine deletion.
 	kindsToWaitExactDeletionToDetermineDeletion map[string]struct{}
-}
-
-// isDeletiveVerb returns true if the verb is delete or deletecollection.
-func isDeletiveVerb(verb *pb.Verb) bool {
-	return verb == k8saudit.VerbDelete || verb == k8saudit.VerbDeleteCollection
-}
-
-// isCreativeVerb returns true if the verb is create or update. These are possible to create the resource.
-func isCreativeVerb(verb *pb.Verb) bool {
-	return verb == k8saudit.VerbCreate || verb == k8saudit.VerbUpdate
-}
-
-// isPod returns true if the operation is for a pod.
-func isPod(apiVersion string, pluralKind string) bool {
-	return apiVersion == "core/v1" && k8saudit.GetSingularKindName(pluralKind) == "pod"
 }
 
 // DetectLifetimeLogEvent detects if the log is the timing to create or delete the timeline resource and update the log field.
@@ -166,63 +212,17 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 	return prevGroupData, nil
 }
 
-// resourceLifetimeTrackerTask is the task to track the lifetime of resources.
-var resourceLifetimeTrackerTask = inspectiontaskbase.DefineInspectionTask[k8saudit.ResourceManifestLogGroupMap](
-	k8saudit.ResourceLifetimeTrackerTaskID,
-	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[k8saudit.ResourceManifestLogGroupMap] {
-		groupedLogsInput := coretask.Use(b, k8saudit.ManifestGeneratorTaskID.Ref())
-		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (k8saudit.ResourceManifestLogGroupMap, error) {
-			if taskMode == inspectioncore.TaskModeDryRun {
-				slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-				return k8saudit.ResourceManifestLogGroupMap{}, nil
-			}
+// isDeletiveVerb returns true if the verb is delete or deletecollection.
+func isDeletiveVerb(verb *pb.Verb) bool {
+	return verb == k8saudit.VerbDelete || verb == k8saudit.VerbDeleteCollection
+}
 
-			groupedLogs := groupedLogsInput.Get(ctx)
+// isCreativeVerb returns true if the verb is create or update. These are possible to create the resource.
+func isCreativeVerb(verb *pb.Verb) bool {
+	return verb == k8saudit.VerbCreate || verb == k8saudit.VerbUpdate
+}
 
-			totalLogCount := 0
-			for _, group := range groupedLogs {
-				totalLogCount += len(group.Logs)
-			}
-
-			tracker := progress.NewTracker(ctx, totalLogCount, progress.WithUnit("logs"))
-			defer tracker.Done()
-
-			setting := &lifeTimeTrackerTaskSetting{
-				kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
-					"core/v1#pod": {},
-				},
-			}
-
-			pool := worker.NewPool(runtime.GOMAXPROCS(0))
-			for _, group := range groupedLogs {
-				pool.Run(func() {
-					var groupData *lifeTimeTrackerGroupState
-					// Lifetimetracker doesn't handle namespace resources.
-					if group.Resource.Type() == k8saudit.Namespace {
-						tracker.Add(len(group.Logs))
-						return
-					}
-					for _, l := range group.Logs {
-						var err error
-						groupData, err = setting.DetectLifetimeLogEvent(ctx, l, groupData)
-						if err != nil {
-							var yaml string
-							yamlBytes, err2 := l.Log.Serialize(structured.EmptyFieldPath, &structured.YAMLNodeSerializer{})
-							if err2 != nil {
-								yaml = "ERROR!! failed to dump in yaml"
-							} else {
-								yaml = string(yamlBytes)
-							}
-							slog.WarnContext(ctx, "parser ended with an error", "error", err, "logContent", yaml)
-							continue
-						}
-					}
-					tracker.Add(len(group.Logs))
-				})
-			}
-			pool.Wait()
-
-			return groupedLogs, nil
-		}
-	},
-)
+// isPod returns true if the operation is for a pod.
+func isPod(apiVersion string, pluralKind string) bool {
+	return apiVersion == "core/v1" && k8saudit.GetSingularKindName(pluralKind) == "pod"
+}

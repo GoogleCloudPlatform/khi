@@ -27,38 +27,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generateCSMTrafficDirectorStructuredQuery generates a structured query for CSM Traffic Director logs.
-func generateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) *logestimator.StructuredLogQuery {
-	if isDryRun {
-		clusterIdentifiers = []string{"dummy"}
-	}
-	if len(clusterIdentifiers) == 0 {
-		return nil
-	}
-
-	filters := []logestimator.LoggingMonitoringMatcher{
-		logestimator.ResourceLabel("project_id", logestimator.Exact(fleetProjectID)),
-		logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
-	}
-
-	switch {
-	case isDryRun:
-		filters = append(filters, logestimator.CustomFilter(`protoPayload.resourceName:"gsmrsvd-dummy" -- The actual resource name selector will be generated from other logs in the middle of the pipeline.`))
-	case len(clusterIdentifiers) == 1:
-		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"gsmrsvd-%s"`, clusterIdentifiers[0])))
-	default:
-		quotedIdentifiers := make([]string, len(clusterIdentifiers))
-		for i, id := range clusterIdentifiers {
-			quotedIdentifiers[i] = fmt.Sprintf(`"gsmrsvd-%s"`, id)
+// listCSMTrafficDirectorLogEntriesTask queries the audit logs of the Traffic Director resources that CSM created for the cluster from Cloud Logging.
+var listCSMTrafficDirectorLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	csm.ListCSMTrafficDirectorLogEntriesTaskID,
+	"CSM Traffic Director logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &csmTrafficDirectorQuerySource{
+			fleetProjectID:     coretask.Use(b, csm.InputFleetProjectIDTaskID.Ref()),
+			clusterIdentifiers: coretask.Use(b, csm.CSMClusterIdentifierTaskID.Ref()),
 		}
-		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(quotedIdentifiers, " OR "))))
-	}
+	},
+)
 
-	return &logestimator.StructuredLogQuery{
-		Incomplete: fleetProjectID == "",
-		Filters:    filters,
-	}
-}
+var _ gcpcommon.StructuredLogQuerySource = (*csmTrafficDirectorQuerySource)(nil)
 
 // csmTrafficDirectorQuerySource builds the Cloud Logging query for the audit logs of the Traffic Director resources that CSM created for the cluster.
 type csmTrafficDirectorQuerySource struct {
@@ -94,16 +75,35 @@ func (s *csmTrafficDirectorQuerySource) TimePartitionCount() int {
 	return 1
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*csmTrafficDirectorQuerySource)(nil)
+// generateCSMTrafficDirectorStructuredQuery generates a structured query for CSM Traffic Director logs.
+func generateCSMTrafficDirectorStructuredQuery(fleetProjectID string, clusterIdentifiers []string, isDryRun bool) *logestimator.StructuredLogQuery {
+	if isDryRun {
+		clusterIdentifiers = []string{"dummy"}
+	}
+	if len(clusterIdentifiers) == 0 {
+		return nil
+	}
 
-// listCSMTrafficDirectorLogEntriesTask queries the audit logs of the Traffic Director resources that CSM created for the cluster from Cloud Logging.
-var listCSMTrafficDirectorLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	csm.ListCSMTrafficDirectorLogEntriesTaskID,
-	"CSM Traffic Director logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &csmTrafficDirectorQuerySource{
-			fleetProjectID:     coretask.Use(b, csm.InputFleetProjectIDTaskID.Ref()),
-			clusterIdentifiers: coretask.Use(b, csm.CSMClusterIdentifierTaskID.Ref()),
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(fleetProjectID)),
+		logestimator.LogID(logestimator.OneOf("cloudaudit.googleapis.com/activity", "cloudaudit.googleapis.com/data_access")),
+	}
+
+	switch {
+	case isDryRun:
+		filters = append(filters, logestimator.CustomFilter(`protoPayload.resourceName:"gsmrsvd-dummy" -- The actual resource name selector will be generated from other logs in the middle of the pipeline.`))
+	case len(clusterIdentifiers) == 1:
+		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:"gsmrsvd-%s"`, clusterIdentifiers[0])))
+	default:
+		quotedIdentifiers := make([]string, len(clusterIdentifiers))
+		for i, id := range clusterIdentifiers {
+			quotedIdentifiers[i] = fmt.Sprintf(`"gsmrsvd-%s"`, id)
 		}
-	},
-)
+		filters = append(filters, logestimator.CustomFilter(fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(quotedIdentifiers, " OR "))))
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete: fleetProjectID == "",
+		Filters:    filters,
+	}
+}

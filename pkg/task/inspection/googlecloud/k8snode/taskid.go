@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package googlecloudlogk8snode_contract defines the contract for the googlecloudlogk8snode task.
+// Package k8snode defines the contract for Kubernetes node log inspection tasks.
 package k8snode
 
 import (
@@ -71,6 +71,7 @@ var OtherLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct
 // TailTaskID is a nop task just to require all child parsers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")
 
+// ContainerIDDiscoveryTaskID is the task ID for discovering container ID to container identity mappings from node logs.
 var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[k8saudit.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")
 
 // NodeNameDiscoveryTaskID is the task ID for extracting node names from Kubernetes node logs.

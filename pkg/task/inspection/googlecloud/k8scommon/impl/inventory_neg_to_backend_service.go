@@ -19,6 +19,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
+// negToBackendServiceInventoryTask is the inventory task that provides aggregated NEG to BackendService mappings.
+var negToBackendServiceInventoryTask = inspectiontaskbase.DefineInventoryTask(
+	k8scommon.NEGToBackendServiceInventoryTaskID,
+	k8scommon.TagNEGToBackendServiceDiscovery,
+	mergeNEGToBackendService,
+)
+
 func mergeNEGToBackendService(maps []k8scommon.NEGToBackendServiceMap) (k8scommon.NEGToBackendServiceMap, error) {
 	result := make(k8scommon.NEGToBackendServiceMap)
 	for _, m := range maps {
@@ -28,10 +35,3 @@ func mergeNEGToBackendService(maps []k8scommon.NEGToBackendServiceMap) (k8scommo
 	}
 	return result, nil
 }
-
-// negToBackendServiceInventoryTask is the inventory task that provides aggregated NEG to BackendService mappings.
-var negToBackendServiceInventoryTask = inspectiontaskbase.DefineInventoryTask(
-	k8scommon.NEGToBackendServiceInventoryTaskID,
-	k8scommon.TagNEGToBackendServiceDiscovery,
-	mergeNEGToBackendService,
-)

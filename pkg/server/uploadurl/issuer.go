@@ -45,13 +45,6 @@ type Grant struct {
 	ExpiresAt time.Time
 }
 
-// grantTarget is what claim returns for an issued URL token.
-type grantTarget struct {
-	uploadTokenID string
-	fieldID       string
-	expiresAt     time.Time
-}
-
 // Issuer issues upload URLs and claims the URL tokens in them. Each URL is bound to the upload token of one file form field.
 type Issuer struct {
 	baseURL      string
@@ -60,6 +53,13 @@ type Issuer struct {
 
 	mu                sync.Mutex
 	targetsByURLToken map[string]grantTarget
+}
+
+// grantTarget is what claim returns for an issued URL token.
+type grantTarget struct {
+	uploadTokenID string
+	fieldID       string
+	expiresAt     time.Time
 }
 
 // NewIssuer returns an Issuer whose URLs are baseURL followed by a random URL token.

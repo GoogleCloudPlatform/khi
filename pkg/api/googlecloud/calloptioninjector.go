@@ -24,11 +24,6 @@ type CallOptionInjector struct {
 	options []CallOptionInjectorOption
 }
 
-// NewCallOptionInjector creates a new CallOptionInjector with the given options.
-func NewCallOptionInjector(options ...CallOptionInjectorOption) *CallOptionInjector {
-	return &CallOptionInjector{options: options}
-}
-
 // CallOptionInjectorOption defines an interface for options that can inject
 // call options into a context or raw HTTP header.
 type CallOptionInjectorOption interface {
@@ -45,8 +40,13 @@ type headerProvider interface {
 	Header() http.Header
 }
 
+// NewCallOptionInjector creates a new CallOptionInjector with the given options.
+func NewCallOptionInjector(options ...CallOptionInjectorOption) *CallOptionInjector {
+	return &CallOptionInjector{options: options}
+}
+
 // InjectToCallContext injects call options into given context.
-// This is used for any clients under cloud.google.com/go
+// This is used for any clients under cloud.google.com/go.
 func (c *CallOptionInjector) InjectToCallContext(ctx context.Context, container ResourceContainer) context.Context {
 	for _, option := range c.options {
 		ctx = option.ApplyToCallContext(ctx, container)
@@ -55,7 +55,7 @@ func (c *CallOptionInjector) InjectToCallContext(ctx context.Context, container 
 }
 
 // InjectToCall injects call options into the given call request.
-// This is used for any clients under google.golang.org/api
+// This is used for any clients under google.golang.org/api.
 func (c *CallOptionInjector) InjectToCall(call headerProvider, container ResourceContainer) {
 	for _, option := range c.options {
 		option.ApplyToRawHTTPHeader(call.Header(), container)

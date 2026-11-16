@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeComputeApi is the timeline log type style for Compute Engine API audit logs.
 	LogTypeComputeApi = style.MustRegisterLogType("GCE audit", "Compute API Audit Logs", style.MustForceConvertSRGBHex("#FFCC33"), style.ColorWhite)
 )

@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// InitTestIO changes the working directory to the repository root marked by .root.
 func InitTestIO() {
 	// Adjust current directory to be root of the repository
 	ROOT_INDICATOR_FILE := ".root"
@@ -43,6 +44,7 @@ func InitTestIO() {
 	}
 }
 
+// MustReadText reads the entire file at filePath as a string or panics on error.
 func MustReadText(filePath string) string {
 	buf, err := os.ReadFile(filePath)
 	if err != nil {
@@ -51,6 +53,7 @@ func MustReadText(filePath string) string {
 	return string(buf)
 }
 
+// MustReadYaml reads and unmarshals the YAML file at filePath or panics on error.
 func MustReadYaml(filePath string) map[string]any {
 	result := map[string]any{}
 	err := yaml.Unmarshal([]byte(MustReadText(filePath)), &result)
@@ -60,6 +63,7 @@ func MustReadYaml(filePath string) map[string]any {
 	return result
 }
 
+// MustParseTimeRFC3339 parses timeStr in RFC3339 format or panics on error.
 func MustParseTimeRFC3339(timeStr string) time.Time {
 	time, err := time.Parse(time.RFC3339, timeStr)
 	if err != nil {
@@ -68,7 +72,7 @@ func MustParseTimeRFC3339(timeStr string) time.Time {
 	return time
 }
 
-// MustPlaceTemporalFile write a file at the specified path and returns a function to unlink it for cleaning up.
+// MustPlaceTemporalFile writes a file at the specified path and returns a function to unlink it for cleaning up.
 func MustPlaceTemporalFile(filePath, content string) (cleanup func()) {
 	buf, err := os.Create(filePath)
 	if err != nil {
@@ -86,6 +90,7 @@ func MustPlaceTemporalFile(filePath, content string) (cleanup func()) {
 	}
 }
 
+// GlobTestResources finds file paths matching fileGlob.
 func GlobTestResources(fileGlob string, ignoredSuffixes []string) []string {
 	matches, err := filepath.Glob(fileGlob)
 	if err != nil {

@@ -53,6 +53,9 @@ var conditionLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMappe
 	},
 )
 
+// Explicit interface compliance assertion.
+var _ k8saudit.ManifestLogToTimelineMapper[*conditionLogToTimelineMapperTaskState] = (*conditionLogToTimelineMapperTaskSetting)(nil)
+
 // conditionLogToTimelineMapperTaskState tracks the status of all conditions of a resource during timeline generation.
 type conditionLogToTimelineMapperTaskState struct {
 	// AvailableTypes is the set of available condition types.
@@ -65,6 +68,42 @@ type conditionLogToTimelineMapperTaskState struct {
 	parentPathToUIDMap map[string]*common.TimeSeries[string]
 }
 
+// conditionLogToTimelineMapperTaskSetting maps resource status conditions to timeline revisions under the model.
+type conditionLogToTimelineMapperTaskSetting struct {
+	// minimumDeltaTimeToCreateInferredCreationRevision is the minimum duration to controls if KHI should create an inferred creation revision.
+	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
+}
+
+// conditionWalker tracks revision generation for a single condition type.
+type conditionWalker struct {
+	// conditionPath is the timeline path of the condition.
+	conditionPath *khifilev6.TimelinePath
+	// conditionType is the `type` field of the condition.
+	conditionType string
+	// lastStatus is the last status of the condition.
+	lastStatus string
+	// lastTransitionTime is the last transition time of the condition.
+	lastTransitionTime string
+	// lastProbeLikeTime is the last probe like time of the condition.
+	lastProbeLikeTime string
+	// minChangeTime is the minimum change time.
+	// This is used not to create a revision too early for the resource retaining the condition after recreation.
+	minChangeTime *time.Time
+
+	lastTransitionStates map[string]*model.K8sResourceStatusCondition
+
+	lastTransitionTimeSorted []*time.Time
+}
+
+// MustK8sConditionTimeline resolves the timeline path of a resource condition.
+func MustK8sConditionTimeline(ctx context.Context, ownerPath *khifilev6.TimelinePath, conditionType string) *khifilev6.TimelinePath {
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	return builder.TimelineAccumulator.GetPath(ownerPath, khifilev6.PathSegment{
+		Name: conditionType,
+		Type: k8saudit.TimelineTypeResourceCondition,
+	})
+}
+
 func newConditionLogToTimelineMapperTaskState() *conditionLogToTimelineMapperTaskState {
 	return &conditionLogToTimelineMapperTaskState{
 		AvailableTypes:            map[string]struct{}{},
@@ -72,12 +111,6 @@ func newConditionLogToTimelineMapperTaskState() *conditionLogToTimelineMapperTas
 		uidToCreationTimestampMap: map[string]time.Time{},
 		parentPathToUIDMap:        map[string]*common.TimeSeries[string]{},
 	}
-}
-
-// conditionLogToTimelineMapperTaskSetting maps resource status conditions to timeline revisions under the model.
-type conditionLogToTimelineMapperTaskSetting struct {
-	// minimumDeltaTimeToCreateInferredCreationRevision is the minimum duration to controls if KHI should create an inferred creation revision.
-	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 }
 
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
@@ -161,15 +194,6 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 	}
 
 	return state, nil
-}
-
-// resolveUID returns the active UID at time t.
-func (c *conditionLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeries[string], t time.Time) string {
-	uid, ok := ts.Get(t)
-	if ok && uid != "" {
-		return uid
-	}
-	return ""
 }
 
 // ProcessLog implements k8saudit.ManifestLogToTimelineMapper.
@@ -284,42 +308,13 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	return cs, state, nil
 }
 
-// Explicit interface compliance assertion.
-var _ k8saudit.ManifestLogToTimelineMapper[*conditionLogToTimelineMapperTaskState] = (*conditionLogToTimelineMapperTaskSetting)(nil)
-
-// conditionStateToRevisionState converts a Kubernetes condition status string ("True", "False", etc.) to a KHI RevisionState enum.
-func conditionStateToRevisionState(conditionState string) *pb.RevisionState {
-	switch conditionState {
-	case "True":
-		return k8saudit.RevisionStateConditionTrue
-	case "False":
-		return k8saudit.RevisionStateConditionFalse
-	case "":
-		return k8saudit.RevisionStateConditionNoAvailableInfo
-	default:
-		return k8saudit.RevisionStateConditionUnknown
+// resolveUID returns the active UID at time t.
+func (c *conditionLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeries[string], t time.Time) string {
+	uid, ok := ts.Get(t)
+	if ok && uid != "" {
+		return uid
 	}
-}
-
-// conditionWalker tracks revision generation for a single condition type.
-type conditionWalker struct {
-	// conditionPath is the timeline path of the condition.
-	conditionPath *khifilev6.TimelinePath
-	// conditionType is the `type` field of the condition.
-	conditionType string
-	// lastStatus is the last status of the condition.
-	lastStatus string
-	// lastTransitionTime is the last transition time of the condition.
-	lastTransitionTime string
-	// lastProbeLikeTime is the last probe like time of the condition.
-	lastProbeLikeTime string
-	// minChangeTime is the minimum change time.
-	// This is used not to create a revision too early for the resource retaining the condition after recreation.
-	minChangeTime *time.Time
-
-	lastTransitionStates map[string]*model.K8sResourceStatusCondition
-
-	lastTransitionTimeSorted []*time.Time
+	return ""
 }
 
 // newConditionWalker creates a new conditionWalker for a specific condition type.
@@ -332,17 +327,6 @@ func newConditionWalker(conditionPath *khifilev6.TimelinePath, conditionType str
 		lastProbeLikeTime:        "",
 		lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
 		lastTransitionTimeSorted: []*time.Time{},
-	}
-}
-
-// checkLastTransitionTimes memorizes the last transition time of the condition. This value is used for complementing values for logs without the full status information.
-func (c *conditionWalker) checkLastTransitionTimes(condition *model.K8sResourceStatusCondition) {
-	if condition != nil && condition.Status != "" && condition.LastTransitionTime != "" {
-		t, err := time.Parse(time.RFC3339, condition.LastTransitionTime)
-		if err != nil {
-			return
-		}
-		c.lastTransitionStates[t.UTC().Format(time.RFC3339)] = condition
 	}
 }
 
@@ -439,6 +423,17 @@ func (c *conditionWalker) RecordDeletion(deletionTime time.Time) {
 	c.advanceMinChangeTime(deletionTime)
 }
 
+// checkLastTransitionTimes memorizes the last transition time of the condition. This value is used for complementing values for logs without the full status information.
+func (c *conditionWalker) checkLastTransitionTimes(condition *model.K8sResourceStatusCondition) {
+	if condition != nil && condition.Status != "" && condition.LastTransitionTime != "" {
+		t, err := time.Parse(time.RFC3339, condition.LastTransitionTime)
+		if err != nil {
+			return
+		}
+		c.lastTransitionStates[t.UTC().Format(time.RFC3339)] = condition
+	}
+}
+
 func (c *conditionWalker) getLastCondition(beforeThan time.Time) *model.K8sResourceStatusCondition {
 	if len(c.lastTransitionTimeSorted) != len(c.lastTransitionStates) {
 		times := make([]*time.Time, 0, len(c.lastTransitionStates))
@@ -515,11 +510,16 @@ func (c *conditionWalker) hasConditionAtOrBefore(targetTime time.Time, logTime t
 	return false
 }
 
-// MustK8sConditionTimeline resolves the timeline path of a resource condition.
-func MustK8sConditionTimeline(ctx context.Context, ownerPath *khifilev6.TimelinePath, conditionType string) *khifilev6.TimelinePath {
-	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-	return builder.TimelineAccumulator.GetPath(ownerPath, khifilev6.PathSegment{
-		Name: conditionType,
-		Type: k8saudit.TimelineTypeResourceCondition,
-	})
+// conditionStateToRevisionState converts a Kubernetes condition status string ("True", "False", etc.) to a KHI RevisionState enum.
+func conditionStateToRevisionState(conditionState string) *pb.RevisionState {
+	switch conditionState {
+	case "True":
+		return k8saudit.RevisionStateConditionTrue
+	case "False":
+		return k8saudit.RevisionStateConditionFalse
+	case "":
+		return k8saudit.RevisionStateConditionNoAvailableInfo
+	default:
+		return k8saudit.RevisionStateConditionUnknown
+	}
 }

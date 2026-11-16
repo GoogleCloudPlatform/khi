@@ -176,11 +176,11 @@ func TestWrapPermissionDenied(t *testing.T) {
 	cmpOpts := []cmp.Option{
 		cmp.AllowUnexported(permissionDeniedError{}),
 		cmp.FilterValues(func(x, y error) bool {
-			_, xIsPerm := x.(*permissionDeniedError)
-			_, yIsPerm := y.(*permissionDeniedError)
+			_, xIsPerm := x.(*permissionDeniedError) //nolint:errorlint // cmp.Diff inspects inner cause errors recursively; direct type check prevents matching outer permissionDeniedError wrappers.
+			_, yIsPerm := y.(*permissionDeniedError) //nolint:errorlint // cmp.Diff inspects inner cause errors recursively; direct type check prevents matching outer permissionDeniedError wrappers.
 			return !xIsPerm && !yIsPerm
 		}, cmp.Comparer(func(x, y error) bool {
-			return x == y
+			return x == y //nolint:errorlint // Compares unwrapped leaf error values for exact reference equality inside cmp.Diff.
 		})),
 	}
 

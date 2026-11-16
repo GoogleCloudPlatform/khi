@@ -59,16 +59,23 @@ type RevisionStateSummary struct {
 	Truncated bool
 }
 
-// IsEmpty reports whether the summary contains no revision states.
-func (s RevisionStateSummary) IsEmpty() bool {
-	return len(s.Prefix) == 0
-}
-
 type revisionRangeBounds struct {
 	hasStart bool
 	startNs  int64
 	hasEnd   bool
 	endNs    int64
+}
+
+// IsEmpty reports whether the summary contains no revision states.
+func (s RevisionStateSummary) IsEmpty() bool {
+	return len(s.Prefix) == 0
+}
+
+// SummarizeRevisionStates summarizes the effective revision state transitions of revs within [startTime, endTime].
+//
+// Consecutive identical states are deduplicated, tandem repeat cycles are folded, and zero startTime or endTime leaves that bound open.
+func SummarizeRevisionStates(revs []cel.RevisionInfo, startTime, endTime time.Time) RevisionStateSummary {
+	return summarizeRevisionStatesWithBounds(revs, newRevisionRangeBounds(startTime, endTime))
 }
 
 func newRevisionRangeBounds(startTime, endTime time.Time) revisionRangeBounds {
@@ -82,13 +89,6 @@ func newRevisionRangeBounds(startTime, endTime time.Time) revisionRangeBounds {
 		b.endNs = endTime.UnixNano()
 	}
 	return b
-}
-
-// SummarizeRevisionStates summarizes the effective revision state transitions of revs within [startTime, endTime].
-//
-// Consecutive identical states are deduplicated, tandem repeat cycles are folded, and zero startTime or endTime leaves that bound open.
-func SummarizeRevisionStates(revs []cel.RevisionInfo, startTime, endTime time.Time) RevisionStateSummary {
-	return summarizeRevisionStatesWithBounds(revs, newRevisionRangeBounds(startTime, endTime))
 }
 
 func summarizeRevisionStatesWithBounds(revs []cel.RevisionInfo, bounds revisionRangeBounds) RevisionStateSummary {

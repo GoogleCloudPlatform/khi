@@ -18,8 +18,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
 func TestSliceUnifiedDiff(t *testing.T) {

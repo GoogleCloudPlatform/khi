@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeNode is the registered timeline style LogType for Kubernetes node logs.
 	LogTypeNode = style.MustRegisterLogType("k8s node", "Kubernetes Node Logs", style.MustForceConvertSRGBHex("#0077CC"), style.ColorWhite)
 )

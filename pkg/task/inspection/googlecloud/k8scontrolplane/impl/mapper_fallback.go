@@ -55,6 +55,20 @@ var otherLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// otherLogToTimelineMapperTask maps the other control plane component logs to the timelines of their components.
+var otherLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.OtherLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.OtherLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &otherTimelineMapper{}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherTimelineMapper)(nil)
+
 // otherTimelineMapper maps other control plane logs to timeline paths.
 type otherTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
@@ -75,17 +89,3 @@ func (o *otherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 
 	return cs, struct{}{}, nil
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*otherTimelineMapper)(nil)
-
-// otherLogToTimelineMapperTask maps the other control plane component logs to the timelines of their components.
-var otherLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8scontrolplane.OtherLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8scontrolplane.OtherLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &otherTimelineMapper{}
-	},
-)

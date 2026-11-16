@@ -123,13 +123,10 @@ jobs:
     needs: [build-web]
     permissions:
       contents: "read"
-      id-token: "write"
       pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -161,18 +158,11 @@ jobs:
       - name: Backend Test
         run: |
           make generate-backend
-          KHI_SKIP_CLOUD_LOGGING=true go test -coverprofile=go-cover.output ./...
-      - name: Report Backend Differential Coverage & Mutation Testing
-        run: |
-          go run ./scripts/mutation-diff \
-            --coverprofile=go-cover.output \
-            --vcs=git \
-            --base=HEAD^1 \
-            --target=HEAD \
-            --format=github
+          KHI_SKIP_CLOUD_LOGGING=true go test ./...
       - name: Backend Format and Lint Check
         run: |
           make check-format-misc
+          go run ./scripts/codequality --lang=go --conventions
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
@@ -242,7 +232,7 @@ jobs:
           chrome-version: stable
 
       - name: Angular Test
-        run: make coverage-web
+        run: make test-web
 
       - name: Frontend Format and Lint Check
         run: |

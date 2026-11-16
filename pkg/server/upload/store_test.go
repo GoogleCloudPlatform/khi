@@ -163,7 +163,7 @@ func TestUploadFileStore(t *testing.T) {
 		if result.Status != UploadStatusWaiting {
 			t.Errorf("Expected status 'Waiting', got '%v'", result.Status)
 		}
-		if result.UploadError != uploadErr {
+		if !errors.Is(result.UploadError, uploadErr) {
 			t.Errorf("Expected UploadError to be '%v', got '%v'", uploadErr, result.UploadError)
 		}
 		if result.VerificationError != nil {
@@ -213,7 +213,7 @@ func TestUploadFileStore(t *testing.T) {
 		if result.UploadError != nil {
 			t.Errorf("Expected UploadError to be nil, got '%v'", result.UploadError)
 		}
-		if result.VerificationError != verificationErr {
+		if !errors.Is(result.VerificationError, verificationErr) {
 			t.Errorf("Expected VerificationError to be '%v', got '%v'", verificationErr, result.VerificationError)
 		}
 	})

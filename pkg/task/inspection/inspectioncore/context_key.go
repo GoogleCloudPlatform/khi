@@ -24,6 +24,9 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
 
+// TaskInputKeyTimezoneShiftHours is the map key for timezone shift hours in InspectionTaskInput.
+const TaskInputKeyTimezoneShiftHours = "timezoneShiftHours"
+
 // IDGenerator is the context key to access the ID generator instance
 // used for allocating IDs during inspection execution.
 var IDGenerator = typedmap.NewTypedKey[*id.Generator]("khi.google.com/inspection/id-generator")
@@ -34,9 +37,6 @@ var InspectionTaskMode = typedmap.NewTypedKey[InspectionTaskModeType]("khi.googl
 // InspectionTaskInput is the context key to access the input parameters for the inspection task.
 // It contains a map of parameter names to their values.
 var InspectionTaskInput = typedmap.NewTypedKey[map[string]any]("khi.google.com/inspection/task-input")
-
-// TaskInputKeyTimezoneShiftHours is the map key for timezone shift hours in InspectionTaskInput.
-const TaskInputKeyTimezoneShiftHours = "timezoneShiftHours"
 
 // InspectionCreationTime is the context key to access the time when user created the inspection.
 var InspectionCreationTime = typedmap.NewTypedKey[time.Time]("khi.google.com/inspection/creation-time")

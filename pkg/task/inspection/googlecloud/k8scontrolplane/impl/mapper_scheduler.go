@@ -52,6 +52,20 @@ var schedulerLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// schedulerLogToTimelineMapperTask maps kube-scheduler logs to the timelines of the scheduler and the Pods they mention.
+var schedulerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	k8scontrolplane.SchedulerLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
+		GroupedLogs: k8scontrolplane.SchedulerLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &schedulerTimelineMapper{}
+	},
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*schedulerTimelineMapper)(nil)
+
 // schedulerTimelineMapper maps scheduler logs to timeline paths.
 type schedulerTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
@@ -86,17 +100,3 @@ func (m *schedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
 
 	return cs, struct{}{}, nil
 }
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*schedulerTimelineMapper)(nil)
-
-// schedulerLogToTimelineMapperTask maps kube-scheduler logs to the timelines of the scheduler and the Pods they mention.
-var schedulerLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	k8scontrolplane.SchedulerLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: k8scontrolplane.LogIngesterTaskID.Ref(),
-		GroupedLogs: k8scontrolplane.SchedulerLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &schedulerTimelineMapper{}
-	},
-)

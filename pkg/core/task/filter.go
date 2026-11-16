@@ -19,7 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-// Subset returns a new TaskSet filtered using the provided type-safe filter
+// Subset returns a new TaskSet filtered using the provided type-safe filter.
 func Subset[T any](taskSet *TaskSet, mapFilter filter.TypedMapFilter[T]) *TaskSet {
 	getMap := func(d UntypedTask) *typedmap.ReadonlyTypedMap {
 		return d.Labels()
@@ -30,7 +30,7 @@ func Subset[T any](taskSet *TaskSet, mapFilter filter.TypedMapFilter[T]) *TaskSe
 	return result
 }
 
-// NewEqualFilter creates a new filter that matches exact label values
+// NewEqualFilter creates a new filter that matches exact label values.
 func NewEqualFilter[T comparable](labelKey TaskLabelKey[T], value T, includeUndefined bool) filter.TypedMapFilter[T] {
 	return filter.NewEqualFilter(labelKey, value, includeUndefined)
 }

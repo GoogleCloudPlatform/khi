@@ -34,13 +34,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-var (
-	// ErrWorkbenchNotFound indicates that the requested inspection is not loaded, either because it was never opened or because it was evicted.
-	ErrWorkbenchNotFound = errors.New("workbench not found or evicted")
-	// ErrWorkbenchClosed indicates that the requested workbench has been closed.
-	ErrWorkbenchClosed = errors.New("workbench has been closed")
-	// ErrInspectionNotFound indicates that no inspection exists for the requested inspection ID.
-	ErrInspectionNotFound = errors.New("inspection not found")
+const (
+	// AccessorBrowser is the KHI frontend running in a browser.
+	AccessorBrowser Accessor = iota
+	// AccessorMCP is an MCP client calling KHI tools.
+	AccessorMCP
 )
 
 const (
@@ -52,21 +50,26 @@ const (
 	mcpUseWindow = 5 * time.Minute
 )
 
+var (
+	// ErrWorkbenchNotFound indicates that the requested inspection is not loaded, either because it was never opened or because it was evicted.
+	ErrWorkbenchNotFound = errors.New("workbench not found or evicted")
+	// ErrWorkbenchClosed indicates that the requested workbench has been closed.
+	ErrWorkbenchClosed = errors.New("workbench has been closed")
+	// ErrInspectionNotFound indicates that no inspection exists for the requested inspection ID.
+	ErrInspectionNotFound = errors.New("inspection not found")
+)
+
 // Accessor identifies the kind of client that accesses a workbench, so the manager can tell whether the workbench is still in use.
 type Accessor int
 
-const (
-	// AccessorBrowser is the KHI frontend running in a browser.
-	AccessorBrowser Accessor = iota
-	// AccessorMCP is an MCP client calling KHI tools.
-	AccessorMCP
-)
-
 // LoadProgress is a snapshot of the progress of loading an inspection into a workbench.
 type LoadProgress struct {
-	Stage      apiv1.OpenWorkbenchResponse_Stage
+	// Stage is the current loading stage.
+	Stage apiv1.OpenWorkbenchResponse_Stage
+	// Percentage is the completion percentage from 0 to 100.
 	Percentage float64
-	Message    string
+	// Message is a human-readable progress description.
+	Message string
 }
 
 // LoadHandle tracks one shared load of an inspection into a workbench.
@@ -79,6 +82,45 @@ type LoadHandle struct {
 	mu          sync.Mutex
 	progress    LoadProgress
 	subscribers []chan LoadProgress
+}
+
+// WorkbenchManager keeps one shared Workbench per inspection ID for the browser and MCP.
+// Workbenches stay loaded without any time limit and are evicted only when loading another inspection would exceed the retention limit.
+type WorkbenchManager struct {
+	mu                   sync.Mutex
+	entries              map[string]*entry
+	inspectionServer     *coreinspection.InspectionTaskServer
+	indexManager         *InspectionIndexManager
+	maxLoadedInspections int
+	now                  func() time.Time
+	openJobs             *streamingutil.AsyncJobManager[*apiv1.OpenWorkbenchSyncResponse, string]
+	maskedIDGen          idgenerator.IDGenerator
+}
+
+// MaskedInspectionResult holds metadata for a newly created and registered masked inspection dataset.
+type MaskedInspectionResult struct {
+	// InspectionID is the unique identifier of the masked inspection.
+	InspectionID string
+	// InspectionName is the display name extracted from the masked archive.
+	InspectionName string
+	// SuggestedFilename is the suggested download filename from the masked archive.
+	SuggestedFilename string
+	// FileSizeBytes is the size of the masked .khi archive in bytes.
+	FileSizeBytes int64
+}
+
+// MaskedExportProgressCallback receives progress updates from 0 to 100 while creating and registering a masked inspection.
+type MaskedExportProgressCallback func(progressPercentage float64, message string) error
+
+// entry is the manager's bookkeeping for one inspection.
+type entry struct {
+	load *LoadHandle
+	// lastAccess is the last time a request used the workbench. It orders eviction candidates.
+	lastAccess time.Time
+	// browserSeenAt is the last time a browser opened the workbench, sent a heartbeat or made a request.
+	browserSeenAt time.Time
+	// mcpUsedAt is the last time an MCP request used the workbench.
+	mcpUsedAt time.Time
 }
 
 func newLoadHandle() *LoadHandle {
@@ -183,35 +225,6 @@ func (h *LoadHandle) isLoaded() bool {
 	}
 }
 
-// entry is the manager's bookkeeping for one inspection.
-type entry struct {
-	load *LoadHandle
-	// lastAccess is the last time a request used the workbench. It orders eviction candidates.
-	lastAccess time.Time
-	// browserSeenAt is the last time a browser opened the workbench, sent a heartbeat or made a request.
-	browserSeenAt time.Time
-	// mcpUsedAt is the last time an MCP request used the workbench.
-	mcpUsedAt time.Time
-}
-
-// inUse reports whether a browser is still showing the workbench or MCP used it recently.
-func (e *entry) inUse(now time.Time) bool {
-	return now.Sub(e.browserSeenAt) < browserSeenWindow || now.Sub(e.mcpUsedAt) < mcpUseWindow
-}
-
-// WorkbenchManager keeps one shared Workbench per inspection ID for the browser and MCP.
-// Workbenches stay loaded without any time limit and are evicted only when loading another inspection would exceed the retention limit.
-type WorkbenchManager struct {
-	mu                   sync.Mutex
-	entries              map[string]*entry
-	inspectionServer     *coreinspection.InspectionTaskServer
-	indexManager         *InspectionIndexManager
-	maxLoadedInspections int
-	now                  func() time.Time
-	openJobs             *streamingutil.AsyncJobManager[*apiv1.OpenWorkbenchSyncResponse, string]
-	maskedIDGen          idgenerator.IDGenerator
-}
-
 // NewWorkbenchManager creates a WorkbenchManager that keeps at most maxLoadedInspections inspections loaded, except while loads are still in progress.
 func NewWorkbenchManager(inspectionServer *coreinspection.InspectionTaskServer, indexManager *InspectionIndexManager, maxLoadedInspections int) *WorkbenchManager {
 	if indexManager == nil {
@@ -302,139 +315,6 @@ func (m *WorkbenchManager) MarkBrowserClosed(inspectionID string) {
 		e.browserSeenAt = time.Time{}
 	}
 }
-
-// touch records an access by the given accessor at now.
-func (e *entry) touch(accessor Accessor, now time.Time) {
-	e.lastAccess = now
-	switch accessor {
-	case AccessorBrowser:
-		e.browserSeenAt = now
-	case AccessorMCP:
-		e.mcpUsedAt = now
-	}
-}
-
-// evictForNewLoadLocked removes loaded workbenches until one more load fits in the retention limit, and returns them for closing.
-// Workbenches still loading are never evicted, so the limit can be exceeded temporarily when many loads run at once.
-func (m *WorkbenchManager) evictForNewLoadLocked(now time.Time) []*Workbench {
-	var evicted []*Workbench
-	for len(m.entries) >= m.maxLoadedInspections {
-		victimID, inUse := m.pickEvictionVictimLocked(now)
-		if victimID == "" {
-			break
-		}
-		victim := m.entries[victimID]
-		delete(m.entries, victimID)
-		evicted = append(evicted, victim.load.wb)
-		slog.Info("evicted a workbench to load another inspection",
-			"inspectionID", victimID,
-			"reason", evictionReason(inUse),
-			"lastAccess", victim.lastAccess,
-			"maxLoadedInspections", m.maxLoadedInspections)
-	}
-	return evicted
-}
-
-// pickEvictionVictimLocked returns the loaded entry with the oldest last access, preferring entries that are not in use.
-// It falls back to an entry in use because refusing the load would stop users from opening another inspection.
-// It returns an empty ID when no entry is loaded.
-func (m *WorkbenchManager) pickEvictionVictimLocked(now time.Time) (victimID string, inUse bool) {
-	var idleID, busyID string
-	var idleAccess, busyAccess time.Time
-	for id, e := range m.entries {
-		if !e.load.isLoaded() {
-			continue
-		}
-		if e.inUse(now) {
-			if busyID == "" || e.lastAccess.Before(busyAccess) {
-				busyID, busyAccess = id, e.lastAccess
-			}
-			continue
-		}
-		if idleID == "" || e.lastAccess.Before(idleAccess) {
-			idleID, idleAccess = id, e.lastAccess
-		}
-	}
-	if idleID != "" {
-		return idleID, false
-	}
-	return busyID, busyID != ""
-}
-
-func evictionReason(inUse bool) string {
-	if inUse {
-		return "retention limit reached and every loaded workbench is in use; evicted the least recently accessed one"
-	}
-	return "retention limit reached; evicted the least recently accessed workbench not in use"
-}
-
-// runLoad loads the inspection for the entry and publishes the result to its handle.
-// A failed load removes the entry so that the next request starts a fresh load.
-func (m *WorkbenchManager) runLoad(inspectionID string, e *entry) {
-	wb, err := m.loadWorkbench(inspectionID, e.load.report)
-	if err != nil {
-		m.mu.Lock()
-		if m.entries[inspectionID] == e {
-			delete(m.entries, inspectionID)
-		}
-		m.mu.Unlock()
-	}
-	e.load.finish(wb, err)
-}
-
-// loadWorkbench reads the inspection result into a new Workbench and starts building its search index.
-func (m *WorkbenchManager) loadWorkbench(inspectionID string, onProgress ProgressCallback) (*Workbench, error) {
-	reader, totalSize, err := m.loadInspectionData(inspectionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load inspection data: %w", err)
-	}
-	defer reader.Close()
-
-	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READING_FILE, 10, "Opening inspection dataset..."); err != nil {
-		return nil, err
-	}
-
-	// The load is shared by every caller, so no single caller's context may cancel it.
-	wb, err := NewFromReader(context.Background(), inspectionID, inspectionID, reader, totalSize, onProgress)
-	if err != nil {
-		return nil, err
-	}
-	wb.SetIndexManager(m.indexManager)
-	wb.StartAsyncIndexing(context.Background())
-	return wb, nil
-}
-
-// loadInspectionData loads the KHI result reader and byte size for the given inspection ID.
-func (m *WorkbenchManager) loadInspectionData(inspectionID string) (io.ReadCloser, int64, error) {
-	currentTask := m.inspectionServer.GetInspection(inspectionID)
-	if currentTask == nil {
-		return nil, 0, fmt.Errorf("%w: %s", ErrInspectionNotFound, inspectionID)
-	}
-	result, err := currentTask.Result()
-	if err != nil {
-		return nil, 0, err
-	}
-	size, err := result.ResultStore.GetInspectionResultSizeInBytes()
-	if err != nil {
-		return nil, 0, err
-	}
-	reader, err := result.ResultStore.GetRangeReader(0, int64(size))
-	if err != nil {
-		return nil, 0, err
-	}
-	return reader, int64(size), nil
-}
-
-// MaskedInspectionResult holds metadata for a newly created and registered masked inspection dataset.
-type MaskedInspectionResult struct {
-	InspectionID      string
-	InspectionName    string
-	SuggestedFilename string
-	FileSizeBytes     int64
-}
-
-// MaskedExportProgressCallback receives progress updates from 0 to 100 while creating and registering a masked inspection.
-type MaskedExportProgressCallback func(progressPercentage float64, message string) error
 
 // CreateMaskedInspection exports a masked copy of the active workbench's inspection dataset and registers it in InspectionTaskServer.
 func (m *WorkbenchManager) CreateMaskedInspection(
@@ -555,4 +435,131 @@ func (m *WorkbenchManager) CreateMaskedInspection(
 		SuggestedFilename: header.SuggestedFileName,
 		FileSizeBytes:     int64(fileSize),
 	}, nil
+}
+
+// evictForNewLoadLocked removes loaded workbenches until one more load fits in the retention limit, and returns them for closing.
+// Workbenches still loading are never evicted, so the limit can be exceeded temporarily when many loads run at once.
+func (m *WorkbenchManager) evictForNewLoadLocked(now time.Time) []*Workbench {
+	var evicted []*Workbench
+	for len(m.entries) >= m.maxLoadedInspections {
+		victimID, inUse := m.pickEvictionVictimLocked(now)
+		if victimID == "" {
+			break
+		}
+		victim := m.entries[victimID]
+		delete(m.entries, victimID)
+		evicted = append(evicted, victim.load.wb)
+		slog.Info("evicted a workbench to load another inspection",
+			"inspectionID", victimID,
+			"reason", evictionReason(inUse),
+			"lastAccess", victim.lastAccess,
+			"maxLoadedInspections", m.maxLoadedInspections)
+	}
+	return evicted
+}
+
+// pickEvictionVictimLocked returns the loaded entry with the oldest last access, preferring entries that are not in use.
+// It falls back to an entry in use because refusing the load would stop users from opening another inspection.
+// It returns an empty ID when no entry is loaded.
+func (m *WorkbenchManager) pickEvictionVictimLocked(now time.Time) (victimID string, inUse bool) {
+	var idleID, busyID string
+	var idleAccess, busyAccess time.Time
+	for id, e := range m.entries {
+		if !e.load.isLoaded() {
+			continue
+		}
+		if e.inUse(now) {
+			if busyID == "" || e.lastAccess.Before(busyAccess) {
+				busyID, busyAccess = id, e.lastAccess
+			}
+			continue
+		}
+		if idleID == "" || e.lastAccess.Before(idleAccess) {
+			idleID, idleAccess = id, e.lastAccess
+		}
+	}
+	if idleID != "" {
+		return idleID, false
+	}
+	return busyID, busyID != ""
+}
+
+// runLoad loads the inspection for the entry and publishes the result to its handle.
+// A failed load removes the entry so that the next request starts a fresh load.
+func (m *WorkbenchManager) runLoad(inspectionID string, e *entry) {
+	wb, err := m.loadWorkbench(inspectionID, e.load.report)
+	if err != nil {
+		m.mu.Lock()
+		if m.entries[inspectionID] == e {
+			delete(m.entries, inspectionID)
+		}
+		m.mu.Unlock()
+	}
+	e.load.finish(wb, err)
+}
+
+// loadWorkbench reads the inspection result into a new Workbench and starts building its search index.
+func (m *WorkbenchManager) loadWorkbench(inspectionID string, onProgress ProgressCallback) (*Workbench, error) {
+	reader, totalSize, err := m.loadInspectionData(inspectionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load inspection data: %w", err)
+	}
+	defer reader.Close()
+
+	if err := onProgress(apiv1.OpenWorkbenchResponse_STAGE_READING_FILE, 10, "Opening inspection dataset..."); err != nil {
+		return nil, err
+	}
+
+	// The load is shared by every caller, so no single caller's context may cancel it.
+	wb, err := NewFromReader(context.Background(), inspectionID, inspectionID, reader, totalSize, onProgress)
+	if err != nil {
+		return nil, err
+	}
+	wb.SetIndexManager(m.indexManager)
+	wb.StartAsyncIndexing(context.Background())
+	return wb, nil
+}
+
+// loadInspectionData loads the KHI result reader and byte size for the given inspection ID.
+func (m *WorkbenchManager) loadInspectionData(inspectionID string) (io.ReadCloser, int64, error) {
+	currentTask := m.inspectionServer.GetInspection(inspectionID)
+	if currentTask == nil {
+		return nil, 0, fmt.Errorf("%w: %s", ErrInspectionNotFound, inspectionID)
+	}
+	result, err := currentTask.Result()
+	if err != nil {
+		return nil, 0, err
+	}
+	size, err := result.ResultStore.GetInspectionResultSizeInBytes()
+	if err != nil {
+		return nil, 0, err
+	}
+	reader, err := result.ResultStore.GetRangeReader(0, int64(size))
+	if err != nil {
+		return nil, 0, err
+	}
+	return reader, int64(size), nil
+}
+
+// inUse reports whether a browser is still showing the workbench or MCP used it recently.
+func (e *entry) inUse(now time.Time) bool {
+	return now.Sub(e.browserSeenAt) < browserSeenWindow || now.Sub(e.mcpUsedAt) < mcpUseWindow
+}
+
+// touch records an access by the given accessor at now.
+func (e *entry) touch(accessor Accessor, now time.Time) {
+	e.lastAccess = now
+	switch accessor {
+	case AccessorBrowser:
+		e.browserSeenAt = now
+	case AccessorMCP:
+		e.mcpUsedAt = now
+	}
+}
+
+func evictionReason(inUse bool) string {
+	if inUse {
+		return "retention limit reached and every loaded workbench is in use; evicted the least recently accessed one"
+	}
+	return "retention limit reached; evicted the least recently accessed workbench not in use"
 }

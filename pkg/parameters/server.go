@@ -20,8 +20,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
+// Server holds the singleton instance of ServerParameters.
 var Server *ServerParameters = &ServerParameters{}
 
+var _ ParameterStore = (*ServerParameters)(nil)
+
+// ServerParameters stores parameters for configuring the KHI HTTP server.
 type ServerParameters struct {
 	// Port is the port number where KHI server listens.
 	Port *int
@@ -72,5 +76,3 @@ func ensureEndsWithSlash(v *string) {
 		*v += "/"
 	}
 }
-
-var _ ParameterStore = (*ServerParameters)(nil)

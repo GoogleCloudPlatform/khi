@@ -26,25 +26,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generateK8sNodeStructuredQuery generates a structured query for GKE node logs.
-func generateK8sNodeStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, nodeNameSubstrings []string) *logestimator.StructuredLogQuery {
-	filters := []logestimator.LoggingMonitoringMatcher{
-		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
-		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
-		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
-		logestimator.LogID(logestimator.NoneOf("events")),
-	}
+// listLogEntriesTask queries the Kubernetes node logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	k8snode.ListLogEntriesTaskID,
+	"Kubernetes node logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &nodeLogQuerySource{
+			clusterIdentity:    coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
+			nodeNameSubstrings: coretask.Use(b, k8scommon.InputNodeNameFilterTaskID.Ref()),
+		}
+	},
+)
 
-	if len(nodeNameSubstrings) > 0 {
-		filters = append(filters, logestimator.ResourceLabel("node_name", logestimator.ContainsAny(nodeNameSubstrings...)))
-	}
-
-	return &logestimator.StructuredLogQuery{
-		Incomplete:    !cluster.IsComplete(),
-		ResourceTypes: []string{"k8s_node"},
-		Filters:       filters,
-	}
-}
+var _ gcpcommon.StructuredLogQuerySource = (*nodeLogQuerySource)(nil)
 
 // nodeLogQuerySource builds the Cloud Logging query for the Kubernetes node logs of the cluster.
 type nodeLogQuerySource struct {
@@ -70,16 +64,22 @@ func (s *nodeLogQuerySource) TimePartitionCount() int {
 	return 10
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*nodeLogQuerySource)(nil)
+// generateK8sNodeStructuredQuery generates a structured query for GKE node logs.
+func generateK8sNodeStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, nodeNameSubstrings []string) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
+		logestimator.LogID(logestimator.NoneOf("events")),
+	}
 
-// listLogEntriesTask queries the Kubernetes node logs of the cluster from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	k8snode.ListLogEntriesTaskID,
-	"Kubernetes node logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &nodeLogQuerySource{
-			clusterIdentity:    coretask.Use(b, k8snode.ClusterIdentityTaskID.Ref()),
-			nodeNameSubstrings: coretask.Use(b, k8scommon.InputNodeNameFilterTaskID.Ref()),
-		}
-	},
-)
+	if len(nodeNameSubstrings) > 0 {
+		filters = append(filters, logestimator.ResourceLabel("node_name", logestimator.ContainsAny(nodeNameSubstrings...)))
+	}
+
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !cluster.IsComplete(),
+		ResourceTypes: []string{"k8s_node"},
+		Filters:       filters,
+	}
+}

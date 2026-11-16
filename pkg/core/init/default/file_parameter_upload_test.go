@@ -22,10 +22,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"github.com/gin-gonic/gin"
 )
 
 func TestFileParameterUploadInitializer_UploadURLRoute(t *testing.T) {

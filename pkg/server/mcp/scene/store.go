@@ -27,9 +27,10 @@ import (
 	"sync"
 	"time"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // DefaultTTL defines how long an issued timeline scene remains accessible in memory.
@@ -44,20 +45,16 @@ var (
 
 // Stored represents an immutable timeline scene stored in Store.
 type Stored struct {
-	SceneID       string
+	// SceneID is the unique identifier assigned to the stored scene.
+	SceneID string
+	// ParentSceneID is the parent scene ID from which this scene was derived, if any.
 	ParentSceneID string
-	ExpiresAt     time.Time
-	Spec          Spec
-	Document      Document
-}
-
-type sceneEntry struct {
-	stored   Stored
-	jsonData []byte
-}
-
-type errorResponse struct {
-	Error string `json:"error"`
+	// ExpiresAt is the UTC timestamp after which the scene expires.
+	ExpiresAt time.Time
+	// Spec holds the canonical scene specification used for child inheritance and patching.
+	Spec Spec
+	// Document holds the resolved JSON scene payload served over HTTP.
+	Document Document
 }
 
 // Store stores immutable timeline scene definitions in memory with a TTL and serves them over HTTP.
@@ -67,6 +64,15 @@ type Store struct {
 
 	mu          sync.Mutex
 	entriesByID map[string]sceneEntry
+}
+
+type sceneEntry struct {
+	stored   Stored
+	jsonData []byte
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
 }
 
 // NewStore creates an in-memory Store that retains issued scenes for ttl.

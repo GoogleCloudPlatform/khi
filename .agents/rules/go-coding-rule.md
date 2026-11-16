@@ -11,35 +11,61 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 1. **Build Verification**: Before running tests or submitting changes, you must always verify that your code compiles successfully.
    - Run `make build-go` to ensure there are no compilation errors across the backend.
-2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. Run `make mutation-diff` to verify differential line coverage, mutation score (assertion strength), and absence of redundant tests on changed logic. When a mutant survives:
-   - First check if the branch is redundant or guarded by an existing invariant — **never** suppress invariant, defensive, or unreachable conditions with `NOMUTANTS`; simplify or delete the redundant branch instead.
+2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. Run `make codequality-fast` during inner-loop refactoring for fast (<1s) AST complexity/size/naming ratchet feedback, and run `make codequality-go` (or `make codequality`) to verify all Go quality rules and ratchets (AST structural budgets, uncovered lines, surviving mutants, and redundant tests) on changed code. When a mutant survives or a quality rule fails:
+   - First check if the branch is redundant or guarded by an existing invariant — **never** suppress invariant, defensive, or unreachable conditions with `CODEQUALITY_ALLOW`; simplify or delete the redundant branch instead.
    - Strengthen existing assertions (`cmp.Diff` on whole structs, boundary inputs) rather than adding mock-heavy boilerplate tests.
-   - Only for genuine non-deletable cases, suppress with a required category (`// NOMUTANTS(<category>): <reason>` or `// NOMUTANTS(<category>, <operator>): <reason>`, where `<category>` is one of `equivalent`, `perf`, `observability`, `external`).
+   - Only for genuine non-deletable `HARD_LIMIT` cases, suppress with a required rule ID, category, and explanation (`// CODEQUALITY_ALLOW(<rule_id>, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is one of `dispatch`, `protocol`, `equivalent`, `perf`, `observability`, `external` as allowed by the rule).
    - Make sure you run `make test-go` before asking the user to verify.
 3. **Formatting and Linting**:
    - Run `make format-go` to ensure standard Go formatting.
-   - Run `make lint-go` if applicable, and ensure no new linting errors are introduced.
+   - Run `make lint-go` and ensure zero linting errors (`depguard`, `errorlint`, `forbidigo`, `nolintlint`, `staticcheck`, `govet`, etc.). Naked `//nolint` comments without a specific linter name and explanation are forbidden.
 4. If you make any corrections during a verification phase, you MUST restart the verification from the beginning for that phase.
+
+## Go Quality Rules & Ratchet Budgets
+
+`make codequality-go` (and `make codequality-fast` for Stage-1 AST rules) enforces quantitative budgets on newly added/compliant Go units and a **strict no-worsening ratchet (`after <= before`)** on legacy units that already exceed a budget:
+
+- **Production Functions**:
+  - Cognitive complexity (`func_cognitive`): `<= 15` (flat `switch` counts as `+1`; deep `if/for` nesting and mixed `&&`/`||` chains incur compounding penalties).
+  - Max control-flow nesting (`func_nesting`): `<= 4` (`else if` does not increase nesting; prefer early-return guard clauses).
+  - Function size: `<= 60` code lines (`func_code_lines`, comments and blank lines excluded — **never** delete GoDoc comments to shrink line counts) and `<= 40` AST statements (`func_statements`).
+  - Signature bounds: `<= 5` parameters (`func_params`), `<= 3` return values (`func_results`), and **no control-flow `bool` flag parameters** on `>= 3`-parameter functions (`control_flag_param`). Do **not** shred complex functions into 6+ parameter pass-through helpers; group cohesive state into domain structs/methods instead.
+  - Duplication (`code_clone`): `<= 15` consecutive normalized AST statements duplicated across production functions (`>= 16` triggers a violation). When opted in via `CODEQUALITY_SIMILARITY=true` (with optional billing project `CODEQUALITY_SIMILARITY_PROJECT=<project-id>`; enabled in Cloud Build CI), `make codequality` / `make codequality-fast` also emits non-blocking `Similarity` advisories (`gemini-embedding-2` over AST-normalized Go functions, methods, and task closures) whenever newly added units match existing helpers — inspect and reuse matching `[shared]` or domain helpers instead of duplicating logic.
+  - Uncovered substantive lines (`func_uncovered_lines`): `0` uncovered substantive executable lines in touched functions (idiomatic `if err != nil { return ... }` propagation, `defer`, `panic`, diagnostic log statements, and `func main()` entry wrappers are excluded automatically; legacy functions enforce `after <= before` via lazy Go `-overlay` comparison).
+  - Surviving mutants (`func_surviving_mutants`): `0` surviving mutants in touched functions (legacy functions enforce `after <= before` via lazy Go `-overlay` comparison).
+- **Files & Naming**:
+  - File size: `<= 450` code lines for production `.go` files (`file_code_lines`) and `<= 800` code lines for `*_test.go` files (`test_file_code_lines`), excluding comments, blanks, and `import` blocks.
+  - Catch-all filenames (`catchall_filename`): Newly created files must **never** be named `util(s).go`, `helper(s).go`, `common.go`, `misc.go`, `shared.go`, or `*_util(s).go` / `*_helper(s).go` / `*_misc.go`. Name files after their concrete domain concept or pipeline stage.
+- **Test Code (`*_test.go`)**:
+  - `t.Run` loop body cognitive complexity (`trun_cognitive`): `<= 8` (declarative `testCases` table literals do not count toward this limit; keep `t.Run` bodies linear and assert with `cmp.Diff(tc.want, got)`).
+  - Test helper cognitive complexity (`test_helper_cognitive`): `<= 15`.
+  - Redundant subtests (`test_redundancy`): `0` subsumed duplicate (`SAME PATH`) or assertion-free (`NO OUTPUT CHECK`) subtests in touched `Test*` functions.
 
 ## General Coding Rules
 
-1. **Comments**:
+1. **Comments and GoDoc**:
    - All comments must be written in English.
-   - Add GoDoc comments for all public types, functions, and methods.
+   - Add GoDoc comments on all exported symbols (`const`, `var`, `type`, `func`, and methods) AND on all exported struct fields and exported interface methods of exported types.
+   - Start GoDoc comments on exported declarations with the exact declared symbol name followed by a third-person singular verb (e.g., `// ParseFilter parses ...`), and end every GoDoc/declaration comment with a period (`.`).
    - Add GoDoc comments for private types, functions, and methods when their names are not self-explanatory or usage is not intuitive.
-   - Add `var _ Interface = (*Implementation)(nil);` after the type definition to show that it's implementing the interface explicitly.
 
-2. **Error and Test Assertion Messages**:
+2. **Imports and Declaration Ordering**:
+   - **Import sections (`gci`)**: Group imports in three blank-line-separated sections: (1) Go standard library, (2) third-party/external packages, and (3) `github.com/GoogleCloudPlatform/khi/...` internal packages.
+   - **Top-level declaration order (`decorder` + `decl-visibility-order`)**: Order top-level declarations strictly as `const -> var -> type -> func`. Within each kind (`const`, `var`, `type`), place exported declarations before unexported declarations (never reorder specs inside a single `const (...)` block where `iota` is used).
+   - **Interface implementation assertions**: Place compile-time interface checks (`var _ Interface = (*Implementation)(nil)`) in the `var` section *before* `type` declarations (not after the `type` definition).
+   - **Function and method order (`funcorder` + `decl-visibility-order`)**: Order functions as: (1) `init()`, (2) exported standalone functions and exported-receiver groups (`New*`/`new*` constructors -> exported methods -> unexported methods on the exported receiver), and (3) unexported-receiver groups and unexported standalone helpers.
+
+3. **Error and Test Assertion Messages**:
    - Do not capitalize the first character of messages in `fmt.Errorf`, `t.Error`, `t.Errorf`, `t.Fatal`, `t.Fatalf`, etc. (e.g., use lowercase "failed to ..." instead of "Failed to ...").
    - This rule does not apply if the message starts with a capitalized name, such as a method name or proper acronym (e.g. `MyFunction() mismatch (-want +got)`).
 
-3. **Backward Compatibility and Refactoring**:
+4. **Backward Compatibility and Refactoring**:
    - Internal Go code in KHI requires **no backward compatibility**. When modifying functions, methods, interfaces, or structs, do **NOT** retain deprecated shims, wrappers, or aliases, and do **NOT** introduce unnecessary variadic parameters or defensive nil fallbacks solely to preserve old call sites.
    - Always update all call sites across the monorepo directly.
    - Updating test call sites, constructors, and assertions to adapt to refactored signatures is expected and required.
    - Refer to the `backward-compatibility-policy` skill for concrete anti-patterns and details.
 
-4. **Multiline String Literals**:
+5. **Multiline String Literals**:
    - When a string literal contains line breaks, such as YAML, JSON, or Markdown fixtures and expected multi-line output in tests, write it as a raw string literal enclosed in backquotes that keeps the real line breaks.
    - Do **NOT** embed `\n` escape sequences in the middle of a string literal, and do not join fixed lines with `"\n"` to build multi-line content.
    - Exceptions:

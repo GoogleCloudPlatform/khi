@@ -16,17 +16,10 @@ package inspectionmetadata
 
 import "github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 
+// MetadataLabelOpt configures label entries on a metadata label set.
 type MetadataLabelOpt interface {
+	// Write writes the label option into the provided TypedMap.
 	Write(labels *typedmap.TypedMap)
-}
-
-// Construct the LabelSet with required fields.
-func NewLabelSet(labelOpts ...MetadataLabelOpt) *typedmap.ReadonlyTypedMap {
-	typedMap := typedmap.NewTypedMap()
-	for _, lo := range labelOpts {
-		lo.Write(typedMap)
-	}
-	return typedMap.AsReadonly()
 }
 
 // labelValueOpt stores a label value associating to a label key.
@@ -35,9 +28,13 @@ type labelValueOpt[T any] struct {
 	value    T
 }
 
-// Write implements MetadataLabelOpt interface
-func (o *labelValueOpt[T]) Write(labels *typedmap.TypedMap) {
-	typedmap.Set(labels, o.labelKey, o.value)
+// NewLabelSet constructs a read-only label set by applying the given options.
+func NewLabelSet(labelOpts ...MetadataLabelOpt) *typedmap.ReadonlyTypedMap {
+	typedMap := typedmap.NewTypedMap()
+	for _, lo := range labelOpts {
+		lo.Write(typedMap)
+	}
+	return typedMap.AsReadonly()
 }
 
 // WithLabelValue creates a MetadataLabelOpt to store a single value associated to a label key.
@@ -46,4 +43,9 @@ func WithLabelValue[T any](labelKey MetadataLabelsKey[T], value T) MetadataLabel
 		labelKey: labelKey,
 		value:    value,
 	}
+}
+
+// Write implements MetadataLabelOpt interface.
+func (o *labelValueOpt[T]) Write(labels *typedmap.TypedMap) {
+	typedmap.Set(labels, o.labelKey, o.value)
 }

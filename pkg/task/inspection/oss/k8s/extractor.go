@@ -53,6 +53,24 @@ var (
 	pathEventMessage             = structured.CompileFieldPath("responseObject.message")
 )
 
+// OSSK8sEventFieldSet holds the structured data from a Kubernetes Event log.
+type OSSK8sEventFieldSet struct {
+	// APIVersion is the API version of the involved object.
+	APIVersion string
+	// ResourceKind is the kind of the involved object.
+	ResourceKind string
+	// Namespace is the namespace of the involved object.
+	Namespace string
+	// Resource is the name of the involved object.
+	Resource string
+	// Subresource is the subresource of the involved object.
+	Subresource string
+	// Reason is the short, machine-understandable string explaining why the event was triggered.
+	Reason string
+	// Message is the human-readable description of the status of this operation.
+	Message string
+}
+
 // ExtractOSSK8sIsEventAuditLog extracts whether the log is an OSS K8s audit log for an Event resource.
 func ExtractOSSK8sIsEventAuditLog(reader *structured.NodeReader) (bool, error) {
 	if _, ok := structured.GetMock[OSSK8sEventFieldSet](reader); ok {
@@ -148,41 +166,6 @@ func ExtractOSSK8sAuditLog(reader *structured.NodeReader) (*k8saudit.K8sAuditLog
 	return result, nil
 }
 
-func verbStringToVerb(verbStr string) *pb.Verb {
-	switch verbStr {
-	case "create":
-		return k8saudit.VerbCreate
-	case "update":
-		return k8saudit.VerbUpdate
-	case "patch":
-		return k8saudit.VerbPatch
-	case "delete":
-		return k8saudit.VerbDelete
-	case "deletecollection":
-		return k8saudit.VerbDeleteCollection
-	default:
-		return k8saudit.VerbUnknown
-	}
-}
-
-// OSSK8sEventFieldSet holds the structured data from a Kubernetes Event log.
-type OSSK8sEventFieldSet struct {
-	// APIVersion is the API version of the involved object.
-	APIVersion string
-	// ResourceKind is the kind of the involved object.
-	ResourceKind string
-	// Namespace is the namespace of the involved object.
-	Namespace string
-	// Resource is the name of the involved object.
-	Resource string
-	// Subresource is the subresource of the involved object.
-	Subresource string
-	// Reason is the short, machine-understandable string explaining why the event was triggered.
-	Reason string
-	// Message is the human-readable description of the status of this operation.
-	Message string
-}
-
 // ResourceIdentity returns the ResourceIdentity representation of the involved object.
 func (o *OSSK8sEventFieldSet) ResourceIdentity() *k8saudit.ResourceIdentity {
 	return &k8saudit.ResourceIdentity{
@@ -211,4 +194,21 @@ func ExtractOSSK8sEvent(reader *structured.NodeReader) (OSSK8sEventFieldSet, err
 	result.Reason = reader.ReadStringOrDefault(pathEventReason, "???")
 	result.Message = reader.ReadStringOrDefault(pathEventMessage, "")
 	return result, nil
+}
+
+func verbStringToVerb(verbStr string) *pb.Verb {
+	switch verbStr {
+	case "create":
+		return k8saudit.VerbCreate
+	case "update":
+		return k8saudit.VerbUpdate
+	case "patch":
+		return k8saudit.VerbPatch
+	case "delete":
+		return k8saudit.VerbDelete
+	case "deletecollection":
+		return k8saudit.VerbDeleteCollection
+	default:
+		return k8saudit.VerbUnknown
+	}
 }

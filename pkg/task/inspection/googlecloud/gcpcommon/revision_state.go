@@ -23,6 +23,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// RevisionStateOperationStarted represents a GCP long-running operation that has started and is in progress.
 	RevisionStateOperationStarted = style.MustRegisterRevisionState(
 		"Processing operation",
 		"change_circle",
@@ -30,6 +31,7 @@ var (
 		style.Color{R: 0.012, G: 0.671, B: 0.012, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateOperationSucceed represents a GCP long-running operation that completed successfully.
 	RevisionStateOperationSucceed = style.MustRegisterRevisionState(
 		"Operation succeeded",
 		"check_circle",
@@ -37,6 +39,7 @@ var (
 		style.Color{R: 0.812, G: 0.812, B: 0.812, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateOperationFailed represents a GCP long-running operation that terminated with an error.
 	RevisionStateOperationFailed = style.MustRegisterRevisionState(
 		"Operation failed",
 		"error",
@@ -44,6 +47,7 @@ var (
 		style.Color{R: 1.000, G: 0.000, B: 0.000, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateOperationStartedLogNotFound represents a GCP operation whose start log was missing from the query window.
 	RevisionStateOperationStartedLogNotFound = style.MustRegisterRevisionState(
 		"Operation started, but starting log not found",
 		"unknown_document",

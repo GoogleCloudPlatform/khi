@@ -16,6 +16,7 @@ package googlecloud
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -71,7 +72,7 @@ func QueryResourceLabelsFromMetrics(ctx context.Context, client *monitoring.Metr
 	resultValues := make([]map[string]string, 0)
 	for {
 		resp, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {

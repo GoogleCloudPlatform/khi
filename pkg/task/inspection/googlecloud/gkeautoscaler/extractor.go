@@ -28,11 +28,17 @@ var (
 	pathResultInfo       = structured.CompileFieldPath("jsonPayload.resultInfo")
 )
 
+// AutoscalerLogFieldSet holds structured fields extracted from a GKE Cluster Autoscaler visibility log entry.
 type AutoscalerLogFieldSet struct {
-	ProjectID     string
-	ClusterName   string
-	DecisionLog   *DecisionLog
+	// ProjectID is the GCP project ID from the log resource labels.
+	ProjectID string
+	// ClusterName is the GKE cluster name from the log resource labels.
+	ClusterName string
+	// DecisionLog holds the parsed scale-up, scale-down, or node pool lifecycle decision payload, if present.
+	DecisionLog *DecisionLog
+	// NoDecisionLog holds the parsed no-decision status payload explaining why scaling did not occur, if present.
 	NoDecisionLog *NoDecisionStatusLog
+	// ResultInfoLog holds the parsed execution result info for autoscaler events, if present.
 	ResultInfoLog *ResultInfoLog
 }
 

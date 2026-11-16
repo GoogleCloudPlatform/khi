@@ -33,18 +33,21 @@ type ResourceNamesInput struct {
 	resourceNames *typeddict.TypedDict[*QueryResourceNames]
 }
 
+// QueryResourceNames holds the resource names for a specific query.
+type QueryResourceNames struct {
+	// QueryID is the identifier of the log query task.
+	QueryID string
+	// DefaultResourceNames lists the default Cloud Logging resource names derived from cluster/project settings.
+	DefaultResourceNames []string
+	// CurrentResourceNames lists the effective resource names after applying user overrides or falling back to defaults.
+	CurrentResourceNames []string
+}
+
 // NewResourceNamesInput creates a new ResourceNamesInput.
 func NewResourceNamesInput() *ResourceNamesInput {
 	return &ResourceNamesInput{
 		resourceNames: &typeddict.TypedDict[*QueryResourceNames]{},
 	}
-}
-
-// QueryResourceNames holds the resource names for a specific query.
-type QueryResourceNames struct {
-	QueryID              string
-	DefaultResourceNames []string
-	CurrentResourceNames []string
 }
 
 // GetInputID returns the form input ID for the query.

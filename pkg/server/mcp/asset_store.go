@@ -45,6 +45,15 @@ type AssetGrant struct {
 	ExpiresAt time.Time
 }
 
+// AssetStore stores MCP-generated assets in memory with a TTL and serves them over HTTP GET and HEAD.
+type AssetStore struct {
+	baseURL string
+	ttl     time.Duration
+
+	mu             sync.Mutex
+	entriesByToken map[string]assetEntry
+}
+
 type assetEntry struct {
 	data        []byte
 	contentType string
@@ -54,15 +63,6 @@ type assetEntry struct {
 
 type assetErrorResponse struct {
 	Error string `json:"error"`
-}
-
-// AssetStore stores MCP-generated assets in memory with a TTL and serves them over HTTP GET and HEAD.
-type AssetStore struct {
-	baseURL string
-	ttl     time.Duration
-
-	mu             sync.Mutex
-	entriesByToken map[string]assetEntry
 }
 
 // NewAssetStore returns an AssetStore whose issued URLs append "<token><extension>" to baseURL.
@@ -106,29 +106,6 @@ func (s *AssetStore) Issue(data []byte, contentType string, extension string) As
 	}
 }
 
-// lookup returns the stored asset for fileName ("<token><extension>") while keeping unexpired entries readable across repeated GET requests.
-func (s *AssetStore) lookup(fileName string) (assetEntry, error) {
-	token, ext, hasDot := strings.Cut(fileName, ".")
-	if token == "" {
-		return assetEntry{}, ErrUnknownAsset
-	}
-	if hasDot {
-		ext = "." + ext
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	entry, found := s.entriesByToken[token]
-	if !found || entry.extension != ext {
-		return assetEntry{}, ErrUnknownAsset
-	}
-	if !time.Now().Before(entry.expiresAt) {
-		delete(s.entriesByToken, token)
-		return assetEntry{}, ErrExpiredAsset
-	}
-	return entry, nil
-}
-
 // ServeAsset serves the asset stored for fileName over HTTP GET or HEAD.
 func (s *AssetStore) ServeAsset(w http.ResponseWriter, r *http.Request, fileName string) {
 	entry, err := s.lookup(fileName)
@@ -157,4 +134,27 @@ func (s *AssetStore) ServeAsset(w http.ResponseWriter, r *http.Request, fileName
 	if _, err := w.Write(entry.data); err != nil {
 		slog.WarnContext(r.Context(), "failed to write MCP asset response", "error", err)
 	}
+}
+
+// lookup returns the stored asset for fileName ("<token><extension>") while keeping unexpired entries readable across repeated GET requests.
+func (s *AssetStore) lookup(fileName string) (assetEntry, error) {
+	token, ext, hasDot := strings.Cut(fileName, ".")
+	if token == "" {
+		return assetEntry{}, ErrUnknownAsset
+	}
+	if hasDot {
+		ext = "." + ext
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entry, found := s.entriesByToken[token]
+	if !found || entry.extension != ext {
+		return assetEntry{}, ErrUnknownAsset
+	}
+	if !time.Now().Before(entry.expiresAt) {
+		delete(s.entriesByToken, token)
+		return assetEntry{}, ErrExpiredAsset
+	}
+	return entry, nil
 }

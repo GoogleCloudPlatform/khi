@@ -20,9 +20,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/google/go-cmp/cmp"
 )
 
 type mockUntypedTask struct {

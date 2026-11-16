@@ -22,7 +22,7 @@ import (
 
 var _ MergeMapOrderStrategy = (*DefaultMergeMapOrderStrategy)(nil)
 
-// MergeNode merge a previous node with patch node and generates a new Node.
+// MergeNode merges a previous node with a patch node and generates a new Node.
 // This patch supports strategic-merge patch https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md
 // Refer the following mermaid graph to understand call hierarchy.
 // ```mermaid
@@ -43,7 +43,7 @@ var _ MergeMapOrderStrategy = (*DefaultMergeMapOrderStrategy)(nil)
 //	mergeMapSequenceNodeWithReplaceStrategy o-..->|for each maps| mergeNode
 //	mergeMapSequenceNodeWithMergeStrategy o-.->|for each maps| mergeNode
 //
-// ```
+// ```.
 func MergeNode(prev Node, patch Node, config MergeConfiguration) (Node, error) {
 	return mergeNode([]string{}, prev, patch, config)
 }

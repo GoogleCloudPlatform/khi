@@ -19,8 +19,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 // panicMessage runs f and returns the message of the recovered panic, or an empty string when f does not panic.

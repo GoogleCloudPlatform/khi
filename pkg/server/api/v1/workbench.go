@@ -21,19 +21,22 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const maxStructIDsPerBatch = 200
+
+var _ apiv1connect.WorkbenchServiceHandler = (*WorkbenchServiceServer)(nil)
 
 // WorkbenchServiceServer implements the apiv1connect.WorkbenchServiceHandler interface.
 type WorkbenchServiceServer struct {
 	manager *workbench.WorkbenchManager
 }
-
-var _ apiv1connect.WorkbenchServiceHandler = (*WorkbenchServiceServer)(nil)
 
 // NewWorkbenchServiceServer creates a new WorkbenchServiceServer backed by the given manager.
 func NewWorkbenchServiceServer(manager *workbench.WorkbenchManager) *WorkbenchServiceServer {
@@ -269,8 +272,6 @@ func (s *WorkbenchServiceServer) HeartbeatWorkbench(
 	}
 	return connect.NewResponse(res), nil
 }
-
-const maxStructIDsPerBatch = 200
 
 // ReadStructYAMLs decodes interned structs by IDs and returns their YAML representations.
 func (s *WorkbenchServiceServer) ReadStructYAMLs(

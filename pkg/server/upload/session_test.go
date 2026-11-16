@@ -21,9 +21,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 )
 
 func newTestUploadManager(t *testing.T) (*UploadFileStore, UploadFileStoreProvider, *FileParameterUploadManager) {

@@ -26,8 +26,23 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-func formatClusterResourceLogSummary(identity *k8saudit.ResourceIdentity) string {
-	return fmt.Sprintf("CAI resource snapshot: %s/%s", identity.Kind, identity.Name)
+// Module declares the Cloud Asset Inventory tasks for GKE clusters and Kubernetes resources.
+var Module = coreinspection.Module{
+	Name: "googlecloud/caik8s",
+	Scope: coreinspection.Scope{
+		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
+	},
+	Tasks: slices.Concat(
+		clusterResourceSuite.Tasks(),
+		gkeResourceSuite.Tasks(),
+		[]coretask.UntypedTask{
+			clusterResourceInitialStateProviderTask,
+			gkeResourceInitialStateProviderTask,
+			tailTask,
+		},
+	),
 }
 
 // clusterResourceSuite bundles the 5 CAI tasks for Kubernetes cluster resource snapshots.
@@ -53,21 +68,6 @@ var gkeResourceSuite = gcpcommon.DefineCAITaskSuite(gcpcommon.CAITaskSuiteConfig
 	BindInitialRevisionMapper: bindGKEResourceInitialRevisionMapper,
 })
 
-// Module declares the Cloud Asset Inventory tasks for GKE clusters and Kubernetes resources.
-var Module = coreinspection.Module{
-	Name: "googlecloud/caik8s",
-	Scope: coreinspection.Scope{
-		inspectioncore.InspectionTypeLabelKeyEnvironment:  "googlecloud",
-		inspectioncore.InspectionTypeLabelKeyBasePlatform: "kubernetes",
-		gcpcommon.InspectionTypeLabelKeyClusterType:       "gke",
-	},
-	Tasks: slices.Concat(
-		clusterResourceSuite.Tasks(),
-		gkeResourceSuite.Tasks(),
-		[]coretask.UntypedTask{
-			clusterResourceInitialStateProviderTask,
-			gkeResourceInitialStateProviderTask,
-			tailTask,
-		},
-	),
+func formatClusterResourceLogSummary(identity *k8saudit.ResourceIdentity) string {
+	return fmt.Sprintf("CAI resource snapshot: %s/%s", identity.Kind, identity.Name)
 }

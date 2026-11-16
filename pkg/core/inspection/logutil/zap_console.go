@@ -32,10 +32,12 @@ const ZapConsoleCallerFieldKey = "@caller"
 var zapTimestampRegex = regexp.MustCompile(`^\d{4}[-/]\d{2}[-/]\d{2}[T\s]\d{2}:\d{2}:\d{2}|^\d+(\.\d+)?$`)
 var zapCallerRegex = regexp.MustCompile(`(?i)^([a-z]:)?[^\s:]+:\d+$`)
 
+var _ StructuredLogParser = (*ZapConsoleTextParser)(nil)
+
 // ZapConsoleTextParser parses log lines formatted using Zap's ConsoleEncoder.
 // Zap console logs start with a timestamp (part 0), followed by severity level (part 1), caller location (part 2), and message.
 // An example log entry is:
-// 2026-02-18T06:58:06.999Z\tinfo\tkubernetes/kubernetes.go:282\tUsing pod service account via in-cluster config\t{"kind": "receiver", "name": "prometheus", "discovery": "kubernetes"}
+// 2026-02-18T06:58:06.999Z\tinfo\tkubernetes/kubernetes.go:282\tUsing pod service account via in-cluster config\t{"kind": "receiver", "name": "prometheus", "discovery": "kubernetes"}.
 type ZapConsoleTextParser struct{}
 
 // NewZapConsoleTextParser creates a new ZapConsoleTextParser instance.
@@ -117,8 +119,6 @@ func (z *ZapConsoleTextParser) TryParse(message string) *ParseStructuredLogResul
 
 	return result
 }
-
-var _ StructuredLogParser = (*ZapConsoleTextParser)(nil)
 
 func parseZapSeverity(s string) (*pb.Severity, bool) {
 	cleaned := strings.TrimSpace(s)

@@ -25,16 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// emptyInitialResourceStateProvider reports no initial state at all. It backs the environments that have
-// no resource inventory to read the pre inspection state from.
-type emptyInitialResourceStateProvider struct{}
-
 var _ k8saudit.InitialResourceStateProvider = (*emptyInitialResourceStateProvider)(nil)
-
-// InitialResourceState implements k8saudit.InitialResourceStateProvider.
-func (p *emptyInitialResourceStateProvider) InitialResourceState(*k8saudit.ResourceIdentity) (*structured.NodeReader, bool) {
-	return nil, false
-}
 
 // emptyInitialResourceStateProviderTask is the fallback provider used where no resource inventory exists.
 // An environment with an inventory overrides it with a higher task selection priority.
@@ -46,3 +37,12 @@ var emptyInitialResourceStateProviderTask = inspectiontaskbase.DefineInspectionT
 		}
 	},
 )
+
+// emptyInitialResourceStateProvider reports no initial state at all. It backs the environments that have
+// no resource inventory to read the pre inspection state from.
+type emptyInitialResourceStateProvider struct{}
+
+// InitialResourceState implements k8saudit.InitialResourceStateProvider.
+func (p *emptyInitialResourceStateProvider) InitialResourceState(*k8saudit.ResourceIdentity) (*structured.NodeReader, bool) {
+	return nil, false
+}

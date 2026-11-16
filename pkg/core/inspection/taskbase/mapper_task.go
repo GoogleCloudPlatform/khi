@@ -22,6 +22,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
@@ -30,8 +33,6 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // TimelineMapper maps the logs of each log group to timeline elements (events or revisions) in KHI file v6 format.
@@ -60,6 +61,10 @@ type TimelineMapperInputs struct {
 // for mappers that only require a single pass over the logs.
 type SinglePassMapperBase[T any] struct{}
 
+// StatelessMapperBase provides a base implementation of TimelineMapper
+// for mappers that are both stateless and only require a single pass.
+type StatelessMapperBase struct{}
+
 // PassCount returns 0 as no pre-processing pass is required.
 func (SinglePassMapperBase[T]) PassCount() int {
 	return 0
@@ -69,10 +74,6 @@ func (SinglePassMapperBase[T]) PassCount() int {
 func (SinglePassMapperBase[T]) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData T) (T, error) {
 	return prevGroupData, nil
 }
-
-// StatelessMapperBase provides a base implementation of TimelineMapper
-// for mappers that are both stateless and only require a single pass.
-type StatelessMapperBase struct{}
 
 // PassCount returns 0 as no pre-processing pass is required.
 func (StatelessMapperBase) PassCount() int {

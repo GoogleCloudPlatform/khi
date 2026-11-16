@@ -26,24 +26,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// generateAutoscalerStructuredQuery generates a structured query for GKE cluster autoscaler logs.
-func generateAutoscalerStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, excludeStatus bool) *logestimator.StructuredLogQuery {
-	filters := []logestimator.LoggingMonitoringMatcher{
-		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
-		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
-		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
-		logestimator.LogID(logestimator.Exact("container.googleapis.com/cluster-autoscaler-visibility")),
-	}
-	if excludeStatus {
-		filters = append(filters, logestimator.CustomFilter(`-jsonPayload.status: ""`))
-	}
+// listLogEntriesTask queries the GKE cluster autoscaler visibility logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	gkeautoscaler.ListLogEntriesTaskID,
+	"Cluster autoscaler logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &autoscalerQuerySource{
+			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+		}
+	},
+)
 
-	return &logestimator.StructuredLogQuery{
-		Incomplete:    !cluster.IsComplete(),
-		ResourceTypes: []string{"k8s_cluster"},
-		Filters:       filters,
-	}
-}
+var _ gcpcommon.StructuredLogQuerySource = (*autoscalerQuerySource)(nil)
 
 // autoscalerQuerySource builds the GKE cluster autoscaler log queries for the cluster.
 type autoscalerQuerySource struct {
@@ -67,15 +61,21 @@ func (s *autoscalerQuerySource) TimePartitionCount() int {
 	return 1
 }
 
-var _ gcpcommon.StructuredLogQuerySource = (*autoscalerQuerySource)(nil)
+// generateAutoscalerStructuredQuery generates a structured query for GKE cluster autoscaler logs.
+func generateAutoscalerStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, excludeStatus bool) *logestimator.StructuredLogQuery {
+	filters := []logestimator.LoggingMonitoringMatcher{
+		logestimator.ResourceLabel("project_id", logestimator.Exact(cluster.ProjectID)),
+		logestimator.ResourceLabel("location", logestimator.Exact(cluster.Location)),
+		logestimator.ResourceLabel("cluster_name", logestimator.Exact(cluster.NameFor(k8scommon.ClusterNameUsageK8sCluster))),
+		logestimator.LogID(logestimator.Exact("container.googleapis.com/cluster-autoscaler-visibility")),
+	}
+	if excludeStatus {
+		filters = append(filters, logestimator.CustomFilter(`-jsonPayload.status: ""`))
+	}
 
-// listLogEntriesTask queries the GKE cluster autoscaler visibility logs of the cluster from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	gkeautoscaler.ListLogEntriesTaskID,
-	"Cluster autoscaler logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &autoscalerQuerySource{
-			clusterIdentity: coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
-		}
-	},
-)
+	return &logestimator.StructuredLogQuery{
+		Incomplete:    !cluster.IsComplete(),
+		ResourceTypes: []string{"k8s_cluster"},
+		Filters:       filters,
+	}
+}

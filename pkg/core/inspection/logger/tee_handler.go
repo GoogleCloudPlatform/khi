@@ -19,6 +19,9 @@ import (
 	"log/slog"
 )
 
+// TeeHandler implements slog.Handler.
+var _ slog.Handler = (*TeeHandler)(nil)
+
 // TeeHandler is a slog.Handler that duplicates log records to multiple child handlers,
 // similar to the Unix `tee` command.
 type TeeHandler struct {
@@ -74,6 +77,3 @@ func (t *TeeHandler) WithGroup(name string) slog.Handler {
 		childHandlers: childLoggersWithGroup,
 	}
 }
-
-// TeeHandler implements slog.Handler
-var _ slog.Handler = (*TeeHandler)(nil)

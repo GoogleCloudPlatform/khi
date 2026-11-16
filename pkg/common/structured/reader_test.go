@@ -15,6 +15,7 @@
 package structured
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -75,7 +76,7 @@ complex:
 		}
 
 		_, err = reader.ReadString(pathNonexistent)
-		if err != ErrFieldNotFound {
+		if !errors.Is(err, ErrFieldNotFound) {
 			t.Errorf("Expected ErrFieldNotFound, got %v", err)
 		}
 	})
@@ -214,7 +215,7 @@ complex:
 		}
 
 		_, err = reader.GetReader(pathNonexistent)
-		if err != ErrFieldNotFound {
+		if !errors.Is(err, ErrFieldNotFound) {
 			t.Errorf("Expected ErrFieldNotFound, got %v", err)
 		}
 	})
@@ -399,7 +400,7 @@ func TestNodeReader_NilChildHandling(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := tc.reader.GetNode(tc.path)
-			if err != tc.wantErr {
+			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("GetNode() error mismatch (-want %v, +got %v)", tc.wantErr, err)
 			}
 		})

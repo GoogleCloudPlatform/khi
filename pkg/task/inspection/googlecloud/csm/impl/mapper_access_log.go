@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package csm_impl
 
 import (
@@ -27,6 +28,64 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
+
+// logIngesterTask ingests the metadata of CSM traffic logs.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	csm.LogIngesterTaskID,
+	csm.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processCSMTrafficLog
+	},
+)
+
+// logGrouperTask groups CSM traffic logs by their reporter pod.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	csm.LogGrouperTaskID,
+	csm.ListLogEntriesTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			istioAccessLogFieldSet, err := csm.ExtractIstioAccessLog(l.NodeReader)
+			if err != nil {
+				return "unknown"
+			}
+			return fmt.Sprintf("%s-%s", istioAccessLogFieldSet.ReporterPodNamespace, istioAccessLogFieldSet.ReporterPodName)
+		}
+	},
+)
+
+// logToTimelineMapperTask maps CSM traffic logs to timelines.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	csm.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: csm.LogIngesterTaskID.Ref(),
+		GroupedLogs: csm.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
+		return &csmTrafficLogTimelineMapper{
+			clusterIdentity: coretask.Use(b, csm.ClusterIdentityTaskID.Ref()),
+		}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"CSM Traffic Logs",
+		"Gather CSM traffic logs to visualize network traffic flows and latency under client or server Pod timelines.",
+		10000,
+		false,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[struct{}] = (*csmTrafficLogTimelineMapper)(nil)
+
+// csmTrafficLogTimelineMapper maps CSM traffic logs to resource timelines.
+type csmTrafficLogTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+}
+
+// ProcessLogByGroup maps each log inside a group to one or more timeline events.
+func (m *csmTrafficLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs, err := mapCSMTrafficLog(ctx, l, m.clusterIdentity.Get(ctx).ClusterName)
+	return cs, struct{}{}, err
+}
 
 // processCSMTrafficLog sets the timestamp, summary, log type and severity of a CSM traffic log.
 func processCSMTrafficLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
@@ -56,44 +115,6 @@ func processCSMTrafficLog(ctx context.Context, l *log.Log) (*khifilev6.LogChange
 
 	return cs, nil
 }
-
-// logIngesterTask ingests the metadata of CSM traffic logs.
-var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
-	csm.LogIngesterTaskID,
-	csm.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		return processCSMTrafficLog
-	},
-)
-
-// logGrouperTask groups CSM traffic logs by their reporter pod.
-var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
-	csm.LogGrouperTaskID,
-	csm.ListLogEntriesTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
-		return func(ctx context.Context, l *log.Log) string {
-			istioAccessLogFieldSet, err := csm.ExtractIstioAccessLog(l.NodeReader)
-			if err != nil {
-				return "unknown"
-			}
-			return fmt.Sprintf("%s-%s", istioAccessLogFieldSet.ReporterPodNamespace, istioAccessLogFieldSet.ReporterPodName)
-		}
-	},
-)
-
-// csmTrafficLogTimelineMapper maps CSM traffic logs to resource timelines.
-type csmTrafficLogTimelineMapper struct {
-	inspectiontaskbase.StatelessMapperBase
-	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-}
-
-// ProcessLogByGroup maps each log inside a group to one or more timeline events.
-func (m *csmTrafficLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	cs, err := mapCSMTrafficLog(ctx, l, m.clusterIdentity.Get(ctx).ClusterName)
-	return cs, struct{}{}, err
-}
-
-var _ inspectiontaskbase.TimelineMapper[struct{}] = (*csmTrafficLogTimelineMapper)(nil)
 
 // mapCSMTrafficLog adds events for a CSM traffic log to the access timelines of the pods and the service it involves in the given cluster.
 func mapCSMTrafficLog(ctx context.Context, l *log.Log, clusterName string) (*khifilev6.TimelineChangeSet, error) {
@@ -125,23 +146,3 @@ func mapCSMTrafficLog(ctx context.Context, l *log.Log, clusterName string) (*khi
 
 	return cs, nil
 }
-
-// logToTimelineMapperTask maps CSM traffic logs to timelines.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	csm.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: csm.LogIngesterTaskID.Ref(),
-		GroupedLogs: csm.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[struct{}] {
-		return &csmTrafficLogTimelineMapper{
-			clusterIdentity: coretask.Use(b, csm.ClusterIdentityTaskID.Ref()),
-		}
-	},
-	inspectioncore.FeatureTaskLabel(
-		"CSM Traffic Logs",
-		"Gather CSM traffic logs to visualize network traffic flows and latency under client or server Pod timelines.",
-		10000,
-		false,
-	),
-)

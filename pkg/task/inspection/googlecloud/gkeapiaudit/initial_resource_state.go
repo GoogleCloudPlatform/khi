@@ -21,6 +21,7 @@ import (
 // InitialResourceState represents the initial state and manifest of a GKE cluster or node pool
 // observed by Cloud Asset Inventory at the start of the inspection window.
 type InitialResourceState struct {
+	// ResourceBody holds the structured manifest body of the initial resource snapshot.
 	ResourceBody structured.Node
 }
 

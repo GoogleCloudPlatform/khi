@@ -17,10 +17,11 @@ package workbench
 import (
 	"testing"
 
-	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 func TestSeverityCounterSorted(t *testing.T) {

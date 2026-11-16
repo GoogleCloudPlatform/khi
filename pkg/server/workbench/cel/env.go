@@ -20,26 +20,13 @@ import (
 	"reflect"
 	"sync"
 
-	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
 	"github.com/google/cel-go/common/types/traits"
-)
 
-func extractStrings(val ref.Val) ([]string, error) {
-	if s, ok := val.(types.String); ok {
-		return []string{string(s)}, nil
-	}
-	if list, ok := val.(traits.Lister); ok {
-		native, err := list.ConvertToNative(reflect.TypeOf([]string{}))
-		if err != nil {
-			return nil, err
-		}
-		return native.([]string), nil
-	}
-	return nil, fmt.Errorf("expected string or list<string>, got %v", val.Type())
-}
+	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+)
 
 // TimelineEvaluator compiles and executes CEL expressions on TimelineData.
 type TimelineEvaluator struct {
@@ -51,18 +38,15 @@ type TimelineEvaluator struct {
 	timelineMap     map[uint32]*TimelineData
 }
 
-// SetInternPool binds the ReadonlyInternPool for on-demand struct resolution.
-func (e *TimelineEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.internPool = pool
-}
-
-// SetTimelineMap binds the timeline map for hierarchy-based path resolution.
-func (e *TimelineEvaluator) SetTimelineMap(m map[uint32]*TimelineData) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.timelineMap = m
+// LogEvaluator compiles and executes CEL expressions on LogData.
+type LogEvaluator struct {
+	mu            sync.Mutex
+	env           *cel.Env
+	program       cel.Program
+	currentLog    *LogData
+	internPool    *khifilev6model.ReadonlyInternPool
+	trigramIndex  *TrigramIndex
+	styleResolver StyleResolver
 }
 
 // NewTimelineEvaluator creates a new TimelineEvaluator.
@@ -247,6 +231,20 @@ func NewTimelineEvaluator() (*TimelineEvaluator, error) {
 	return eval, nil
 }
 
+// SetInternPool binds the ReadonlyInternPool for on-demand struct resolution.
+func (e *TimelineEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.internPool = pool
+}
+
+// SetTimelineMap binds the timeline map for hierarchy-based path resolution.
+func (e *TimelineEvaluator) SetTimelineMap(m map[uint32]*TimelineData) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.timelineMap = m
+}
+
 // Compile parses and compiles the CEL expression string. If expr is empty, evaluation always passes.
 func (e *TimelineEvaluator) Compile(expr string) error {
 	e.mu.Lock()
@@ -306,38 +304,6 @@ func (e *TimelineEvaluator) Evaluate(ctx context.Context, t *TimelineData) (bool
 		return b, nil
 	}
 	return false, nil
-}
-
-// LogEvaluator compiles and executes CEL expressions on LogData.
-type LogEvaluator struct {
-	mu            sync.Mutex
-	env           *cel.Env
-	program       cel.Program
-	currentLog    *LogData
-	internPool    *khifilev6model.ReadonlyInternPool
-	trigramIndex  *TrigramIndex
-	styleResolver StyleResolver
-}
-
-// SetStyleResolver binds the StyleResolver for on-demand log type and severity resolution.
-func (e *LogEvaluator) SetStyleResolver(resolver StyleResolver) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.styleResolver = resolver
-}
-
-// SetInternPool binds the ReadonlyInternPool for on-demand struct/string resolution.
-func (e *LogEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.internPool = pool
-}
-
-// SetTrigramIndex binds the TrigramIndex for fast substring struct matching.
-func (e *LogEvaluator) SetTrigramIndex(idx *TrigramIndex) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.trigramIndex = idx
 }
 
 // NewLogEvaluator creates a new LogEvaluator.
@@ -416,6 +382,27 @@ func NewLogEvaluator() (*LogEvaluator, error) {
 
 	eval.env = env
 	return eval, nil
+}
+
+// SetStyleResolver binds the StyleResolver for on-demand log type and severity resolution.
+func (e *LogEvaluator) SetStyleResolver(resolver StyleResolver) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.styleResolver = resolver
+}
+
+// SetInternPool binds the ReadonlyInternPool for on-demand struct/string resolution.
+func (e *LogEvaluator) SetInternPool(pool *khifilev6model.ReadonlyInternPool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.internPool = pool
+}
+
+// SetTrigramIndex binds the TrigramIndex for fast substring struct matching.
+func (e *LogEvaluator) SetTrigramIndex(idx *TrigramIndex) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.trigramIndex = idx
 }
 
 // Compile parses and compiles the CEL expression string. If expr is empty, evaluation always passes.
@@ -512,4 +499,18 @@ func ValidateLogQuery(query string) error {
 		return err
 	}
 	return eval.Compile(query)
+}
+
+func extractStrings(val ref.Val) ([]string, error) {
+	if s, ok := val.(types.String); ok {
+		return []string{string(s)}, nil
+	}
+	if list, ok := val.(traits.Lister); ok {
+		native, err := list.ConvertToNative(reflect.TypeOf([]string{}))
+		if err != nil {
+			return nil, err
+		}
+		return native.([]string), nil
+	}
+	return nil, fmt.Errorf("expected string or list<string>, got %v", val.Type())
 }

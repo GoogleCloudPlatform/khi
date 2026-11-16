@@ -29,9 +29,9 @@ import (
 
 var globalLogHandler *globalLoggerHandler
 
-// A slog.Handler for KHI.
-// This should route write requests to the corresponding slog.Handler.
+var _ slog.Handler = (*globalLoggerHandler)(nil)
 
+// globalLoggerHandler routes slog write requests to the corresponding task handler or default handler.
 type globalLoggerHandler struct {
 	defaultHandler slog.Handler
 	handlersLock   *sync.Mutex
@@ -40,7 +40,31 @@ type globalLoggerHandler struct {
 	group          string
 }
 
-var _ slog.Handler = (*globalLoggerHandler)(nil)
+// InitGlobalKHILogger initializes the global logger for KHI.
+func InitGlobalKHILogger() {
+	globalLogHandler = localInitInspectionLogger(NewKHIFormatLogger(os.Stdout, true))
+	slog.SetDefault(slog.New(globalLogHandler))
+}
+
+// RegisterTaskLogger registers a slog.Handler for a specific task run.
+// This allows logs to be routed to a handler tailored for that task.
+func RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
+	if globalLogHandler != nil {
+		globalLogHandler.RegisterTaskLogger(inspectionId, taskId, runId, handler)
+	} else {
+		panic("globalLogHandler is not initialized. call logger.InitGlobalKHILogger() at first")
+	}
+}
+
+// UnregisterTaskLogger removes the slog.Handler for a specific task run.
+// This should be called when a task run is complete to clean up resources.
+func UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string) {
+	if globalLogHandler != nil {
+		globalLogHandler.UnregisterTaskLogger(inspectionId, taskId, runId)
+	} else {
+		panic("globalLogHandler is not initialized. call logger.InitGlobalKHILogger() at first")
+	}
+}
 
 // Enabled implements slog.Handler.
 func (g *globalLoggerHandler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -72,6 +96,24 @@ func (g *globalLoggerHandler) WithGroup(name string) slog.Handler {
 		attrs:          g.attrs,
 		group:          name,
 	}
+}
+
+func (g *globalLoggerHandler) RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
+	g.handlersLock.Lock()
+	defer g.handlersLock.Unlock()
+	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
+	if _, found := (*g.handlers)[loggerId]; found {
+		slog.Warn(fmt.Sprintf("duplicated logger found for %s. Ignoring...", loggerId))
+	} else {
+		(*g.handlers)[loggerId] = handler
+	}
+}
+
+func (g *globalLoggerHandler) UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string) {
+	g.handlersLock.Lock()
+	defer g.handlersLock.Unlock()
+	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
+	delete((*g.handlers), loggerId)
 }
 
 func (g *globalLoggerHandler) getHandler(ctx context.Context) slog.Handler {
@@ -111,30 +153,6 @@ func (g *globalLoggerHandler) routeHandler(ctx context.Context) slog.Handler {
 	return g.defaultHandler
 }
 
-func (g *globalLoggerHandler) RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
-	g.handlersLock.Lock()
-	defer g.handlersLock.Unlock()
-	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
-	if _, found := (*g.handlers)[loggerId]; found {
-		slog.Warn(fmt.Sprintf("duplicated logger found for %s. Ignoring...", loggerId))
-	} else {
-		(*g.handlers)[loggerId] = handler
-	}
-}
-
-func (g *globalLoggerHandler) UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string) {
-	g.handlersLock.Lock()
-	defer g.handlersLock.Unlock()
-	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
-	delete((*g.handlers), loggerId)
-}
-
-// InitGlobalKHILogger initializes the global logger for KHI.
-func InitGlobalKHILogger() {
-	globalLogHandler = localInitInspectionLogger(NewKHIFormatLogger(os.Stdout, true))
-	slog.SetDefault(slog.New(globalLogHandler))
-}
-
 func localInitInspectionLogger(defaultHandler slog.Handler) *globalLoggerHandler {
 	handler := &globalLoggerHandler{
 		defaultHandler: defaultHandler,
@@ -144,24 +162,4 @@ func localInitInspectionLogger(defaultHandler slog.Handler) *globalLoggerHandler
 		group:          "",
 	}
 	return handler
-}
-
-// RegisterTaskLogger registers a slog.Handler for a specific task run.
-// This allows logs to be routed to a handler tailored for that task.
-func RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
-	if globalLogHandler != nil {
-		globalLogHandler.RegisterTaskLogger(inspectionId, taskId, runId, handler)
-	} else {
-		panic("globalLogHandler is not initialized. call logger.InitGlobalKHILogger() at first")
-	}
-}
-
-// UnregisterTaskLogger removes the slog.Handler for a specific task run.
-// This should be called when a task run is complete to clean up resources.
-func UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string) {
-	if globalLogHandler != nil {
-		globalLogHandler.UnregisterTaskLogger(inspectionId, taskId, runId)
-	} else {
-		panic("globalLogHandler is not initialized. call logger.InitGlobalKHILogger() at first")
-	}
 }

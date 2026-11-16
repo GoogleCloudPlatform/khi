@@ -16,7 +16,10 @@ package composercluster
 
 // ComposerEnvironmentIdentity represents the identity of a Cloud Composer environment.
 type ComposerEnvironmentIdentity struct {
-	ProjectID       string
-	Location        string
+	// ProjectID is the Google Cloud project ID containing the environment.
+	ProjectID string
+	// Location is the Google Cloud region where the environment is located.
+	Location string
+	// EnvironmentName is the name of the Cloud Composer environment.
 	EnvironmentName string
 }

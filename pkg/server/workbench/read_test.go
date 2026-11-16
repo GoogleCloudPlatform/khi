@@ -20,10 +20,11 @@ import (
 	"testing"
 	"time"
 
-	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
+
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
 var testHeaderMetadataChunks = []*khifilev6.MetadataChunk{

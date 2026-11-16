@@ -17,9 +17,10 @@ package k8scontainer
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 func TestExtractK8sContainerLog_ResourceLabels(t *testing.T) {

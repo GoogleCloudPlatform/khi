@@ -21,9 +21,10 @@ import (
 	"slices"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"google.golang.org/protobuf/proto"
 )
 
 // ErrInspectionNotFound is returned when the requested inspection ID is not registered on the server.

@@ -17,12 +17,13 @@ package k8saudit
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	commonk8saudit "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 func TestParseKubernetesOperation(t *testing.T) {

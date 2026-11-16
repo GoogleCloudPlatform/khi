@@ -24,16 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-func mergeNEGNames(results []k8scommon.NEGNameToResourceIdentityMap) (k8scommon.NEGNameToResourceIdentityMap, error) {
-	result := map[string]k8saudit.ResourceIdentity{}
-	for _, r := range results {
-		for negName, identity := range r {
-			result[negName] = identity
-		}
-	}
-	return result, nil
-}
-
 // negNamesInventoryTask is an inventory task that merges discovered NEG names.
 var negNamesInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	k8scommon.NEGNamesInventoryTaskID,
@@ -67,3 +57,13 @@ var negNamesDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	coretask.ProvidesTag(k8scommon.TagNEGNamesDiscovery),
 	coretask.WithFeatureGate(k8saudit.K8sAuditLogParserTailRef),
 )
+
+func mergeNEGNames(results []k8scommon.NEGNameToResourceIdentityMap) (k8scommon.NEGNameToResourceIdentityMap, error) {
+	result := map[string]k8saudit.ResourceIdentity{}
+	for _, r := range results {
+		for negName, identity := range r {
+			result[negName] = identity
+		}
+	}
+	return result, nil
+}

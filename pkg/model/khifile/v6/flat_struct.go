@@ -20,15 +20,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-)
 
-// FlatValueKind indicates the concrete type of a packed value in FlatStructStore.
-type FlatValueKind uint8
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+)
 
 const (
 	// FlatValueKindNull represents a null value.
@@ -50,6 +48,9 @@ const (
 	// FlatValueKindStructValue represents an uninterned inline nested struct.
 	FlatValueKindStructValue
 )
+
+// FlatValueKind indicates the concrete type of a packed value in FlatStructStore.
+type FlatValueKind uint8
 
 // FlatStructStore provides pointer-free, Structure-of-Arrays (SoA) storage for interned structs.
 // All stored data is packed into primitive scalar slices without pointers, ensuring that the Go
@@ -74,6 +75,206 @@ type FlatStructStore struct {
 // NewFlatStructStore instantiates an empty FlatStructStore.
 func NewFlatStructStore() *FlatStructStore {
 	return &FlatStructStore{}
+}
+
+// Store encodes and saves an interned struct by its ID, fieldPathSetID, and slice of values.
+func (s *FlatStructStore) Store(id uint32, fieldPathSetID uint32, values []*pb.InternedValue) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.storeLocked(id, fieldPathSetID, values)
+}
+
+// StoreFromNodes encodes and saves an interned struct directly from a slice of structured nodes.
+// It bypasses intermediate Protobuf value allocations to minimize heap churn during ingestion.
+func (s *FlatStructStore) StoreFromNodes(id uint32, fieldPathSetID uint32, nodes []structured.Node, pool *InternPool) error {
+	// Pre-intern any nested maps before acquiring the store lock to prevent self-deadlock on s.mu.
+	for _, n := range nodes {
+		if err := ensureNestedMapsInterned(n, pool); err != nil {
+			return err
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.ensureStructCapacity(id)
+	if !s.structPresent[id] {
+		s.structPresent[id] = true
+		s.count++
+	}
+
+	s.structFieldPathSetIDs[id] = fieldPathSetID
+	valCount := uint32(len(nodes))
+	s.structValueCounts[id] = valCount
+
+	if valCount == 0 {
+		s.structValueOffsets[id] = 0
+		return nil
+	}
+
+	startOffset := s.reserveSlots(valCount)
+	s.structValueOffsets[id] = startOffset
+
+	for i, n := range nodes {
+		slot := startOffset + uint32(i)
+		if err := s.encodeNodeAt(slot, n, pool); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// StoreProto extracts metadata from a pb.InternedStruct message and stores it flatly.
+func (s *FlatStructStore) StoreProto(structObj *pb.InternedStruct) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.storeProtoLocked(structObj)
+}
+
+// StoreProtoBatch extracts metadata from a slice of pb.InternedStruct messages and stores them in a single batch.
+// It acquires the write lock once and pre-allocates slice capacities, significantly reducing lock contention
+// and re-allocation overhead when processing chunks concurrently.
+func (s *FlatStructStore) StoreProtoBatch(structObjs []*pb.InternedStruct) {
+	if len(structObjs) == 0 {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var maxID uint32
+	var hasStructs bool
+	for _, obj := range structObjs {
+		if obj != nil && obj.Id != nil {
+			if *obj.Id > maxID {
+				maxID = *obj.Id
+			}
+			hasStructs = true
+		}
+	}
+	if hasStructs {
+		s.ensureStructCapacity(maxID)
+	}
+
+	for _, obj := range structObjs {
+		if obj == nil || obj.Id == nil {
+			continue
+		}
+		id := *obj.Id
+		if !s.structPresent[id] {
+			s.structPresent[id] = true
+			s.count++
+		}
+
+		fieldSetID := uint32(0)
+		if obj.FieldPathSetId != nil {
+			fieldSetID = *obj.FieldPathSetId
+		}
+		s.structFieldPathSetIDs[id] = fieldSetID
+
+		valCount := uint32(len(obj.Values))
+		s.structValueCounts[id] = valCount
+
+		if valCount == 0 {
+			s.structValueOffsets[id] = 0
+			continue
+		}
+
+		startOffset := s.reserveSlots(valCount)
+		s.structValueOffsets[id] = startOffset
+
+		for i, v := range obj.Values {
+			slot := startOffset + uint32(i)
+			s.encodeValueAt(slot, v)
+		}
+	}
+}
+
+// Has reports whether the specified struct ID exists in the store.
+func (s *FlatStructStore) Has(id uint32) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return int(id) < len(s.structPresent) && s.structPresent[id]
+}
+
+// Len returns the total count of stored structs.
+func (s *FlatStructStore) Len() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.count
+}
+
+// AllIDs returns a slice of all stored struct IDs in ascending order.
+func (s *FlatStructStore) AllIDs() []uint32 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	ids := make([]uint32, 0, s.count)
+	for id, ok := range s.structPresent {
+		if ok {
+			ids = append(ids, uint32(id))
+		}
+	}
+	return ids
+}
+
+// GetFieldPathSetID returns the FieldPathSet ID associated with the struct ID.
+func (s *FlatStructStore) GetFieldPathSetID(id uint32) (uint32, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if int(id) >= len(s.structPresent) || !s.structPresent[id] {
+		return 0, false
+	}
+	return s.structFieldPathSetIDs[id], true
+}
+
+// GetValueSpan returns the fieldPathSetID, start offset, and value count for a struct.
+func (s *FlatStructStore) GetValueSpan(id uint32) (fieldPathSetID uint32, offset uint32, count uint32, ok bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if int(id) >= len(s.structPresent) || !s.structPresent[id] {
+		return 0, 0, 0, false
+	}
+	return s.structFieldPathSetIDs[id], s.structValueOffsets[id], s.structValueCounts[id], true
+}
+
+// GetRawValueAt returns the kind, data, and aux fields at the given packed index.
+func (s *FlatStructStore) GetRawValueAt(index uint32) (kind FlatValueKind, data uint64, aux uint32) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if int(index) >= len(s.valueKinds) {
+		return FlatValueKindNull, 0, 0
+	}
+	return FlatValueKind(s.valueKinds[index]), s.valueData[index], s.valueAux[index]
+}
+
+// ResolveStruct reconstructs a *pb.InternedStruct on-demand from the flat primitive storage.
+// It returns nil if the struct ID is not found.
+func (s *FlatStructStore) ResolveStruct(id uint32) *pb.InternedStruct {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if int(id) >= len(s.structPresent) || !s.structPresent[id] {
+		return nil
+	}
+
+	fieldSetID := s.structFieldPathSetIDs[id]
+	offset := s.structValueOffsets[id]
+	count := s.structValueCounts[id]
+
+	values := make([]*pb.InternedValue, count)
+	for i := uint32(0); i < count; i++ {
+		values[i] = s.decodeValueAt(offset + i)
+	}
+
+	return &pb.InternedStruct{
+		Id:             proto.Uint32(id),
+		FieldPathSetId: proto.Uint32(fieldSetID),
+		Values:         values,
+	}
 }
 
 // ensureStructCapacity expands struct metadata slices to accommodate the specified struct ID.
@@ -128,73 +329,6 @@ func (s *FlatStructStore) reserveSlots(count uint32) uint32 {
 		s.valueAux = s.valueAux[:targetLen]
 	}
 	return offset
-}
-
-// Store encodes and saves an interned struct by its ID, fieldPathSetID, and slice of values.
-func (s *FlatStructStore) Store(id uint32, fieldPathSetID uint32, values []*pb.InternedValue) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.storeLocked(id, fieldPathSetID, values)
-}
-
-// StoreFromNodes encodes and saves an interned struct directly from a slice of structured nodes.
-// It bypasses intermediate Protobuf value allocations to minimize heap churn during ingestion.
-func (s *FlatStructStore) StoreFromNodes(id uint32, fieldPathSetID uint32, nodes []structured.Node, pool *InternPool) error {
-	// Pre-intern any nested maps before acquiring the store lock to prevent self-deadlock on s.mu.
-	for _, n := range nodes {
-		if err := ensureNestedMapsInterned(n, pool); err != nil {
-			return err
-		}
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.ensureStructCapacity(id)
-	if !s.structPresent[id] {
-		s.structPresent[id] = true
-		s.count++
-	}
-
-	s.structFieldPathSetIDs[id] = fieldPathSetID
-	valCount := uint32(len(nodes))
-	s.structValueCounts[id] = valCount
-
-	if valCount == 0 {
-		s.structValueOffsets[id] = 0
-		return nil
-	}
-
-	startOffset := s.reserveSlots(valCount)
-	s.structValueOffsets[id] = startOffset
-
-	for i, n := range nodes {
-		slot := startOffset + uint32(i)
-		if err := s.encodeNodeAt(slot, n, pool); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ensureNestedMapsInterned eagerly interns child map nodes before acquiring the store lock.
-// This prevents self-deadlock on s.mu when recursively interning nested structures.
-func ensureNestedMapsInterned(node structured.Node, pool *InternPool) error {
-	if node == nil {
-		return nil
-	}
-	switch node.Type() {
-	case structured.MapNodeType:
-		_, err := ToInternedStruct(node, pool)
-		return err
-	case structured.SequenceNodeType:
-		for _, child := range node.Children() {
-			if err := ensureNestedMapsInterned(child, pool); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // encodeNodeAt packs a single structured.Node into the target slot within the SoA arrays.
@@ -314,13 +448,6 @@ func (s *FlatStructStore) storeLocked(id uint32, fieldPathSetID uint32, values [
 	}
 }
 
-// StoreProto extracts metadata from a pb.InternedStruct message and stores it flatly.
-func (s *FlatStructStore) StoreProto(structObj *pb.InternedStruct) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.storeProtoLocked(structObj)
-}
-
 func (s *FlatStructStore) storeProtoLocked(structObj *pb.InternedStruct) {
 	if structObj == nil || structObj.Id == nil {
 		return
@@ -330,65 +457,6 @@ func (s *FlatStructStore) storeProtoLocked(structObj *pb.InternedStruct) {
 		fieldSetID = *structObj.FieldPathSetId
 	}
 	s.storeLocked(*structObj.Id, fieldSetID, structObj.Values)
-}
-
-// StoreProtoBatch extracts metadata from a slice of pb.InternedStruct messages and stores them in a single batch.
-// It acquires the write lock once and pre-allocates slice capacities, significantly reducing lock contention
-// and re-allocation overhead when processing chunks concurrently.
-func (s *FlatStructStore) StoreProtoBatch(structObjs []*pb.InternedStruct) {
-	if len(structObjs) == 0 {
-		return
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var maxID uint32
-	var hasStructs bool
-	for _, obj := range structObjs {
-		if obj != nil && obj.Id != nil {
-			if *obj.Id > maxID {
-				maxID = *obj.Id
-			}
-			hasStructs = true
-		}
-	}
-	if hasStructs {
-		s.ensureStructCapacity(maxID)
-	}
-
-	for _, obj := range structObjs {
-		if obj == nil || obj.Id == nil {
-			continue
-		}
-		id := *obj.Id
-		if !s.structPresent[id] {
-			s.structPresent[id] = true
-			s.count++
-		}
-
-		fieldSetID := uint32(0)
-		if obj.FieldPathSetId != nil {
-			fieldSetID = *obj.FieldPathSetId
-		}
-		s.structFieldPathSetIDs[id] = fieldSetID
-
-		valCount := uint32(len(obj.Values))
-		s.structValueCounts[id] = valCount
-
-		if valCount == 0 {
-			s.structValueOffsets[id] = 0
-			continue
-		}
-
-		startOffset := s.reserveSlots(valCount)
-		s.structValueOffsets[id] = startOffset
-
-		for i, v := range obj.Values {
-			slot := startOffset + uint32(i)
-			s.encodeValueAt(slot, v)
-		}
-	}
 }
 
 // encodeValueAt serializes an InternedValue into the designated slot.
@@ -498,93 +566,6 @@ func (s *FlatStructStore) encodeValueAt(slot uint32, v *pb.InternedValue) {
 	}
 }
 
-// Has reports whether the specified struct ID exists in the store.
-func (s *FlatStructStore) Has(id uint32) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return int(id) < len(s.structPresent) && s.structPresent[id]
-}
-
-// Len returns the total count of stored structs.
-func (s *FlatStructStore) Len() int {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.count
-}
-
-// AllIDs returns a slice of all stored struct IDs in ascending order.
-func (s *FlatStructStore) AllIDs() []uint32 {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	ids := make([]uint32, 0, s.count)
-	for id, ok := range s.structPresent {
-		if ok {
-			ids = append(ids, uint32(id))
-		}
-	}
-	return ids
-}
-
-// GetFieldPathSetID returns the FieldPathSet ID associated with the struct ID.
-func (s *FlatStructStore) GetFieldPathSetID(id uint32) (uint32, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if int(id) >= len(s.structPresent) || !s.structPresent[id] {
-		return 0, false
-	}
-	return s.structFieldPathSetIDs[id], true
-}
-
-// GetValueSpan returns the fieldPathSetID, start offset, and value count for a struct.
-func (s *FlatStructStore) GetValueSpan(id uint32) (fieldPathSetID uint32, offset uint32, count uint32, ok bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if int(id) >= len(s.structPresent) || !s.structPresent[id] {
-		return 0, 0, 0, false
-	}
-	return s.structFieldPathSetIDs[id], s.structValueOffsets[id], s.structValueCounts[id], true
-}
-
-// GetRawValueAt returns the kind, data, and aux fields at the given packed index.
-func (s *FlatStructStore) GetRawValueAt(index uint32) (kind FlatValueKind, data uint64, aux uint32) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if int(index) >= len(s.valueKinds) {
-		return FlatValueKindNull, 0, 0
-	}
-	return FlatValueKind(s.valueKinds[index]), s.valueData[index], s.valueAux[index]
-}
-
-// ResolveStruct reconstructs a *pb.InternedStruct on-demand from the flat primitive storage.
-// It returns nil if the struct ID is not found.
-func (s *FlatStructStore) ResolveStruct(id uint32) *pb.InternedStruct {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if int(id) >= len(s.structPresent) || !s.structPresent[id] {
-		return nil
-	}
-
-	fieldSetID := s.structFieldPathSetIDs[id]
-	offset := s.structValueOffsets[id]
-	count := s.structValueCounts[id]
-
-	values := make([]*pb.InternedValue, count)
-	for i := uint32(0); i < count; i++ {
-		values[i] = s.decodeValueAt(offset + i)
-	}
-
-	return &pb.InternedStruct{
-		Id:             proto.Uint32(id),
-		FieldPathSetId: proto.Uint32(fieldSetID),
-		Values:         values,
-	}
-}
-
 // decodeValueAt unpacks a single InternedValue from the internal SoA arrays.
 func (s *FlatStructStore) decodeValueAt(slot uint32) *pb.InternedValue {
 	if int(slot) >= len(s.valueKinds) {
@@ -682,4 +663,24 @@ func (s *FlatStructStore) decodeValueAt(slot uint32) *pb.InternedValue {
 			},
 		}
 	}
+}
+
+// ensureNestedMapsInterned eagerly interns child map nodes before acquiring the store lock.
+// This prevents self-deadlock on s.mu when recursively interning nested structures.
+func ensureNestedMapsInterned(node structured.Node, pool *InternPool) error {
+	if node == nil {
+		return nil
+	}
+	switch node.Type() {
+	case structured.MapNodeType:
+		_, err := ToInternedStruct(node, pool)
+		return err
+	case structured.SequenceNodeType:
+		for _, child := range node.Children() {
+			if err := ensureNestedMapsInterned(child, pool); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

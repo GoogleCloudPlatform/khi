@@ -23,6 +23,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// RevisionStateContainerWaiting represents a container waiting to start.
 	RevisionStateContainerWaiting = style.MustRegisterRevisionState(
 		"Container is waiting",
 		"deployed_code_history",
@@ -30,6 +31,7 @@ var (
 		style.MustForceConvertSRGBHex("#4444ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateContainerRunningNonReady represents a running container that has not passed its readiness probe.
 	RevisionStateContainerRunningNonReady = style.MustRegisterRevisionState(
 		"Container is not ready",
 		"heart_broken",
@@ -37,6 +39,7 @@ var (
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateContainerRunningReady represents a running container that has passed its readiness probe.
 	RevisionStateContainerRunningReady = style.MustRegisterRevisionState(
 		"Container is ready",
 		"heart_check",
@@ -44,6 +47,7 @@ var (
 		style.MustForceConvertSRGBHex("#007700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateContainerTerminatedWithSuccess represents a container that exited with code 0.
 	RevisionStateContainerTerminatedWithSuccess = style.MustRegisterRevisionState(
 		"Container exited successfully",
 		"check_circle",
@@ -51,6 +55,7 @@ var (
 		style.MustForceConvertSRGBHex("#113333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateContainerTerminatedWithError represents a container that exited with a non-zero exit code.
 	RevisionStateContainerTerminatedWithError = style.MustRegisterRevisionState(
 		"Container exited with error",
 		"error",
@@ -58,6 +63,7 @@ var (
 		style.MustForceConvertSRGBHex("#551111"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	// RevisionStateContainerStatusNotAvailable represents an unknown or unreported container status.
 	RevisionStateContainerStatusNotAvailable = style.MustRegisterRevisionState(
 		"Container status is unavailable",
 		"unknown_document",
@@ -67,6 +73,7 @@ var (
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	// RevisionStateContainerStarted represents a started container with unknown readiness probe status.
 	RevisionStateContainerStarted = style.MustRegisterRevisionState(
 		"Container is started, readiness unknown",
 		"siren_question",

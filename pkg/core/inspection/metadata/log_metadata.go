@@ -23,10 +23,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
+var _ Metadata = (*LogMetadata)(nil)
+
 // LogMetadata is a Metadata serializes the log data for each tasks.
 type LogMetadata struct {
 	logBuffers map[string]*bytes.Buffer
 	lock       sync.Mutex
+}
+
+// SerializableLogItem is a log data for a specific task.
+type SerializableLogItem struct {
+	// Id is the unique task implementation ID.
+	Id string `json:"id"`
+	// Name is the display name of the task.
+	Name string `json:"name"`
+	// Log is the accumulated log output for the task.
+	Log string `json:"log"`
 }
 
 // NewLogMetadata instantiates an empty LogMetadata.
@@ -34,13 +46,6 @@ func NewLogMetadata() *LogMetadata {
 	return &LogMetadata{
 		logBuffers: map[string]*bytes.Buffer{},
 	}
-}
-
-// SerializableLogItem is a log data for a specific task.
-type SerializableLogItem struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
-	Log  string `json:"log"`
 }
 
 // GetTaskLogBuffer creates or get the log string buffer for specified task.
@@ -80,5 +85,3 @@ func (l *LogMetadata) ToSerializable() interface{} {
 	}
 	return result
 }
-
-var _ Metadata = (*LogMetadata)(nil)

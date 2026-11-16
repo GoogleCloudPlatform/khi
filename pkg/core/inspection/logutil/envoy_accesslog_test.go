@@ -17,9 +17,10 @@ package logutil
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
 func TestEnvoyAccessLogTextParser_TryParse(t *testing.T) {

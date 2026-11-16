@@ -15,15 +15,17 @@
 package coreinspection
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"github.com/google/go-cmp/cmp"
 )
 
 // TestRegisterImportedInspection_NameReservation verifies auto-numbering and reservation when importing inspections.
@@ -77,7 +79,7 @@ func TestRegisterImportedInspection_NameReservation(t *testing.T) {
 					t.Errorf("imported inspection [%d] SuggestedFileName = %q, want %q", i, header.SuggestedFileName, wantFile)
 				}
 
-				if err := server.InspectionNameRegistry().ReserveName("other-id", wantName); err != inspectioncore.ErrInspectionNameAlreadyInUse {
+				if err := server.InspectionNameRegistry().ReserveName("other-id", wantName); !errors.Is(err, inspectioncore.ErrInspectionNameAlreadyInUse) {
 					t.Errorf("expected %q to be reserved, but got error: %v", wantName, err)
 				}
 			}

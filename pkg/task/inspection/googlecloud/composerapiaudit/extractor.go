@@ -26,9 +26,12 @@ var (
 
 // ComposerAuditLogResourceFieldSet represents resource identifiers extracted from a Cloud Composer audit log entry.
 type ComposerAuditLogResourceFieldSet struct {
+	// EnvironmentName is the name of the Cloud Composer environment.
 	EnvironmentName string
-	Location        string
-	ProjectID       string
+	// Location is the Google Cloud region of the Cloud Composer environment.
+	Location string
+	// ProjectID is the Google Cloud project ID containing the environment.
+	ProjectID string
 }
 
 // ExtractComposerAuditLogResource extracts Composer resource fields from a NodeReader.

@@ -72,14 +72,14 @@ var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
 	),
 )
 
+var pathEnvironment = structured.CompileFieldPath("environment")
+
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*composerAuditTimelineMapper)(nil)
+
 // composerAuditTimelineMapper maps Cloud Composer audit logs to timeline events and operation revisions.
 type composerAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
-
-var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*composerAuditTimelineMapper)(nil)
-
-var pathEnvironment = structured.CompileFieldPath("environment")
 
 // ProcessLogByGroup maps a single Composer audit log entry to timeline events and revisions.
 func (s *composerAuditTimelineMapper) ProcessLogByGroup(

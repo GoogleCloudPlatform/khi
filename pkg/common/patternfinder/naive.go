@@ -21,6 +21,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typeddict"
 )
 
+var _ PatternFinder[any] = (*naivePatternFinder[any])(nil)
+
 // naivePatternFinder is a simple implementation of PatternFinder.
 // It iterates through all registered patterns for every Match call.
 type naivePatternFinder[T any] struct {
@@ -28,8 +30,6 @@ type naivePatternFinder[T any] struct {
 	keys     []string
 	mu       sync.RWMutex
 }
-
-var _ PatternFinder[any] = (*naivePatternFinder[any])(nil)
 
 // NewNaivePatternFinder creates a new instance of naivePatternFinder.
 func NewNaivePatternFinder[T any]() PatternFinder[T] {

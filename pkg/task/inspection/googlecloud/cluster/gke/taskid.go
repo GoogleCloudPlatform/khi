@@ -23,7 +23,7 @@ import (
 // ClusterGKETaskCommonPrefix is the task id prefix originally defined in googlecloudclustergke.
 var ClusterGKETaskCommonPrefix = gcpcommon.GoogleCloudCommonTaskIDPrefix + "cluster/gke/"
 
-// ClusterNamePrefixTaskIDForGKE is the task ID for the GKE cluster name prefix(it's "" for GKE)
+// ClusterNamePrefixTaskIDForGKE is the task ID for the GKE cluster name prefix(it's "" for GKE).
 var ClusterNamePrefixTaskIDForGKE = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gke")
 
 // AutocompleteMetricsK8sContainerTaskIDForGKE is the task ID for the metrics type used for autocomplete cluster names in GKE.

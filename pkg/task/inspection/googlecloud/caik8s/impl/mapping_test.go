@@ -17,8 +17,9 @@ package caik8s_impl
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
 func TestResolveResourceIdentity(t *testing.T) {

@@ -21,6 +21,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 )
 
+var (
+	_ LoggingMonitoringMatcher = (*resourceLabelMatcher)(nil)
+	_ LoggingMonitoringMatcher = (*logIDMatcher)(nil)
+	_ LoggingMonitoringMatcher = (*customFilterMatcher)(nil)
+	_ LoggingMonitoringMatcher = (*commentMatcher)(nil)
+	_ LoggingMonitoringMatcher = (*withCommentMatcher)(nil)
+	_ ValueMatcher             = (*exactMatcher)(nil)
+	_ ValueMatcher             = (*oneOfMatcher)(nil)
+	_ ValueMatcher             = (*noneOfMatcher)(nil)
+	_ ValueMatcher             = (*containsAnyMatcher)(nil)
+	_ ValueMatcher             = (*notContainsAnyMatcher)(nil)
+)
+
 // LoggingMonitoringMatcher defines a self-contained filter clause for both
 // Cloud Logging query strings and Cloud Monitoring metric filters.
 type LoggingMonitoringMatcher interface {
@@ -50,16 +63,52 @@ type ValueMatcher interface {
 	ToMonitoringLogIDFilter() string
 }
 
-// ----------------------------------------------------------------------------
-// ResourceLabel Matcher
-// ----------------------------------------------------------------------------
-
 type resourceLabelMatcher struct {
 	labelKey string
 	vm       ValueMatcher
 }
 
-var _ LoggingMonitoringMatcher = (*resourceLabelMatcher)(nil)
+type logIDMatcher struct {
+	vm ValueMatcher
+}
+
+type customFilterMatcher struct {
+	rawQuery string
+}
+
+type commentMatcher struct {
+	comment string
+}
+
+type withCommentMatcher struct {
+	inner   LoggingMonitoringMatcher
+	comment string
+}
+
+// exactMatcher matches an exact value.
+type exactMatcher struct {
+	val string
+}
+
+// oneOfMatcher matches any value in a set (OR).
+type oneOfMatcher struct {
+	vals []string
+}
+
+// noneOfMatcher excludes all values in a set (NOT).
+type noneOfMatcher struct {
+	vals []string
+}
+
+// containsAnyMatcher matches any substring in a set.
+type containsAnyMatcher struct {
+	subs []string
+}
+
+// notContainsAnyMatcher excludes all substrings in a set.
+type notContainsAnyMatcher struct {
+	subs []string
+}
 
 // ResourceLabel creates a LoggingMonitoringMatcher for a resource.labels.<key> field.
 func ResourceLabel(labelKey string, vm ValueMatcher) LoggingMonitoringMatcher {
@@ -72,28 +121,6 @@ func ResourceLabel(labelKey string, vm ValueMatcher) LoggingMonitoringMatcher {
 	}
 }
 
-func (m *resourceLabelMatcher) SupportMetrics() bool {
-	return m.vm.ToMonitoringFieldFilter("resource.labels."+m.labelKey) != ""
-}
-
-func (m *resourceLabelMatcher) ToLoggingQuery() string {
-	return m.vm.ToLoggingFieldQuery("resource.labels." + m.labelKey)
-}
-
-func (m *resourceLabelMatcher) ToMonitoringFilter() string {
-	return m.vm.ToMonitoringFieldFilter("resource.labels." + m.labelKey)
-}
-
-// ----------------------------------------------------------------------------
-// LogID Matcher
-// ----------------------------------------------------------------------------
-
-type logIDMatcher struct {
-	vm ValueMatcher
-}
-
-var _ LoggingMonitoringMatcher = (*logIDMatcher)(nil)
-
 // LogID creates a LoggingMonitoringMatcher for log IDs (LOG_ID macro in Logging, metric.labels.log in Monitoring).
 func LogID(vm ValueMatcher) LoggingMonitoringMatcher {
 	if vm == nil {
@@ -103,28 +130,6 @@ func LogID(vm ValueMatcher) LoggingMonitoringMatcher {
 		vm: vm,
 	}
 }
-
-func (m *logIDMatcher) SupportMetrics() bool {
-	return m.vm.ToMonitoringLogIDFilter() != ""
-}
-
-func (m *logIDMatcher) ToLoggingQuery() string {
-	return m.vm.ToLoggingLogIDQuery()
-}
-
-func (m *logIDMatcher) ToMonitoringFilter() string {
-	return m.vm.ToMonitoringLogIDFilter()
-}
-
-// ----------------------------------------------------------------------------
-// CustomFilter Matcher
-// ----------------------------------------------------------------------------
-
-type customFilterMatcher struct {
-	rawQuery string
-}
-
-var _ LoggingMonitoringMatcher = (*customFilterMatcher)(nil)
 
 // CustomFilter creates a LoggingMonitoringMatcher for payload/custom filters.
 // Cloud Monitoring does not support payload filters natively, so SupportMetrics returns false.
@@ -138,28 +143,6 @@ func CustomFilter(rawQuery string) LoggingMonitoringMatcher {
 	}
 }
 
-func (m *customFilterMatcher) SupportMetrics() bool {
-	return false
-}
-
-func (m *customFilterMatcher) ToLoggingQuery() string {
-	return m.rawQuery
-}
-
-func (m *customFilterMatcher) ToMonitoringFilter() string {
-	return ""
-}
-
-// ----------------------------------------------------------------------------
-// Comment Matcher
-// ----------------------------------------------------------------------------
-
-type commentMatcher struct {
-	comment string
-}
-
-var _ LoggingMonitoringMatcher = (*commentMatcher)(nil)
-
 // Comment creates a LoggingMonitoringMatcher for a standalone comment-only line.
 // The comment text is formatted as "-- <comment>".
 // Since comments do not filter log entries, SupportMetrics returns true and ToMonitoringFilter returns an empty string.
@@ -172,29 +155,6 @@ func Comment(comment string) LoggingMonitoringMatcher {
 		comment: trimmed,
 	}
 }
-
-func (m *commentMatcher) SupportMetrics() bool {
-	return true
-}
-
-func (m *commentMatcher) ToLoggingQuery() string {
-	return fmt.Sprintf("-- %s", m.comment)
-}
-
-func (m *commentMatcher) ToMonitoringFilter() string {
-	return ""
-}
-
-// ----------------------------------------------------------------------------
-// WithComment Matcher Wrapper
-// ----------------------------------------------------------------------------
-
-type withCommentMatcher struct {
-	inner   LoggingMonitoringMatcher
-	comment string
-}
-
-var _ LoggingMonitoringMatcher = (*withCommentMatcher)(nil)
 
 // WithComment wraps an existing LoggingMonitoringMatcher to append a trailing comment (" -- <comment>")
 // to its Cloud Logging query representation.
@@ -213,6 +173,118 @@ func WithComment(matcher LoggingMonitoringMatcher, comment string) LoggingMonito
 	}
 }
 
+// Exact creates a ValueMatcher for an exact single value.
+func Exact(val string) ValueMatcher {
+	return &exactMatcher{val: val}
+}
+
+// OneOf creates a ValueMatcher that matches any of the provided values (OR).
+func OneOf(vals ...string) ValueMatcher {
+	filtered := filterNonEmpty(vals)
+	if len(filtered) == 0 {
+		return nil
+	}
+	return &oneOfMatcher{vals: filtered}
+}
+
+// NoneOf creates a ValueMatcher that excludes all provided values (NOT).
+func NoneOf(vals ...string) ValueMatcher {
+	filtered := filterNonEmpty(vals)
+	if len(filtered) == 0 {
+		return nil
+	}
+	return &noneOfMatcher{vals: filtered}
+}
+
+// ContainsAny creates a ValueMatcher matching any of the substrings.
+func ContainsAny(subs ...string) ValueMatcher {
+	filtered := filterNonEmpty(subs)
+	if len(filtered) == 0 {
+		return nil
+	}
+	return &containsAnyMatcher{subs: filtered}
+}
+
+// NotContainsAny creates a ValueMatcher excluding all of the substrings.
+func NotContainsAny(subs ...string) ValueMatcher {
+	filtered := filterNonEmpty(subs)
+	if len(filtered) == 0 {
+		return nil
+	}
+	return &notContainsAnyMatcher{subs: filtered}
+}
+
+// FromSetFilter converts a KHI SetFilterParseResult into a ValueMatcher.
+func FromSetFilter(filter *gcpqueryutil.SetFilterParseResult, isSubstring bool) ValueMatcher {
+	if filter == nil || filter.ValidationError != "" {
+		return nil
+	}
+	if filter.SubtractMode {
+		if len(filter.Subtractives) == 0 {
+			return nil
+		}
+		if isSubstring {
+			return NotContainsAny(filter.Subtractives...)
+		}
+		return NoneOf(filter.Subtractives...)
+	}
+	if len(filter.Additives) == 0 {
+		return nil
+	}
+	if isSubstring {
+		return ContainsAny(filter.Additives...)
+	}
+	return OneOf(filter.Additives...)
+}
+
+func (m *resourceLabelMatcher) SupportMetrics() bool {
+	return m.vm.ToMonitoringFieldFilter("resource.labels."+m.labelKey) != ""
+}
+
+func (m *resourceLabelMatcher) ToLoggingQuery() string {
+	return m.vm.ToLoggingFieldQuery("resource.labels." + m.labelKey)
+}
+
+func (m *resourceLabelMatcher) ToMonitoringFilter() string {
+	return m.vm.ToMonitoringFieldFilter("resource.labels." + m.labelKey)
+}
+
+func (m *logIDMatcher) SupportMetrics() bool {
+	return m.vm.ToMonitoringLogIDFilter() != ""
+}
+
+func (m *logIDMatcher) ToLoggingQuery() string {
+	return m.vm.ToLoggingLogIDQuery()
+}
+
+func (m *logIDMatcher) ToMonitoringFilter() string {
+	return m.vm.ToMonitoringLogIDFilter()
+}
+
+func (m *customFilterMatcher) SupportMetrics() bool {
+	return false
+}
+
+func (m *customFilterMatcher) ToLoggingQuery() string {
+	return m.rawQuery
+}
+
+func (m *customFilterMatcher) ToMonitoringFilter() string {
+	return ""
+}
+
+func (m *commentMatcher) SupportMetrics() bool {
+	return true
+}
+
+func (m *commentMatcher) ToLoggingQuery() string {
+	return fmt.Sprintf("-- %s", m.comment)
+}
+
+func (m *commentMatcher) ToMonitoringFilter() string {
+	return ""
+}
+
 func (m *withCommentMatcher) SupportMetrics() bool {
 	return m.inner.SupportMetrics()
 }
@@ -229,22 +301,6 @@ func (m *withCommentMatcher) ToMonitoringFilter() string {
 	return m.inner.ToMonitoringFilter()
 }
 
-// ----------------------------------------------------------------------------
-// ValueMatcher Implementations
-// ----------------------------------------------------------------------------
-
-// exactMatcher matches an exact value.
-type exactMatcher struct {
-	val string
-}
-
-var _ ValueMatcher = (*exactMatcher)(nil)
-
-// Exact creates a ValueMatcher for an exact single value.
-func Exact(val string) ValueMatcher {
-	return &exactMatcher{val: val}
-}
-
 func (m *exactMatcher) ToLoggingFieldQuery(fieldName string) string {
 	return fmt.Sprintf(`%s="%s"`, fieldName, m.val)
 }
@@ -259,22 +315,6 @@ func (m *exactMatcher) ToLoggingLogIDQuery() string {
 
 func (m *exactMatcher) ToMonitoringLogIDFilter() string {
 	return fmt.Sprintf(`metric.labels.log = "%s"`, m.val)
-}
-
-// oneOfMatcher matches any value in a set (OR).
-type oneOfMatcher struct {
-	vals []string
-}
-
-var _ ValueMatcher = (*oneOfMatcher)(nil)
-
-// OneOf creates a ValueMatcher that matches any of the provided values (OR).
-func OneOf(vals ...string) ValueMatcher {
-	filtered := filterNonEmpty(vals)
-	if len(filtered) == 0 {
-		return nil
-	}
-	return &oneOfMatcher{vals: filtered}
 }
 
 func (m *oneOfMatcher) ToLoggingFieldQuery(fieldName string) string {
@@ -312,22 +352,6 @@ func (m *oneOfMatcher) ToMonitoringLogIDFilter() string {
 	return fmt.Sprintf(`metric.labels.log = one_of(%s)`, strings.Join(quoted, ", "))
 }
 
-// noneOfMatcher excludes all values in a set (NOT).
-type noneOfMatcher struct {
-	vals []string
-}
-
-var _ ValueMatcher = (*noneOfMatcher)(nil)
-
-// NoneOf creates a ValueMatcher that excludes all provided values (NOT).
-func NoneOf(vals ...string) ValueMatcher {
-	filtered := filterNonEmpty(vals)
-	if len(filtered) == 0 {
-		return nil
-	}
-	return &noneOfMatcher{vals: filtered}
-}
-
 func (m *noneOfMatcher) ToLoggingFieldQuery(fieldName string) string {
 	if len(m.vals) == 1 {
 		return fmt.Sprintf(`-%s="%s"`, fieldName, m.vals[0])
@@ -360,22 +384,6 @@ func (m *noneOfMatcher) ToMonitoringLogIDFilter() string {
 	return strings.Join(parts, " AND ")
 }
 
-// containsAnyMatcher matches any substring in a set.
-type containsAnyMatcher struct {
-	subs []string
-}
-
-var _ ValueMatcher = (*containsAnyMatcher)(nil)
-
-// ContainsAny creates a ValueMatcher matching any of the substrings.
-func ContainsAny(subs ...string) ValueMatcher {
-	filtered := filterNonEmpty(subs)
-	if len(filtered) == 0 {
-		return nil
-	}
-	return &containsAnyMatcher{subs: filtered}
-}
-
 func (m *containsAnyMatcher) ToLoggingFieldQuery(fieldName string) string {
 	if len(m.subs) == 1 {
 		return fmt.Sprintf(`%s:"%s"`, fieldName, m.subs[0])
@@ -403,22 +411,6 @@ func (m *containsAnyMatcher) ToMonitoringLogIDFilter() string {
 	return ""
 }
 
-// notContainsAnyMatcher excludes all substrings in a set.
-type notContainsAnyMatcher struct {
-	subs []string
-}
-
-var _ ValueMatcher = (*notContainsAnyMatcher)(nil)
-
-// NotContainsAny creates a ValueMatcher excluding all of the substrings.
-func NotContainsAny(subs ...string) ValueMatcher {
-	filtered := filterNonEmpty(subs)
-	if len(filtered) == 0 {
-		return nil
-	}
-	return &notContainsAnyMatcher{subs: filtered}
-}
-
 func (m *notContainsAnyMatcher) ToLoggingFieldQuery(fieldName string) string {
 	if len(m.subs) == 1 {
 		return fmt.Sprintf(`-%s:"%s"`, fieldName, m.subs[0])
@@ -444,29 +436,6 @@ func (m *notContainsAnyMatcher) ToLoggingLogIDQuery() string {
 
 func (m *notContainsAnyMatcher) ToMonitoringLogIDFilter() string {
 	return ""
-}
-
-// FromSetFilter converts a KHI SetFilterParseResult into a ValueMatcher.
-func FromSetFilter(filter *gcpqueryutil.SetFilterParseResult, isSubstring bool) ValueMatcher {
-	if filter == nil || filter.ValidationError != "" {
-		return nil
-	}
-	if filter.SubtractMode {
-		if len(filter.Subtractives) == 0 {
-			return nil
-		}
-		if isSubstring {
-			return NotContainsAny(filter.Subtractives...)
-		}
-		return NoneOf(filter.Subtractives...)
-	}
-	if len(filter.Additives) == 0 {
-		return nil
-	}
-	if isSubstring {
-		return ContainsAny(filter.Additives...)
-	}
-	return OneOf(filter.Additives...)
 }
 
 func quoteStrings(vals []string) []string {

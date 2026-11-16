@@ -19,19 +19,31 @@ import (
 	"fmt"
 	"sync"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"google.golang.org/protobuf/proto"
 )
 
-var popupIDGenerator = idgenerator.NewPrefixIDGenerator("popup-")
+const (
+	// PopupEventTypeOpened indicates a new popup has been displayed.
+	PopupEventTypeOpened PopupEventType = iota
+	// PopupEventTypeDismissed indicates the active popup has been closed or answered.
+	PopupEventTypeDismissed
+)
 
 var (
 	// NoCurrentPopup indicates that an operation was attempted when no popup was active.
 	NoCurrentPopup = fmt.Errorf("no active current popup")
 	// CurrentPopupIsntMatchingWithGivenId indicates that the requested popup ID does not match the active popup.
 	CurrentPopupIsntMatchingWithGivenId = fmt.Errorf("given id is not matching with the current popup")
+	// Instance is the singleton instance of PopupManager.
+	Instance *PopupManager = NewPopupManager()
 )
+
+var popupIDGenerator = idgenerator.NewPrefixIDGenerator("popup-")
+
+var _ PopupForm = (*TextPopupForm)(nil)
 
 // PopupForm is a polymorphic interface for backend popup implementations.
 type PopupForm interface {
@@ -45,10 +57,36 @@ type PopupForm interface {
 
 // TextPopupForm represents a standard text input popup.
 type TextPopupForm struct {
-	Title       string
+	// Title is the heading displayed in the popup dialog.
+	Title string
+	// Description is the explanatory text shown below the title.
 	Description string
+	// Placeholder is the hint text displayed inside the empty text input.
 	Placeholder string
-	Validator   func(value string) string
+	// Validator validates user input and returns an error message when invalid.
+	Validator func(value string) string
+}
+
+// PopupEventType represents the lifecycle state change of a popup form.
+type PopupEventType int
+
+// PopupEvent represents a popup lifecycle event delivered to subscribers.
+type PopupEvent struct {
+	// Type indicates whether the popup was opened or dismissed.
+	Type PopupEventType
+	// Form holds the active popup definition when Type is PopupEventTypeOpened.
+	Form *apiv1.PopupForm
+}
+
+// PopupManager manages questions shown to user from frontend.
+type PopupManager struct {
+	mu           sync.Mutex
+	showPopupMu  sync.Mutex
+	popupWaiter  chan struct{}
+	popupResult  string
+	currentProto *apiv1.PopupForm
+	currentForm  PopupForm
+	subscribers  map[chan PopupEvent]struct{}
 }
 
 // BuildProtoForm implements PopupForm.
@@ -80,35 +118,6 @@ func (t *TextPopupForm) Validate(_ context.Context, req *apiv1.ValidatePopupAnsw
 // Answer implements PopupForm.
 func (t *TextPopupForm) Answer(_ context.Context, req *apiv1.SubmitPopupAnswerRequest) (string, error) {
 	return req.GetText().GetValue(), nil
-}
-
-var _ PopupForm = (*TextPopupForm)(nil)
-
-// PopupEventType represents the lifecycle state change of a popup form.
-type PopupEventType int
-
-const (
-	// PopupEventTypeOpened indicates a new popup has been displayed.
-	PopupEventTypeOpened PopupEventType = iota
-	// PopupEventTypeDismissed indicates the active popup has been closed or answered.
-	PopupEventTypeDismissed
-)
-
-// PopupEvent represents a popup lifecycle event delivered to subscribers.
-type PopupEvent struct {
-	Type PopupEventType
-	Form *apiv1.PopupForm
-}
-
-// PopupManager manages questions shown to user from frontend.
-type PopupManager struct {
-	mu           sync.Mutex
-	showPopupMu  sync.Mutex
-	popupWaiter  chan struct{}
-	popupResult  string
-	currentProto *apiv1.PopupForm
-	currentForm  PopupForm
-	subscribers  map[chan PopupEvent]struct{}
 }
 
 // NewPopupManager creates an initialized instance of PopupManager.
@@ -157,15 +166,6 @@ func (p *PopupManager) Subscribe() (<-chan PopupEvent, func()) {
 		})
 	}
 	return ch, unsubscribe
-}
-
-func (p *PopupManager) broadcastLocked(ev PopupEvent) {
-	for ch := range p.subscribers {
-		select {
-		case ch <- ev:
-		default:
-		}
-	}
 }
 
 // ShowPopup shows the popup UI on frontend side and waits until receiving the input.
@@ -269,5 +269,11 @@ func (p *PopupManager) DismissActivePopup(id string) error {
 	return nil
 }
 
-// Instance is the singleton instance of PopupManager.
-var Instance *PopupManager = NewPopupManager()
+func (p *PopupManager) broadcastLocked(ev PopupEvent) {
+	for ch := range p.subscribers {
+		select {
+		case ch <- ev:
+		default:
+		}
+	}
+}

@@ -24,14 +24,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-type destinationKind int
-
 const (
 	destinationShared destinationKind = iota
 	destinationForm
 	destinationFeature
 	destinationFeatureMember
 )
+
+type destinationKind int
 
 type destination struct {
 	kind       destinationKind
@@ -151,6 +151,22 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 	}
 }
 
+func (r *sectionResolver) destinationOf(taskID string) destination {
+	dest, ok := r.destinations[taskID]
+	if !ok {
+		panic(fmt.Sprintf("unknown task ID %q in sectionResolver", taskID))
+	}
+	return dest
+}
+
+func (r *sectionResolver) titleOf(taskID string) string {
+	title, ok := r.taskTitles[taskID]
+	if !ok {
+		panic(fmt.Sprintf("unknown task ID %q in sectionResolver", taskID))
+	}
+	return title
+}
+
 func hasFanInInput(task coretask.UntypedTask) bool {
 	for _, input := range task.Inputs() {
 		if input.Dependency.DescriptorCardinality() == taskid.CardinalityFanIn {
@@ -188,20 +204,4 @@ func findReachableFeatures(startID string, adj map[string][]string, features map
 
 	slices.Sort(reached)
 	return reached
-}
-
-func (r *sectionResolver) destinationOf(taskID string) destination {
-	dest, ok := r.destinations[taskID]
-	if !ok {
-		panic(fmt.Sprintf("unknown task ID %q in sectionResolver", taskID))
-	}
-	return dest
-}
-
-func (r *sectionResolver) titleOf(taskID string) string {
-	title, ok := r.taskTitles[taskID]
-	if !ok {
-		panic(fmt.Sprintf("unknown task ID %q in sectionResolver", taskID))
-	}
-	return title
 }

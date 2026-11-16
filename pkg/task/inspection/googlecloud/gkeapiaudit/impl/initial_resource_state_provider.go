@@ -24,10 +24,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// emptyInitialResourceStateProvider reports no initial state. It is used when no inventory is available.
-type emptyInitialResourceStateProvider struct{}
+// emptyInitialResourceStateProviderTask is the fallback provider task when CAI is not enabled.
+var emptyInitialResourceStateProviderTask = inspectiontaskbase.DefineInspectionTask(
+	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "empty"),
+	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[gkeapiaudit.InitialResourceStateProvider] {
+		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (gkeapiaudit.InitialResourceStateProvider, error) {
+			return &emptyInitialResourceStateProvider{}, nil
+		}
+	},
+)
 
 var _ gkeapiaudit.InitialResourceStateProvider = (*emptyInitialResourceStateProvider)(nil)
+
+// emptyInitialResourceStateProvider reports no initial state. It is used when no inventory is available.
+type emptyInitialResourceStateProvider struct{}
 
 // ClusterInitialState implements gkeapiaudit.InitialResourceStateProvider.
 func (p *emptyInitialResourceStateProvider) ClusterInitialState(clusterName string) (*gkeapiaudit.InitialResourceState, bool) {
@@ -38,13 +48,3 @@ func (p *emptyInitialResourceStateProvider) ClusterInitialState(clusterName stri
 func (p *emptyInitialResourceStateProvider) NodePoolInitialState(clusterName, nodePoolName string) (*gkeapiaudit.InitialResourceState, bool) {
 	return nil, false
 }
-
-// emptyInitialResourceStateProviderTask is the fallback provider task when CAI is not enabled.
-var emptyInitialResourceStateProviderTask = inspectiontaskbase.DefineInspectionTask(
-	taskid.NewImplementationID(gkeapiaudit.InitialResourceStateProviderRef, "empty"),
-	func(b *coretask.Binder) inspectiontaskbase.InspectionTaskFunc[gkeapiaudit.InitialResourceStateProvider] {
-		return func(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) (gkeapiaudit.InitialResourceStateProvider, error) {
-			return &emptyInitialResourceStateProvider{}, nil
-		}
-	},
-)

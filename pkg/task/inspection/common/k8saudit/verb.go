@@ -22,23 +22,29 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
-	VerbCreate           = style.MustRegisterVerb("Create", style.MustForceConvertSRGBHex("#1E88E5"), style.ColorWhite, true)
-	VerbDelete           = style.MustRegisterVerb("Delete", style.MustForceConvertSRGBHex("#F54945"), style.ColorWhite, true)
-	VerbUpdate           = style.MustRegisterVerb("Update", style.MustForceConvertSRGBHex("#FDD835"), style.ColorWhite, true)
-	VerbPatch            = style.MustRegisterVerb("Patch", style.MustForceConvertSRGBHex("#FDD835"), style.ColorWhite, true)
+	// VerbCreate is the verb style for Kubernetes create operations.
+	VerbCreate = style.MustRegisterVerb("Create", style.MustForceConvertSRGBHex("#1E88E5"), style.ColorWhite, true)
+	// VerbDelete is the verb style for Kubernetes delete operations.
+	VerbDelete = style.MustRegisterVerb("Delete", style.MustForceConvertSRGBHex("#F54945"), style.ColorWhite, true)
+	// VerbUpdate is the verb style for Kubernetes update operations.
+	VerbUpdate = style.MustRegisterVerb("Update", style.MustForceConvertSRGBHex("#FDD835"), style.ColorWhite, true)
+	// VerbPatch is the verb style for Kubernetes patch operations.
+	VerbPatch = style.MustRegisterVerb("Patch", style.MustForceConvertSRGBHex("#FDD835"), style.ColorWhite, true)
+	// VerbDeleteCollection is the verb style for Kubernetes deletecollection operations.
 	VerbDeleteCollection = style.MustRegisterVerb("DeleteCollection", style.MustForceConvertSRGBHex("#F54945"), style.ColorWhite, true)
-	VerbUnknown          = style.MustRegisterVerb("Unknown", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, true)
+	// VerbUnknown is the verb style for Kubernetes operations with an unknown verb.
+	VerbUnknown = style.MustRegisterVerb("Unknown", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, true)
 
-	// TODO: This will be removed when the history pane starts showing states as well as verbs.
+	// VerbReady is the verb style for a ready state. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbReady = style.MustRegisterVerb("Ready", style.MustForceConvertSRGBHex("#22CC22"), style.ColorWhite, true)
-	// TODO: This will be removed when the history pane starts showing states as well as verbs.
+	// VerbNonReady is the verb style for a non-ready state. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbNonReady = style.MustRegisterVerb("NonReady", style.MustForceConvertSRGBHex("#FF7700"), style.ColorWhite, true)
-	// TODO: This will be removed when the history pane starts showing states as well as verbs.
+	// VerbTerminating is the verb style for a terminating state. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbTerminating = style.MustRegisterVerb("Terminating", style.MustForceConvertSRGBHex("#FFAA00"), style.ColorWhite, true)
-	// TODO: This will be removed when the history pane starts showing states as well as verbs.
+	// VerbStatusUnknown is the verb style for an unknown condition status. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbStatusUnknown = style.MustRegisterVerb("Condition(Unknown)", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, true)
-	// TODO: This will be removed when the history pane starts showing states as well as verbs.
+	// VerbStatusTrue is the verb style for a True condition status. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbStatusTrue = style.MustRegisterVerb("Condition(True)", style.MustForceConvertSRGBHex("#22CC22"), style.ColorWhite, true)
-	// TODO: This will be removed when the history pane starts showing states as well as verbs.
+	// VerbStatusFalse is the verb style for a False condition status. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbStatusFalse = style.MustRegisterVerb("Condition(False)", style.MustForceConvertSRGBHex("#FF7700"), style.ColorWhite, true)
 )

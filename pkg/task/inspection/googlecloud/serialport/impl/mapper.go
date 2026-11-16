@@ -76,6 +76,82 @@ var cgroupPodUIDPatternFinderTask = inspectiontaskbase.DefineInspectionTask(
 	},
 )
 
+// logIngesterTask ingests the metadata of the filtered serial port logs.
+var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
+	serialport.LogIngesterTaskID,
+	serialport.LogFilterTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
+		return processSerialPortLog
+	},
+)
+
+// logGrouperTask is the grouper task for GCE serial port logs.
+// It groups logs by the node name and port name.
+var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
+	serialport.LogGrouperTaskID,
+	serialport.LogFilterTaskID.Ref(),
+	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
+		return func(ctx context.Context, l *log.Log) string {
+			serialFS, err := serialport.ExtractGCESerialPortLog(l.NodeReader)
+			if err != nil {
+				return ""
+			}
+			return fmt.Sprintf("%s#%s", serialFS.NodeName, serialFS.Port)
+		}
+	},
+)
+
+// logToTimelineMapperTask is the timeline mapper task.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	serialport.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: serialport.LogIngesterTaskID.Ref(),
+		GroupedLogs: serialport.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*serialPortMapperState] {
+		return &serialPortLogToTimelineMapper{
+			clusterIdentity:           coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
+			cgroupPodUIDPatternFinder: coretask.Use(b, serialport.CgroupPodUIDPatternFinderTaskID.Ref()),
+			timelineCreationTimes:     coretask.Use(b, k8saudit.TimelineCreationTimeInventoryTaskID.Ref()),
+		}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"GCE Node Serial Port Logs",
+		`Gather serial port logs from GCE instances to troubleshoot VM bootstrapping and OS initialization issues.`,
+		10000,
+		false,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[*serialPortMapperState] = (*serialPortLogToTimelineMapper)(nil)
+
+// serialPortMapperState tracks Pod UIDs whose PodPhase and binding timelines have already been
+// supplemented within the current serial port log group.
+type serialPortMapperState struct {
+	supplementedPodUIDs map[string]struct{}
+}
+
+// serialPortLogToTimelineMapper maps logs to hierarchical node serial port timelines and to
+// the timelines of Pods referenced by UID in the serial port message.
+type serialPortLogToTimelineMapper struct {
+	inspectiontaskbase.SinglePassMapperBase[*serialPortMapperState]
+	clusterIdentity           coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	cgroupPodUIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
+	timelineCreationTimes     coretask.Input[k8saudit.TimelineCreationTimes]
+}
+
+// ProcessLogByGroup processes each log inside the group and stages the event on the timeline.
+func (s *serialPortLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, state *serialPortMapperState) (*khifilev6.TimelineChangeSet, *serialPortMapperState, error) {
+	return mapSerialPortLog(
+		ctx,
+		l,
+		state,
+		s.clusterIdentity.Get(ctx).ClusterName,
+		s.cgroupPodUIDPatternFinder.Get(ctx),
+		s.timelineCreationTimes.Get(ctx),
+	)
+}
+
 // isUIDTokenChar reports whether b is an ASCII alphanumeric character or underscore.
 // Treating underscore as part of the token prevents re-scanning intermediate segments
 // of an underscore-separated UID token.
@@ -140,60 +216,6 @@ func processSerialPortLog(ctx context.Context, l *log.Log) (*khifilev6.LogChange
 
 	return cs, nil
 }
-
-// logIngesterTask ingests the metadata of the filtered serial port logs.
-var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
-	serialport.LogIngesterTaskID,
-	serialport.LogFilterTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
-		return processSerialPortLog
-	},
-)
-
-// logGrouperTask is the grouper task for GCE serial port logs.
-// It groups logs by the node name and port name.
-var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
-	serialport.LogGrouperTaskID,
-	serialport.LogFilterTaskID.Ref(),
-	func(b *coretask.Binder) inspectiontaskbase.LogGrouperFunc {
-		return func(ctx context.Context, l *log.Log) string {
-			serialFS, err := serialport.ExtractGCESerialPortLog(l.NodeReader)
-			if err != nil {
-				return ""
-			}
-			return fmt.Sprintf("%s#%s", serialFS.NodeName, serialFS.Port)
-		}
-	},
-)
-
-// serialPortMapperState tracks Pod UIDs whose PodPhase and binding timelines have already been
-// supplemented within the current serial port log group.
-type serialPortMapperState struct {
-	supplementedPodUIDs map[string]struct{}
-}
-
-// serialPortLogToTimelineMapper maps logs to hierarchical node serial port timelines and to
-// the timelines of Pods referenced by UID in the serial port message.
-type serialPortLogToTimelineMapper struct {
-	inspectiontaskbase.SinglePassMapperBase[*serialPortMapperState]
-	clusterIdentity           coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	cgroupPodUIDPatternFinder coretask.Input[patternfinder.PatternFinder[*k8saudit.ResourceIdentity]]
-	timelineCreationTimes     coretask.Input[k8saudit.TimelineCreationTimes]
-}
-
-// ProcessLogByGroup processes each log inside the group and stages the event on the timeline.
-func (s *serialPortLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, state *serialPortMapperState) (*khifilev6.TimelineChangeSet, *serialPortMapperState, error) {
-	return mapSerialPortLog(
-		ctx,
-		l,
-		state,
-		s.clusterIdentity.Get(ctx).ClusterName,
-		s.cgroupPodUIDPatternFinder.Get(ctx),
-		s.timelineCreationTimes.Get(ctx),
-	)
-}
-
-var _ inspectiontaskbase.TimelineMapper[*serialPortMapperState] = (*serialPortLogToTimelineMapper)(nil)
 
 // mapSerialPortLog adds an event for a serial port log to the serial port timeline of its node in the given cluster,
 // adds events to the timelines of any Pods referenced by UID in the message, and supplements missing PodPhase
@@ -357,25 +379,3 @@ func mustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 		Type: k8saudit.TimelineTypePodPhase,
 	})
 }
-
-// logToTimelineMapperTask is the timeline mapper task.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	serialport.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: serialport.LogIngesterTaskID.Ref(),
-		GroupedLogs: serialport.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*serialPortMapperState] {
-		return &serialPortLogToTimelineMapper{
-			clusterIdentity:           coretask.Use(b, k8scommon.ClusterIdentityTaskID.Ref()),
-			cgroupPodUIDPatternFinder: coretask.Use(b, serialport.CgroupPodUIDPatternFinderTaskID.Ref()),
-			timelineCreationTimes:     coretask.Use(b, k8saudit.TimelineCreationTimeInventoryTaskID.Ref()),
-		}
-	},
-	inspectioncore.FeatureTaskLabel(
-		"GCE Node Serial Port Logs",
-		`Gather serial port logs from GCE instances to troubleshoot VM bootstrapping and OS initialization issues.`,
-		10000,
-		false,
-	),
-)

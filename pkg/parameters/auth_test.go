@@ -19,11 +19,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 )
 
 func TestAuthParameters(t *testing.T) {

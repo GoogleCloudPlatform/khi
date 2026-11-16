@@ -19,18 +19,25 @@ import (
 	"fmt"
 	"time"
 
-	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"google.golang.org/protobuf/proto"
+
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
 
 // FilterPipelineParams contains the query parameters for running the timeline and log filter pipeline.
 type FilterPipelineParams struct {
-	TimelineQuery          string
+	// TimelineQuery is the CEL expression selecting timelines to include.
+	TimelineQuery string
+	// TimelineExclusionQuery is the CEL expression selecting timelines to exclude with their descendants.
 	TimelineExclusionQuery string
-	LogQuery               string
-	ExcludeNoLogs          bool
-	FilterStartTime        *time.Time
-	FilterEndTime          *time.Time
+	// LogQuery is the CEL expression filtering logs.
+	LogQuery string
+	// ExcludeNoLogs omits timelines with no matching logs when true.
+	ExcludeNoLogs bool
+	// FilterStartTime is the inclusive start of the time range filter.
+	FilterStartTime *time.Time
+	// FilterEndTime is the inclusive end of the time range filter.
+	FilterEndTime *time.Time
 }
 
 // FilterTimeline executes the complete 7-stage filtering pipeline and streams progress updates.

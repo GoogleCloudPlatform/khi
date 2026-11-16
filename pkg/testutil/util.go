@@ -21,14 +21,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
-/**
-* KHI has many tests using configurations and these configurations are read by glob.
-* glob result can contain non meaningful relative path and slash.
- */
+// GlobResultToChildTestName converts a globbed file path relative to basePath into a test name.
+// KHI has many tests using configurations read by glob, which can contain non-meaningful relative paths and slashes.
 func GlobResultToChildTestName(filePath string, basePath string) string {
 	result := strings.TrimPrefix(filePath, basePath)
 	result = strings.ReplaceAll(result, "/", "_")
@@ -50,7 +49,7 @@ func CompareStructuredNode() cmp.Option {
 	})
 }
 
-// Removes timestamps from slog logs
+// RemoveSlogTimestampFromLine strips timestamps from each line of slog output.
 func RemoveSlogTimestampFromLine(log string) string {
 	logs := strings.Split(log, "\n")
 	for i := 0; i < len(logs); i++ {
@@ -65,6 +64,7 @@ func RemoveSlogTimestampFromLine(log string) string {
 	return strings.Join(logs, "\n")
 }
 
+// ResponseFromString creates an http.Response with the given status code and body string.
 func ResponseFromString(code int, response string) *http.Response {
 	return &http.Response{
 		Body:       io.NopCloser(bytes.NewBufferString(response)),

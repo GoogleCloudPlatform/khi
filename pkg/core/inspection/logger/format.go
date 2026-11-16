@@ -41,11 +41,25 @@ var colors = []string{
 	"\033[96m",
 }
 
+var _ slog.Handler = (*KHILogFormatHandler)(nil)
+
+// KHILogFormatHandler is a slog.Handler that formats log records in KHI console format.
 type KHILogFormatHandler struct {
 	out             io.Writer
 	withColor       bool
 	attrs           []slog.Attr
 	ignoredAttrKeys map[string]struct{}
+}
+
+// NewKHIFormatLogger creates a KHILogFormatHandler that writes formatted logs to out.
+func NewKHIFormatLogger(out io.Writer, withColor bool) *KHILogFormatHandler {
+	return &KHILogFormatHandler{
+		out:       out,
+		withColor: withColor,
+		ignoredAttrKeys: map[string]struct{}{
+			LogKindAttrKey: {},
+		},
+	}
 }
 
 // Enabled implements slog.Handler.
@@ -151,16 +165,4 @@ func (lh *KHILogFormatHandler) wrapColorByLevel(level slog.Level, msg string) st
 		colorBegin = "\033[97;101m" // bright yellow
 	}
 	return fmt.Sprintf("%s%s%s", colorBegin, msg, reset)
-}
-
-var _ slog.Handler = (*KHILogFormatHandler)(nil)
-
-func NewKHIFormatLogger(out io.Writer, withColor bool) *KHILogFormatHandler {
-	return &KHILogFormatHandler{
-		out:       out,
-		withColor: withColor,
-		ignoredAttrKeys: map[string]struct{}{
-			LogKindAttrKey: {},
-		},
-	}
 }

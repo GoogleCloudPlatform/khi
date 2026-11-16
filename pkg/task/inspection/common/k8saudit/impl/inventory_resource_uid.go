@@ -31,16 +31,6 @@ var resourceUIDInventoryTask = inspectiontaskbase.DefineInventoryTask(
 	mergeResourceUIDs,
 )
 
-func mergeResourceUIDs(results []k8saudit.UIDToResourceIdentity) (k8saudit.UIDToResourceIdentity, error) {
-	result := map[string]*k8saudit.ResourceIdentity{}
-	for _, r := range results {
-		for uid, s := range r {
-			result[uid] = s
-		}
-	}
-	return result, nil
-}
-
 // resourceUIDDiscoveryTask extracts resource UIDs from resource manifests in audit logs.
 var resourceUIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 	k8saudit.ResourceUIDDiscoveryTaskID,
@@ -95,3 +85,13 @@ var uidPatternFinderTask = inspectiontaskbase.DefineInspectionTask(
 		}
 	},
 )
+
+func mergeResourceUIDs(results []k8saudit.UIDToResourceIdentity) (k8saudit.UIDToResourceIdentity, error) {
+	result := map[string]*k8saudit.ResourceIdentity{}
+	for _, r := range results {
+		for uid, s := range r {
+			result[uid] = s
+		}
+	}
+	return result, nil
+}

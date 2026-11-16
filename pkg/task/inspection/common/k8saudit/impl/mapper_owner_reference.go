@@ -25,6 +25,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
+var (
+	pathOwnerReferences = structured.CompileFieldPath("metadata.ownerReferences")
+	pathOwnerKind       = structured.CompileFieldPath("kind")
+	pathOwnerAPIVersion = structured.CompileFieldPath("apiVersion")
+	pathOwnerName       = structured.CompileFieldPath("name")
+)
+
+// Explicit interface compliance assertion.
+var _ k8saudit.ManifestLogToTimelineMapper[struct{}] = (*resourceOwnerReferenceTimelineMapperTaskSetting)(nil)
+
 // resourceOwnerReferenceTimelineMapperTask is the task to map logs into resource owner reference aliases.
 var resourceOwnerReferenceTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[struct{}](
 	k8saudit.ResourceOwnerReferenceTimelineMapperTaskID,
@@ -60,13 +70,6 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ResolveRelatedGroupSet
 	}
 	return result, nil
 }
-
-var (
-	pathOwnerReferences = structured.CompileFieldPath("metadata.ownerReferences")
-	pathOwnerKind       = structured.CompileFieldPath("kind")
-	pathOwnerAPIVersion = structured.CompileFieldPath("apiVersion")
-	pathOwnerName       = structured.CompileFieldPath("name")
-)
 
 // ProcessLog implements k8saudit.ManifestLogToTimelineMapper.
 func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
@@ -127,6 +130,3 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	}
 	return cs, struct{}{}, nil
 }
-
-// Explicit interface compliance assertion.
-var _ k8saudit.ManifestLogToTimelineMapper[struct{}] = (*resourceOwnerReferenceTimelineMapperTaskSetting)(nil)

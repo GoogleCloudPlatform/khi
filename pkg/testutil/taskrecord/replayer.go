@@ -31,6 +31,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+var _ coretask.UntypedTask = (*replayStubTask)(nil)
+
+// replayStubTask returns a recorded value while reporting the result type of the recorded task.
+// Graph resolution checks producer result types, so the stub must report the type that consumers expect instead of any.
+type replayStubTask struct {
+	coretask.Task[any]
+	resultType reflect.Type
+}
+
 // LoadRecordedTaskResult loads the recorded fixture for a specific task reference and type T.
 func LoadRecordedTaskResult[T any](fixtureDir string, taskRef taskid.UntypedTaskReference) (T, error) {
 	targetType := reflect.TypeOf((*T)(nil)).Elem()
@@ -45,19 +54,6 @@ func LoadRecordedTaskResult[T any](fixtureDir string, taskRef taskid.UntypedTask
 		return zero, fmt.Errorf("loaded task result has type %T, want %T", val, zero)
 	}
 	return typedVal, nil
-}
-
-// loadRecordedTaskResultForType loads and deserializes fixture data for a given reflect.Type.
-func loadRecordedTaskResultForType(fixtureDir string, taskRef taskid.UntypedTaskReference, t reflect.Type) (any, error) {
-	fileName := sanitizeTaskReferenceForFileName(taskRef.ReferenceIDString()) + ".json"
-	filePath := filepath.Join(fixtureDir, fileName)
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read fixture file %s: %w", filePath, err)
-	}
-
-	return DefaultCodecRegistry.DeserializeForType(data, t)
 }
 
 // ResolveTaskTypeFromTask returns the Go return type T of a Task[T].
@@ -85,20 +81,6 @@ func ResolveTaskTypeFromTaskSet(taskSet *coretask.TaskSet, taskRef taskid.Untype
 	return nil, false
 }
 
-// replayStubTask returns a recorded value while reporting the result type of the recorded task.
-// Graph resolution checks producer result types, so the stub must report the type that consumers expect instead of any.
-type replayStubTask struct {
-	coretask.Task[any]
-	resultType reflect.Type
-}
-
-var _ coretask.UntypedTask = (*replayStubTask)(nil)
-
-// ResultType implements coretask.UntypedTask.
-func (s *replayStubTask) ResultType() reflect.Type {
-	return s.resultType
-}
-
 // newReplayStubTask creates a stub task with highest selection priority and no upstream dependencies.
 func newReplayStubTask(taskRef taskid.UntypedTaskReference, resultType reflect.Type, val any) coretask.UntypedTask {
 	typedRef := taskid.NewTaskReference[any](taskRef.ReferenceIDString())
@@ -107,6 +89,24 @@ func newReplayStubTask(taskRef taskid.UntypedTaskReference, resultType reflect.T
 		Task:       coretask.DefineConstant(implID, val, coretask.WithSelectionPriority(1000000)),
 		resultType: resultType,
 	}
+}
+
+// ResultType implements coretask.UntypedTask.
+func (s *replayStubTask) ResultType() reflect.Type {
+	return s.resultType
+}
+
+// loadRecordedTaskResultForType loads and deserializes fixture data for a given reflect.Type.
+func loadRecordedTaskResultForType(fixtureDir string, taskRef taskid.UntypedTaskReference, t reflect.Type) (any, error) {
+	fileName := sanitizeTaskReferenceForFileName(taskRef.ReferenceIDString()) + ".json"
+	filePath := filepath.Join(fixtureDir, fileName)
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read fixture file %s: %w", filePath, err)
+	}
+
+	return DefaultCodecRegistry.DeserializeForType(data, t)
 }
 
 // newReplayInspectionInterceptor creates an InspectionInterceptor managing isolated execution and profiling.

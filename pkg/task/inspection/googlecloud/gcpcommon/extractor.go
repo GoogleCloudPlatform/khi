@@ -27,6 +27,14 @@ import (
 )
 
 var (
+	// GCPAuditLogCacheKey identifies the cached GCPAuditLogFieldSet on a NodeReader.
+	GCPAuditLogCacheKey = structured.NewCacheKey[*GCPAuditLogFieldSet]()
+
+	// GCPSeverityCacheKey identifies the cached severity on a NodeReader.
+	GCPSeverityCacheKey = structured.NewCacheKey[*pb.Severity]()
+)
+
+var (
 	pathProjectID        = structured.CompileFieldPath("resource.labels.project_id")
 	pathOperationID      = structured.CompileFieldPath("operation.id")
 	pathOperationFirst   = structured.CompileFieldPath("operation.first")
@@ -69,17 +77,60 @@ var (
 
 // GCPAuditLogFieldSet represents the parsed fields of a GCP Cloud Audit Log entry.
 type GCPAuditLogFieldSet struct {
-	ProjectID      string
-	OperationID    string
+	// ProjectID is the GCP project ID from resource.labels.project_id.
+	ProjectID string
+	// OperationID is the long-running operation identifier from operation.id.
+	OperationID string
+	// OperationFirst indicates whether this entry marks the start of an operation.
 	OperationFirst bool
-	OperationLast  bool
-	MethodName     string
-	ResourceName   string
+	// OperationLast indicates whether this entry marks the end of an operation.
+	OperationLast bool
+	// MethodName is the audited RPC or API method name from protoPayload.methodName.
+	MethodName string
+	// ResourceName is the target GCP resource name from protoPayload.resourceName.
+	ResourceName string
+	// PrincipalEmail is the caller's email or subject extracted from authenticationInfo.
 	PrincipalEmail string
-	Status         int
-	StatusMessage  string
-	Request        *structured.NodeReader
-	Response       *structured.NodeReader
+	// Status is the numeric RPC status code from protoPayload.status.code, or -1 if absent.
+	Status int
+	// StatusMessage is the status description from protoPayload.status.message.
+	StatusMessage string
+	// Request is a NodeReader rooted at protoPayload.request, or nil if absent.
+	Request *structured.NodeReader
+	// Response is a NodeReader rooted at protoPayload.response, or nil if absent.
+	Response *structured.NodeReader
+}
+
+// GCPAccessLogFieldSet represents HTTP access log fields from Cloud Logging.
+type GCPAccessLogFieldSet struct {
+	// Method is the HTTP request method.
+	Method string
+	// RequestURL is the requested URL string.
+	RequestURL string
+	// RequestSize is the size of the HTTP request message in bytes.
+	RequestSize int64
+	// Status is the HTTP response status code.
+	Status int
+	// ResponseSize is the size of the HTTP response message in bytes.
+	ResponseSize int64
+	// UserAgent is the User-Agent header sent by the client.
+	UserAgent string
+	// RemoteIP is the client IP address.
+	RemoteIP string
+	// ServerIP is the server IP address handling the request.
+	ServerIP string
+	// Referer is the HTTP Referer header value.
+	Referer string
+	// Latency is the formatted request processing latency string.
+	Latency string
+	// Protocol is the request protocol (e.g., HTTP/1.1, HTTP/2).
+	Protocol string
+}
+
+// GCPMainMessageFieldSet represents the main message parsed from a GCP log.
+type GCPMainMessageFieldSet struct {
+	// MainMessage is the primary human-readable message extracted from the log entry.
+	MainMessage string
 }
 
 // Starting returns true when the operation is long running operation and the log entry is for the starting timing.
@@ -142,12 +193,6 @@ func (g *GCPAuditLogFieldSet) ResponseString() (string, error) {
 	return "", fmt.Errorf("protoPayload.response field is absent: %w", khierrors.ErrNotFound)
 }
 
-// GCPAuditLogCacheKey identifies the cached GCPAuditLogFieldSet on a NodeReader.
-var GCPAuditLogCacheKey = structured.NewCacheKey[*GCPAuditLogFieldSet]()
-
-// GCPSeverityCacheKey identifies the cached severity on a NodeReader.
-var GCPSeverityCacheKey = structured.NewCacheKey[*pb.Severity]()
-
 // ExtractGCPAuditLog extracts GCP Audit Log fields from a NodeReader.
 func ExtractGCPAuditLog(reader *structured.NodeReader) (GCPAuditLogFieldSet, error) {
 	if cached, ok := structured.GetCache(reader, GCPAuditLogCacheKey); ok {
@@ -174,21 +219,6 @@ func ExtractGCPAuditLog(reader *structured.NodeReader) (GCPAuditLogFieldSet, err
 
 	structured.SetCache(reader, GCPAuditLogCacheKey, &result)
 	return result, nil
-}
-
-// GCPAccessLogFieldSet represents HTTP access log fields from Cloud Logging.
-type GCPAccessLogFieldSet struct {
-	Method       string
-	RequestURL   string
-	RequestSize  int64
-	Status       int
-	ResponseSize int64
-	UserAgent    string
-	RemoteIP     string
-	ServerIP     string
-	Referer      string
-	Latency      string
-	Protocol     string
 }
 
 // ExtractGCPAccessLog extracts GCP Access Log fields from a NodeReader.
@@ -238,11 +268,6 @@ func ExtractGCPSeverity(reader *structured.NodeReader) (*pb.Severity, error) {
 	res := ParseGCPSeverity(severityStr)
 	structured.SetCache(reader, GCPSeverityCacheKey, res)
 	return res, nil
-}
-
-// GCPMainMessageFieldSet represents the main message parsed from a GCP log.
-type GCPMainMessageFieldSet struct {
-	MainMessage string
 }
 
 // ExtractGCPMainMessage reads main message from the content of log stored on Cloud Logging.

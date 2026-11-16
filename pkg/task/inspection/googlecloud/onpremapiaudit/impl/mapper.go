@@ -51,12 +51,30 @@ var logGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// logToTimelineMapperTask adds revisions/events regarding logs.
+var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	onpremapiaudit.LogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: onpremapiaudit.LogIngesterTaskID.Ref(),
+		GroupedLogs: onpremapiaudit.LogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &onPremAuditTimelineMapper{}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"On-Premises API Logs",
+		"Gather Anthos On-Premises audit logs to visualize cluster lifecycle events (creation, deletion, enrollment, unenrollment, and upgrades) on timelines.",
+		9500,
+		true,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*onPremAuditTimelineMapper)(nil)
+
 // onPremAuditTimelineMapper maps On-Prem API audit logs to timeline elements.
 type onPremAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
 }
-
-var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*onPremAuditTimelineMapper)(nil)
 
 // ProcessLogByGroup maps log entries to timeline elements.
 func (m *onPremAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
@@ -101,21 +119,3 @@ func (m *onPremAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 
 	return cs, tracker, nil
 }
-
-// logToTimelineMapperTask adds revisions/events regarding logs.
-var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	onpremapiaudit.LogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: onpremapiaudit.LogIngesterTaskID.Ref(),
-		GroupedLogs: onpremapiaudit.LogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
-		return &onPremAuditTimelineMapper{}
-	},
-	inspectioncore.FeatureTaskLabel(
-		"On-Premises API Logs",
-		"Gather Anthos On-Premises audit logs to visualize cluster lifecycle events (creation, deletion, enrollment, unenrollment, and upgrades) on timelines.",
-		9500,
-		true,
-	),
-)

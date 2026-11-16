@@ -22,9 +22,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// ForceUpdateGolden forces VerifyWithGolden to overwrite golden files when true.
 var ForceUpdateGolden = false
 
-// VerifyWithGolden test if the given body is matching with the golden file saved for each tests under /test/golden/
+// VerifyWithGolden tests if the given body matches the golden file saved for each test under /test/golden/.
 func VerifyWithGolden(t testing.TB, verificationTargetName string, body string) {
 	t.Helper()
 	_, updateGolden := os.LookupEnv("UPDATE_GOLDEN")

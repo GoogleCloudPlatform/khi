@@ -18,9 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestCompareAlphabetical(t *testing.T) {

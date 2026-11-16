@@ -47,18 +47,6 @@ func (e *Engine) Context() *InitContext {
 	return e.ctx
 }
 
-func (e *Engine) registerRunHook(hook func(ctx context.Context) error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.runHooks = append(e.runHooks, hook)
-}
-
-func (e *Engine) registerTerminateHook(hook func() error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.terminationHooks = append(e.terminationHooks, hook)
-}
-
 // Init resolves and executes all registered Initializers in topological order.
 func (e *Engine) Init() error {
 	registryMu.RLock()
@@ -112,4 +100,16 @@ func (e *Engine) Terminate() error {
 		e.terminateErr = errors.Join(errs...)
 	})
 	return e.terminateErr
+}
+
+func (e *Engine) registerRunHook(hook func(ctx context.Context) error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.runHooks = append(e.runHooks, hook)
+}
+
+func (e *Engine) registerTerminateHook(hook func() error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.terminationHooks = append(e.terminationHooks, hook)
 }

@@ -21,11 +21,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gopkg.in/yaml.v3"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
 //go:embed testdata/*.tmpl testdata/*.golden.md

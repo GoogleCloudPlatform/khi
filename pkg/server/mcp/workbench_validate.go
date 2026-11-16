@@ -18,14 +18,17 @@ import (
 	"context"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 )
 
 // ValidateReportInput defines the input parameters for the validate_report MCP tool.
 type ValidateReportInput struct {
+	// InspectionID is the unique identifier of the target inspection.
 	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
-	Report       string `json:"report" jsonschema:"The Markdown report or writeup to validate against the inspection data."`
+	// Report is the Markdown troubleshooting report or writeup to validate against the inspection data.
+	Report string `json:"report" jsonschema:"The Markdown report or writeup to validate against the inspection data."`
 }
 
 func (h *WorkbenchHandler) handleValidateReport(ctx context.Context, _ *mcpsdk.CallToolRequest, input ValidateReportInput) (*mcpsdk.CallToolResult, any, error) {

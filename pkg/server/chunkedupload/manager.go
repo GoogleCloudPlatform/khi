@@ -25,8 +25,22 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/ttlcleaner"
 )
 
+var _ ttlcleaner.ExpirableTarget[string] = (*ChunkSessionManager)(nil)
+
 // ChunkSessionOption is a functional option for configuring ChunkSessionManager.
 type ChunkSessionOption func(*ChunkSessionManager)
+
+// ChunkSessionManager manages chunked upload sessions and temporary storage.
+type ChunkSessionManager struct {
+	uploadDir          string
+	tokenGenerator     idgenerator.IDGenerator
+	sessions           map[string]*ChunkSession
+	ttl                time.Duration
+	maxChunkSize       int64
+	suggestedChunkSize int64
+	cleaner            *ttlcleaner.TTLCleaner[string]
+	mu                 sync.RWMutex
+}
 
 // WithSessionTTL configures the session expiration TTL.
 func WithSessionTTL(ttl time.Duration) ChunkSessionOption {
@@ -55,20 +69,6 @@ func WithTokenGenerator(generator idgenerator.IDGenerator) ChunkSessionOption {
 		m.tokenGenerator = generator
 	}
 }
-
-// ChunkSessionManager manages chunked upload sessions and temporary storage.
-type ChunkSessionManager struct {
-	uploadDir          string
-	tokenGenerator     idgenerator.IDGenerator
-	sessions           map[string]*ChunkSession
-	ttl                time.Duration
-	maxChunkSize       int64
-	suggestedChunkSize int64
-	cleaner            *ttlcleaner.TTLCleaner[string]
-	mu                 sync.RWMutex
-}
-
-var _ ttlcleaner.ExpirableTarget[string] = (*ChunkSessionManager)(nil)
 
 // NewChunkSessionManager creates a new ChunkSessionManager instance.
 func NewChunkSessionManager(uploadDir string, opts ...ChunkSessionOption) *ChunkSessionManager {

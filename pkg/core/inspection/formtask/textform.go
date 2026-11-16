@@ -44,8 +44,28 @@ type TextFormSuggestionsProvider = func(ctx context.Context, value string, previ
 // TextFormValueConverter is a function type to convert the given string value to another type stored in the variable set.
 type TextFormValueConverter[T any] = func(ctx context.Context, value string) (T, error)
 
-// TextFormHintGenerator is a function type to generate a hint string
+// TextFormHintGenerator is a function type to generate a hint string.
 type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error)
+
+// TextFormSpec holds the optional settings of a text form defined with DefineTextForm.
+// Callbacks may read inputs declared on the Binder passed to the bind function.
+// A nil callback or a zero value uses the default.
+type TextFormSpec[T any] struct {
+	// Readonly reports whether the field is read only. Defaults to false.
+	Readonly TextFormReadonlyProvider
+	// DefaultValue generates the default value of the text form. Defaults to empty string.
+	DefaultValue TextFormDefaultValueGenerator
+	// Suggestions provides suggestions for the text form. Defaults to nil.
+	Suggestions TextFormSuggestionsProvider
+	// Validator validates the input string. Defaults to a validator that accepts any string.
+	Validator TextFormValidator
+	// Converter converts the input string to T. Defaults to a conversion that only works when T is string.
+	Converter TextFormValueConverter[T]
+	// Hint generates a hint message for the form field. Defaults to no hint.
+	Hint TextFormHintGenerator
+	// ValidationTiming specifies when form validation should occur. Defaults to inspectionmetadata.Change.
+	ValidationTiming inspectionmetadata.TextFormValidationTimingType
+}
 
 // textFormTask holds the settings of a text form task defined with DefineTextForm.
 type textFormTask[T any] struct {
@@ -57,6 +77,35 @@ type textFormTask[T any] struct {
 	hintGenerator       TextFormHintGenerator
 	converter           TextFormValueConverter[T]
 	validatingTiming    inspectionmetadata.TextFormValidationTimingType
+}
+
+// DefineTextForm defines a text form task with a Binder.
+// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
+// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
+func DefineTextForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) TextFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
+	form := newTextFormTask(id, priority, label, description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
+		form.applySpec(bind(b))
+		return form.run
+	}, form.formLabelOpts(labelOpts)...)
+}
+
+// ConstantSuggestions returns a suggestions provider that always returns the given suggestions.
+func ConstantSuggestions(suggestions ...string) TextFormSuggestionsProvider {
+	return func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+		return suggestions, nil
+	}
+}
+
+// PreviousOrDefaultValue returns a TextFormDefaultValueGenerator that returns the most recent previous value when one exists,
+// or calls defaultValue to compute the initial default value.
+func PreviousOrDefaultValue(defaultValue func(ctx context.Context) (string, error)) TextFormDefaultValueGenerator {
+	return func(ctx context.Context, previousValues []string) (string, error) {
+		if len(previousValues) > 0 {
+			return previousValues[0], nil
+		}
+		return defaultValue(ctx)
+	}
 }
 
 // newTextFormTask creates a text form task with the default settings described in TextFormSpec.
@@ -98,7 +147,7 @@ func (b *textFormTask[T]) run(ctx context.Context) (T, error) {
 
 	readonly, err := b.readonlyProvider(ctx)
 	if err != nil {
-		return *new(T), fmt.Errorf("allowEdit provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("allowEdit provider for task `%s` returned an error\n%w", b.id, err)
 	}
 	field := inspectionmetadata.TextParameterFormField{}
 	field.Readonly = readonly
@@ -108,7 +157,7 @@ func (b *textFormTask[T]) run(ctx context.Context) (T, error) {
 	var currentValue string
 	defaultValue, err := b.defaultValue(ctx, prevValue)
 	if err != nil {
-		return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%w", b.id, err)
 	}
 	field.Default = defaultValue
 	currentValue = defaultValue
@@ -127,19 +176,19 @@ func (b *textFormTask[T]) run(ctx context.Context) (T, error) {
 
 	suggestions, err := b.suggestionsProvider(ctx, currentValue, prevValue)
 	if err != nil {
-		return *new(T), fmt.Errorf("suggesion provider for task `%s` returned an error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("suggesion provider for task `%s` returned an error\n%w", b.id, err)
 	}
 	field.Suggestions = suggestions
 
 	validationErr, err := b.validator(ctx, currentValue)
 	if err != nil {
-		return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
+		return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%w", b.id, err)
 	}
 	if validationErr != "" {
 		// When the given string is invalid, it should be the default value.
 		currentValue, err = b.defaultValue(ctx, prevValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
+			return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%w", b.id, err)
 		}
 	}
 	if validationErr != "" && taskMode == inspectioncore.TaskModeRun {
@@ -148,7 +197,7 @@ func (b *textFormTask[T]) run(ctx context.Context) (T, error) {
 
 	convertedValue, err := b.converter(ctx, currentValue)
 	if err != nil {
-		return *new(T), fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%v", currentValue, b.id, err)
+		return *new(T), fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%w", currentValue, b.id, err)
 	}
 	if validationErr != "" {
 		field.HintType = inspectionmetadata.Error
@@ -156,7 +205,7 @@ func (b *textFormTask[T]) run(ctx context.Context) (T, error) {
 	} else {
 		hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
+			return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%w", b.id, err)
 		}
 		if hint == "" {
 			hintType = inspectionmetadata.None
@@ -174,47 +223,9 @@ func (b *textFormTask[T]) run(ctx context.Context) (T, error) {
 	}
 	err = formFields.SetField(field)
 	if err != nil {
-		return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
+		return *new(T), fmt.Errorf("failed to configure the form metadata in task `%s`\n%w", b.id, err)
 	}
 	return convertedValue, nil
-}
-
-// ConstantSuggestions returns a suggestions provider that always returns the given suggestions.
-func ConstantSuggestions(suggestions ...string) TextFormSuggestionsProvider {
-	return func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		return suggestions, nil
-	}
-}
-
-// PreviousOrDefaultValue returns a TextFormDefaultValueGenerator that returns the most recent previous value when one exists,
-// or calls defaultValue to compute the initial default value.
-func PreviousOrDefaultValue(defaultValue func(ctx context.Context) (string, error)) TextFormDefaultValueGenerator {
-	return func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		}
-		return defaultValue(ctx)
-	}
-}
-
-// TextFormSpec holds the optional settings of a text form defined with DefineTextForm.
-// Callbacks may read inputs declared on the Binder passed to the bind function.
-// A nil callback or a zero value uses the default.
-type TextFormSpec[T any] struct {
-	// Readonly reports whether the field is read only. Defaults to false.
-	Readonly TextFormReadonlyProvider
-	// DefaultValue generates the default value of the text form. Defaults to empty string.
-	DefaultValue TextFormDefaultValueGenerator
-	// Suggestions provides suggestions for the text form. Defaults to nil.
-	Suggestions TextFormSuggestionsProvider
-	// Validator validates the input string. Defaults to a validator that accepts any string.
-	Validator TextFormValidator
-	// Converter converts the input string to T. Defaults to a conversion that only works when T is string.
-	Converter TextFormValueConverter[T]
-	// Hint generates a hint message for the form field. Defaults to no hint.
-	Hint TextFormHintGenerator
-	// ValidationTiming specifies when form validation should occur. Defaults to inspectionmetadata.Change.
-	ValidationTiming inspectionmetadata.TextFormValidationTimingType
 }
 
 func (b *textFormTask[T]) applySpec(spec TextFormSpec[T]) {
@@ -239,15 +250,4 @@ func (b *textFormTask[T]) applySpec(spec TextFormSpec[T]) {
 	if spec.ValidationTiming != "" {
 		b.validatingTiming = spec.ValidationTiming
 	}
-}
-
-// DefineTextForm defines a text form task with a Binder.
-// id, priority, label and description are required for every form. bind runs once, declares the inputs on the Binder,
-// and returns the optional settings whose callbacks read those inputs. A form that reads no input returns its settings without declaring any.
-func DefineTextForm[T any](id taskid.TaskImplementationID[T], priority int, label string, description string, bind func(b *coretask.Binder) TextFormSpec[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
-	form := newTextFormTask(id, priority, label, description)
-	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (T, error) {
-		form.applySpec(bind(b))
-		return form.run
-	}, form.formLabelOpts(labelOpts)...)
 }

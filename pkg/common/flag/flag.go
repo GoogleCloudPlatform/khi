@@ -27,9 +27,6 @@ import (
 // This package provides helper functions to parse command line arguments and environment variables.
 // It provides functions similar to the standard `flag` package, but with added functionality to handle environment variables as a fallback.  The package also provides a mechanism to dump all parsed flag values.
 
-type FlagParser func() error
-type FlagValueDumper func() string
-
 var flagParsed bool = false
 var flagParsers []FlagParser = []FlagParser{}
 var flagValueDumper []FlagValueDumper = []FlagValueDumper{}
@@ -38,6 +35,13 @@ var envFalsyValues map[string]struct{} = map[string]struct{}{
 	"false": {},
 }
 
+// FlagParser parses a registered flag value from command-line arguments or environment variables.
+type FlagParser func() error
+
+// FlagValueDumper returns a formatted string representation of a registered flag value.
+type FlagValueDumper func() string
+
+// Parse parses command-line flags and resolves any fallback environment variables.
 func Parse() error {
 	flag.Parse()
 	for _, parser := range flagParsers {
@@ -50,16 +54,19 @@ func Parse() error {
 	return nil
 }
 
+// Parsed reports whether Parse has been called.
 func Parsed() bool {
 	return flagParsed
 }
 
+// Reset clears all registered flag parsers and value dumpers.
 func Reset() {
 	flagParsed = false
 	flagParsers = []FlagParser{}
 	flagValueDumper = []FlagValueDumper{}
 }
 
+// DumpAll logs all registered flag names and their resolved values.
 func DumpAll(ctx context.Context) {
 	setting := ""
 	for _, dumper := range flagValueDumper {
@@ -68,6 +75,7 @@ func DumpAll(ctx context.Context) {
 	slog.InfoContext(ctx, setting)
 }
 
+// PrintDefaults prints usage defaults for all registered command-line flags.
 func PrintDefaults() {
 	flag.PrintDefaults()
 }

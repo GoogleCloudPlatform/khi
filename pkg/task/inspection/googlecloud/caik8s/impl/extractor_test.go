@@ -17,9 +17,10 @@ package caik8s_impl
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
-	"github.com/google/go-cmp/cmp"
 )
 
 func newTestNodeReader(t *testing.T, data map[string]any) *structured.NodeReader {

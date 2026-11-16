@@ -18,8 +18,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 )
 
 func TestConvertInputOnlyResponseFlagToActualFlag(t *testing.T) {

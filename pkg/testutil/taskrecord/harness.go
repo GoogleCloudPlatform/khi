@@ -62,25 +62,6 @@ type JobTestResult struct {
 	taskResults map[string]any
 }
 
-// GetTaskResult retrieves the output of a completed task from the test result.
-func GetTaskResult[T any](res *JobTestResult, taskRef taskid.TaskReference[T]) (T, bool) {
-	if res == nil || res.taskResults == nil {
-		var zero T
-		return zero, false
-	}
-	val, ok := res.taskResults[taskRef.ReferenceIDString()]
-	if !ok {
-		var zero T
-		return zero, false
-	}
-	typedVal, ok := val.(T)
-	if !ok {
-		var zero T
-		return zero, false
-	}
-	return typedVal, true
-}
-
 // JobTestHarness executes inspection jobs in Record or Replay mode.
 type JobTestHarness struct {
 	t              testing.TB
@@ -99,15 +80,23 @@ type JobTestHarness struct {
 	memProfileOnce sync.Once
 }
 
-// sanitizeTestName replaces slashes and special characters in test names to create safe directory paths.
-func sanitizeTestName(testName string) string {
-	replacer := strings.NewReplacer(
-		"/", "_",
-		"\\", "_",
-		":", "_",
-		" ", "_",
-	)
-	return replacer.Replace(testName)
+// GetTaskResult retrieves the output of a completed task from the test result.
+func GetTaskResult[T any](res *JobTestResult, taskRef taskid.TaskReference[T]) (T, bool) {
+	if res == nil || res.taskResults == nil {
+		var zero T
+		return zero, false
+	}
+	val, ok := res.taskResults[taskRef.ReferenceIDString()]
+	if !ok {
+		var zero T
+		return zero, false
+	}
+	typedVal, ok := val.(T)
+	if !ok {
+		var zero T
+		return zero, false
+	}
+	return typedVal, true
 }
 
 // NewJobTestHarness creates a new JobTestHarness instance with paths derived from the test name.
@@ -318,4 +307,15 @@ func (h *JobTestHarness) Replay(ctx context.Context) (*JobTestResult, error) {
 		InspectionResult: runResult,
 		taskResults:      capturedResults,
 	}, nil
+}
+
+// sanitizeTestName replaces slashes and special characters in test names to create safe directory paths.
+func sanitizeTestName(testName string) string {
+	replacer := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		":", "_",
+		" ", "_",
+	)
+	return replacer.Replace(testName)
 }

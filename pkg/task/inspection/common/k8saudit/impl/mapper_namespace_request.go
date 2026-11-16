@@ -23,6 +23,17 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/common/k8saudit"
 )
 
+// Explicit interface compliance assertion.
+var _ k8saudit.ManifestLogToTimelineMapper[struct{}] = (*namespaceRequestLogToTimelineMapperTaskSetting)(nil)
+
+// namespaceRequestLogToTimelineMapperTask is the task to generate events of requests against namespace wide by deletecollection.
+var namespaceRequestLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[struct{}](
+	k8saudit.NamespaceRequestLogToTimelineMapperTaskID,
+	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[struct{}] {
+		return &namespaceRequestLogToTimelineMapperTaskSetting{}
+	},
+)
+
 // namespaceRequestLogToTimelineMapperTaskSetting maps namespace-wide requests to namespace timelines under the model.
 type namespaceRequestLogToTimelineMapperTaskSetting struct {
 	k8saudit.ManifestStatelessMapperBase
@@ -61,14 +72,3 @@ func (n *namespaceRequestLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 
 	return cs, struct{}{}, nil
 }
-
-// Explicit interface compliance assertion.
-var _ k8saudit.ManifestLogToTimelineMapper[struct{}] = (*namespaceRequestLogToTimelineMapperTaskSetting)(nil)
-
-// namespaceRequestLogToTimelineMapperTask is the task to generate events of requests against namespace wide by deletecollection.
-var namespaceRequestLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[struct{}](
-	k8saudit.NamespaceRequestLogToTimelineMapperTaskID,
-	func(_ *coretask.Binder) k8saudit.ManifestLogToTimelineMapper[struct{}] {
-		return &namespaceRequestLogToTimelineMapperTaskSetting{}
-	},
-)

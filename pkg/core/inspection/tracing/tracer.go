@@ -18,15 +18,17 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
+// NewInspectionTraceInterceptor returns an InspectionInterceptor that wraps each inspection and task execution in OpenTelemetry spans.
 func NewInspectionTraceInterceptor(tracer trace.Tracer) coreinspection.InspectionInterceptor {
 	return func(ctx context.Context, req *inspectioncore.InspectionRequest, next func(context.Context) error) error {
 		inspectionID := khictx.MustGetValue(ctx, inspectioncore.InspectionTaskInspectionID)

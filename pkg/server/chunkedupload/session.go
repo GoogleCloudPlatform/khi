@@ -21,6 +21,17 @@ import (
 	"time"
 )
 
+const (
+	// DefaultSuggestedChunkSize is the recommended chunk payload size (25MB).
+	DefaultSuggestedChunkSize = 25 * 1024 * 1024
+	// DefaultMaxChunkSize is the maximum allowed single chunk payload (32MB).
+	DefaultMaxChunkSize = 32 * 1024 * 1024
+	// DefaultSessionTTL is the duration after which an inactive chunk upload session expires.
+	DefaultSessionTTL = 30 * time.Minute
+	// DefaultCleanupInterval is the frequency at which the cleaner checks for expired sessions.
+	DefaultCleanupInterval = 1 * time.Minute
+)
+
 var (
 	// ErrSessionNotFound is returned when a session token is not found or has expired.
 	ErrSessionNotFound = errors.New("chunk upload session not found or expired")
@@ -34,26 +45,23 @@ var (
 	ErrChunkSizeTooLarge = errors.New("chunk size exceeds maximum allowed limit")
 )
 
-const (
-	// DefaultSuggestedChunkSize is the recommended chunk payload size (25MB).
-	DefaultSuggestedChunkSize = 25 * 1024 * 1024
-	// DefaultMaxChunkSize is the maximum allowed single chunk payload (32MB).
-	DefaultMaxChunkSize = 32 * 1024 * 1024
-	// DefaultSessionTTL is the duration after which an inactive chunk upload session expires.
-	DefaultSessionTTL = 30 * time.Minute
-	// DefaultCleanupInterval is the frequency at which the cleaner checks for expired sessions.
-	DefaultCleanupInterval = 1 * time.Minute
-)
-
 // ChunkSession represents an in-progress chunked upload session.
 type ChunkSession struct {
-	Token          string
-	FileName       string
-	TotalSize      int64
-	ReceivedBytes  int64
+	// Token is the unique session identifier issued for this upload.
+	Token string
+	// FileName is the original name of the file being uploaded.
+	FileName string
+	// TotalSize is the expected total file size in bytes.
+	TotalSize int64
+	// ReceivedBytes is the cumulative number of bytes written across all chunks.
+	ReceivedBytes int64
+	// ReceivedRanges tracks the byte intervals received so far for completeness validation.
 	ReceivedRanges []ByteRange
-	TempFilePath   string
-	TempFile       *os.File
-	ExpiresAt      time.Time
-	mu             sync.Mutex
+	// TempFilePath is the filesystem path of the temporary file storing uploaded chunks.
+	TempFilePath string
+	// TempFile is the open file handle for writing incoming chunks.
+	TempFile *os.File
+	// ExpiresAt is the timestamp after which an inactive session is eligible for eviction.
+	ExpiresAt time.Time
+	mu        sync.Mutex
 }

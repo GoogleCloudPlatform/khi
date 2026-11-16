@@ -20,7 +20,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
+// Debug holds the singleton instance of DebugParameters.
 var Debug = &DebugParameters{}
+
+var _ ParameterStore = (*DebugParameters)(nil)
 
 // DebugParameters is the ParameterStore for debug purpose parameters.
 type DebugParameters struct {
@@ -31,19 +34,15 @@ type DebugParameters struct {
 	// ProfilerProject is the GCP project ID where the profiler sends the data to.
 	ProfilerProject *string
 
-	// Verbose
-	// If this flag is set, KHI prints verbose logs.
+	// Verbose enables verbose log output when set.
 	Verbose *bool
 
-	// NoColor
-	// If this flag is set, KHI prints logs without color.
+	// NoColor disables colored log output when set.
 	NoColor *bool
 
-	// CloudTrace
-	// If this flag is set, KHI sends traces to Cloud Trace.
+	// CloudTrace enables sending traces to Cloud Trace when set.
 	CloudTrace *bool
-	// CloudTraceProject
-	// The GCP project ID where the trace sends the data to.
+	// CloudTraceProject is the GCP project ID where traces are sent.
 	CloudTraceProject *string
 
 	// MemProfile is the destination file path of memory pprof profile written on exit.
@@ -76,5 +75,3 @@ func (d *DebugParameters) Prepare() error {
 	d.CPUProfile = flag.String("cpuprofile", "", "The destination file path of CPU pprof profile written on exit.", "")
 	return nil
 }
-
-var _ ParameterStore = (*DebugParameters)(nil)

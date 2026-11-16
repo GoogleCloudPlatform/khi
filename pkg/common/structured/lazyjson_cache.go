@@ -19,6 +19,11 @@ import (
 	"sync"
 )
 
+const (
+	lazyJSONCacheShardCount = 64
+	lazyJSONCacheShardCap   = 512
+)
+
 // lazyJSONCacheKey identifies a specific field lookup within a LazyJSONNode.
 type lazyJSONCacheKey struct {
 	blockID   uint32
@@ -32,6 +37,12 @@ type lazyJSONCacheEntry struct {
 	valIndex int
 	prev     *lazyJSONCacheEntry
 	next     *lazyJSONCacheEntry
+}
+
+// lazyJSONCache provides a sharded, thread-safe LRU cache for LazyJSONNode child key lookups.
+type lazyJSONCache struct {
+	shards    []*lazyJSONCacheShard
+	shardMask uint64
 }
 
 // lazyJSONCacheShard represents an independent LRU cache partition protected by its own mutex.
@@ -162,12 +173,6 @@ func (s *lazyJSONCacheShard) removeTail() {
 	}
 }
 
-// lazyJSONCache provides a sharded, thread-safe LRU cache for LazyJSONNode child key lookups.
-type lazyJSONCache struct {
-	shards    []*lazyJSONCacheShard
-	shardMask uint64
-}
-
 func newLazyJSONCache(shardCount, shardCap int) *lazyJSONCache {
 	if shardCount <= 0 || (shardCount&(shardCount-1)) != 0 {
 		panic("shardCount must be a power of two")
@@ -180,19 +185,6 @@ func newLazyJSONCache(shardCount, shardCap int) *lazyJSONCache {
 		shards:    shards,
 		shardMask: uint64(shardCount - 1),
 	}
-}
-
-func hashLazyJSONKey(blockID uint32, absOffset uint32, key string) uint64 {
-	var h uint64 = 14695981039346656037
-	h ^= uint64(blockID)
-	h *= 1099511628211
-	h ^= uint64(absOffset)
-	h *= 1099511628211
-	for i := 0; i < len(key); i++ {
-		h ^= uint64(key[i])
-		h *= 1099511628211
-	}
-	return h
 }
 
 func (c *lazyJSONCache) get(blockID uint32, absOffset uint32, key string) (int, bool) {
@@ -219,7 +211,15 @@ func (c *lazyJSONCache) clear() {
 	}
 }
 
-const (
-	lazyJSONCacheShardCount = 64
-	lazyJSONCacheShardCap   = 512
-)
+func hashLazyJSONKey(blockID uint32, absOffset uint32, key string) uint64 {
+	var h uint64 = 14695981039346656037
+	h ^= uint64(blockID)
+	h *= 1099511628211
+	h ^= uint64(absOffset)
+	h *= 1099511628211
+	for i := 0; i < len(key); i++ {
+		h ^= uint64(key[i])
+		h *= 1099511628211
+	}
+	return h
+}

@@ -24,12 +24,13 @@ import (
 
 	asset "cloud.google.com/go/asset/apiv1"
 	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 )
 
 const (
@@ -41,6 +42,8 @@ const (
 	// MaxCAISearchQueryCharacters is the maximum number of characters per CAI search query.
 	MaxCAISearchQueryCharacters = 2048
 )
+
+var _ CAIFetcher = (*caiFetcher)(nil)
 
 // CAISearchProgressCallback is invoked each time a resource is scanned during a CAI search.
 // scannedInQuery is the cumulative count of resources scanned so far within the current SearchResources call.
@@ -57,14 +60,29 @@ type CAIFetcher interface {
 	BatchGetAssetsHistory(ctx context.Context, parent string, assetNames []string, contentType assetpb.ContentType, timeWindow *assetpb.TimeWindow) ([]*assetpb.TemporalAsset, error)
 }
 
+// CAIParentSearchQuery represents a single CAI search query expression and the number of parent resources it covers.
+type CAIParentSearchQuery struct {
+	// Query is the CAI search filter expression combining parentFullResourceName clauses.
+	Query string
+	// ParentCount is the number of parent resource names included in Query.
+	ParentCount int
+}
+
+// CAIParentSearchProgressConfig configures progress reporting for SearchCAIAssetsByParents.
+type CAIParentSearchProgressConfig struct {
+	// Label is the human-readable description of the search phase.
+	Label string
+	// ParentUnit is the unit label for parentAssetNames when reporting determinate progress (e.g., "namespaces").
+	// When empty, progress is reported as indeterminate with a live scanned resource counter.
+	ParentUnit string
+}
+
 // caiFetcher implements CAIFetcher to query Google Cloud Asset Inventory.
 type caiFetcher struct {
 	factory            *googlecloud.ClientFactory
 	callOptionInjector *googlecloud.CallOptionInjector
 	defaultProjectID   string
 }
-
-var _ CAIFetcher = (*caiFetcher)(nil)
 
 // NewCAIFetcher creates a new CAIFetcher with the given client factory and call option injector.
 func NewCAIFetcher(factory *googlecloud.ClientFactory, callOptionInjector *googlecloud.CallOptionInjector, defaultProjectID string) CAIFetcher {
@@ -73,6 +91,142 @@ func NewCAIFetcher(factory *googlecloud.ClientFactory, callOptionInjector *googl
 		callOptionInjector: callOptionInjector,
 		defaultProjectID:   defaultProjectID,
 	}
+}
+
+// BuildCAIParentSearchQueries builds the CAI search expressions matching assets whose parent is
+// exactly one of the given full resource names, splitting them to stay within the CAI query limits.
+func BuildCAIParentSearchQueries(parentAssetNames []string) []CAIParentSearchQuery {
+	var queries []CAIParentSearchQuery
+	var comparisons []string
+	characterCount := 0
+	for _, parent := range parentAssetNames {
+		comparison := fmt.Sprintf("parentFullResourceName=%q", parent)
+		addedCharacters := len(comparison)
+		if len(comparisons) > 0 {
+			addedCharacters += len(" OR ")
+		}
+		if len(comparisons) > 0 && (len(comparisons) == MaxCAISearchQueryComparisons || characterCount+addedCharacters > MaxCAISearchQueryCharacters) {
+			queries = append(queries, CAIParentSearchQuery{
+				Query:       strings.Join(comparisons, " OR "),
+				ParentCount: len(comparisons),
+			})
+			comparisons = nil
+			characterCount = 0
+			addedCharacters = len(comparison)
+		}
+		comparisons = append(comparisons, comparison)
+		characterCount += addedCharacters
+	}
+	if len(comparisons) > 0 {
+		queries = append(queries, CAIParentSearchQuery{
+			Query:       strings.Join(comparisons, " OR "),
+			ParentCount: len(comparisons),
+		})
+	}
+	return queries
+}
+
+// SearchCAIAssetsByParents builds parent search queries for the given parent full resource names
+// and runs one CAI search per query, returning the concatenated results.
+func SearchCAIAssetsByParents(
+	ctx context.Context,
+	fetcher CAIFetcher,
+	scope string,
+	assetTypes []string,
+	parentAssetNames []string,
+	progressCfg CAIParentSearchProgressConfig,
+) ([]*assetpb.ResourceSearchResult, error) {
+	if len(parentAssetNames) == 0 {
+		return nil, nil
+	}
+	queries := BuildCAIParentSearchQueries(parentAssetNames)
+	totalParents := len(parentAssetNames)
+	completedParents := 0
+	startTime := time.Now()
+
+	reportSearchProgress := func(scannedCount int) {
+		if progressCfg.Label == "" {
+			return
+		}
+		elapsed := time.Since(startTime)
+		if progressCfg.ParentUnit != "" && totalParents > 0 {
+			ratio := float32(completedParents) / float32(totalParents)
+			progress.Report(ctx, ratio, formatDeterminateParentSearchProgress(
+				progressCfg.Label,
+				completedParents,
+				totalParents,
+				progressCfg.ParentUnit,
+				scannedCount,
+				elapsed,
+			))
+			return
+		}
+		progress.ReportIndeterminate(ctx, formatIndeterminateSearchProgress(progressCfg.Label, scannedCount, elapsed))
+	}
+
+	reportSearchProgress(0)
+
+	var results []*assetpb.ResourceSearchResult
+	for _, q := range queries {
+		baseCount := len(results)
+		searchResults, err := fetcher.SearchResources(ctx, scope, q.Query, assetTypes, func(scannedInQuery int) {
+			reportSearchProgress(baseCount + scannedInQuery)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to search assets with query %q: %w", q.Query, err)
+		}
+		results = append(results, searchResults...)
+		completedParents += q.ParentCount
+		reportSearchProgress(len(results))
+	}
+	return results, nil
+}
+
+// ConvertTemporalAssetsToCAISnapshots converts a slice of TemporalAsset into sorted CAIAssetSnapshot entries.
+func ConvertTemporalAssetsToCAISnapshots(temporalAssets []*assetpb.TemporalAsset) []*CAIAssetSnapshot {
+	snapshots := make([]*CAIAssetSnapshot, 0, len(temporalAssets))
+	for _, ta := range temporalAssets {
+		if ta == nil || ta.Asset == nil {
+			continue
+		}
+		snapshots = append(snapshots, &CAIAssetSnapshot{
+			TemporalAsset: ta,
+		})
+	}
+	slices.SortStableFunc(snapshots, func(a, b *CAIAssetSnapshot) int {
+		return a.StartTime().Compare(b.StartTime())
+	})
+	return snapshots
+}
+
+// FetchCAIAssetSnapshots discovers asset names using discover, fetches their temporal history,
+// and returns sorted CAIAssetSnapshot entries.
+func FetchCAIAssetSnapshots(
+	ctx context.Context,
+	fetcher CAIFetcher,
+	scope string,
+	startTime, endTime time.Time,
+	discover func(ctx context.Context, fetcher CAIFetcher) ([]string, error),
+) ([]*CAIAssetSnapshot, error) {
+	assetNames, err := discover(ctx, fetcher)
+	if err != nil {
+		return nil, err
+	}
+	if len(assetNames) == 0 {
+		return []*CAIAssetSnapshot{}, nil
+	}
+
+	timeWindow := &assetpb.TimeWindow{
+		StartTime: timestamppb.New(startTime),
+		EndTime:   timestamppb.New(endTime),
+	}
+
+	temporalAssets, err := fetcher.BatchGetAssetsHistory(ctx, scope, assetNames, assetpb.ContentType_RESOURCE, timeWindow)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get assets history from CAI: %w", err)
+	}
+
+	return ConvertTemporalAssetsToCAISnapshots(temporalAssets), nil
 }
 
 // SearchResources searches for assets under the given scope matching query and asset types.
@@ -188,110 +342,6 @@ func (f *caiFetcher) resourceContainer() googlecloud.ResourceContainer {
 	return googlecloud.Project(f.defaultProjectID)
 }
 
-// CAIParentSearchQuery represents a single CAI search query expression and the number of parent resources it covers.
-type CAIParentSearchQuery struct {
-	Query       string
-	ParentCount int
-}
-
-// BuildCAIParentSearchQueries builds the CAI search expressions matching assets whose parent is
-// exactly one of the given full resource names, splitting them to stay within the CAI query limits.
-func BuildCAIParentSearchQueries(parentAssetNames []string) []CAIParentSearchQuery {
-	var queries []CAIParentSearchQuery
-	var comparisons []string
-	characterCount := 0
-	for _, parent := range parentAssetNames {
-		comparison := fmt.Sprintf("parentFullResourceName=%q", parent)
-		addedCharacters := len(comparison)
-		if len(comparisons) > 0 {
-			addedCharacters += len(" OR ")
-		}
-		if len(comparisons) > 0 && (len(comparisons) == MaxCAISearchQueryComparisons || characterCount+addedCharacters > MaxCAISearchQueryCharacters) {
-			queries = append(queries, CAIParentSearchQuery{
-				Query:       strings.Join(comparisons, " OR "),
-				ParentCount: len(comparisons),
-			})
-			comparisons = nil
-			characterCount = 0
-			addedCharacters = len(comparison)
-		}
-		comparisons = append(comparisons, comparison)
-		characterCount += addedCharacters
-	}
-	if len(comparisons) > 0 {
-		queries = append(queries, CAIParentSearchQuery{
-			Query:       strings.Join(comparisons, " OR "),
-			ParentCount: len(comparisons),
-		})
-	}
-	return queries
-}
-
-// CAIParentSearchProgressConfig configures progress reporting for SearchCAIAssetsByParents.
-type CAIParentSearchProgressConfig struct {
-	// Label is the human-readable description of the search phase.
-	Label string
-	// ParentUnit is the unit label for parentAssetNames when reporting determinate progress (e.g., "namespaces").
-	// When empty, progress is reported as indeterminate with a live scanned resource counter.
-	ParentUnit string
-}
-
-// SearchCAIAssetsByParents builds parent search queries for the given parent full resource names
-// and runs one CAI search per query, returning the concatenated results.
-func SearchCAIAssetsByParents(
-	ctx context.Context,
-	fetcher CAIFetcher,
-	scope string,
-	assetTypes []string,
-	parentAssetNames []string,
-	progressCfg CAIParentSearchProgressConfig,
-) ([]*assetpb.ResourceSearchResult, error) {
-	if len(parentAssetNames) == 0 {
-		return nil, nil
-	}
-	queries := BuildCAIParentSearchQueries(parentAssetNames)
-	totalParents := len(parentAssetNames)
-	completedParents := 0
-	startTime := time.Now()
-
-	reportSearchProgress := func(scannedCount int) {
-		if progressCfg.Label == "" {
-			return
-		}
-		elapsed := time.Since(startTime)
-		if progressCfg.ParentUnit != "" && totalParents > 0 {
-			ratio := float32(completedParents) / float32(totalParents)
-			progress.Report(ctx, ratio, formatDeterminateParentSearchProgress(
-				progressCfg.Label,
-				completedParents,
-				totalParents,
-				progressCfg.ParentUnit,
-				scannedCount,
-				elapsed,
-			))
-			return
-		}
-		progress.ReportIndeterminate(ctx, formatIndeterminateSearchProgress(progressCfg.Label, scannedCount, elapsed))
-	}
-
-	reportSearchProgress(0)
-
-	var results []*assetpb.ResourceSearchResult
-	for _, q := range queries {
-		baseCount := len(results)
-		searchResults, err := fetcher.SearchResources(ctx, scope, q.Query, assetTypes, func(scannedInQuery int) {
-			reportSearchProgress(baseCount + scannedInQuery)
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to search assets with query %q: %w", q.Query, err)
-		}
-		results = append(results, searchResults...)
-		completedParents += q.ParentCount
-		reportSearchProgress(len(results))
-	}
-	return results, nil
-}
-
 // formatIndeterminateSearchProgress formats progress message for an indeterminate search phase.
 func formatIndeterminateSearchProgress(label string, scannedCount int, elapsed time.Duration) string {
 	if elapsed >= time.Second && scannedCount > 0 {
@@ -327,51 +377,4 @@ func formatAssetHistoryProgress(completedAssets, totalAssets, snapshotCount int,
 		return fmt.Sprintf("%s (%.1f assets/s)", base, rate)
 	}
 	return base
-}
-
-// ConvertTemporalAssetsToCAISnapshots converts a slice of TemporalAsset into sorted CAIAssetSnapshot entries.
-func ConvertTemporalAssetsToCAISnapshots(temporalAssets []*assetpb.TemporalAsset) []*CAIAssetSnapshot {
-	snapshots := make([]*CAIAssetSnapshot, 0, len(temporalAssets))
-	for _, ta := range temporalAssets {
-		if ta == nil || ta.Asset == nil {
-			continue
-		}
-		snapshots = append(snapshots, &CAIAssetSnapshot{
-			TemporalAsset: ta,
-		})
-	}
-	slices.SortStableFunc(snapshots, func(a, b *CAIAssetSnapshot) int {
-		return a.StartTime().Compare(b.StartTime())
-	})
-	return snapshots
-}
-
-// FetchCAIAssetSnapshots discovers asset names using discover, fetches their temporal history,
-// and returns sorted CAIAssetSnapshot entries.
-func FetchCAIAssetSnapshots(
-	ctx context.Context,
-	fetcher CAIFetcher,
-	scope string,
-	startTime, endTime time.Time,
-	discover func(ctx context.Context, fetcher CAIFetcher) ([]string, error),
-) ([]*CAIAssetSnapshot, error) {
-	assetNames, err := discover(ctx, fetcher)
-	if err != nil {
-		return nil, err
-	}
-	if len(assetNames) == 0 {
-		return []*CAIAssetSnapshot{}, nil
-	}
-
-	timeWindow := &assetpb.TimeWindow{
-		StartTime: timestamppb.New(startTime),
-		EndTime:   timestamppb.New(endTime),
-	}
-
-	temporalAssets, err := fetcher.BatchGetAssetsHistory(ctx, scope, assetNames, assetpb.ContentType_RESOURCE, timeWindow)
-	if err != nil {
-		return nil, fmt.Errorf("failed to batch get assets history from CAI: %w", err)
-	}
-
-	return ConvertTemporalAssetsToCAISnapshots(temporalAssets), nil
 }

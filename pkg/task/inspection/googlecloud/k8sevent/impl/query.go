@@ -29,6 +29,44 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// listLogEntriesTask queries the Kubernetes event logs of the cluster from Cloud Logging.
+var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
+	k8sevent.ListLogEntriesTaskID,
+	"Kubernetes Event Logs",
+	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
+		return &k8sEventQuerySource{
+			clusterIdentity: coretask.Use(b, k8sevent.ClusterIdentityTaskID.Ref()),
+			namespaceFilter: coretask.Use(b, k8scommon.InputNamespaceFilterTaskID.Ref()),
+		}
+	},
+)
+
+var _ gcpcommon.StructuredLogQuerySource = (*k8sEventQuerySource)(nil)
+
+// k8sEventQuerySource builds the Cloud Logging query for the Kubernetes event logs of the cluster.
+type k8sEventQuerySource struct {
+	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
+	namespaceFilter coretask.Input[*gcpqueryutil.SetFilterParseResult]
+}
+
+// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
+func (s *k8sEventQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
+}
+
+// Queries implements gcpcommon.StructuredLogQuerySource.
+func (s *k8sEventQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
+	cluster := s.clusterIdentity.Get(ctx)
+	namespaceFilter := s.namespaceFilter.Get(ctx)
+	return []*logestimator.StructuredLogQuery{generateK8sEventStructuredQuery(cluster, namespaceFilter)}, nil
+}
+
+// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
+func (s *k8sEventQuerySource) TimePartitionCount() int {
+	return 10
+}
+
 // generateK8sEventStructuredQuery generates a structured query for Kubernetes Event logs.
 func generateK8sEventStructuredQuery(cluster k8scommon.GoogleCloudClusterIdentity, namespaceFilter *gcpqueryutil.SetFilterParseResult) *logestimator.StructuredLogQuery {
 	filters := []logestimator.LoggingMonitoringMatcher{
@@ -86,41 +124,3 @@ func generateK8sEventNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) 
 		return fmt.Sprintf(`jsonPayload.involvedObject.namespace=(%s)`, strings.Join(filter.Additives, " OR "))
 	}
 }
-
-// k8sEventQuerySource builds the Cloud Logging query for the Kubernetes event logs of the cluster.
-type k8sEventQuerySource struct {
-	clusterIdentity coretask.Input[k8scommon.GoogleCloudClusterIdentity]
-	namespaceFilter coretask.Input[*gcpqueryutil.SetFilterParseResult]
-}
-
-// DefaultResourceNames implements gcpcommon.StructuredLogQuerySource.
-func (s *k8sEventQuerySource) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := s.clusterIdentity.Get(ctx)
-	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
-}
-
-// Queries implements gcpcommon.StructuredLogQuerySource.
-func (s *k8sEventQuerySource) Queries(ctx context.Context, taskMode inspectioncore.InspectionTaskModeType) ([]*logestimator.StructuredLogQuery, error) {
-	cluster := s.clusterIdentity.Get(ctx)
-	namespaceFilter := s.namespaceFilter.Get(ctx)
-	return []*logestimator.StructuredLogQuery{generateK8sEventStructuredQuery(cluster, namespaceFilter)}, nil
-}
-
-// TimePartitionCount implements gcpcommon.StructuredLogQuerySource.
-func (s *k8sEventQuerySource) TimePartitionCount() int {
-	return 10
-}
-
-var _ gcpcommon.StructuredLogQuerySource = (*k8sEventQuerySource)(nil)
-
-// listLogEntriesTask queries the Kubernetes event logs of the cluster from Cloud Logging.
-var listLogEntriesTask = gcpcommon.DefineStructuredListLogEntriesTask(
-	k8sevent.ListLogEntriesTaskID,
-	"Kubernetes Event Logs",
-	func(b *coretask.Binder) gcpcommon.StructuredLogQuerySource {
-		return &k8sEventQuerySource{
-			clusterIdentity: coretask.Use(b, k8sevent.ClusterIdentityTaskID.Ref()),
-			namespaceFilter: coretask.Use(b, k8scommon.InputNamespaceFilterTaskID.Ref()),
-		}
-	},
-)

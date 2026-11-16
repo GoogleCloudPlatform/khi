@@ -19,9 +19,6 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// LabelSelector represents a set of inspection type label conditions attached to a task via Module.Scope.
-type LabelSelector map[string]string
-
 const (
 	// InspectionTypeLabelKeyLogSource is the label key for the log source of the inspection.
 	// Expected values of this label key: "cloud_logging", "jsonl_upload", etc.
@@ -37,15 +34,24 @@ const (
 )
 
 var (
-	LabelKeyInspectionFeatureFlag        = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")
+	// LabelKeyInspectionFeatureFlag marks whether a task is exposed as a selectable inspection feature.
+	LabelKeyInspectionFeatureFlag = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")
+	// LabelKeyInspectionDefaultFeatureFlag marks whether a feature task is enabled by default.
 	LabelKeyInspectionDefaultFeatureFlag = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "default-feature")
 	// LabelKeyInspectionTypeLabelSelector is a task label key populated from Module.Scope to restrict a task to matching inspection types.
 	LabelKeyInspectionTypeLabelSelector = coretask.NewTaskLabelKey[LabelSelector](InspectionTaskPrefix + "inspection-type-selector")
-	LabelKeyFeatureTaskTitle            = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
-	LabelKeyFeatureTaskDescription      = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
+	// LabelKeyFeatureTaskTitle stores the display title of a feature task.
+	LabelKeyFeatureTaskTitle = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
+	// LabelKeyFeatureTaskDescription stores the description text of a feature task.
+	LabelKeyFeatureTaskDescription = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
 	// LabelKeyFeatureTaskOrder is a label key of an integer assigned for a feature task. Feature task with smaller order is placed at the top of the feature task list.
 	LabelKeyFeatureTaskOrder = coretask.NewTaskLabelKey[int](InspectionTaskPrefix + "feature/order")
 )
+
+var _ coretask.LabelOpt = (*FeatureTaskLabelImpl)(nil)
+
+// LabelSelector represents a set of inspection type label conditions attached to a task via Module.Scope.
+type LabelSelector map[string]string
 
 // FeatureTaskLabelImpl is an implementation of task.LabelOpt.
 // This annotates a task to be a feature in inspection for v6 format.
@@ -54,6 +60,16 @@ type FeatureTaskLabelImpl struct {
 	description      string
 	featureOrder     int
 	isDefaultFeature bool
+}
+
+// FeatureTaskLabel returns a LabelOpt to mark the task as a feature in the inspection for v6 format.
+func FeatureTaskLabel(title string, description string, featureOrder int, isDefaultFeature bool) *FeatureTaskLabelImpl {
+	return &FeatureTaskLabelImpl{
+		title:            title,
+		description:      description,
+		featureOrder:     featureOrder,
+		isDefaultFeature: isDefaultFeature,
+	}
 }
 
 // Write implements task.LabelOpt.
@@ -65,16 +81,4 @@ func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, coretask.LabelKeyTaskDescription, ftl.description)
 	typedmap.Set(label, LabelKeyFeatureTaskOrder, ftl.featureOrder)
 	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
-}
-
-var _ coretask.LabelOpt = (*FeatureTaskLabelImpl)(nil)
-
-// FeatureTaskLabel returns a LabelOpt to mark the task as a feature in the inspection for v6 format.
-func FeatureTaskLabel(title string, description string, featureOrder int, isDefaultFeature bool) *FeatureTaskLabelImpl {
-	return &FeatureTaskLabelImpl{
-		title:            title,
-		description:      description,
-		featureOrder:     featureOrder,
-		isDefaultFeature: isDefaultFeature,
-	}
 }

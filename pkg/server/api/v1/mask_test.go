@@ -22,10 +22,11 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"google.golang.org/protobuf/proto"
 )
 
 func setupTestMaskServer(t *testing.T) (*httptest.Server, apiv1connect.WorkbenchServiceClient, apiv1connect.MaskServiceClient, *workbench.WorkbenchManager, string) {

@@ -18,9 +18,6 @@ import (
 	"reflect"
 )
 
-// EdgeCardinality represents the multiplicity of the dependency.
-type EdgeCardinality int
-
 const (
 	// CardinalityPointToPoint represents a 1:1 dependency targeting a specific single task.
 	CardinalityPointToPoint EdgeCardinality = iota
@@ -28,9 +25,6 @@ const (
 	// CardinalityFanIn represents a 1:N aggregation dependency targeting all tasks matching a tag.
 	CardinalityFanIn
 )
-
-// DependencyScope represents the search and binding scope for dependencies.
-type DependencyScope int
 
 const (
 	// ScopeUnspecified indicates that no dependency scope was explicitly specified.
@@ -47,6 +41,17 @@ const (
 	// ScopeAll searches all available tasks and eagerly pulls them into the graph.
 	ScopeAll
 )
+
+var (
+	_ ReferenceOption = DependencyScope(0)
+	_ FanInOption     = DependencyScope(0)
+)
+
+// EdgeCardinality represents the multiplicity of the dependency.
+type EdgeCardinality int
+
+// DependencyScope represents the search and binding scope for dependencies.
+type DependencyScope int
 
 // DependencyDescriptor is the base interface that all dependency descriptors must implement.
 // It has 0 internal package dependencies and consists only of standard Go types and taskid enums.
@@ -81,22 +86,6 @@ type DependencyConfig struct {
 	Scope DependencyScope
 }
 
-// NewDefaultPointToPointConfig returns a DependencyConfig initialized for a standard point-to-point data dependency.
-func NewDefaultPointToPointConfig() DependencyConfig {
-	return DependencyConfig{
-		Cardinality: CardinalityPointToPoint,
-		Scope:       ScopeAll,
-	}
-}
-
-// NewDefaultFanInConfig returns a DependencyConfig initialized for a standard fan-in data dependency.
-func NewDefaultFanInConfig() DependencyConfig {
-	return DependencyConfig{
-		Cardinality: CardinalityFanIn,
-		Scope:       ScopeActiveFeatures,
-	}
-}
-
 // ReferenceOption is an option that can be applied to a point-to-point task reference.
 type ReferenceOption interface {
 	applyReference(*DependencyConfig)
@@ -105,35 +94,6 @@ type ReferenceOption interface {
 // FanInOption is an option that can be applied to a fan-in tag reference.
 type FanInOption interface {
 	applyFanIn(*DependencyConfig)
-}
-
-var (
-	_ ReferenceOption = DependencyScope(0)
-	_ FanInOption     = DependencyScope(0)
-)
-
-func (s DependencyScope) applyReference(c *DependencyConfig) {
-	if s == ScopeUnspecified {
-		return
-	}
-	c.Scope = s
-}
-
-func (s DependencyScope) applyFanIn(c *DependencyConfig) {
-	if s == ScopeAll {
-		panic("ScopeAll is not supported for fan-in dependencies")
-	}
-	s.applyReference(c)
-}
-
-// ApplyReferenceOption applies a ReferenceOption to a DependencyConfig.
-func ApplyReferenceOption(c *DependencyConfig, opt ReferenceOption) {
-	opt.applyReference(c)
-}
-
-// ApplyFanInOption applies a FanInOption to a DependencyConfig.
-func ApplyFanInOption(c *DependencyConfig, opt FanInOption) {
-	opt.applyFanIn(c)
 }
 
 // TaskEdge represents a concrete directed edge in the resolved task DAG.
@@ -154,4 +114,44 @@ type TaskEdge struct {
 	Priority int
 	// OutputType is the string representation of the data type transported over this edge.
 	OutputType string
+}
+
+// NewDefaultPointToPointConfig returns a DependencyConfig initialized for a standard point-to-point data dependency.
+func NewDefaultPointToPointConfig() DependencyConfig {
+	return DependencyConfig{
+		Cardinality: CardinalityPointToPoint,
+		Scope:       ScopeAll,
+	}
+}
+
+// NewDefaultFanInConfig returns a DependencyConfig initialized for a standard fan-in data dependency.
+func NewDefaultFanInConfig() DependencyConfig {
+	return DependencyConfig{
+		Cardinality: CardinalityFanIn,
+		Scope:       ScopeActiveFeatures,
+	}
+}
+
+// ApplyReferenceOption applies a ReferenceOption to a DependencyConfig.
+func ApplyReferenceOption(c *DependencyConfig, opt ReferenceOption) {
+	opt.applyReference(c)
+}
+
+// ApplyFanInOption applies a FanInOption to a DependencyConfig.
+func ApplyFanInOption(c *DependencyConfig, opt FanInOption) {
+	opt.applyFanIn(c)
+}
+
+func (s DependencyScope) applyReference(c *DependencyConfig) {
+	if s == ScopeUnspecified {
+		return
+	}
+	c.Scope = s
+}
+
+func (s DependencyScope) applyFanIn(c *DependencyConfig) {
+	if s == ScopeAll {
+		panic("ScopeAll is not supported for fan-in dependencies")
+	}
+	s.applyReference(c)
 }

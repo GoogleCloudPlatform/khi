@@ -16,16 +16,11 @@ package logconvert
 
 import (
 	"cloud.google.com/go/logging/apiv2/loggingpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoregistry"
-)
 
-var protojsonMarshalOptions = protojson.MarshalOptions{
-	Multiline:       false,
-	Resolver:        protoregistry.GlobalTypes,
-	EmitUnpopulated: false,
-}
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+)
 
 // GCPLogEntryKeyOrder defines the canonical top-level field order for GCP Cloud Logging entries when serializing to YAML.
 var GCPLogEntryKeyOrder = []string{
@@ -46,6 +41,12 @@ var GCPLogEntryKeyOrder = []string{
 	"receiveTimestamp",
 	"timestamp",
 	"severity",
+}
+
+var protojsonMarshalOptions = protojson.MarshalOptions{
+	Multiline:       false,
+	Resolver:        protoregistry.GlobalTypes,
+	EmitUnpopulated: false,
 }
 
 // LogEntryToNode converts a Google Cloud Logging LogEntry protobuf message into a structured.Node.

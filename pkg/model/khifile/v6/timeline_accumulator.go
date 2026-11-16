@@ -41,6 +41,13 @@ type TimelineAccumulator struct {
 	flushMu        sync.Mutex
 }
 
+type timelineTypeBucket struct {
+	timelineType     *pb.TimelineType
+	prioritizedNames map[string]int
+	seenNameIDs      map[uint32]struct{}
+	exampleNames     []string
+}
+
 // NewTimelineAccumulator creates a new TimelineAccumulator facade with destination Writer.
 func NewTimelineAccumulator(idGen *id.Generator, clientPool *InternPool, serverPool *InternPool, writer *Writer) *TimelineAccumulator {
 	pathPool := NewTimelinePathPool(idGen, clientPool)
@@ -137,13 +144,6 @@ func (a *TimelineAccumulator) Flush() error {
 		}
 	}
 	return nil
-}
-
-type timelineTypeBucket struct {
-	timelineType     *pb.TimelineType
-	prioritizedNames map[string]int
-	seenNameIDs      map[uint32]struct{}
-	exampleNames     []string
 }
 
 // TimelineTypeVocabulary summarizes the distinct timeline names of each timeline type in the path pool.

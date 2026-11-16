@@ -15,9 +15,8 @@
 package common // Or the package your function belongs to
 
 import (
-	"testing"
-
 	"sort" // Import the sort package
+	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )

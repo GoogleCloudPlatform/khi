@@ -27,10 +27,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/RoaringBitmap/roaring/v2"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	khifilev6model "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
-	"github.com/RoaringBitmap/roaring/v2"
 )
 
 const (
@@ -45,6 +46,11 @@ var (
 	ErrInvalidTrigramHeader = errors.New("invalid trigram index binary header")
 )
 
+var (
+	_ io.WriterTo   = (*TrigramIndex)(nil)
+	_ io.ReaderFrom = (*TrigramIndex)(nil)
+)
+
 // TrigramProgressCallback receives streaming progress updates during Trigram index building.
 type TrigramProgressCallback = worker.ProgressCallback
 
@@ -53,9 +59,55 @@ type TrigramProgressCallback = worker.ProgressCallback
 // Bit layout: [ r0 (21 bits) | r1 (21 bits) | r2 (21 bits) ] using 63 of 64 bits.
 type TrigramKey uint64
 
+// LogTrigramItem represents a minimal log record for Trigram indexing.
+type LogTrigramItem struct {
+	// ID is the unique 1-based log identifier.
+	ID uint32
+	// SummaryStringID is the intern pool ID of the log summary string.
+	SummaryStringID uint32
+	// BodyStructID is the intern pool ID of the structured log body.
+	BodyStructID uint32
+}
+
+// TrigramIndex provides fast regular expression and substring candidate search over log IDs using Roaring Bitmaps.
+type TrigramIndex struct {
+	// trigramToBitmap maps each packed 3-rune TrigramKey to a Roaring Bitmap of LogIDs containing it.
+	trigramToBitmap map[TrigramKey]*roaring.Bitmap
+	// mu protects candidateCache.
+	mu sync.RWMutex
+	// candidateCache stores cached candidate query results (*roaring.Bitmap or nil) for concurrent evaluators.
+	candidateCache map[string]*roaring.Bitmap
+}
+
+// countingWriter wraps an io.Writer and tracks the total number of bytes written.
+type countingWriter struct {
+	w            io.Writer
+	bytesWritten int64
+}
+
+// countingReader wraps an io.Reader and tracks the total number of bytes read.
+type countingReader struct {
+	r         io.Reader
+	bytesRead int64
+}
+
+type workerTrigramData struct {
+	localMap map[TrigramKey]*roaring.Bitmap
+}
+
 // MakeTrigramKey packs three lowercase runes into a TrigramKey.
 func MakeTrigramKey(r0, r1, r2 rune) TrigramKey {
 	return TrigramKey((uint64(r0&0x1fffff) << 42) | (uint64(r1&0x1fffff) << 21) | uint64(r2&0x1fffff))
+}
+
+// TrigramKeyFromString converts a 3-rune string into a TrigramKey.
+// If the string does not contain at least 3 runes, it returns 0, false.
+func TrigramKeyFromString(s string) (TrigramKey, bool) {
+	runes := []rune(s)
+	if len(runes) < 3 {
+		return 0, false
+	}
+	return MakeTrigramKey(runes[0], runes[1], runes[2]), true
 }
 
 // Unpack returns the three constituent runes of a TrigramKey.
@@ -69,68 +121,12 @@ func (k TrigramKey) String() string {
 	return string([]rune{r0, r1, r2})
 }
 
-// TrigramKeyFromString converts a 3-rune string into a TrigramKey.
-// If the string does not contain at least 3 runes, it returns 0, false.
-func TrigramKeyFromString(s string) (TrigramKey, bool) {
-	runes := []rune(s)
-	if len(runes) < 3 {
-		return 0, false
-	}
-	return MakeTrigramKey(runes[0], runes[1], runes[2]), true
-}
-
-// LogTrigramItem represents a minimal log record for Trigram indexing.
-type LogTrigramItem struct {
-	ID              uint32
-	SummaryStringID uint32
-	BodyStructID    uint32
-}
-
-// TrigramIndex provides fast regular expression and substring candidate search over log IDs using Roaring Bitmaps.
-type TrigramIndex struct {
-	// trigramToBitmap maps each packed 3-rune TrigramKey to a Roaring Bitmap of LogIDs containing it.
-	trigramToBitmap map[TrigramKey]*roaring.Bitmap
-	// mu protects candidateCache.
-	mu sync.RWMutex
-	// candidateCache stores cached candidate query results (*roaring.Bitmap or nil) for concurrent evaluators.
-	candidateCache map[string]*roaring.Bitmap
-}
-
 // NewTrigramIndex creates an empty TrigramIndex.
 func NewTrigramIndex() *TrigramIndex {
 	return &TrigramIndex{
 		trigramToBitmap: make(map[TrigramKey]*roaring.Bitmap),
 		candidateCache:  make(map[string]*roaring.Bitmap),
 	}
-}
-
-var (
-	_ io.WriterTo   = (*TrigramIndex)(nil)
-	_ io.ReaderFrom = (*TrigramIndex)(nil)
-)
-
-// countingWriter wraps an io.Writer and tracks the total number of bytes written.
-type countingWriter struct {
-	w            io.Writer
-	bytesWritten int64
-}
-
-func (c *countingWriter) Write(p []byte) (int, error) {
-	n, err := c.w.Write(p)
-	c.bytesWritten += int64(n)
-	return n, err
-}
-
-// countingReader wraps an io.Reader and tracks the total number of bytes read.
-type countingReader struct {
-	r         io.Reader
-	bytesRead int64
-}
-
-func (c *countingReader) Read(p []byte) (int, error) {
-	n, err := c.r.Read(p)
-	c.bytesRead += int64(n)
-	return n, err
 }
 
 // WriteTo serializes the TrigramIndex into the given io.Writer in compact binary format.
@@ -213,121 +209,6 @@ func (t *TrigramIndex) ReadFrom(r io.Reader) (int64, error) {
 	t.trigramToBitmap = trigramMap
 	t.candidateCache = make(map[string]*roaring.Bitmap)
 	return cr.bytesRead, nil
-}
-
-// extractTrigramsToBitmap extracts lowercase 3-rune trigrams from str and directly adds id to localMap[triKey].
-func extractTrigramsToBitmap(str string, id uint32, localMap map[TrigramKey]*roaring.Bitmap) {
-	if len(str) < 3 {
-		return
-	}
-	var r0, r1, r2 rune
-	var count int
-
-	for offset := 0; offset < len(str); {
-		r, size := utf8.DecodeRuneInString(str[offset:])
-		offset += size
-		rLower := unicode.ToLower(r)
-
-		if count == 0 {
-			r0 = rLower
-			count = 1
-			continue
-		}
-		if count == 1 {
-			r1 = rLower
-			count = 2
-			continue
-		}
-
-		r2 = rLower
-		triKey := MakeTrigramKey(r0, r1, r2)
-		bm, exists := localMap[triKey]
-		if !exists {
-			bm = roaring.NewBitmap()
-			localMap[triKey] = bm
-		}
-		bm.Add(id)
-
-		r0 = r1
-		r1 = r2
-	}
-}
-
-type workerTrigramData struct {
-	localMap map[TrigramKey]*roaring.Bitmap
-}
-
-// mergeWorkerTrigramData merges per-worker trigram bitmap maps in parallel across key shards.
-func mergeWorkerTrigramData(
-	ctx context.Context,
-	workerResults []*workerTrigramData,
-	onProgress TrigramProgressCallback,
-	opts worker.ProgressOptions,
-) (map[TrigramKey]*roaring.Bitmap, error) {
-	keySet := make(map[TrigramKey]struct{})
-	for _, wRes := range workerResults {
-		if wRes != nil {
-			for k := range wRes.localMap {
-				keySet[k] = struct{}{}
-			}
-		}
-	}
-
-	finalMap := make(map[TrigramKey]*roaring.Bitmap, len(keySet))
-	if len(keySet) == 0 {
-		return finalMap, nil
-	}
-
-	allKeys := make([]TrigramKey, 0, len(keySet))
-	for k := range keySet {
-		allKeys = append(allKeys, k)
-	}
-
-	shardResults, err := worker.ParallelChunkMap(
-		ctx,
-		allKeys,
-		func(ctx context.Context, workerIdx int, chunk []TrigramKey, onProcessed func(int)) (map[TrigramKey]*roaring.Bitmap, error) {
-			shardMap := make(map[TrigramKey]*roaring.Bitmap, len(chunk))
-			for _, key := range chunk {
-				select {
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				default:
-				}
-				var merged *roaring.Bitmap
-				for _, wRes := range workerResults {
-					if wRes == nil {
-						continue
-					}
-					if bm, ok := wRes.localMap[key]; ok {
-						if merged == nil {
-							merged = bm
-						} else {
-							merged.Or(bm)
-						}
-					}
-				}
-				if merged != nil {
-					merged.RunOptimize()
-				}
-				shardMap[key] = merged
-				onProcessed(1)
-			}
-			return shardMap, nil
-		},
-		onProgress,
-		opts,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, shard := range shardResults {
-		for k, bm := range shard {
-			finalMap[k] = bm
-		}
-	}
-	return finalMap, nil
 }
 
 // BuildFromLogPool indexes trigrams from an InternPool and a slice of LogTrigramItems in streaming parallel chunks.
@@ -711,4 +592,127 @@ func evalTrigramQuery(q TrigramQuery, trigramToBitmap map[TrigramKey]*roaring.Bi
 	default:
 		return nil
 	}
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.bytesWritten += int64(n)
+	return n, err
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.bytesRead += int64(n)
+	return n, err
+}
+
+// extractTrigramsToBitmap extracts lowercase 3-rune trigrams from str and directly adds id to localMap[triKey].
+func extractTrigramsToBitmap(str string, id uint32, localMap map[TrigramKey]*roaring.Bitmap) {
+	if len(str) < 3 {
+		return
+	}
+	var r0, r1, r2 rune
+	var count int
+
+	for offset := 0; offset < len(str); {
+		r, size := utf8.DecodeRuneInString(str[offset:])
+		offset += size
+		rLower := unicode.ToLower(r)
+
+		if count == 0 {
+			r0 = rLower
+			count = 1
+			continue
+		}
+		if count == 1 {
+			r1 = rLower
+			count = 2
+			continue
+		}
+
+		r2 = rLower
+		triKey := MakeTrigramKey(r0, r1, r2)
+		bm, exists := localMap[triKey]
+		if !exists {
+			bm = roaring.NewBitmap()
+			localMap[triKey] = bm
+		}
+		bm.Add(id)
+
+		r0 = r1
+		r1 = r2
+	}
+}
+
+// mergeWorkerTrigramData merges per-worker trigram bitmap maps in parallel across key shards.
+func mergeWorkerTrigramData(
+	ctx context.Context,
+	workerResults []*workerTrigramData,
+	onProgress TrigramProgressCallback,
+	opts worker.ProgressOptions,
+) (map[TrigramKey]*roaring.Bitmap, error) {
+	keySet := make(map[TrigramKey]struct{})
+	for _, wRes := range workerResults {
+		if wRes != nil {
+			for k := range wRes.localMap {
+				keySet[k] = struct{}{}
+			}
+		}
+	}
+
+	finalMap := make(map[TrigramKey]*roaring.Bitmap, len(keySet))
+	if len(keySet) == 0 {
+		return finalMap, nil
+	}
+
+	allKeys := make([]TrigramKey, 0, len(keySet))
+	for k := range keySet {
+		allKeys = append(allKeys, k)
+	}
+
+	shardResults, err := worker.ParallelChunkMap(
+		ctx,
+		allKeys,
+		func(ctx context.Context, workerIdx int, chunk []TrigramKey, onProcessed func(int)) (map[TrigramKey]*roaring.Bitmap, error) {
+			shardMap := make(map[TrigramKey]*roaring.Bitmap, len(chunk))
+			for _, key := range chunk {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				default:
+				}
+				var merged *roaring.Bitmap
+				for _, wRes := range workerResults {
+					if wRes == nil {
+						continue
+					}
+					if bm, ok := wRes.localMap[key]; ok {
+						if merged == nil {
+							merged = bm
+						} else {
+							merged.Or(bm)
+						}
+					}
+				}
+				if merged != nil {
+					merged.RunOptimize()
+				}
+				shardMap[key] = merged
+				onProcessed(1)
+			}
+			return shardMap, nil
+		},
+		onProgress,
+		opts,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, shard := range shardResults {
+		for k, bm := range shard {
+			finalMap[k] = bm
+		}
+	}
+	return finalMap, nil
 }

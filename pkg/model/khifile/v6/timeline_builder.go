@@ -20,9 +20,34 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
+
+// TimelineBuilder accumulates parsed data (like logs, revisions, and events) for a specific TimelinePath.
+// This struct will be shared across multiple goroutines processing different chunks, so all modifications
+// to its internal state must be protected by its Mutex.
+type TimelineBuilder struct {
+	// Path is the canonical TimelinePath associated with this builder.
+	// If accessed via an alias, this field remains the target path that originally created the builder.
+	Path *TimelinePath
+	// TimelineItemsID is the unique identifier for the accumulated timeline items.
+	TimelineItemsID uint32
+	// mu protects the revisions and events slices from concurrent modification.
+	mu sync.Mutex
+	// revisions accumulates the history of resource changes.
+	revisions []pendingRevision
+	// events accumulates the logs or events associated with the timeline.
+	events []pendingEvent
+	// hasEverHadItems tracks whether this builder has ever received events or revisions,
+	// even after in-memory slices have been flushed and cleared.
+	hasEverHadItems bool
+	// oldestTime caches the earliest timestamp observed among all events and revisions.
+	oldestTime time.Time
+	// hasOldestTime indicates if oldestTime has been recorded.
+	hasOldestTime bool
+}
 
 // pendingEvent represents a lightweight, value-type event accumulated in TimelineBuilder pending serialization.
 // It stores primitive values rather than protobuf heap pointers to reduce memory footprint and GC overhead.
@@ -70,30 +95,6 @@ type pendingRevision struct {
 	VerbType uint32
 	// StateType is the style ID of the revision state (0 if none).
 	StateType uint32
-}
-
-// TimelineBuilder accumulates parsed data (like logs, revisions, and events) for a specific TimelinePath.
-// This struct will be shared across multiple goroutines processing different chunks, so all modifications
-// to its internal state must be protected by its Mutex.
-type TimelineBuilder struct {
-	// Path is the canonical TimelinePath associated with this builder.
-	// If accessed via an alias, this field remains the target path that originally created the builder.
-	Path *TimelinePath
-	// TimelineItemsID is the unique identifier for the accumulated timeline items.
-	TimelineItemsID uint32
-	// mu protects the revisions and events slices from concurrent modification.
-	mu sync.Mutex
-	// revisions accumulates the history of resource changes.
-	revisions []pendingRevision
-	// events accumulates the logs or events associated with the timeline.
-	events []pendingEvent
-	// hasEverHadItems tracks whether this builder has ever received events or revisions,
-	// even after in-memory slices have been flushed and cleared.
-	hasEverHadItems bool
-	// oldestTime caches the earliest timestamp observed among all events and revisions.
-	oldestTime time.Time
-	// hasOldestTime indicates if oldestTime has been recorded.
-	hasOldestTime bool
 }
 
 // AddEvent adds a parsed event to the builder in a thread-safe manner.

@@ -20,8 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"golang.org/x/time/rate"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
 // AdaptiveRateLimiterConfig defines configuration parameters for AdaptiveRateLimiter.
@@ -42,6 +43,23 @@ type AdaptiveRateLimiterConfig struct {
 	Burst int
 }
 
+// AdaptiveRateLimiter dynamically controls request rates using an Additive Increase / Multiplicative Decrease (AIMD) algorithm.
+type AdaptiveRateLimiter struct {
+	config           AdaptiveRateLimiterConfig
+	limiter          *rate.Limiter
+	currentQPS       float64
+	lastDecreaseTime time.Time
+	mu               sync.Mutex
+}
+
+// Pool manages and caches AdaptiveRateLimiter instances per resource container or quota project.
+type Pool struct {
+	config         AdaptiveRateLimiterConfig
+	quotaProjectID string
+	limiters       map[string]*AdaptiveRateLimiter
+	mu             sync.Mutex
+}
+
 // DefaultAdaptiveRateLimiterConfig returns standard default configuration values.
 func DefaultAdaptiveRateLimiterConfig() AdaptiveRateLimiterConfig {
 	return AdaptiveRateLimiterConfig{
@@ -53,15 +71,6 @@ func DefaultAdaptiveRateLimiterConfig() AdaptiveRateLimiterConfig {
 		DecreaseCooldown: 1500 * time.Millisecond,
 		Burst:            1,
 	}
-}
-
-// AdaptiveRateLimiter dynamically controls request rates using an Additive Increase / Multiplicative Decrease (AIMD) algorithm.
-type AdaptiveRateLimiter struct {
-	config           AdaptiveRateLimiterConfig
-	limiter          *rate.Limiter
-	currentQPS       float64
-	lastDecreaseTime time.Time
-	mu               sync.Mutex
 }
 
 // NewAdaptiveRateLimiter creates a new AdaptiveRateLimiter instance with the specified configuration.
@@ -149,14 +158,6 @@ func (a *AdaptiveRateLimiter) CurrentRate() float64 {
 // Config returns the configuration of the limiter.
 func (a *AdaptiveRateLimiter) Config() AdaptiveRateLimiterConfig {
 	return a.config
-}
-
-// Pool manages and caches AdaptiveRateLimiter instances per resource container or quota project.
-type Pool struct {
-	config         AdaptiveRateLimiterConfig
-	quotaProjectID string
-	limiters       map[string]*AdaptiveRateLimiter
-	mu             sync.Mutex
 }
 
 // NewPool creates a new Pool instance.

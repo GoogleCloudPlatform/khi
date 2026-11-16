@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
+// GKEK8sEventLogTaskIDPrefix is the prefix for all task IDs in the k8sevent package.
 var GKEK8sEventLogTaskIDPrefix = "cloud.google.com/log/k8s-event/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.

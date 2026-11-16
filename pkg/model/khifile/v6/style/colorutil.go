@@ -26,8 +26,7 @@ var ColorBlack = Color{R: 0, G: 0, B: 0, A: 1}
 
 // MustForceConvertSRGBHex converts an sRGB hex color string to a Color.
 //
-// Deprecated:
-// The timeline style uses the display-p3 color space. Directly mapping sRGB
+// Deprecated: The timeline style uses the display-p3 color space. Directly mapping sRGB
 // hex values to the 0.0-1.0 range in display-p3 is mathematically incorrect.
 // Ideally, you should define a Color struct directly with proper display-p3 values.
 func MustForceConvertSRGBHex(hex string) Color {

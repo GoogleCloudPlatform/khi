@@ -19,20 +19,40 @@ import (
 )
 
 // TypedMapFilter is an interface for filtering objects that have a TypedMap
-// Type parameter T represents the type of the value to filter on
+// Type parameter T represents the type of the value to filter on.
 type TypedMapFilter[T any] interface {
-	// KeyToFilter returns the key to evaluate
+	// KeyToFilter returns the key to evaluate.
 	KeyToFilter() typedmap.TypedKey[T]
 
 	// ShouldInclude determines if an item should be included in filtered results
 	// found: whether the key exists on the item
-	// value: the value if it exists (zero value if found=false)
+	// value: the value if it exists (zero value if found=false).
 	ShouldInclude(found bool, value T) bool
+}
+
+// EqualFilter matches items with values exactly equal to the specified value.
+type EqualFilter[T comparable] struct {
+	key              typedmap.TypedKey[T]
+	expectedValue    T
+	includeUndefined bool
+}
+
+// ContainsElementFilter checks if a string array contains a specific element.
+type ContainsElementFilter struct {
+	key              typedmap.TypedKey[[]string]
+	element          string
+	includeUndefined bool
+}
+
+// EnabledFilter checks if a boolean value is true.
+type EnabledFilter struct {
+	key              typedmap.TypedKey[bool]
+	includeUndefined bool
 }
 
 // FilterTypedMapCollection filters a collection of items using a type-safe filter
 // TItem: the type of items being filtered
-// TValue: the type of value being filtered on
+// TValue: the type of value being filtered on.
 func FilterTypedMapCollection[TItem any, TValue any](
 	items []TItem,
 	getMap func(TItem) *typedmap.ReadonlyTypedMap,
@@ -53,27 +73,7 @@ func FilterTypedMapCollection[TItem any, TValue any](
 	return result
 }
 
-// EqualFilter matches items with values exactly equal to the specified value
-type EqualFilter[T comparable] struct {
-	key              typedmap.TypedKey[T]
-	expectedValue    T
-	includeUndefined bool
-}
-
-// KeyToFilter implements TypedMapFilter interface
-func (f *EqualFilter[T]) KeyToFilter() typedmap.TypedKey[T] {
-	return f.key
-}
-
-// ShouldInclude implements TypedMapFilter interface
-func (f *EqualFilter[T]) ShouldInclude(found bool, value T) bool {
-	if found {
-		return value == f.expectedValue
-	}
-	return f.includeUndefined
-}
-
-// NewEqualFilter creates a new filter that matches exact values
+// NewEqualFilter creates a new filter that matches exact values.
 func NewEqualFilter[T comparable](key typedmap.TypedKey[T], value T, includeUndefined bool) TypedMapFilter[T] {
 	return &EqualFilter[T]{
 		key:              key,
@@ -82,19 +82,34 @@ func NewEqualFilter[T comparable](key typedmap.TypedKey[T], value T, includeUnde
 	}
 }
 
-// ContainsElementFilter checks if a string array contains a specific element
-type ContainsElementFilter struct {
-	key              typedmap.TypedKey[[]string]
-	element          string
-	includeUndefined bool
+// KeyToFilter implements TypedMapFilter interface.
+func (f *EqualFilter[T]) KeyToFilter() typedmap.TypedKey[T] {
+	return f.key
 }
 
-// KeyToFilter implements TypedMapFilter interface
+// ShouldInclude implements TypedMapFilter interface.
+func (f *EqualFilter[T]) ShouldInclude(found bool, value T) bool {
+	if found {
+		return value == f.expectedValue
+	}
+	return f.includeUndefined
+}
+
+// NewContainsElementFilter creates a filter that checks if an array contains an element.
+func NewContainsElementFilter(key typedmap.TypedKey[[]string], element string, includeUndefined bool) TypedMapFilter[[]string] {
+	return &ContainsElementFilter{
+		key:              key,
+		element:          element,
+		includeUndefined: includeUndefined,
+	}
+}
+
+// KeyToFilter implements TypedMapFilter interface.
 func (f *ContainsElementFilter) KeyToFilter() typedmap.TypedKey[[]string] {
 	return f.key
 }
 
-// ShouldInclude implements TypedMapFilter interface
+// ShouldInclude implements TypedMapFilter interface.
 func (f *ContainsElementFilter) ShouldInclude(found bool, values []string) bool {
 	if !found {
 		return f.includeUndefined
@@ -108,38 +123,23 @@ func (f *ContainsElementFilter) ShouldInclude(found bool, values []string) bool 
 	return false
 }
 
-// NewContainsElementFilter creates a filter that checks if an array contains an element
-func NewContainsElementFilter(key typedmap.TypedKey[[]string], element string, includeUndefined bool) TypedMapFilter[[]string] {
-	return &ContainsElementFilter{
-		key:              key,
-		element:          element,
-		includeUndefined: includeUndefined,
-	}
-}
-
-// EnabledFilter checks if a boolean value is true
-type EnabledFilter struct {
-	key              typedmap.TypedKey[bool]
-	includeUndefined bool
-}
-
-// KeyToFilter implements TypedMapFilter interface
-func (f *EnabledFilter) KeyToFilter() typedmap.TypedKey[bool] {
-	return f.key
-}
-
-// ShouldInclude implements TypedMapFilter interface
-func (f *EnabledFilter) ShouldInclude(found bool, value bool) bool {
-	if !found {
-		return f.includeUndefined
-	}
-	return value
-}
-
-// NewEnabledFilter creates a filter that checks if a boolean value is true
+// NewEnabledFilter creates a filter that checks if a boolean value is true.
 func NewEnabledFilter(key typedmap.TypedKey[bool], includeUndefined bool) TypedMapFilter[bool] {
 	return &EnabledFilter{
 		key:              key,
 		includeUndefined: includeUndefined,
 	}
+}
+
+// KeyToFilter implements TypedMapFilter interface.
+func (f *EnabledFilter) KeyToFilter() typedmap.TypedKey[bool] {
+	return f.key
+}
+
+// ShouldInclude implements TypedMapFilter interface.
+func (f *EnabledFilter) ShouldInclude(found bool, value bool) bool {
+	if !found {
+		return f.includeUndefined
+	}
+	return value
 }

@@ -19,10 +19,11 @@ import (
 	"sync"
 	"testing"
 
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 func TestRegisterTimelineType(t *testing.T) {

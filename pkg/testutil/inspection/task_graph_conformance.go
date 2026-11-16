@@ -32,6 +32,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// knownFallbackTaskImplIDs records task implementations that serve as default fallbacks
+// in generic packages (e.g. googlecloudcommon), but are intentionally shadowed by higher-priority
+// tasks in all currently registered inspection types (such as Kubernetes cluster or Composer types).
+var knownFallbackTaskImplIDs = map[string]string{
+	"cloud.google.com/common/autocomplete-location#default":              "Default generic GCP location autocompleter, shadowed by cluster (priority 500) and composer (priority 1000) autocompleters in all current inspection types.",
+	"cloud.google.com/common/location-fetcher#default":                   "Underlying dependency of generic autocomplete-location#default, shadowed along with it.",
+	"cloud.google.com/log/gke-api/initial-resource-state-provider#empty": "Default fallback provider returning empty initial state when no inventory provider (such as CAI) is available, shadowed by the CAI provider (priority 1000).",
+}
+
 // RunTaskGraphConformance runs the full suite of automated conformance tests across all registered tasks.
 func RunTaskGraphConformance(t *testing.T) {
 	logger.InitGlobalKHILogger()
@@ -546,15 +555,6 @@ func runFormTaskAndTypeContracts(t *testing.T, server *coreinspection.Inspection
 			}
 		}
 	})
-}
-
-// knownFallbackTaskImplIDs records task implementations that serve as default fallbacks
-// in generic packages (e.g. googlecloudcommon), but are intentionally shadowed by higher-priority
-// tasks in all currently registered inspection types (such as Kubernetes cluster or Composer types).
-var knownFallbackTaskImplIDs = map[string]string{
-	"cloud.google.com/common/autocomplete-location#default":              "Default generic GCP location autocompleter, shadowed by cluster (priority 500) and composer (priority 1000) autocompleters in all current inspection types.",
-	"cloud.google.com/common/location-fetcher#default":                   "Underlying dependency of generic autocomplete-location#default, shadowed along with it.",
-	"cloud.google.com/log/gke-api/initial-resource-state-provider#empty": "Default fallback provider returning empty initial state when no inventory provider (such as CAI) is available, shadowed by the CAI provider (priority 1000).",
 }
 
 // runReachabilityConformance verifies that all registered tasks are reachable in at least one inspection type's graph.

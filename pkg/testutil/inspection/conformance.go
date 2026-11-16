@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// ConformanceTestForInspectionTypes validates inspection type registration, icons, features, and task graph resolution.
 func ConformanceTestForInspectionTypes(t *testing.T) {
 	logger.InitGlobalKHILogger()
 	oldStore := upload.DefaultUploadFileStore

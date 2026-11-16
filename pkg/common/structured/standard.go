@@ -26,23 +26,58 @@ import (
 
 // standard.go contains types to hold structured data on memory as its field and implements Node interface.
 
+var _ Node = (*StandardScalarNode[any])(nil)
+var _ json.Marshaler = (*StandardScalarNode[any])(nil)
+var _ yaml.Marshaler = (*StandardScalarNode[any])(nil)
+var _ Node = (*StandardSequenceNode)(nil)
+var _ yaml.Marshaler = (*StandardSequenceNode)(nil)
+var _ json.Marshaler = (*StandardSequenceNode)(nil)
+var _ Node = (*StandardMapNode)(nil)
+var _ yaml.Marshaler = (*StandardMapNode)(nil)
+var _ json.Marshaler = (*StandardMapNode)(nil)
+
 // StandardScalarNode is a leaf of structured data implementing Node interface.
 type StandardScalarNode[T comparable] struct {
 	value T
 }
 
+// StandardSequenceNode represents a sequence field of structured data implementing the Node interface.
+type StandardSequenceNode struct {
+	value []Node
+}
+
+// StandardMapNode is a map field of structured data implementing Node interface.
+// This type retain the order of keys.
+type StandardMapNode struct {
+	// keys is the list of keys in values.
+	// Needed because the key order of map is not assured in Go.
+	keys   []unique.Handle[string]
+	values []Node
+}
+
+// NewStandardScalarNode instantiates the value of StandardScalarNode from the given value.
+func NewStandardScalarNode[T comparable](value T) *StandardScalarNode[T] {
+	return &StandardScalarNode[T]{
+		value: value,
+	}
+}
+
+// Type returns ScalarNodeType.
 func (n *StandardScalarNode[T]) Type() NodeType {
 	return ScalarNodeType
 }
 
+// NodeScalarValue returns the stored scalar value.
 func (n *StandardScalarNode[T]) NodeScalarValue() (any, error) {
 	return n.value, nil
 }
 
+// Children returns an empty iterator because scalar nodes have no children.
 func (n *StandardScalarNode[T]) Children() NodeChildrenIterator {
 	return func(func(key NodeChildrenKey, value Node) bool) {}
 }
 
+// Len returns 0 because scalar nodes have no children.
 func (n *StandardScalarNode[T]) Len() int {
 	return 0
 }
@@ -107,30 +142,24 @@ func (n *StandardScalarNode[T]) MarshalYAML() (interface{}, error) {
 	return yamlNode, nil
 }
 
-// NewStandardScalarNode instantiates the value of StandardScalarNode from the given value.
-func NewStandardScalarNode[T comparable](value T) *StandardScalarNode[T] {
-	return &StandardScalarNode[T]{
-		value: value,
+// NewStandardSequenceNode returns a sequence node from given values.
+func NewStandardSequenceNode(values []Node) Node {
+	return &StandardSequenceNode{
+		value: values,
 	}
 }
 
-var _ Node = (*StandardScalarNode[any])(nil)
-var _ json.Marshaler = (*StandardScalarNode[any])(nil)
-var _ yaml.Marshaler = (*StandardScalarNode[any])(nil)
-
-// StandardScalarNode is a sequence field of a structured data implementing Node interface.
-type StandardSequenceNode struct {
-	value []Node
-}
-
+// Type returns SequenceNodeType.
 func (n *StandardSequenceNode) Type() NodeType {
 	return SequenceNodeType
 }
 
+// NodeScalarValue returns ErrNonScalarNode because sequence nodes are not scalar.
 func (n *StandardSequenceNode) NodeScalarValue() (any, error) {
 	return nil, ErrNonScalarNode
 }
 
+// Children returns an iterator over the elements in the sequence.
 func (n *StandardSequenceNode) Children() NodeChildrenIterator {
 	return func(f func(key NodeChildrenKey, value Node) bool) {
 		for i, v := range n.value {
@@ -141,6 +170,7 @@ func (n *StandardSequenceNode) Children() NodeChildrenIterator {
 	}
 }
 
+// Len returns the number of elements in the sequence.
 func (n *StandardSequenceNode) Len() int {
 	return len(n.value)
 }
@@ -198,27 +228,37 @@ func (n *StandardSequenceNode) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-var _ Node = (*StandardSequenceNode)(nil)
-var _ yaml.Marshaler = (*StandardSequenceNode)(nil)
-var _ json.Marshaler = (*StandardSequenceNode)(nil)
-
-// StandardMapNode is a map field of structured data implementing Node interface.
-// This type retain the order of keys.
-type StandardMapNode struct {
-	// keys is the list of keys in values.
-	// Needed because the key order of map is not assured in Go.
-	keys   []unique.Handle[string]
-	values []Node
+// NewEmptyMapNode returns an empty map node.
+func NewEmptyMapNode() Node {
+	return &StandardMapNode{
+		keys:   make([]unique.Handle[string], 0),
+		values: make([]Node, 0),
+	}
 }
 
+// NewStandardMap returns a map node from given key and values with keeping the order of map keys.
+func NewStandardMap(keys []string, values []Node) Node {
+	result := &StandardMapNode{
+		keys:   make([]unique.Handle[string], 0, len(keys)),
+		values: values,
+	}
+	for _, key := range keys {
+		result.keys = append(result.keys, unique.Make(key))
+	}
+	return result
+}
+
+// Type returns MapNodeType.
 func (n *StandardMapNode) Type() NodeType {
 	return MapNodeType
 }
 
+// NodeScalarValue returns ErrNonScalarNode because map nodes are not scalar.
 func (n *StandardMapNode) NodeScalarValue() (any, error) {
 	return nil, ErrNonScalarNode
 }
 
+// Children returns an iterator over the map entries in insertion order.
 func (n *StandardMapNode) Children() NodeChildrenIterator {
 	return func(f func(key NodeChildrenKey, value Node) bool) {
 		for i, k := range n.keys {
@@ -249,6 +289,7 @@ func (n *StandardMapNode) GetChildByKey(key string) (Node, bool) {
 	return nil, false
 }
 
+// Len returns the number of entries in the map.
 func (n *StandardMapNode) Len() int {
 	return len(n.keys)
 }
@@ -314,97 +355,7 @@ func (n *StandardMapNode) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-var _ Node = (*StandardMapNode)(nil)
-var _ yaml.Marshaler = (*StandardMapNode)(nil)
-var _ json.Marshaler = (*StandardMapNode)(nil)
-
-// NewEmptyMapNode returns an empty map node.
-func NewEmptyMapNode() Node {
-	return &StandardMapNode{
-		keys:   make([]unique.Handle[string], 0),
-		values: make([]Node, 0),
-	}
-}
-
-// NewStandardMap returns a map node from given key and values with keeping the order of map keys.
-func NewStandardMap(keys []string, values []Node) Node {
-	result := &StandardMapNode{
-		keys:   make([]unique.Handle[string], 0, len(keys)),
-		values: values,
-	}
-	for _, key := range keys {
-		result.keys = append(result.keys, unique.Make(key))
-	}
-	return result
-}
-
-// NewStandardSequenceNode returns a sequence node from given values.
-func NewStandardSequenceNode(values []Node) Node {
-	return &StandardSequenceNode{
-		value: values,
-	}
-}
-
-// getYAMLMarshaler returns the yaml.Marshaller from Node interface.
-func getYAMLMarshaler(node Node) (yaml.Marshaler, error) {
-	standardRootNode, err := cloneStandardNodeFromNode(node)
-	if err != nil {
-		return nil, err
-	}
-	return standardRootNode.(yaml.Marshaler), nil
-}
-
-// getJSONMarshalerFromNode returns the json.Marshaller from Node interface.
-func getJSONMarshalerFromNode(node Node) (json.Marshaler, error) {
-	standardRootNode, err := cloneStandardNodeFromNode(node)
-	if err != nil {
-		return nil, err
-	}
-	return standardRootNode.(json.Marshaler), nil
-}
-
-// cloneStandardNodeFromNode clones Node interface into Standard***Node.
-// Standard**Node implements json.Marshaller and yaml.Marshaller, it allows serializing any implementing Node interface.
-func cloneStandardNodeFromNode(node Node) (Node, error) {
-	switch node.Type() {
-	case ScalarNodeType:
-		scalarValue, err := node.NodeScalarValue()
-		if err != nil {
-			return nil, err
-		}
-		return NewStandardScalarNode(scalarValue), nil
-	case SequenceNodeType:
-		sequence := StandardSequenceNode{
-			value: make([]Node, 0, node.Len()),
-		}
-		for _, child := range node.Children() {
-			child, err := cloneStandardNodeFromNode(child)
-			if err != nil {
-				return nil, err
-			}
-			sequence.value = append(sequence.value, child)
-		}
-		return &sequence, nil
-	case MapNodeType:
-		mapNode := StandardMapNode{
-			keys:   make([]unique.Handle[string], 0, node.Len()),
-			values: make([]Node, 0, node.Len()),
-		}
-		for key, child := range node.Children() {
-			mapNode.keys = append(mapNode.keys, unique.Make(key.Key))
-			child, err := cloneStandardNodeFromNode(child)
-			if err != nil {
-				return nil, err
-			}
-			mapNode.values = append(mapNode.values, child)
-		}
-		return &mapNode, nil
-	default:
-		return nil, fmt.Errorf("unknown node type: %v", node.Type())
-	}
-}
-
-// WithScalarField add a new scalar value node at the specified field path.
+// WithScalarField adds a new scalar value node at the specified field path.
 func WithScalarField[T comparable](node Node, fieldPath []string, value T) (Node, error) {
 	if node.Type() != MapNodeType {
 		return nil, fmt.Errorf("unsupported node type %d found. WithScalarField can't add a scalar field on non-map node", node.Type())
@@ -464,4 +415,63 @@ func WithScalarField[T comparable](node Node, fieldPath []string, value T) (Node
 		}
 	}
 	return &newMapNode, nil
+}
+
+// getYAMLMarshaler returns the yaml.Marshaller from Node interface.
+func getYAMLMarshaler(node Node) (yaml.Marshaler, error) {
+	standardRootNode, err := cloneStandardNodeFromNode(node)
+	if err != nil {
+		return nil, err
+	}
+	return standardRootNode.(yaml.Marshaler), nil
+}
+
+// getJSONMarshalerFromNode returns the json.Marshaller from Node interface.
+func getJSONMarshalerFromNode(node Node) (json.Marshaler, error) {
+	standardRootNode, err := cloneStandardNodeFromNode(node)
+	if err != nil {
+		return nil, err
+	}
+	return standardRootNode.(json.Marshaler), nil
+}
+
+// cloneStandardNodeFromNode clones Node interface into Standard***Node.
+// Standard**Node implements json.Marshaller and yaml.Marshaller, it allows serializing any implementing Node interface.
+func cloneStandardNodeFromNode(node Node) (Node, error) {
+	switch node.Type() {
+	case ScalarNodeType:
+		scalarValue, err := node.NodeScalarValue()
+		if err != nil {
+			return nil, err
+		}
+		return NewStandardScalarNode(scalarValue), nil
+	case SequenceNodeType:
+		sequence := StandardSequenceNode{
+			value: make([]Node, 0, node.Len()),
+		}
+		for _, child := range node.Children() {
+			child, err := cloneStandardNodeFromNode(child)
+			if err != nil {
+				return nil, err
+			}
+			sequence.value = append(sequence.value, child)
+		}
+		return &sequence, nil
+	case MapNodeType:
+		mapNode := StandardMapNode{
+			keys:   make([]unique.Handle[string], 0, node.Len()),
+			values: make([]Node, 0, node.Len()),
+		}
+		for key, child := range node.Children() {
+			mapNode.keys = append(mapNode.keys, unique.Make(key.Key))
+			child, err := cloneStandardNodeFromNode(child)
+			if err != nil {
+				return nil, err
+			}
+			mapNode.values = append(mapNode.values, child)
+		}
+		return &mapNode, nil
+	default:
+		return nil, fmt.Errorf("unknown node type: %v", node.Type())
+	}
 }

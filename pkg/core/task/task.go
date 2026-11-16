@@ -24,9 +24,11 @@ import (
 )
 
 const (
+	// KHISystemPrefix is the prefix used for KHI system task label keys.
 	KHISystemPrefix = "khi.google.com/"
 )
 
+// LabelKeyTaskSelectionPriority specifies the priority used to disambiguate multiple tasks sharing a reference ID.
 // KHI allows tasks with different ID suffixes to be specified as dependencies
 // using only the ID without the suffix. For example, both `a.b.c/qux#foo` and `a.b.c/qux#bar`
 // can be specified as a dependency using `a.b.c/qux`.
@@ -34,7 +36,6 @@ const (
 // Normally, the task ID is uniquely determined by the task filter or other
 // ways. However, if multiple tasks exist, the value specified with this label
 // with the highest priority is used.
-
 var LabelKeyTaskSelectionPriority = NewTaskLabelKey[int](KHISystemPrefix + "task-selection-priority")
 
 // LabelKeyRequiredTask is the task label to tell task resolver to always include the task in the task graph when the task is available.
@@ -57,7 +58,9 @@ var LabelKeyTaskResultType = NewTaskLabelKey[string](KHISystemPrefix + "task-res
 // via ScopeActiveFeatures.
 var LabelKeyFeatureGateTaskRef = NewTaskLabelKey[taskid.UntypedTaskReference](KHISystemPrefix + "feature-gate-task-ref")
 
+// UntypedTask represents a task in the DAG without a compile-time result type parameter.
 type UntypedTask interface {
+	// UntypedID returns the untyped implementation ID of this task.
 	UntypedID() taskid.UntypedTaskImplementationID
 	// Labels returns KHITaskLabelSet assigned to this task unit.
 	// The implementation of this function must return a constant value.
@@ -69,6 +72,7 @@ type UntypedTask interface {
 	// ResultType returns the reflection Type of the task output.
 	ResultType() reflect.Type
 
+	// UntypedRun executes the task and returns its result as any.
 	UntypedRun(ctx context.Context) (any, error)
 }
 
@@ -77,10 +81,11 @@ type UntypedTask interface {
 // The implementation of Sinks and Source must be pure function not depending anything outside of the argument.
 type Task[TaskResult any] interface {
 	UntypedTask
-	// ID returns an unique TaskID of taskid.TaskImplementationID[TaskResult]
+	// ID returns an unique TaskID of taskid.TaskImplementationID[TaskResult].
 	// The implementation of this function must return a constant value.
 	ID() taskid.TaskImplementationID[TaskResult]
 
+	// Run executes the task and returns its typed result.
 	Run(ctx context.Context) (TaskResult, error)
 }
 

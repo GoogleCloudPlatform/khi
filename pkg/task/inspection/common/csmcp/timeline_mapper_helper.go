@@ -25,6 +25,7 @@ import (
 
 // TimelineState tracks connection states across logs in a group.
 type TimelineState struct {
+	// ObservedConnections tracks connection keys that have already been seen.
 	ObservedConnections map[string]bool
 }
 

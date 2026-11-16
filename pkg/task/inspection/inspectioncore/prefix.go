@@ -16,4 +16,5 @@ package inspectioncore
 
 import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 
+// InspectionTaskPrefix is the task ID prefix shared by inspection core tasks.
 const InspectionTaskPrefix = coretask.KHISystemPrefix + "inspection/"

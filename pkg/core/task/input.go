@@ -21,8 +21,44 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
+// Input is a handle to a required input declared with Use.
+type Input[T any] struct {
+	owner taskid.UntypedTaskImplementationID
+	ref   taskid.TaskReference[T]
+}
+
+// OptionalInput is a handle to an optional input declared with UseOptional.
+type OptionalInput[T any] struct {
+	owner taskid.UntypedTaskImplementationID
+	ref   taskid.TaskReference[T]
+}
+
+// TagInput is a handle to a fan-in input declared with UseTag.
+type TagInput[T any] struct {
+	owner taskid.UntypedTaskImplementationID
+	ref   TagReference[T]
+}
+
 // activeTaskKey is the context key for the implementation ID of the running task.
 type activeTaskKey struct{}
+
+// Get returns the result of the producer task.
+func (in Input[T]) Get(ctx context.Context) T {
+	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
+	return lookupTaskResult(ctx, in.ref)
+}
+
+// Get returns the result of the producer task and true, or the zero value and false when the producer is not in the graph.
+func (in OptionalInput[T]) Get(ctx context.Context) (T, bool) {
+	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
+	return lookupOptionalTaskResult(ctx, in.ref)
+}
+
+// Get returns the results of all producer tasks bound to the tag in deterministic order.
+func (in TagInput[T]) Get(ctx context.Context) []T {
+	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
+	return lookupTaskResultsWithTag(ctx, in.ref)
+}
 
 // withActiveTask marks ctx as running the task identified by owner.
 func withActiveTask(ctx context.Context, owner taskid.UntypedTaskImplementationID) context.Context {
@@ -39,40 +75,4 @@ func mustMatchActiveTask(ctx context.Context, owner taskid.UntypedTaskImplementa
 	if active != owner.String() {
 		panic(fmt.Sprintf("input %s declared by task %s is read from task %s; handles can only be read by the task that declared them", input, owner, active))
 	}
-}
-
-// Input is a handle to a required input declared with Use.
-type Input[T any] struct {
-	owner taskid.UntypedTaskImplementationID
-	ref   taskid.TaskReference[T]
-}
-
-// Get returns the result of the producer task.
-func (in Input[T]) Get(ctx context.Context) T {
-	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
-	return lookupTaskResult(ctx, in.ref)
-}
-
-// OptionalInput is a handle to an optional input declared with UseOptional.
-type OptionalInput[T any] struct {
-	owner taskid.UntypedTaskImplementationID
-	ref   taskid.TaskReference[T]
-}
-
-// Get returns the result of the producer task and true, or the zero value and false when the producer is not in the graph.
-func (in OptionalInput[T]) Get(ctx context.Context) (T, bool) {
-	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
-	return lookupOptionalTaskResult(ctx, in.ref)
-}
-
-// TagInput is a handle to a fan-in input declared with UseTag.
-type TagInput[T any] struct {
-	owner taskid.UntypedTaskImplementationID
-	ref   TagReference[T]
-}
-
-// Get returns the results of all producer tasks bound to the tag in deterministic order.
-func (in TagInput[T]) Get(ctx context.Context) []T {
-	mustMatchActiveTask(ctx, in.owner, dependencyKey(in.ref))
-	return lookupTaskResultsWithTag(ctx, in.ref)
 }

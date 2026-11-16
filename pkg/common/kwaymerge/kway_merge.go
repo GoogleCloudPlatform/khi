@@ -18,6 +18,8 @@ import (
 	"container/heap"
 )
 
+var _ heap.Interface = (*mergeHeap[int])(nil)
+
 // mergeCursor tracks the current position of an element in a specific slice.
 type mergeCursor[T any] struct {
 	sliceIndex int
@@ -29,43 +31,6 @@ type mergeCursor[T any] struct {
 type mergeHeap[T any] struct {
 	cursors []*mergeCursor[T]
 	cmp     func(a, b T) int
-}
-
-var _ heap.Interface = (*mergeHeap[int])(nil)
-
-// Len returns the number of active cursors in the heap.
-func (h *mergeHeap[T]) Len() int {
-	return len(h.cursors)
-}
-
-// Less reports whether the element at cursor i should sort before the element at cursor j.
-// It breaks ties deterministically using sliceIndex to preserve stable ordering.
-func (h *mergeHeap[T]) Less(i, j int) bool {
-	c := h.cmp(h.cursors[i].slice[h.cursors[i].elemIndex], h.cursors[j].slice[h.cursors[j].elemIndex])
-	if c != 0 {
-		return c < 0
-	}
-	return h.cursors[i].sliceIndex < h.cursors[j].sliceIndex
-}
-
-// Swap swaps the cursors at indexes i and j.
-func (h *mergeHeap[T]) Swap(i, j int) {
-	h.cursors[i], h.cursors[j] = h.cursors[j], h.cursors[i]
-}
-
-// Push adds a cursor to the heap.
-func (h *mergeHeap[T]) Push(x any) {
-	h.cursors = append(h.cursors, x.(*mergeCursor[T]))
-}
-
-// Pop removes and returns the minimum cursor from the heap.
-func (h *mergeHeap[T]) Pop() any {
-	old := h.cursors
-	n := len(old)
-	x := old[n-1]
-	old[n-1] = nil
-	h.cursors = old[0 : n-1]
-	return x
 }
 
 // Merge merges multiple pre-sorted slices into a single sorted slice based on cmp.
@@ -122,4 +87,39 @@ func Merge[T any](slices [][]T, cmp func(a, b T) int) []T {
 	}
 
 	return result
+}
+
+// Len returns the number of active cursors in the heap.
+func (h *mergeHeap[T]) Len() int {
+	return len(h.cursors)
+}
+
+// Less reports whether the element at cursor i should sort before the element at cursor j.
+// It breaks ties deterministically using sliceIndex to preserve stable ordering.
+func (h *mergeHeap[T]) Less(i, j int) bool {
+	c := h.cmp(h.cursors[i].slice[h.cursors[i].elemIndex], h.cursors[j].slice[h.cursors[j].elemIndex])
+	if c != 0 {
+		return c < 0
+	}
+	return h.cursors[i].sliceIndex < h.cursors[j].sliceIndex
+}
+
+// Swap swaps the cursors at indexes i and j.
+func (h *mergeHeap[T]) Swap(i, j int) {
+	h.cursors[i], h.cursors[j] = h.cursors[j], h.cursors[i]
+}
+
+// Push adds a cursor to the heap.
+func (h *mergeHeap[T]) Push(x any) {
+	h.cursors = append(h.cursors, x.(*mergeCursor[T]))
+}
+
+// Pop removes and returns the minimum cursor from the heap.
+func (h *mergeHeap[T]) Pop() any {
+	old := h.cursors
+	n := len(old)
+	x := old[n-1]
+	old[n-1] = nil
+	h.cursors = old[0 : n-1]
+	return x
 }

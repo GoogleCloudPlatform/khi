@@ -15,19 +15,22 @@
 package gcp_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 )
 
 const testProjectID = "kubernetes-history-inspector"
 
+// IsValidLogQuery verifies whether query is accepted by Cloud Logging.
 func IsValidLogQuery(t *testing.T, query string) error {
 	t.Helper()
 
@@ -54,7 +57,7 @@ timestamp <= "2024-01-01T00:00:01Z"`, query)
 	}, googlecloud.DefaultRetryPolicy, gax.WithTimeout(5*time.Minute))
 
 	_, err = iter.Next()
-	if err != iterator.Done {
+	if !errors.Is(err, iterator.Done) {
 		return err
 	}
 

@@ -23,6 +23,8 @@ import (
 var jsonlSeverityFieldNames = []string{"level", "severity"}
 var jsonlMessageFieldNames = []string{"message", "msg"}
 
+var _ StructuredLogParser = (*JsonlTextParser)(nil)
+
 // JsonlTextParser parses given JSONL formatted string.
 type JsonlTextParser struct{}
 
@@ -81,8 +83,6 @@ func (j *JsonlTextParser) TryParse(originalMessage string) *ParseStructuredLogRe
 
 	return result
 }
-
-var _ StructuredLogParser = (*JsonlTextParser)(nil)
 
 func valueToString(v any) (string, error) {
 	if v == nil {

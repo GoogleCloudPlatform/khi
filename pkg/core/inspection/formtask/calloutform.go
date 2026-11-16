@@ -42,6 +42,18 @@ type calloutFormTask struct {
 	calloutGenerator CalloutFormGenerator
 }
 
+// DefineCalloutForm defines a read-only callout banner form task with a Binder.
+//
+// id, priority, label, and description configure the banner metadata. bind runs once, declares any upstream inputs
+// on the Binder, and returns CalloutFormSpec whose Callout callback evaluates the banner message and severity.
+func DefineCalloutForm(id taskid.TaskImplementationID[struct{}], priority int, label string, description string, bind func(b *coretask.Binder) CalloutFormSpec, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
+	form := newCalloutFormTask(id, priority, label, description)
+	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (struct{}, error) {
+		form.applySpec(bind(b))
+		return form.run
+	}, form.formLabelOpts(labelOpts)...)
+}
+
 // newCalloutFormTask creates a callout form task with the given base metadata.
 func newCalloutFormTask(id taskid.TaskImplementationID[struct{}], priority int, label string, description string) *calloutFormTask {
 	return &calloutFormTask{
@@ -96,16 +108,4 @@ func (b *calloutFormTask) run(ctx context.Context) (struct{}, error) {
 		return struct{}{}, fmt.Errorf("failed to configure the form metadata in task `%s`: %w", b.id, err)
 	}
 	return struct{}{}, nil
-}
-
-// DefineCalloutForm defines a read-only callout banner form task with a Binder.
-//
-// id, priority, label, and description configure the banner metadata. bind runs once, declares any upstream inputs
-// on the Binder, and returns CalloutFormSpec whose Callout callback evaluates the banner message and severity.
-func DefineCalloutForm(id taskid.TaskImplementationID[struct{}], priority int, label string, description string, bind func(b *coretask.Binder) CalloutFormSpec, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
-	form := newCalloutFormTask(id, priority, label, description)
-	return coretask.Define(id, func(b *coretask.Binder) func(ctx context.Context) (struct{}, error) {
-		form.applySpec(bind(b))
-		return form.run
-	}, form.formLabelOpts(labelOpts)...)
 }

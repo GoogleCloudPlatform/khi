@@ -16,13 +16,13 @@ package logger
 
 import "github.com/GoogleCloudPlatform/khi/pkg/common"
 
-type logThrottleStatus = int
-
 var (
 	statusNoThrottle         logThrottleStatus = 0
 	statusJustBeforeThrottle logThrottleStatus = 1
 	statusThrottled          logThrottleStatus = 2
 )
+
+type logThrottleStatus = int
 
 // logThrottler is an interface to decide if a new log record should be printed.
 // It is used to reduce the volume of similar, repetitive logs.

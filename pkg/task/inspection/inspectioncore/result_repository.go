@@ -19,29 +19,35 @@ import (
 	"os"
 )
 
-// Store persists and read the inspection result.
-// The result data format is determined by Serializer, thus Store just regard them as []byte.
+var _ Store = (*FileSystemStore)(nil)
+
+// Store persists and reads the inspection result.
+// The result data format is determined by Serializer, thus Store just regards them as []byte.
 type Store interface {
+	// GetWriter returns a writer for persisting the serialized inspection result.
 	GetWriter() (io.WriteCloser, error)
+	// GetReader returns a reader for reading the full serialized inspection result.
 	GetReader() (io.ReadCloser, error)
+	// GetRangeReader returns a reader only reading the specified byte range.
 	GetRangeReader(start, maxLength int64) (io.ReadCloser, error)
+	// GetInspectionResultSizeInBytes returns the total size of the stored inspection result in bytes.
 	GetInspectionResultSizeInBytes() (int, error)
 }
 
-// FileSystemStore is one of implementation of Store.
-// It persist task result as a file in the data folder and read it from there.
+// FileSystemStore is an implementation of Store backed by a local file.
+// It persists the task result as a file in the data folder and reads it from there.
 type FileSystemStore struct {
 	filePath string
 }
 
-var _ Store = (*FileSystemStore)(nil)
-
+// NewFileSystemInspectionResultRepository creates a FileSystemStore reading and writing at filePath.
 func NewFileSystemInspectionResultRepository(filePath string) *FileSystemStore {
 	return &FileSystemStore{
 		filePath: filePath,
 	}
 }
 
+// GetWriter creates or truncates the underlying file and returns a WriteCloser to write the inspection result.
 func (r *FileSystemStore) GetWriter() (io.WriteCloser, error) {
 	file, err := os.Create(r.filePath)
 	if err != nil {
@@ -50,6 +56,7 @@ func (r *FileSystemStore) GetWriter() (io.WriteCloser, error) {
 	return file, nil
 }
 
+// GetReader opens the underlying file and returns a ReadCloser to read the inspection result.
 func (r *FileSystemStore) GetReader() (io.ReadCloser, error) {
 	file, err := os.Open(r.filePath)
 	if err != nil {
@@ -75,6 +82,7 @@ func (r *FileSystemStore) GetRangeReader(start int64, maxLength int64) (io.ReadC
 	}, nil
 }
 
+// GetInspectionResultSizeInBytes returns the size of the inspection result file in bytes.
 func (r *FileSystemStore) GetInspectionResultSizeInBytes() (int, error) {
 	stat, err := os.Stat(r.filePath)
 	if err != nil {

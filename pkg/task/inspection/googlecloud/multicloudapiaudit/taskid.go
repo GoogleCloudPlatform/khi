@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
+// MultiCloudAPIAuditLogTaskIDPrefix is the prefix for all task IDs in the multicloudapiaudit package.
 var MultiCloudAPIAuditLogTaskIDPrefix = "cloud.google.com/log/multicloud-api/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.

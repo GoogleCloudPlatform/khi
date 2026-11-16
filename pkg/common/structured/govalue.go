@@ -33,13 +33,14 @@ type GoMapKeyOrderProvider interface {
 type AlphabeticalGoMapKeyOrderProvider struct {
 }
 
+// GetOrderedKeys returns the map keys sorted in alphabetical order.
 func (a *AlphabeticalGoMapKeyOrderProvider) GetOrderedKeys(sourcePath []string, sourceMap map[string]any) ([]string, error) {
 	keys := maps.Keys(sourceMap)
 	slices.Sort(keys)
 	return keys, nil
 }
 
-// FromGoValue instantiate the Node interface from given Go map, slice or scalars.
+// FromGoValue instantiates a Node from the given Go map, slice, or scalar value.
 func FromGoValue(source any, mapKeyOrderProvider GoMapKeyOrderProvider) (Node, error) {
 	return fromGoValue(make([]string, 0, defaultFieldPathCapacity), source, mapKeyOrderProvider)
 }

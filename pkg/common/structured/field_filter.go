@@ -14,13 +14,13 @@
 
 package structured
 
+var _ Node = (*fieldFilterNode)(nil)
+
 // fieldFilterNode wraps an existing Node and filters its children by ignoring specific keys.
 type fieldFilterNode struct {
 	original Node
 	ignored  map[string]struct{}
 }
-
-var _ Node = (*fieldFilterNode)(nil)
 
 // NewFieldFilterNode returns a filtered Node that wraps the original Node.
 // It filters out any map children whose keys are present in the ignored keys list.

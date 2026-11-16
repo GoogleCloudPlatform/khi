@@ -25,9 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// CacheScope is the lifetime of the value cached by a task defined with DefineCachedTask.
-type CacheScope int
-
 const (
 	// CacheScopeInspection keeps the cached value in InspectionSharedMap, so it is reused across dry runs and the run of the same inspection.
 	// This is the zero value and the default.
@@ -37,18 +34,8 @@ const (
 	CacheScopeGlobal
 )
 
-// sharedMapKey returns the context key of the shared map that stores values cached with the scope.
-// It panics for values other than the declared CacheScope constants because they indicate a programming error.
-func (s CacheScope) sharedMapKey() typedmap.TypedKey[*typedmap.TypedMap] {
-	switch s {
-	case CacheScopeInspection:
-		return inspectioncore.InspectionSharedMap
-	case CacheScopeGlobal:
-		return inspectioncore.GlobalSharedMap
-	default:
-		panic(fmt.Sprintf("unknown CacheScope %d", int(s)))
-	}
-}
+// CacheScope is the lifetime of the value cached by a task defined with DefineCachedTask.
+type CacheScope int
 
 // CachedTaskSpec holds the cache scope and the functions of a task defined with DefineCachedTask.
 type CachedTaskSpec[T any] struct {
@@ -87,4 +74,17 @@ func DefineCachedTask[T any](taskID taskid.TaskImplementationID[T], bind func(b 
 			return value, nil
 		}
 	}, labelOpts...)
+}
+
+// sharedMapKey returns the context key of the shared map that stores values cached with the scope.
+// It panics for values other than the declared CacheScope constants because they indicate a programming error.
+func (s CacheScope) sharedMapKey() typedmap.TypedKey[*typedmap.TypedMap] {
+	switch s {
+	case CacheScopeInspection:
+		return inspectioncore.InspectionSharedMap
+	case CacheScopeGlobal:
+		return inspectioncore.GlobalSharedMap
+	default:
+		panic(fmt.Sprintf("unknown CacheScope %d", int(s)))
+	}
 }

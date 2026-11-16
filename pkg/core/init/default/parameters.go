@@ -20,6 +20,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 )
 
+const (
+	// InitializerIDParameterStores registers parameter stores.
+	InitializerIDParameterStores coreinit.InitializerID = "khi.default/parameter-stores"
+
+	// InitializerIDParameterParse parses parameters and injects them into InitContext.
+	InitializerIDParameterParse coreinit.InitializerID = "khi.default/parameter-parse"
+)
+
 var (
 	// CommonParametersKey stores parsed CommonParameters.
 	CommonParametersKey = typedmap.NewTypedKey[*parameters.CommonParameters]("khi.google.com/init/params/common")
@@ -38,14 +46,6 @@ var (
 
 	// RateLimitParametersKey stores parsed RateLimitParameters.
 	RateLimitParametersKey = typedmap.NewTypedKey[*parameters.RateLimitParameters]("khi.google.com/init/params/ratelimit")
-)
-
-const (
-	// InitializerIDParameterStores registers parameter stores.
-	InitializerIDParameterStores coreinit.InitializerID = "khi.default/parameter-stores"
-
-	// InitializerIDParameterParse parses parameters and injects them into InitContext.
-	InitializerIDParameterParse coreinit.InitializerID = "khi.default/parameter-parse"
 )
 
 // ParameterStoresInitializer registers the standard KHI parameter stores.
@@ -84,6 +84,11 @@ var ParameterParseInitializer = &coreinit.Initializer{
 	},
 }
 
+func init() {
+	coreinit.RegisterInitializer(ParameterStoresInitializer)
+	coreinit.RegisterInitializer(ParameterParseInitializer)
+}
+
 // RegisterParameterStore registers a parameter store that will be added before parameters.Parse is executed.
 func RegisterParameterStore(id coreinit.InitializerID, store parameters.ParameterStore) {
 	coreinit.RegisterInitializer(&coreinit.Initializer{
@@ -94,9 +99,4 @@ func RegisterParameterStore(id coreinit.InitializerID, store parameters.Paramete
 			return nil
 		},
 	})
-}
-
-func init() {
-	coreinit.RegisterInitializer(ParameterStoresInitializer)
-	coreinit.RegisterInitializer(ParameterParseInitializer)
 }

@@ -21,14 +21,59 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/RoaringBitmap/roaring/v2"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
 // TimelineSegment represents a single node in a hierarchical timeline path.
 type TimelineSegment struct {
+	// Type is the timeline type label at this hierarchy level.
 	Type string
+	// Name is the timeline name at this hierarchy level.
 	Name string
+}
+
+// Filter specifies CEL and time range filter parameters for timeline reading.
+type Filter struct {
+	// TimelineQuery is the CEL expression selecting timelines to include.
+	TimelineQuery string `json:"timelineQuery,omitempty" jsonschema:"CEL expression to select timelines to include."`
+	// TimelineExclusionQuery is the CEL expression selecting timelines to exclude along with their descendants.
+	TimelineExclusionQuery string `json:"timelineExclusionQuery,omitempty" jsonschema:"CEL expression to select timelines to exclude along with their descendants."`
+	// LogQuery is the CEL expression filtering logs.
+	LogQuery string `json:"logQuery,omitempty" jsonschema:"CEL expression to filter logs."`
+	// StartTime is the inclusive start of the time range in RFC3339 format.
+	StartTime *time.Time `json:"startTime,omitempty" jsonschema:"Inclusive start of the time range in RFC3339 format."`
+	// EndTime is the inclusive end of the time range in RFC3339 format.
+	EndTime *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the time range in RFC3339 format."`
+	// ExcludeTimelinesWithoutLogs controls whether timelines without matching logs are excluded.
+	ExcludeTimelinesWithoutLogs *bool `json:"excludeTimelinesWithoutLogs,omitempty" jsonschema:"Whether to exclude timelines that have no logs matching the filter."`
+}
+
+// AppliedFilter represents the concrete filter settings after defaults and time range have been resolved.
+type AppliedFilter struct {
+	// TimelineQuery is the applied timeline inclusion CEL expression.
+	TimelineQuery string
+	// TimelineExclusionQuery is the applied timeline exclusion CEL expression.
+	TimelineExclusionQuery string
+	// LogQuery is the applied log filter CEL expression.
+	LogQuery string
+	// StartTime is the resolved inclusive start time in UTC.
+	StartTime time.Time
+	// EndTime is the resolved inclusive end time in UTC.
+	EndTime time.Time
+	// ExcludeTimelinesWithoutLogs reports whether timelines without matching logs are excluded.
+	ExcludeTimelinesWithoutLogs bool
+}
+
+// FilterOutput contains the applied filter configuration and matching bitmap results.
+type FilterOutput struct {
+	// Applied holds the resolved filter configuration.
+	Applied AppliedFilter
+	// TimelineIDs holds the bitmap of matched timeline IDs.
+	TimelineIDs *roaring.Bitmap
+	// LogIDs holds the bitmap of matched log IDs.
+	LogIDs *roaring.Bitmap
 }
 
 // FormatTimelinePath formats timeline segments as "[Type] Name > [Type] Name".
@@ -174,26 +219,6 @@ func (w *Workbench) InspectionTimeRange() (time.Time, time.Time) {
 	return time.Unix(0, minNs).UTC(), time.Unix(0, maxNs).UTC()
 }
 
-// Filter specifies CEL and time range filter parameters for timeline reading.
-type Filter struct {
-	TimelineQuery               string     `json:"timelineQuery,omitempty" jsonschema:"CEL expression to select timelines to include."`
-	TimelineExclusionQuery      string     `json:"timelineExclusionQuery,omitempty" jsonschema:"CEL expression to select timelines to exclude along with their descendants."`
-	LogQuery                    string     `json:"logQuery,omitempty" jsonschema:"CEL expression to filter logs."`
-	StartTime                   *time.Time `json:"startTime,omitempty" jsonschema:"Inclusive start of the time range in RFC3339 format."`
-	EndTime                     *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the time range in RFC3339 format."`
-	ExcludeTimelinesWithoutLogs *bool      `json:"excludeTimelinesWithoutLogs,omitempty" jsonschema:"Whether to exclude timelines that have no logs matching the filter."`
-}
-
-// AppliedFilter represents the concrete filter settings after defaults and time range have been resolved.
-type AppliedFilter struct {
-	TimelineQuery               string
-	TimelineExclusionQuery      string
-	LogQuery                    string
-	StartTime                   time.Time
-	EndTime                     time.Time
-	ExcludeTimelinesWithoutLogs bool
-}
-
 // ToPipelineParams converts an AppliedFilter to FilterPipelineParams for execution.
 func (a AppliedFilter) ToPipelineParams() FilterPipelineParams {
 	var start, end *time.Time
@@ -211,13 +236,6 @@ func (a AppliedFilter) ToPipelineParams() FilterPipelineParams {
 		FilterStartTime:        start,
 		FilterEndTime:          end,
 	}
-}
-
-// FilterOutput contains the applied filter configuration and matching bitmap results.
-type FilterOutput struct {
-	Applied     AppliedFilter
-	TimelineIDs *roaring.Bitmap
-	LogIDs      *roaring.Bitmap
 }
 
 // ValidateFilter validates the CEL expressions within a Filter.

@@ -24,19 +24,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
+// ErrEnvironmentClusterNotFound indicates that no GKE cluster was found for the Composer environment.
 var ErrEnvironmentClusterNotFound = errors.New("not found")
 
+var _ ComposerEnvironmentClusterFinder = (*EnvironmentClusterFinderImpl)(nil)
+
+// ComposerEnvironmentClusterFinder resolves GKE cluster names associated with a Cloud Composer environment.
 type ComposerEnvironmentClusterFinder interface {
+	// GetGKEClusterNames returns the GKE cluster names associated with the specified Cloud Composer environment.
 	GetGKEClusterNames(ctx context.Context, projectID, location, environment string, startTime, endTime time.Time) ([]string, error)
 }
 
 // EnvironmentClusterFinderImpl queries Cloud Monitoring metrics to discover GKE clusters associated with a Composer environment.
 type EnvironmentClusterFinderImpl struct {
-	ClientFactory       *googlecloud.ClientFactory
+	// ClientFactory creates authenticated Google Cloud API clients.
+	ClientFactory *googlecloud.ClientFactory
+	// CallOptionsInjector injects call options such as quota project into API contexts.
 	CallOptionsInjector *googlecloud.CallOptionInjector
 }
-
-var _ ComposerEnvironmentClusterFinder = (*EnvironmentClusterFinderImpl)(nil)
 
 // NewEnvironmentClusterFinder creates a new EnvironmentClusterFinderImpl with the given client factory and call options injector.
 func NewEnvironmentClusterFinder(clientFactory *googlecloud.ClientFactory, callOptionsInjector *googlecloud.CallOptionInjector) *EnvironmentClusterFinderImpl {

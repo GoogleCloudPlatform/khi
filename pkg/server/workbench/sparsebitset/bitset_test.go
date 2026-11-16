@@ -17,10 +17,11 @@ package sparsebitset
 import (
 	"testing"
 
-	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
 
 func TestEncode(t *testing.T) {

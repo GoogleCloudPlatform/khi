@@ -22,12 +22,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
-	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
-	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
+	"github.com/GoogleCloudPlatform/khi/pkg/server"
 )
 
 func setupTestServerStatusServer(

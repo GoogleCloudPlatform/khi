@@ -19,14 +19,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// TaskGraphMetadata provides information about the resolved task graph.
-type TaskGraphMetadata interface {
-	// IsBound returns true if the task reference was bound to the graph.
-	IsBound(referenceID string) bool
-	// BoundReferenceIDsForTaskImplWithTag returns the list of task reference IDs providing the tag bound specifically to the given task implementation ID.
-	BoundReferenceIDsForTaskImplWithTag(taskImplementationID string, tag string) []string
-}
-
 // TaskResultMapContextKey is the key to get the result of each task run before.
 var TaskResultMapContextKey = typedmap.NewTypedKey[*typedmap.TypedMap]("khi.google.com/task-result-map")
 
@@ -35,3 +27,11 @@ var TaskImplementationIDContextKey = typedmap.NewTypedKey[taskid.UntypedTaskImpl
 
 // TaskGraphMetadataContextKey is the key to get the TaskGraphMetadata.
 var TaskGraphMetadataContextKey = typedmap.NewTypedKey[TaskGraphMetadata]("khi.google.com/task-graph-metadata")
+
+// TaskGraphMetadata provides information about the resolved task graph.
+type TaskGraphMetadata interface {
+	// IsBound returns true if the task reference was bound to the graph.
+	IsBound(referenceID string) bool
+	// BoundReferenceIDsForTaskImplWithTag returns the list of task reference IDs providing the tag bound specifically to the given task implementation ID.
+	BoundReferenceIDsForTaskImplWithTag(taskImplementationID string, tag string) []string
+}

@@ -21,15 +21,16 @@ import (
 	"strings"
 )
 
-type contextKey string
-
 const (
 	timelineCtxKey contextKey = "khi_cel_timeline"
 	logCtxKey      contextKey = "khi_cel_log"
 )
 
+var _ StyleResolver = (*SimpleStyleResolver)(nil)
+
 // EventInfo represents lightweight event metadata associated with a timeline for CEL evaluation.
 type EventInfo struct {
+	// LogID is the 1-based identifier of the associated log entry.
 	LogID uint32
 	// Timestamp is the event occurrence time in Unix nanoseconds.
 	Timestamp int64
@@ -37,26 +38,76 @@ type EventInfo struct {
 
 // RevisionInfo represents lightweight revision history metadata associated with a timeline for CEL evaluation.
 type RevisionInfo struct {
-	LogID                uint32
-	ChangedTime          int64
-	PrincipalStringID    uint32
-	Verb                 string
-	State                string
+	// LogID is the 1-based identifier of the associated log entry.
+	LogID uint32
+	// ChangedTime is the revision timestamp in Unix nanoseconds.
+	ChangedTime int64
+	// PrincipalStringID is the intern pool ID of the acting principal string.
+	PrincipalStringID uint32
+	// Verb is the resolved action verb label for the revision.
+	Verb string
+	// State is the resolved resource state label for the revision.
+	State string
+	// ResourceBodyStructID is the intern pool ID of the resource manifest struct.
 	ResourceBodyStructID uint32
 }
 
 // TimelineData encapsulates the indexed timeline attributes and nested items required for CEL evaluation.
 type TimelineData struct {
-	ID           uint32
-	ParentID     uint32
-	ChildrenIDs  []uint32
-	Name         string
+	// ID is the unique timeline identifier.
+	ID uint32
+	// ParentID is the parent timeline identifier, or 0 for root timelines.
+	ParentID uint32
+	// ChildrenIDs lists the direct child timeline identifiers.
+	ChildrenIDs []uint32
+	// Name is the display name of the timeline.
+	Name string
+	// TimelineType is the resolved timeline type label.
 	TimelineType string
-	Events       []EventInfo
-	Revisions    []RevisionInfo
-	MaxSeverity  uint32
+	// Events holds the sorted events associated with this timeline.
+	Events []EventInfo
+	// Revisions holds the sorted revisions associated with this timeline.
+	Revisions []RevisionInfo
+	// MaxSeverity is the highest severity order among logs on this timeline.
+	MaxSeverity uint32
+	// SeverityMask is a bitmask of severity orders present on this timeline.
 	SeverityMask uint8
 }
+
+// StyleResolver resolves style attributes (e.g. log type label, severity order) from their IDs.
+type StyleResolver interface {
+	// ResolveLogType returns the log type label corresponding to the given ID.
+	ResolveLogType(id uint32) string
+	// ResolveSeverity returns the severity order value corresponding to the given ID.
+	ResolveSeverity(id uint32) uint32
+}
+
+// SimpleStyleResolver provides a map-based StyleResolver implementation for evaluation and testing.
+type SimpleStyleResolver struct {
+	// LogTypes maps log type IDs to their string labels.
+	LogTypes map[uint32]string
+	// Severities maps severity IDs to their numeric severity orders.
+	Severities map[uint32]uint32
+}
+
+// LogData encapsulates the indexed log attributes and struct ID required for CEL evaluation.
+// It holds primitive IDs to ensure zero pointers and minimal memory footprint.
+type LogData struct {
+	// ID is the unique 1-based log identifier.
+	ID uint32
+	// Timestamp is the log entry occurrence time in Unix nanoseconds.
+	Timestamp int64
+	// LogTypeID is the style chunk ID of the log type.
+	LogTypeID uint32
+	// SeverityTypeID is the style chunk ID of the log severity.
+	SeverityTypeID uint32
+	// SummaryStringID is the intern pool ID of the log summary string.
+	SummaryStringID uint32
+	// BodyStructID is the intern pool ID of the structured log body.
+	BodyStructID uint32
+}
+
+type contextKey string
 
 // ForEachLogID iterates over all log IDs associated with this timeline's events and revisions.
 // If the callback returns false, iteration stops early.
@@ -145,18 +196,6 @@ func (t *TimelineData) ComputePath(tlMap map[uint32]*TimelineData) map[string]st
 	return path
 }
 
-// StyleResolver resolves style attributes (e.g. log type label, severity order) from their IDs.
-type StyleResolver interface {
-	ResolveLogType(id uint32) string
-	ResolveSeverity(id uint32) uint32
-}
-
-// SimpleStyleResolver provides a map-based StyleResolver implementation for evaluation and testing.
-type SimpleStyleResolver struct {
-	LogTypes   map[uint32]string
-	Severities map[uint32]uint32
-}
-
 // ResolveLogType returns the log type label corresponding to the given ID.
 func (s *SimpleStyleResolver) ResolveLogType(id uint32) string {
 	if s != nil && s.LogTypes != nil {
@@ -171,20 +210,6 @@ func (s *SimpleStyleResolver) ResolveSeverity(id uint32) uint32 {
 		return s.Severities[id]
 	}
 	return 0
-}
-
-var _ StyleResolver = (*SimpleStyleResolver)(nil)
-
-// LogData encapsulates the indexed log attributes and struct ID required for CEL evaluation.
-// It holds primitive IDs to ensure zero pointers and minimal memory footprint.
-type LogData struct {
-	ID uint32
-	// Timestamp is the log entry occurrence time in Unix nanoseconds.
-	Timestamp       int64
-	LogTypeID       uint32
-	SeverityTypeID  uint32
-	SummaryStringID uint32
-	BodyStructID    uint32
 }
 
 // WithTimelineContext binds the given TimelineData to the context for CEL evaluation.

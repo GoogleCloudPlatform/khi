@@ -34,6 +34,34 @@ const LabelKeyProvidedTagPriorityPrefix = KHISystemPrefix + "provided-tag-priori
 // LabelKeyProvidedTagTypePrefix is the prefix used for tag output type labels on tasks.
 const LabelKeyProvidedTagTypePrefix = KHISystemPrefix + "provided-tag-type/"
 
+var (
+	_ ProvidesTagOption = (*withTagPriorityOption)(nil)
+	_ LabelOpt          = (*providesTagLabelOpt[any])(nil)
+)
+
+// Tag represents a strongly-typed tag identifier that groups task outputs of type TaskResult.
+type Tag[TaskResult any] struct {
+	id string
+}
+
+// ProvidesTagOption is an option to configure tag provision attributes on a task.
+type ProvidesTagOption interface {
+	applyProvidesTag(*providesTagConfig)
+}
+
+type providesTagConfig struct {
+	priority int
+}
+
+type withTagPriorityOption struct {
+	priority int
+}
+
+type providesTagLabelOpt[TaskResult any] struct {
+	tag      Tag[TaskResult]
+	priority int
+}
+
 // LabelKeyProvidedTag returns a TaskLabelKey to record a provided tag on a task.
 func LabelKeyProvidedTag(tagID string) TaskLabelKey[bool] {
 	return NewTaskLabelKey[bool](LabelKeyProvidedTagPrefix + tagID)
@@ -47,11 +75,6 @@ func LabelKeyProvidedTagPriority(tagID string) TaskLabelKey[int] {
 // LabelKeyProvidedTagType returns a TaskLabelKey to record the output type of a provided tag on a task.
 func LabelKeyProvidedTagType(tagID string) TaskLabelKey[string] {
 	return NewTaskLabelKey[string](LabelKeyProvidedTagTypePrefix + tagID)
-}
-
-// Tag represents a strongly-typed tag identifier that groups task outputs of type TaskResult.
-type Tag[TaskResult any] struct {
-	id string
 }
 
 // NewTag creates a new typed tag with the given identifier.
@@ -77,44 +100,12 @@ func (t Tag[TaskResult]) Ref(opts ...taskid.FanInOption) TagReference[TaskResult
 	return NewTagReference[TaskResult](t.id, opts...)
 }
 
-// ProvidesTagOption is an option to configure tag provision attributes on a task.
-type ProvidesTagOption interface {
-	applyProvidesTag(*providesTagConfig)
-}
-
-type providesTagConfig struct {
-	priority int
-}
-
-type withTagPriorityOption struct {
-	priority int
-}
-
-func (w *withTagPriorityOption) applyProvidesTag(c *providesTagConfig) {
-	c.priority = w.priority
-}
-
-var _ ProvidesTagOption = (*withTagPriorityOption)(nil)
-
 // WithTagPriority returns a ProvidesTagOption specifying the priority weight of the provided tag during graph resolution and cycle pruning.
 // Lower numerical values indicate higher precedence (e.g. 10 is higher priority than 100).
 // The default priority when unspecified is DefaultTagPriority (100).
 func WithTagPriority(priority int) ProvidesTagOption {
 	return &withTagPriorityOption{priority: priority}
 }
-
-type providesTagLabelOpt[TaskResult any] struct {
-	tag      Tag[TaskResult]
-	priority int
-}
-
-func (p *providesTagLabelOpt[TaskResult]) Write(labels *typedmap.TypedMap) {
-	typedmap.Set(labels, LabelKeyProvidedTag(p.tag.ID()), true)
-	typedmap.Set(labels, LabelKeyProvidedTagPriority(p.tag.ID()), p.priority)
-	typedmap.Set(labels, LabelKeyProvidedTagType(p.tag.ID()), reflect.TypeFor[TaskResult]().String())
-}
-
-var _ LabelOpt = (*providesTagLabelOpt[any])(nil)
 
 // ProvidesTag returns a LabelOpt declaring that the task provides the given typed tag.
 // Optional ProvidesTagOptions (such as WithTagPriority) can be specified to adjust tag attributes.
@@ -129,4 +120,14 @@ func ProvidesTag[TaskResult any](tag Tag[TaskResult], opts ...ProvidesTagOption)
 		tag:      tag,
 		priority: cfg.priority,
 	}
+}
+
+func (w *withTagPriorityOption) applyProvidesTag(c *providesTagConfig) {
+	c.priority = w.priority
+}
+
+func (p *providesTagLabelOpt[TaskResult]) Write(labels *typedmap.TypedMap) {
+	typedmap.Set(labels, LabelKeyProvidedTag(p.tag.ID()), true)
+	typedmap.Set(labels, LabelKeyProvidedTagPriority(p.tag.ID()), p.priority)
+	typedmap.Set(labels, LabelKeyProvidedTagType(p.tag.ID()), reflect.TypeFor[TaskResult]().String())
 }

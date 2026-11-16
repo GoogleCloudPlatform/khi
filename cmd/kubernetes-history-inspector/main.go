@@ -23,7 +23,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
-
 	_ "github.com/GoogleCloudPlatform/khi/pkg/core/init/default"
 )
 

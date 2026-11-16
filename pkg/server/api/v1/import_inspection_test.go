@@ -23,6 +23,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
+
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
@@ -31,8 +34,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/importinspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/proto"
 )
 
 func createTestBinaryKHIBytes(t *testing.T, inspectionName string) []byte {

@@ -17,8 +17,9 @@ package workbench
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench/cel"
 )
 
 func TestBuildFilterVocabulary(t *testing.T) {

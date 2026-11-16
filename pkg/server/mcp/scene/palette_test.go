@@ -20,9 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 	"github.com/google/go-cmp/cmp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
 func TestBuildPaletteRegistry_PresetsAndHex(t *testing.T) {

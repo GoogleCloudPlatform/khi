@@ -31,10 +31,22 @@ const (
 	RuleIDLogExistence = "log-existence"
 )
 
+var _ ValidationRule = (*LogExistenceRule)(nil)
+
 // LogExistenceRule verifies that inline code spans in a Markdown report exist in the inspection logs.
 type LogExistenceRule struct{}
 
-var _ ValidationRule = (*LogExistenceRule)(nil)
+type spanValidationOutcome struct {
+	grounded bool
+	message  string
+}
+
+type logTermMatcher struct {
+	index      *SearchIndex
+	serializer *khifilev6model.DirectYAMLSerializer
+	termCache  map[string]bool
+	yamlCache  map[uint32]string
+}
 
 // NewLogExistenceRule creates a new LogExistenceRule.
 func NewLogExistenceRule() *LogExistenceRule {
@@ -49,11 +61,6 @@ func (r *LogExistenceRule) ID() string {
 // Description returns a short summary of the rule.
 func (r *LogExistenceRule) Description() string {
 	return "Inline code spans (`...`) must exist in the inspection logs."
-}
-
-type spanValidationOutcome struct {
-	grounded bool
-	message  string
 }
 
 // Validate checks every inline code span in report against the workbench's search index and trigram index.
@@ -91,13 +98,6 @@ func (r *LogExistenceRule) Validate(ctx context.Context, report string, wb *Work
 	}
 
 	return findings, nil
-}
-
-type logTermMatcher struct {
-	index      *SearchIndex
-	serializer *khifilev6model.DirectYAMLSerializer
-	termCache  map[string]bool
-	yamlCache  map[uint32]string
 }
 
 func newLogTermMatcher(index *SearchIndex) *logTermMatcher {
@@ -161,28 +161,6 @@ func (m *logTermMatcher) checkCompositeParts(parts []string) (grounded bool, mis
 		}
 	}
 	return len(missing) == 0, missing, true
-}
-
-func splitNonEmpty(s, sep string) []string {
-	raw := strings.Split(s, sep)
-	parts := make([]string, 0, len(raw))
-	for _, p := range raw {
-		if p != "" {
-			parts = append(parts, p)
-		}
-	}
-	return parts
-}
-
-func formatCompositeMissingMessage(missing []string) string {
-	if len(missing) == 1 {
-		return fmt.Sprintf("Not found in inspection logs (unmatched component: `%s`).", missing[0])
-	}
-	quoted := make([]string, len(missing))
-	for i, item := range missing {
-		quoted[i] = "`" + item + "`"
-	}
-	return fmt.Sprintf("Not found in inspection logs (unmatched components: %s).", strings.Join(quoted, ", "))
 }
 
 // isTermGrounded checks whether term appears in any log summary or serialized log YAML body using the trigram index for candidate filtering.
@@ -254,4 +232,26 @@ func (m *logTermMatcher) resolveStructYAML(structID uint32) (string, bool) {
 	}
 	m.yamlCache[structID] = yamlStr
 	return yamlStr, true
+}
+
+func splitNonEmpty(s, sep string) []string {
+	raw := strings.Split(s, sep)
+	parts := make([]string, 0, len(raw))
+	for _, p := range raw {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return parts
+}
+
+func formatCompositeMissingMessage(missing []string) string {
+	if len(missing) == 1 {
+		return fmt.Sprintf("Not found in inspection logs (unmatched component: `%s`).", missing[0])
+	}
+	quoted := make([]string, len(missing))
+	for i, item := range missing {
+		quoted[i] = "`" + item + "`"
+	}
+	return fmt.Sprintf("Not found in inspection logs (unmatched components: %s).", strings.Join(quoted, ", "))
 }

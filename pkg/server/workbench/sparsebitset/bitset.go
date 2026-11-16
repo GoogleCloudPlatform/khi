@@ -17,8 +17,9 @@ package sparsebitset
 import (
 	"slices"
 
-	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 	"github.com/RoaringBitmap/roaring/v2"
+
+	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
 
 // Encode encodes a slice of uint32 IDs into a compact SparseBitset.

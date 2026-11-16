@@ -79,6 +79,8 @@ var logToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(g
 		true),
 )
 
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*gkeAuditTimelineMapper)(nil)
+
 // gkeAuditTimelineMapper maps GKE audit logs to the timelines of clusters and node pools.
 type gkeAuditTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
@@ -89,8 +91,6 @@ type gkeAuditTimelineMapper struct {
 func (m *gkeAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {
 	return mapGKEAuditLog(ctx, l, tracker, m.initialStateProvider.Get(ctx))
 }
-
-var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*gkeAuditTimelineMapper)(nil)
 
 // mapGKEAuditLog maps a GKE audit log resource update to timeline events and revisions. It takes the initial state provider as a value so that tests can call it without running the task.
 func mapGKEAuditLog(ctx context.Context, l *log.Log, tracker *gcpcommon.GCPOperationTracker, initialStateProvider gkeapiaudit.InitialResourceStateProvider) (*khifilev6.TimelineChangeSet, *gcpcommon.GCPOperationTracker, error) {

@@ -31,32 +31,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 )
 
+var (
+	_ ReadonlyPool = (*InternPool)(nil)
+	_ flatSpanPool = (*InternPool)(nil)
+)
+
 // InternStringRef represents a reference to an interned string.
 // This struct holds a reference to the pool and the ID of the string.
 type InternStringRef struct {
 	pool *InternPool
 	id   uint32
-}
-
-// Resolve returns the original string value.
-// It delegates to the pool to resolve the string from the stored ID.
-func (r InternStringRef) Resolve() string {
-	return r.pool.resolveStringFromID(r.id)
-}
-
-// ID returns the interned string ID.
-func (r InternStringRef) ID() uint32 {
-	return r.id
-}
-
-// ToProto converts InternStringRef to its proto representation.
-func (r InternStringRef) ToProto() *pbv6.InternString {
-	id := r.id
-	val := r.Resolve()
-	return &pbv6.InternString{
-		Id:    &id,
-		Value: &val,
-	}
 }
 
 // FieldPathSetRef represents a reference to an interned field path set.
@@ -66,65 +50,11 @@ type FieldPathSetRef struct {
 	id   uint32
 }
 
-// Resolve returns the original list of strings in the set.
-// It delegates to the pool to resolve the field path set and then resolves each string ID.
-func (r FieldPathSetRef) Resolve() []string {
-	ids := r.pool.resolveFieldSetFromID(r.id)
-	res := make([]string, len(ids))
-	for i, id := range ids {
-		res[i] = r.pool.resolveStringFromID(id)
-	}
-	return res
-}
-
-// ID returns the interned field path set ID.
-func (r FieldPathSetRef) ID() uint32 {
-	return r.id
-}
-
-// ToProto converts FieldPathSetRef to its proto representation.
-func (r FieldPathSetRef) ToProto() *pbv6.InternFieldPathSet {
-	id := r.id
-	names := r.pool.resolveFieldSetFromID(r.id)
-	return &pbv6.InternFieldPathSet{
-		Id:                 &id,
-		FieldPathStringIds: names,
-	}
-}
-
 // InternStructRef represents a reference to an interned struct.
 // This struct holds a reference to the pool and the ID of the struct.
 type InternStructRef struct {
 	pool *InternPool
 	id   uint32
-}
-
-// ID returns the interned struct ID.
-func (r InternStructRef) ID() uint32 {
-	return r.id
-}
-
-// Resolve returns the underlying pb.InternedStruct protobuf message.
-func (r InternStructRef) Resolve() *pb.InternedStruct {
-	return r.pool.resolveStructFromID(r.id)
-}
-
-// ToProto converts InternStructRef to its proto representation.
-func (r InternStructRef) ToProto() *pb.InternedStruct {
-	return r.Resolve()
-}
-
-// InternPool manages interning of strings, field path sets, and structs to reduce memory usage.
-// stagedString holds an unflushed interned string as a flat value to avoid protobuf pointer allocations.
-type stagedString struct {
-	id    uint32
-	value string
-}
-
-// stagedFieldSet holds an unflushed interned field path set as a flat value to avoid protobuf pointer allocations.
-type stagedFieldSet struct {
-	id                 uint32
-	fieldPathStringIDs []uint32
 }
 
 // InternPool manages interning for strings, field paths, and structs in KHI v6.
@@ -158,10 +88,79 @@ type InternPool struct {
 	unflushedStructIDs []uint32
 }
 
-var (
-	_ ReadonlyPool = (*InternPool)(nil)
-	_ flatSpanPool = (*InternPool)(nil)
-)
+// stagedString holds an unflushed interned string as a flat value to avoid protobuf pointer allocations.
+type stagedString struct {
+	id    uint32
+	value string
+}
+
+// stagedFieldSet holds an unflushed interned field path set as a flat value to avoid protobuf pointer allocations.
+type stagedFieldSet struct {
+	id                 uint32
+	fieldPathStringIDs []uint32
+}
+
+// Resolve returns the original string value.
+// It delegates to the pool to resolve the string from the stored ID.
+func (r InternStringRef) Resolve() string {
+	return r.pool.resolveStringFromID(r.id)
+}
+
+// ID returns the interned string ID.
+func (r InternStringRef) ID() uint32 {
+	return r.id
+}
+
+// ToProto converts InternStringRef to its proto representation.
+func (r InternStringRef) ToProto() *pbv6.InternString {
+	id := r.id
+	val := r.Resolve()
+	return &pbv6.InternString{
+		Id:    &id,
+		Value: &val,
+	}
+}
+
+// Resolve returns the original list of strings in the set.
+// It delegates to the pool to resolve the field path set and then resolves each string ID.
+func (r FieldPathSetRef) Resolve() []string {
+	ids := r.pool.resolveFieldSetFromID(r.id)
+	res := make([]string, len(ids))
+	for i, id := range ids {
+		res[i] = r.pool.resolveStringFromID(id)
+	}
+	return res
+}
+
+// ID returns the interned field path set ID.
+func (r FieldPathSetRef) ID() uint32 {
+	return r.id
+}
+
+// ToProto converts FieldPathSetRef to its proto representation.
+func (r FieldPathSetRef) ToProto() *pbv6.InternFieldPathSet {
+	id := r.id
+	names := r.pool.resolveFieldSetFromID(r.id)
+	return &pbv6.InternFieldPathSet{
+		Id:                 &id,
+		FieldPathStringIds: names,
+	}
+}
+
+// ID returns the interned struct ID.
+func (r InternStructRef) ID() uint32 {
+	return r.id
+}
+
+// Resolve returns the underlying pb.InternedStruct protobuf message.
+func (r InternStructRef) Resolve() *pb.InternedStruct {
+	return r.pool.resolveStructFromID(r.id)
+}
+
+// ToProto converts InternStructRef to its proto representation.
+func (r InternStructRef) ToProto() *pb.InternedStruct {
+	return r.Resolve()
+}
 
 // NewInternPool creates a new client InternPool with the given IDGenerator and Writer.
 func NewInternPool(idGen *id.Generator, writer *Writer) *InternPool {
@@ -202,45 +201,6 @@ func NewServerInternPool(parent *InternPool, idGen *id.Generator, writer *Writer
 // NewTestServerInternPool creates a server InternPool with MustNewTestWriter for testing purposes.
 func NewTestServerInternPool(parent *InternPool, idGen *id.Generator) *InternPool {
 	return NewServerInternPool(parent, idGen, MustNewTestWriter())
-}
-
-func (p *InternPool) strIndex(idVal uint32) int {
-	if p.idNs == id.ServerString {
-		if idVal <= id.ServerStringIDBase {
-			return -1
-		}
-		return int(idVal - id.ServerStringIDBase - 1)
-	}
-	if idVal == 0 {
-		return -1
-	}
-	return int(idVal - 1)
-}
-
-func (p *InternPool) storeString(idVal uint32, value string) {
-	idx := p.strIndex(idVal)
-	if idx < 0 {
-		return
-	}
-	p.idToStrMu.Lock()
-	defer p.idToStrMu.Unlock()
-	if idx >= len(p.idToStr) {
-		p.idToStr = slices.Grow(p.idToStr, idx+1-len(p.idToStr))[:idx+1]
-	}
-	p.idToStr[idx] = value
-}
-
-func (p *InternPool) storeFieldSet(idVal uint32, fieldSet []uint32) {
-	if idVal == 0 {
-		return
-	}
-	idx := int(idVal - 1)
-	p.idToFieldSetMu.Lock()
-	defer p.idToFieldSetMu.Unlock()
-	if idx >= len(p.idToFieldSet) {
-		p.idToFieldSet = slices.Grow(p.idToFieldSet, idx+1-len(p.idToFieldSet))[:idx+1]
-	}
-	p.idToFieldSet[idx] = fieldSet
 }
 
 // FlatStructStore returns the underlying FlatStructStore.
@@ -310,27 +270,6 @@ func (p *InternPool) ResolveStringFromID(id uint32) string {
 	return p.resolveStringFromID(id)
 }
 
-// resolveStringFromID returns the string corresponding to the given ID.
-// It returns an empty string if the ID is not found.
-func (p *InternPool) resolveStringFromID(id uint32) string {
-	idx := p.strIndex(id)
-	if idx >= 0 {
-		p.idToStrMu.RLock()
-		var val string
-		if idx < len(p.idToStr) {
-			val = p.idToStr[idx]
-		}
-		p.idToStrMu.RUnlock()
-		if val != "" {
-			return val
-		}
-	}
-	if p.parentPool != nil {
-		return p.parentPool.resolveStringFromID(id)
-	}
-	return ""
-}
-
 // InternFieldSet returns a FieldPathSetRef for the given list of strings.
 // It first interns each string to get its ID, and then interns the resulting list of IDs.
 func (p *InternPool) InternFieldSet(fieldNames []string) FieldPathSetRef {
@@ -374,95 +313,11 @@ func (p *InternPool) ResolveFieldSetFromID(idVal uint32) []uint32 {
 	return p.resolveFieldSetFromID(idVal)
 }
 
-// resolveFieldSetFromID returns the field path set corresponding to the given ID.
-// It returns nil if the ID is not found.
-func (p *InternPool) resolveFieldSetFromID(id uint32) []uint32 {
-	if id == 0 {
-		return nil
-	}
-	idx := int(id - 1)
-	p.idToFieldSetMu.RLock()
-	defer p.idToFieldSetMu.RUnlock()
-	if idx < len(p.idToFieldSet) {
-		return p.idToFieldSet[idx]
-	}
-	return nil
-}
-
 // InternStruct returns an InternStructRef for the given fieldPathSetID and values.
 // It checks if an identical struct is already interned, and if not, assigns a new ID and stores it.
 func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedValue) InternStructRef {
 	key := structKey(fieldPathSetID, values)
 	return p.internStructWithKey(fieldPathSetID, values, key)
-}
-
-func (p *InternPool) internStructWithKey(fieldPathSetID uint32, values []*pb.InternedValue, key string) InternStructRef {
-	if idVal, ok := p.structToID.Load(key); ok {
-		return InternStructRef{pool: p, id: idVal}
-	}
-
-	newID := p.idGen.New(id.Struct)
-	p.flatStructs.Store(newID, fieldPathSetID, values)
-
-	actual, loaded := p.structToID.LoadOrStore(key, newID)
-	if loaded {
-		return InternStructRef{pool: p, id: actual}
-	}
-
-	p.stageStruct(newID)
-
-	return InternStructRef{pool: p, id: newID}
-}
-
-func (p *InternPool) stageString(idVal uint32, val string) {
-	// Approximate Protobuf encoded size: tag + varint(id) + tag + varint(len) + len(val) + chunk framing.
-	itemSize := len(val) + 16
-
-	p.flushMu.Lock()
-	defer p.flushMu.Unlock()
-
-	p.unflushedStrings = append(p.unflushedStrings, stagedString{
-		id:    idVal,
-		value: val,
-	})
-	p.currentBatchSize += itemSize
-
-	if p.currentBatchSize >= p.chunkSizeLimit {
-		_ = p.flushLocked()
-	}
-}
-
-func (p *InternPool) stageFieldSet(idVal uint32, ids []uint32) {
-	// Approximate Protobuf encoded size: tag + varint(id) + tag + varint(len) + repeated varints + chunk framing.
-	itemSize := 16 + len(ids)*4
-
-	p.flushMu.Lock()
-	defer p.flushMu.Unlock()
-
-	p.unflushedFieldSets = append(p.unflushedFieldSets, stagedFieldSet{
-		id:                 idVal,
-		fieldPathStringIDs: ids,
-	})
-	p.currentBatchSize += itemSize
-
-	if p.currentBatchSize >= p.chunkSizeLimit {
-		_ = p.flushLocked()
-	}
-}
-
-func (p *InternPool) stageStruct(idVal uint32) {
-	_, _, count, _ := p.flatStructs.GetValueSpan(idVal)
-	itemSize := int(16 + count*12 + 8)
-
-	p.flushMu.Lock()
-	defer p.flushMu.Unlock()
-
-	p.unflushedStructIDs = append(p.unflushedStructIDs, idVal)
-	p.currentBatchSize += itemSize
-
-	if p.currentBatchSize >= p.chunkSizeLimit {
-		_ = p.flushLocked()
-	}
 }
 
 // SetChunkSizeLimit overrides the default chunk size limit for testing or performance tuning.
@@ -482,79 +337,6 @@ func (p *InternPool) Flush() error {
 	return p.flushLocked()
 }
 
-func (p *InternPool) flushLocked() error {
-	if p.err != nil {
-		return p.err
-	}
-	if len(p.unflushedStrings) == 0 && len(p.unflushedFieldSets) == 0 && len(p.unflushedStructIDs) == 0 {
-		return nil
-	}
-
-	// Sort items inside the chunk before flushing to optimize gzip compression.
-	slices.SortFunc(p.unflushedStrings, func(a, b stagedString) int {
-		return strings.Compare(a.value, b.value)
-	})
-	slices.SortFunc(p.unflushedFieldSets, func(a, b stagedFieldSet) int {
-		return cmp.Compare(a.id, b.id)
-	})
-
-	pbStrings := make([]*pbv6.InternString, len(p.unflushedStrings))
-	for i := range p.unflushedStrings {
-		id := p.unflushedStrings[i].id
-		val := p.unflushedStrings[i].value
-		pbStrings[i] = &pbv6.InternString{
-			Id:    &id,
-			Value: &val,
-		}
-	}
-
-	pbFieldSets := make([]*pbv6.InternFieldPathSet, len(p.unflushedFieldSets))
-	for i := range p.unflushedFieldSets {
-		id := p.unflushedFieldSets[i].id
-		pbFieldSets[i] = &pbv6.InternFieldPathSet{
-			Id:                 &id,
-			FieldPathStringIds: p.unflushedFieldSets[i].fieldPathStringIDs,
-		}
-	}
-
-	structs := make([]*pb.InternedStruct, 0, len(p.unflushedStructIDs))
-	for _, sID := range p.unflushedStructIDs {
-		if s := p.flatStructs.ResolveStruct(sID); s != nil {
-			structs = append(structs, s)
-		}
-	}
-	slices.SortFunc(structs, func(a, b *pb.InternedStruct) int {
-		if diff := cmp.Compare(a.GetFieldPathSetId(), b.GetFieldPathSetId()); diff != 0 {
-			return diff
-		}
-		return cmp.Compare(a.GetId(), b.GetId())
-	})
-
-	chunk := &pbv6.InterningPoolChunk{
-		Strings:       pbStrings,
-		FieldPathSets: pbFieldSets,
-		Structs:       structs,
-	}
-
-	p.unflushedStrings = p.unflushedStrings[:0]
-	p.unflushedFieldSets = p.unflushedFieldSets[:0]
-	p.unflushedStructIDs = p.unflushedStructIDs[:0]
-	p.currentBatchSize = 0
-
-	rawChunk, err := CompressChunk(p.chunkType, chunk)
-	if err != nil {
-		p.err = fmt.Errorf("failed to compress intern pool chunk: %w", err)
-		return p.err
-	}
-
-	if err := p.writer.WriteRawChunk(rawChunk); err != nil {
-		p.err = fmt.Errorf("failed to write intern pool raw chunk: %w", err)
-		return p.err
-	}
-
-	return nil
-}
-
 // ResolveStructFromID returns the InternedStruct corresponding to the given ID.
 // It returns nil if the ID is not found.
 func (p *InternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
@@ -566,34 +348,6 @@ func (p *InternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
 // Falls back to parentPool when structID is not stored in this pool, and returns ("", false) when missing or non-string.
 func (p *InternPool) ResolveStructStringField(structID uint32, fieldPath ...string) (string, bool) {
 	return resolveStructStringField(p, structID, fieldPath)
-}
-
-// resolveFlatStructSpan locates the FlatStructStore span for structID in this pool or its parent chain.
-func (p *InternPool) resolveFlatStructSpan(structID uint32) (flatStructSpan, bool) {
-	for cur := p; cur != nil; cur = cur.parentPool {
-		if cur.flatStructs == nil {
-			continue
-		}
-		if fieldSetID, offset, count, ok := cur.flatStructs.GetValueSpan(structID); ok {
-			return flatStructSpan{pool: cur, store: cur.flatStructs, fieldSetID: fieldSetID, offset: offset, count: count}, true
-		}
-	}
-	return flatStructSpan{}, false
-}
-
-// resolveStructFromID returns the InternedStruct corresponding to the given ID.
-// It returns nil if the ID is not found.
-func (p *InternPool) resolveStructFromID(id uint32) *pb.InternedStruct {
-	if id == 0 {
-		return nil
-	}
-	if s := p.flatStructs.ResolveStruct(id); s != nil {
-		return s
-	}
-	if p.parentPool != nil {
-		return p.parentPool.resolveStructFromID(id)
-	}
-	return nil
 }
 
 // SortedStringRefs returns an iterator that yields InternStringRefs in the pool, sorted by their original string value.
@@ -696,6 +450,251 @@ func (p *InternPool) Dispose() {
 	p.unflushedStrings = nil
 	p.unflushedFieldSets = nil
 	p.unflushedStructIDs = nil
+}
+
+func (p *InternPool) strIndex(idVal uint32) int {
+	if p.idNs == id.ServerString {
+		if idVal <= id.ServerStringIDBase {
+			return -1
+		}
+		return int(idVal - id.ServerStringIDBase - 1)
+	}
+	if idVal == 0 {
+		return -1
+	}
+	return int(idVal - 1)
+}
+
+func (p *InternPool) storeString(idVal uint32, value string) {
+	idx := p.strIndex(idVal)
+	if idx < 0 {
+		return
+	}
+	p.idToStrMu.Lock()
+	defer p.idToStrMu.Unlock()
+	if idx >= len(p.idToStr) {
+		p.idToStr = slices.Grow(p.idToStr, idx+1-len(p.idToStr))[:idx+1]
+	}
+	p.idToStr[idx] = value
+}
+
+func (p *InternPool) storeFieldSet(idVal uint32, fieldSet []uint32) {
+	if idVal == 0 {
+		return
+	}
+	idx := int(idVal - 1)
+	p.idToFieldSetMu.Lock()
+	defer p.idToFieldSetMu.Unlock()
+	if idx >= len(p.idToFieldSet) {
+		p.idToFieldSet = slices.Grow(p.idToFieldSet, idx+1-len(p.idToFieldSet))[:idx+1]
+	}
+	p.idToFieldSet[idx] = fieldSet
+}
+
+// resolveStringFromID returns the string corresponding to the given ID.
+// It returns an empty string if the ID is not found.
+func (p *InternPool) resolveStringFromID(id uint32) string {
+	idx := p.strIndex(id)
+	if idx >= 0 {
+		p.idToStrMu.RLock()
+		var val string
+		if idx < len(p.idToStr) {
+			val = p.idToStr[idx]
+		}
+		p.idToStrMu.RUnlock()
+		if val != "" {
+			return val
+		}
+	}
+	if p.parentPool != nil {
+		return p.parentPool.resolveStringFromID(id)
+	}
+	return ""
+}
+
+// resolveFieldSetFromID returns the field path set corresponding to the given ID.
+// It returns nil if the ID is not found.
+func (p *InternPool) resolveFieldSetFromID(id uint32) []uint32 {
+	if id == 0 {
+		return nil
+	}
+	idx := int(id - 1)
+	p.idToFieldSetMu.RLock()
+	defer p.idToFieldSetMu.RUnlock()
+	if idx < len(p.idToFieldSet) {
+		return p.idToFieldSet[idx]
+	}
+	return nil
+}
+
+func (p *InternPool) internStructWithKey(fieldPathSetID uint32, values []*pb.InternedValue, key string) InternStructRef {
+	if idVal, ok := p.structToID.Load(key); ok {
+		return InternStructRef{pool: p, id: idVal}
+	}
+
+	newID := p.idGen.New(id.Struct)
+	p.flatStructs.Store(newID, fieldPathSetID, values)
+
+	actual, loaded := p.structToID.LoadOrStore(key, newID)
+	if loaded {
+		return InternStructRef{pool: p, id: actual}
+	}
+
+	p.stageStruct(newID)
+
+	return InternStructRef{pool: p, id: newID}
+}
+
+func (p *InternPool) stageString(idVal uint32, val string) {
+	// Approximate Protobuf encoded size: tag + varint(id) + tag + varint(len) + len(val) + chunk framing.
+	itemSize := len(val) + 16
+
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+
+	p.unflushedStrings = append(p.unflushedStrings, stagedString{
+		id:    idVal,
+		value: val,
+	})
+	p.currentBatchSize += itemSize
+
+	if p.currentBatchSize >= p.chunkSizeLimit {
+		_ = p.flushLocked()
+	}
+}
+
+func (p *InternPool) stageFieldSet(idVal uint32, ids []uint32) {
+	// Approximate Protobuf encoded size: tag + varint(id) + tag + varint(len) + repeated varints + chunk framing.
+	itemSize := 16 + len(ids)*4
+
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+
+	p.unflushedFieldSets = append(p.unflushedFieldSets, stagedFieldSet{
+		id:                 idVal,
+		fieldPathStringIDs: ids,
+	})
+	p.currentBatchSize += itemSize
+
+	if p.currentBatchSize >= p.chunkSizeLimit {
+		_ = p.flushLocked()
+	}
+}
+
+func (p *InternPool) stageStruct(idVal uint32) {
+	_, _, count, _ := p.flatStructs.GetValueSpan(idVal)
+	itemSize := int(16 + count*12 + 8)
+
+	p.flushMu.Lock()
+	defer p.flushMu.Unlock()
+
+	p.unflushedStructIDs = append(p.unflushedStructIDs, idVal)
+	p.currentBatchSize += itemSize
+
+	if p.currentBatchSize >= p.chunkSizeLimit {
+		_ = p.flushLocked()
+	}
+}
+
+func (p *InternPool) flushLocked() error {
+	if p.err != nil {
+		return p.err
+	}
+	if len(p.unflushedStrings) == 0 && len(p.unflushedFieldSets) == 0 && len(p.unflushedStructIDs) == 0 {
+		return nil
+	}
+
+	// Sort items inside the chunk before flushing to optimize gzip compression.
+	slices.SortFunc(p.unflushedStrings, func(a, b stagedString) int {
+		return strings.Compare(a.value, b.value)
+	})
+	slices.SortFunc(p.unflushedFieldSets, func(a, b stagedFieldSet) int {
+		return cmp.Compare(a.id, b.id)
+	})
+
+	pbStrings := make([]*pbv6.InternString, len(p.unflushedStrings))
+	for i := range p.unflushedStrings {
+		id := p.unflushedStrings[i].id
+		val := p.unflushedStrings[i].value
+		pbStrings[i] = &pbv6.InternString{
+			Id:    &id,
+			Value: &val,
+		}
+	}
+
+	pbFieldSets := make([]*pbv6.InternFieldPathSet, len(p.unflushedFieldSets))
+	for i := range p.unflushedFieldSets {
+		id := p.unflushedFieldSets[i].id
+		pbFieldSets[i] = &pbv6.InternFieldPathSet{
+			Id:                 &id,
+			FieldPathStringIds: p.unflushedFieldSets[i].fieldPathStringIDs,
+		}
+	}
+
+	structs := make([]*pb.InternedStruct, 0, len(p.unflushedStructIDs))
+	for _, sID := range p.unflushedStructIDs {
+		if s := p.flatStructs.ResolveStruct(sID); s != nil {
+			structs = append(structs, s)
+		}
+	}
+	slices.SortFunc(structs, func(a, b *pb.InternedStruct) int {
+		if diff := cmp.Compare(a.GetFieldPathSetId(), b.GetFieldPathSetId()); diff != 0 {
+			return diff
+		}
+		return cmp.Compare(a.GetId(), b.GetId())
+	})
+
+	chunk := &pbv6.InterningPoolChunk{
+		Strings:       pbStrings,
+		FieldPathSets: pbFieldSets,
+		Structs:       structs,
+	}
+
+	p.unflushedStrings = p.unflushedStrings[:0]
+	p.unflushedFieldSets = p.unflushedFieldSets[:0]
+	p.unflushedStructIDs = p.unflushedStructIDs[:0]
+	p.currentBatchSize = 0
+
+	rawChunk, err := CompressChunk(p.chunkType, chunk)
+	if err != nil {
+		p.err = fmt.Errorf("failed to compress intern pool chunk: %w", err)
+		return p.err
+	}
+
+	if err := p.writer.WriteRawChunk(rawChunk); err != nil {
+		p.err = fmt.Errorf("failed to write intern pool raw chunk: %w", err)
+		return p.err
+	}
+
+	return nil
+}
+
+// resolveFlatStructSpan locates the FlatStructStore span for structID in this pool or its parent chain.
+func (p *InternPool) resolveFlatStructSpan(structID uint32) (flatStructSpan, bool) {
+	for cur := p; cur != nil; cur = cur.parentPool {
+		if cur.flatStructs == nil {
+			continue
+		}
+		if fieldSetID, offset, count, ok := cur.flatStructs.GetValueSpan(structID); ok {
+			return flatStructSpan{pool: cur, store: cur.flatStructs, fieldSetID: fieldSetID, offset: offset, count: count}, true
+		}
+	}
+	return flatStructSpan{}, false
+}
+
+// resolveStructFromID returns the InternedStruct corresponding to the given ID.
+// It returns nil if the ID is not found.
+func (p *InternPool) resolveStructFromID(id uint32) *pb.InternedStruct {
+	if id == 0 {
+		return nil
+	}
+	if s := p.flatStructs.ResolveStruct(id); s != nil {
+		return s
+	}
+	if p.parentPool != nil {
+		return p.parentPool.resolveStructFromID(id)
+	}
+	return nil
 }
 
 // fieldSetKeyBytes views a slice of uint32 as a byte slice without copying.

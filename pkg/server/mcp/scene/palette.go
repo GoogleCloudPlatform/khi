@@ -22,8 +22,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 )
 
 const (
@@ -34,17 +35,6 @@ const (
 	lightOnMainHex            = "#fafafa"
 	darkOnMainHex             = "#212121"
 )
-
-type revAnchorKey struct {
-	timelineID uint32
-	revIndex   int
-}
-
-type rgbColor struct {
-	r uint8
-	g uint8
-	b uint8
-}
 
 var presetPaletteColors = map[string]string{
 	"blue":   "#1976d2",
@@ -63,6 +53,17 @@ var (
 	lightOnMainLuminance = relativeLuminance(mustParseHexColor(lightOnMainHex))
 	darkOnMainLuminance  = relativeLuminance(mustParseHexColor(darkOnMainHex))
 )
+
+type revAnchorKey struct {
+	timelineID uint32
+	revIndex   int
+}
+
+type rgbColor struct {
+	r uint8
+	g uint8
+	b uint8
+}
 
 type paletteRegistry struct {
 	ordered       []ResolvedPaletteColors

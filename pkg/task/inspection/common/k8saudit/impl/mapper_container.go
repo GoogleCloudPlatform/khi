@@ -27,9 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
-// containerType is the type of the container.
-type containerType string
-
 const (
 	// ContainerTypeContainer is the container type for standard containers.
 	ContainerTypeContainer containerType = "container"
@@ -39,12 +36,18 @@ const (
 	ContainerTypeEphemeral containerType = "ephemeral"
 )
 
-type containerStatusIdentity struct {
-	// containerName is the name of the container.
-	containerName string
-	// containerType is the type of the container.
-	containerType containerType
-}
+var (
+	pathStateWaiting    = structured.CompileFieldPath("state.waiting")
+	pathReason          = structured.CompileFieldPath("reason")
+	pathStateRunning    = structured.CompileFieldPath("state.running")
+	pathStartedAt       = structured.CompileFieldPath("startedAt")
+	pathReady           = structured.CompileFieldPath("ready")
+	pathStateTerminated = structured.CompileFieldPath("state.terminated")
+	pathFinishedAt      = structured.CompileFieldPath("finishedAt")
+	pathExitCode        = structured.CompileFieldPath("exitCode")
+)
+
+var _ k8saudit.ManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState] = (*containerLogToTimelineMapperTaskSetting)(nil)
 
 // containerLogToTimelineMapperTask is the task to generate container history.
 var containerLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState](
@@ -54,6 +57,16 @@ var containerLogToTimelineMapperTask = k8saudit.DefineManifestLogToTimelineMappe
 	},
 )
 
+// containerType is the type of the container.
+type containerType string
+
+type containerStatusIdentity struct {
+	// containerName is the name of the container.
+	containerName string
+	// containerType is the type of the container.
+	containerType containerType
+}
+
 type containerLogToTimelineMapperTaskState struct {
 	// containerIdentities is the map of container identities.
 	containerIdentities map[string]*containerStatusIdentity
@@ -62,6 +75,42 @@ type containerLogToTimelineMapperTaskState struct {
 }
 
 type containerLogToTimelineMapperTaskSetting struct {
+}
+
+type containerStateWalker struct {
+	// containerIdentity is the identity of the container.
+	containerIdentity *containerStatusIdentity
+	// podNamespace is the namespace of the pod.
+	podNamespace string
+	// podName is the name of the pod.
+	podName string
+	// lastState is the last state of the container.
+	lastState string
+	// lastStartTime is the last start time of the container.
+	lastStartTime string
+	// lastFinishTime is the last finish time of the container.
+	lastFinishTime string
+}
+
+// MustResolveContainerTimelinePath resolves the timeline path of a container within a pod.
+func MustResolveContainerTimelinePath(ctx context.Context, clusterName, namespace, podName, containerName string) *khifilev6.TimelinePath {
+	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
+	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
+	kind := k8saudit.MustK8sKindTimeline(ctx, api, "pod")
+
+	var podPath *khifilev6.TimelinePath
+	if namespace != "" {
+		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, namespace)
+		podPath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, podName)
+	} else {
+		podPath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, podName)
+	}
+
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
+		Name: containerName,
+		Type: k8saudit.TimelineTypeContainer,
+	})
 }
 
 // PassCount implements k8saudit.ManifestLogToTimelineMapper.
@@ -83,17 +132,6 @@ func (c *containerLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx co
 	}
 	return result, nil
 }
-
-var (
-	pathStateWaiting    = structured.CompileFieldPath("state.waiting")
-	pathReason          = structured.CompileFieldPath("reason")
-	pathStateRunning    = structured.CompileFieldPath("state.running")
-	pathStartedAt       = structured.CompileFieldPath("startedAt")
-	pathReady           = structured.CompileFieldPath("ready")
-	pathStateTerminated = structured.CompileFieldPath("state.terminated")
-	pathFinishedAt      = structured.CompileFieldPath("finishedAt")
-	pathExitCode        = structured.CompileFieldPath("exitCode")
-)
 
 // PreProcessLog implements k8saudit.ManifestLogToTimelineMapper.
 func (c *containerLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event k8saudit.MultiGroupLogEvent, state *containerLogToTimelineMapperTaskState) (*containerLogToTimelineMapperTaskState, error) {
@@ -196,23 +234,6 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 	}
 
 	return cs, state, nil
-}
-
-var _ k8saudit.ManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState] = (*containerLogToTimelineMapperTaskSetting)(nil)
-
-type containerStateWalker struct {
-	// containerIdentity is the identity of the container.
-	containerIdentity *containerStatusIdentity
-	// podNamespace is the namespace of the pod.
-	podNamespace string
-	// podName is the name of the pod.
-	podName string
-	// lastState is the last state of the container.
-	lastState string
-	// lastStartTime is the last start time of the container.
-	lastStartTime string
-	// lastFinishTime is the last finish time of the container.
-	lastFinishTime string
 }
 
 // CheckAndRecord compares the current container state with the previous state and records a revision if there is a significant change.
@@ -328,25 +349,4 @@ func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *
 			w.lastState = "terminated"
 		}
 	}
-}
-
-// MustResolveContainerTimelinePath resolves the timeline path of a container within a pod.
-func MustResolveContainerTimelinePath(ctx context.Context, clusterName, namespace, podName, containerName string) *khifilev6.TimelinePath {
-	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
-	kind := k8saudit.MustK8sKindTimeline(ctx, api, "pod")
-
-	var podPath *khifilev6.TimelinePath
-	if namespace != "" {
-		ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, namespace)
-		podPath = k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, podName)
-	} else {
-		podPath = k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kind, podName)
-	}
-
-	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
-		Name: containerName,
-		Type: k8saudit.TimelineTypeContainer,
-	})
 }

@@ -19,8 +19,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 func TestResolveGraph_FanInCycle_PriorityDifference(t *testing.T) {

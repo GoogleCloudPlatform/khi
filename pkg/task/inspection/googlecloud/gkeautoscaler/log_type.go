@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeAutoscaler is the registered timeline style LogType for GKE Cluster Autoscaler logs.
 	LogTypeAutoscaler = style.MustRegisterLogType("autoscaler", "GKE Autoscaler Logs", style.MustForceConvertSRGBHex("#FF5555"), style.ColorWhite)
 )

@@ -18,6 +18,8 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1/apiv1connect"
@@ -25,19 +27,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/chunkedupload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
-	"github.com/gin-gonic/gin"
 )
+
+// InitializerIDFileParameterUpload mounts Connect-RPC FileParameterUploadService onto Gin engine.
+const InitializerIDFileParameterUpload coreinit.InitializerID = "khi.default/file-parameter-upload"
+
+// uploadURLPath is the route of upload URLs under the base path. The URL token follows it.
+const uploadURLPath = "/api/v1/file-upload/"
 
 var (
 	// UploadURLIssuerKey stores the uploadurl.Issuer shared by the upload URL route and the MCP server.
 	UploadURLIssuerKey = typedmap.NewTypedKey[*uploadurl.Issuer]("khi.google.com/init/upload-url-issuer")
 )
-
-// uploadURLPath is the route of upload URLs under the base path. The URL token follows it.
-const uploadURLPath = "/api/v1/file-upload/"
-
-// InitializerIDFileParameterUpload mounts Connect-RPC FileParameterUploadService onto Gin engine.
-const InitializerIDFileParameterUpload coreinit.InitializerID = "khi.default/file-parameter-upload"
 
 // FileParameterUploadInitializer initializes and registers the FileParameterUploadService handlers and the upload URL route.
 var FileParameterUploadInitializer = &coreinit.Initializer{
@@ -87,6 +88,10 @@ var FileParameterUploadInitializer = &coreinit.Initializer{
 	},
 }
 
+func init() {
+	coreinit.RegisterInitializer(FileParameterUploadInitializer)
+}
+
 // uploadURLBase returns the absolute URL that upload URL tokens are appended to.
 // Upload URLs are used by clients on the same machine as the server, so wildcard listen addresses,
 // which clients cannot connect to, are replaced with the loopback address.
@@ -96,8 +101,4 @@ func uploadURLBase(host string, port int, basePath string) string {
 		host = "127.0.0.1"
 	}
 	return "http://" + net.JoinHostPort(host, strconv.Itoa(port)) + basePath + uploadURLPath
-}
-
-func init() {
-	coreinit.RegisterInitializer(FileParameterUploadInitializer)
 }

@@ -20,11 +20,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var _ NodeSerializer = (*YAMLNodeSerializer)(nil)
+
+// NodeSerializer serializes a Node into a byte slice.
 type NodeSerializer interface {
+	// Serialize encodes node into its serialized byte representation.
 	Serialize(node Node) ([]byte, error)
 }
 
+// YAMLNodeSerializer serializes Node values into YAML format.
 type YAMLNodeSerializer struct{}
+
+// JSONNodeSerializer serializes Node values into JSON format.
+type JSONNodeSerializer struct{}
 
 // Serialize implements NodeSerializer.
 func (y *YAMLNodeSerializer) Serialize(node Node) ([]byte, error) {
@@ -40,10 +48,6 @@ func (y *YAMLNodeSerializer) Serialize(node Node) ([]byte, error) {
 	}
 	return b.Bytes(), nil
 }
-
-var _ NodeSerializer = (*YAMLNodeSerializer)(nil)
-
-type JSONNodeSerializer struct{}
 
 // Serialize implements NodeSerializer.
 func (j *JSONNodeSerializer) Serialize(node Node) ([]byte, error) {

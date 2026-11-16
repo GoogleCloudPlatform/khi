@@ -22,5 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// LogTypeGkeAudit is the registered timeline style LogType for GKE API audit logs.
 	LogTypeGkeAudit = style.MustRegisterLogType("gke api audit log", "GKE API Audit Logs", style.MustForceConvertSRGBHex("#AA00FF"), style.ColorWhite)
 )

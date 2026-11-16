@@ -24,6 +24,11 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+var (
+	_ ResourceMonitor = (*ResourceMonitorImpl)(nil)
+	_ ResourceMonitor = (*ResourceMonitorMock)(nil)
+)
+
 // ResourceMonitor provides methods to monitor server resources.
 type ResourceMonitor interface {
 	// GetUsedMemory returns the current memory usage of the server process in bytes.
@@ -48,7 +53,15 @@ type ResourceMonitorImpl struct {
 	closeOnce   sync.Once
 }
 
-var _ ResourceMonitor = (*ResourceMonitorImpl)(nil)
+// ResourceMonitorMock is a mock implementation of ResourceMonitor for testing.
+type ResourceMonitorMock struct {
+	// UsedMemory is the mocked process memory usage in bytes.
+	UsedMemory uint64
+	// TotalMemory is the mocked total physical memory in bytes.
+	TotalMemory uint64
+	// CPUUsage is the mocked CPU usage percentage.
+	CPUUsage float64
+}
 
 // NewResourceMonitorImpl creates and initializes a ResourceMonitorImpl, starting a background CPU sampling loop.
 func NewResourceMonitorImpl() *ResourceMonitorImpl {
@@ -58,28 +71,6 @@ func NewResourceMonitorImpl() *ResourceMonitorImpl {
 	}
 	go r.startCPUUsageLoop()
 	return r
-}
-
-func (r *ResourceMonitorImpl) startCPUUsageLoop() {
-	// Prime the CPU counter so the next ticker tick calculates differences.
-	_, _ = cpu.Percent(0, false)
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-r.closeChan:
-			return
-		case <-ticker.C:
-			percents, err := cpu.Percent(0, false)
-			if err == nil && len(percents) > 0 {
-				r.cpuMu.Lock()
-				r.cpuUsage = percents[0]
-				r.cpuMu.Unlock()
-			} else if err != nil {
-				slog.Error("failed to get CPU usage", "error", err)
-			}
-		}
-	}
 }
 
 // Close terminates the background CPU monitoring loop.
@@ -123,14 +114,27 @@ func (r *ResourceMonitorImpl) GetCPUUsage() float64 {
 	return r.cpuUsage
 }
 
-// ResourceMonitorMock is a mock implementation of ResourceMonitor for testing.
-type ResourceMonitorMock struct {
-	UsedMemory  uint64
-	TotalMemory uint64
-	CPUUsage    float64
+func (r *ResourceMonitorImpl) startCPUUsageLoop() {
+	// Prime the CPU counter so the next ticker tick calculates differences.
+	_, _ = cpu.Percent(0, false)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-r.closeChan:
+			return
+		case <-ticker.C:
+			percents, err := cpu.Percent(0, false)
+			if err == nil && len(percents) > 0 {
+				r.cpuMu.Lock()
+				r.cpuUsage = percents[0]
+				r.cpuMu.Unlock()
+			} else if err != nil {
+				slog.Error("failed to get CPU usage", "error", err)
+			}
+		}
+	}
 }
-
-var _ ResourceMonitor = (*ResourceMonitorMock)(nil)
 
 // GetUsedMemory returns the mocked used memory.
 func (r *ResourceMonitorMock) GetUsedMemory() uint64 {

@@ -15,18 +15,19 @@
 package defaultinit
 
 import (
+	"github.com/gin-gonic/gin"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
-	"github.com/gin-gonic/gin"
 )
+
+// InitializerIDGinEngine creates the Gin engine and attaches global middlewares.
+const InitializerIDGinEngine coreinit.InitializerID = "khi.default/gin-engine"
 
 var (
 	// GinEngineKey stores the gin.Engine instance.
 	GinEngineKey = typedmap.NewTypedKey[*gin.Engine]("khi.google.com/init/gin-engine")
 )
-
-// InitializerIDGinEngine creates the Gin engine and attaches global middlewares.
-const InitializerIDGinEngine coreinit.InitializerID = "khi.default/gin-engine"
 
 // GinEngineInitializer creates the gin.Engine instance and sets up base global middlewares.
 var GinEngineInitializer = &coreinit.Initializer{

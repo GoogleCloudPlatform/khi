@@ -22,6 +22,12 @@ import (
 	"strings"
 )
 
+// DoNotRegisterPackagePaths is a set of package root folder paths that should be excluded
+// from the automatic registration process.
+var DoNotRegisterPackagePaths = map[string]struct{}{
+	"pkg/task/inspection/inspectioncore": {},
+}
+
 // InspectionTaskPackage represents a Go package that defines an inspection task.
 type InspectionTaskPackage struct {
 	// PackageRootFolderPath is the file system path to the root of the package.
@@ -32,6 +38,15 @@ type InspectionTaskPackage struct {
 	PackageNamePrefix string
 }
 
+// InspectionTaskPackageFinder is responsible for finding inspection task packages
+// within the project structure.
+type InspectionTaskPackageFinder struct {
+	// InspectionTaskPackageRootFilePath is the specific directory where inspection task packages reside.
+	InspectionTaskPackageRootFilePath string
+	// RepositoryPackageName is the Go module name for the repository (e.g., "github.com/GoogleCloudPlatform/khi").
+	RepositoryPackageName string
+}
+
 // ImplPackageName returns the package alias name for the implementation part of the task.
 func (p *InspectionTaskPackage) ImplPackageName() string {
 	return fmt.Sprintf("%s_impl", p.PackageNamePrefix)
@@ -40,21 +55,6 @@ func (p *InspectionTaskPackage) ImplPackageName() string {
 // ImplPackageImportPath returns the full Go import path for the implementation package.
 func (p *InspectionTaskPackage) ImplPackageImportPath() string {
 	return fmt.Sprintf("%s/impl", p.PackageImportPathBase)
-}
-
-// DoNotRegisterPackagePaths is a set of package root folder paths that should be excluded
-// from the automatic registration process.
-var DoNotRegisterPackagePaths = map[string]struct{}{
-	"pkg/task/inspection/inspectioncore": {},
-}
-
-// InspectionTaskPackageFinder is responsible for finding inspection task packages
-// within the project structure.
-type InspectionTaskPackageFinder struct {
-	// InspectionTaskPackageRootFilePath is the specific directory where inspection task packages reside.
-	InspectionTaskPackageRootFilePath string
-	// RepositoryPackageName is the Go module name for the repository (e.g., "github.com/GoogleCloudPlatform/khi").
-	RepositoryPackageName string
 }
 
 // FindAllRequireRegistration finds all inspection task packages that have an 'impl' subdirectory

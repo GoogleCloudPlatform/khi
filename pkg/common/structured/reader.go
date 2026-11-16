@@ -22,29 +22,30 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
 )
 
 // ErrFieldNotFound is returned when a requested field is not found in the node structure.
 var ErrFieldNotFound = errors.New("field not found")
 
-// NodeReaderChildrenIterator is a type that represents an iterator function for navigating
-type NodeReaderChildrenIterator = func(func(key NodeChildrenKey, value NodeReader) bool)
-
 var nextCacheKeyID atomic.Uint32
+
+// NodeReaderChildrenIterator is a type that represents an iterator function for navigating.
+type NodeReaderChildrenIterator = func(func(key NodeChildrenKey, value NodeReader) bool)
 
 // CacheKey is a type-safe token identifying a cached extraction result of type T associated with a NodeReader.
 type CacheKey[T any] struct {
 	id uint32
 }
 
-// NewCacheKey allocates a globally unique type-safe cache key for values of type T.
-func NewCacheKey[T any]() CacheKey[T] {
-	return CacheKey[T]{
-		id: nextCacheKeyID.Add(1),
-	}
+// NodeReader provides a convenient way to read values from a node structure.
+// It offers type-safe accessor methods and path navigation capabilities.
+type NodeReader struct {
+	Node
+	cache *readerCache
 }
 
 type readerCacheEntry struct {
@@ -56,11 +57,11 @@ type readerCache struct {
 	entries atomic.Pointer[[]readerCacheEntry]
 }
 
-// NodeReader provides a convenient way to read values from a node structure.
-// It offers type-safe accessor methods and path navigation capabilities.
-type NodeReader struct {
-	Node
-	cache *readerCache
+// NewCacheKey allocates a globally unique type-safe cache key for values of type T.
+func NewCacheKey[T any]() CacheKey[T] {
+	return CacheKey[T]{
+		id: nextCacheKeyID.Add(1),
+	}
 }
 
 // NewNodeReader creates a new NodeReader instance from a given Node.

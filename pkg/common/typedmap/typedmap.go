@@ -25,20 +25,10 @@ type TypedKey[T any] struct {
 	key string
 }
 
-// Key returns the string identifier of this key.
-func (k TypedKey[T]) Key() string {
-	return k.key
-}
-
-// NewTypedKey creates a new typed key with the given string identifier.
-func NewTypedKey[T any](key string) TypedKey[T] {
-	return TypedKey[T]{key: key}
-}
-
 // ReadableTypedMap is an interface for read operations on typed maps.
 // Both TypedMap and ReadonlyTypedMap implement this interface.
 type ReadableTypedMap interface {
-	// load retrieves a value by its string key
+	// load retrieves a value by its string key.
 	load(key string) (interface{}, bool)
 	// rangeAll iterates over all key-value pairs in the map.
 	// This is an internal method to support Merge operations without exposing internal iteration to external packages.
@@ -56,21 +46,14 @@ type ReadonlyTypedMap struct {
 	source *TypedMap
 }
 
-// load implements ReadableTypedMap interface.
-func (m *TypedMap) load(key string) (interface{}, bool) {
-	return m.container.Load(key)
+// NewTypedKey creates a new typed key with the given string identifier.
+func NewTypedKey[T any](key string) TypedKey[T] {
+	return TypedKey[T]{key: key}
 }
 
-func (m *TypedMap) rangeAll(f func(k, v interface{}) bool) {
-	m.container.Range(f)
-}
-
-func (m *ReadonlyTypedMap) load(key string) (interface{}, bool) {
-	return m.source.load(key)
-}
-
-func (m *ReadonlyTypedMap) rangeAll(f func(k, v interface{}) bool) {
-	m.source.rangeAll(f)
+// Key returns the string identifier of this key.
+func (k TypedKey[T]) Key() string {
+	return k.key
 }
 
 // NewTypedMap creates a new empty TypedMap.
@@ -82,16 +65,6 @@ func NewTypedMap() *TypedMap {
 func (m *TypedMap) AsReadonly() *ReadonlyTypedMap {
 	return &ReadonlyTypedMap{
 		source: m,
-	}
-}
-
-// lockKey acquire the lock for the specified key and return a release function
-func (m *TypedMap) lockKey(key string) func() {
-	mutexAny, _ := m.lockers.LoadOrStore(key, &sync.Mutex{})
-	mutex := mutexAny.(*sync.Mutex)
-	mutex.Lock()
-	return func() {
-		mutex.Unlock()
 	}
 }
 
@@ -107,6 +80,56 @@ func (m *TypedMap) Clone() *TypedMap {
 	return cloned
 }
 
+// Keys returns all keys in the map as a slice of strings.
+func (m *TypedMap) Keys() []string {
+	var keys []string
+	m.container.Range(func(key, value interface{}) bool {
+		if strKey, ok := key.(string); ok {
+			keys = append(keys, strKey)
+		}
+		return true
+	})
+	return keys
+}
+
+// load implements ReadableTypedMap interface.
+func (m *TypedMap) load(key string) (interface{}, bool) {
+	return m.container.Load(key)
+}
+
+func (m *TypedMap) rangeAll(f func(k, v interface{}) bool) {
+	m.container.Range(f)
+}
+
+// lockKey acquire the lock for the specified key and return a release function.
+func (m *TypedMap) lockKey(key string) func() {
+	mutexAny, _ := m.lockers.LoadOrStore(key, &sync.Mutex{})
+	mutex := mutexAny.(*sync.Mutex)
+	mutex.Lock()
+	return func() {
+		mutex.Unlock()
+	}
+}
+
+// Clone creates a new ReadonlyTypedMap with the same contents.
+func (m *ReadonlyTypedMap) Clone() *ReadonlyTypedMap {
+	cloned := m.source.Clone()
+	return cloned.AsReadonly()
+}
+
+// Keys returns all keys in the map as a slice of strings.
+func (m *ReadonlyTypedMap) Keys() []string {
+	return m.source.Keys()
+}
+
+func (m *ReadonlyTypedMap) load(key string) (interface{}, bool) {
+	return m.source.load(key)
+}
+
+func (m *ReadonlyTypedMap) rangeAll(f func(k, v interface{}) bool) {
+	m.source.rangeAll(f)
+}
+
 // Merge imports all key-value pairs from multiple ReadableTypedMaps into a new ReadonlyTypedMap.
 func Merge(maps ...ReadableTypedMap) *ReadonlyTypedMap {
 	merged := NewTypedMap()
@@ -120,29 +143,6 @@ func Merge(maps ...ReadableTypedMap) *ReadonlyTypedMap {
 		})
 	}
 	return merged.AsReadonly()
-}
-
-// Clone creates a new ReadonlyTypedMap with the same contents.
-func (m *ReadonlyTypedMap) Clone() *ReadonlyTypedMap {
-	cloned := m.source.Clone()
-	return cloned.AsReadonly()
-}
-
-// Keys returns all keys in the map as a slice of strings
-func (m *TypedMap) Keys() []string {
-	var keys []string
-	m.container.Range(func(key, value interface{}) bool {
-		if strKey, ok := key.(string); ok {
-			keys = append(keys, strKey)
-		}
-		return true
-	})
-	return keys
-}
-
-// Keys returns all keys in the map as a slice of strings
-func (m *ReadonlyTypedMap) Keys() []string {
-	return m.source.Keys()
 }
 
 // Get retrieves a value in a type-safe way.

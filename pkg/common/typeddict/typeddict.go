@@ -38,16 +38,7 @@ func NewTypedDict[T any]() *TypedDict[T] {
 	}
 }
 
-func (m *TypedDict[T]) lockKey(key string) func() {
-	mutexAny, _ := m.lockers.LoadOrStore(key, &sync.Mutex{})
-	mutex := mutexAny.(*sync.Mutex)
-	mutex.Lock()
-	return func() {
-		mutex.Unlock()
-	}
-}
-
-// Keys returns all keys in the map as a slice of strings
+// Keys returns all keys in the map as a slice of strings.
 func (m *TypedDict[T]) Keys() []string {
 	keys := []string{}
 	m.container.Range(func(key, _ any) bool {
@@ -55,6 +46,15 @@ func (m *TypedDict[T]) Keys() []string {
 		return true
 	})
 	return keys
+}
+
+func (m *TypedDict[T]) lockKey(key string) func() {
+	mutexAny, _ := m.lockers.LoadOrStore(key, &sync.Mutex{})
+	mutex := mutexAny.(*sync.Mutex)
+	mutex.Lock()
+	return func() {
+		mutex.Unlock()
+	}
 }
 
 // Get retrieves a value from the dictionary for the given key.

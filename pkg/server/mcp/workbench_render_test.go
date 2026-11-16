@@ -25,11 +25,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"github.com/google/go-cmp/cmp"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const testServerBaseURL = "http://127.0.0.1:8080"

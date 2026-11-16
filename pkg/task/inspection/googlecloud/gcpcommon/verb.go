@@ -22,6 +22,8 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
-	VerbOperationStart  = style.MustRegisterVerb("Start", style.MustForceConvertSRGBHex("#22CC22"), style.ColorWhite, true)
+	// VerbOperationStart represents the start of a Google Cloud long-running operation.
+	VerbOperationStart = style.MustRegisterVerb("Start", style.MustForceConvertSRGBHex("#22CC22"), style.ColorWhite, true)
+	// VerbOperationFinish represents the completion of a Google Cloud long-running operation.
 	VerbOperationFinish = style.MustRegisterVerb("Finish", style.MustForceConvertSRGBHex("#9999CC"), style.ColorWhite, true)
 )

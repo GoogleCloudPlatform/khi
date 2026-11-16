@@ -23,6 +23,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/google/go-cmp/cmp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -30,9 +34,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	"github.com/gin-gonic/gin"
-	"github.com/google/go-cmp/cmp"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMCPServerInitializer(t *testing.T) {

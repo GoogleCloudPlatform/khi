@@ -22,6 +22,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeManagedInstanceGroup is the registered timeline style TimelineType for Managed Instance Group (MIG) timelines.
 	TimelineTypeManagedInstanceGroup = style.MustRegisterTimelineType(
 		"mig",
 		"Managed Instance Group (MIG) logs for the nodepool",
@@ -35,6 +36,7 @@ var (
 		10000,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeAutoscaler is the registered timeline style TimelineType for GKE Cluster Autoscaler timelines.
 	TimelineTypeAutoscaler = style.MustRegisterTimelineType(
 		"autoscaler",
 		"Logs of the GKE Cluster Autoscaler",

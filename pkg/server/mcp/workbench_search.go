@@ -20,26 +20,35 @@ import (
 	"strings"
 	"time"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // SearchTimelinesInput defines the input parameters for the search_timelines MCP tool.
 type SearchTimelinesInput struct {
-	InspectionID string           `json:"inspectionId" jsonschema:"The target inspection ID."`
-	Filter       workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
-	MaxDepth     int              `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
-	MaxNodes     int              `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline nodes to return (default 200)."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	// Filter specifies CEL and time range filter parameters.
+	Filter workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
+	// MaxDepth limits the returned timeline tree depth (0 means unlimited).
+	MaxDepth int `json:"maxDepth,omitempty" jsonschema:"Maximum tree depth from root timelines (0-based). 0 means unlimited."`
+	// MaxNodes caps the number of timeline nodes returned.
+	MaxNodes int `json:"maxNodes,omitempty" jsonschema:"Maximum number of timeline nodes to return (default 200)."`
 }
 
 // SearchLogsInput defines the input parameters for the search_logs MCP tool.
 type SearchLogsInput struct {
-	InspectionID  string           `json:"inspectionId" jsonschema:"The target inspection ID."`
-	Filter        workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
-	MaxTimelines  int              `json:"maxTimelines,omitempty" jsonschema:"Maximum number of linked timelines to return (default 20)."`
-	MaxSampleLogs int              `json:"maxSampleLogs,omitempty" jsonschema:"Maximum number of evenly spaced sample logs to return (default 20)."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	// Filter specifies CEL and time range filter parameters.
+	Filter workbench.Filter `json:"filter,omitempty" jsonschema:"CEL and time range filter parameters. excludeTimelinesWithoutLogs defaults to true when logQuery is non-empty and false otherwise."`
+	// MaxTimelines caps the number of linked timeline groups returned.
+	MaxTimelines int `json:"maxTimelines,omitempty" jsonschema:"Maximum number of linked timelines to return (default 20)."`
+	// MaxSampleLogs caps the number of evenly spaced sample logs returned.
+	MaxSampleLogs int `json:"maxSampleLogs,omitempty" jsonschema:"Maximum number of evenly spaced sample logs to return (default 20)."`
 }
 
 type searchTimelinesTemplateData struct {

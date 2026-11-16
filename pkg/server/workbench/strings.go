@@ -248,15 +248,6 @@ func (s *StringPoolIndex) Close() {
 	s.subscribers = nil
 }
 
-func (s *StringPoolIndex) notifySubscribersLocked(event IndexProgressEvent) {
-	for _, ch := range s.subscribers {
-		select {
-		case ch <- event:
-		default:
-		}
-	}
-}
-
 // Search filters indexed strings by a case-insensitive RE2 regular expression with pagination.
 // It uses the Roaring Bitmap trigram index once ready to prune candidates, and falls back to linear scan otherwise.
 func (s *StringPoolIndex) Search(query string, offset int, limit int) ([]string, int, error) {
@@ -324,6 +315,81 @@ func (s *StringPoolIndex) Search(query string, offset int, limit int) ([]string,
 		}
 	}
 	return page, total, nil
+}
+
+func (s *StringPoolIndex) notifySubscribersLocked(event IndexProgressEvent) {
+	for _, ch := range s.subscribers {
+		select {
+		case ch <- event:
+		default:
+		}
+	}
+}
+
+// HasInitializedStringPoolIndex reports whether the on-demand string pool index has been initialized for this workbench.
+func (w *Workbench) HasInitializedStringPoolIndex() bool {
+	w.stringPoolMu.Lock()
+	defer w.stringPoolMu.Unlock()
+	return w.stringPoolIndex != nil
+}
+
+// ListStrings returns a paginated slice of unique strings matching query and the total match count.
+func (w *Workbench) ListStrings(query string, offset int, limit int) ([]string, int, error) {
+	idx, err := w.getOrInitStringPoolIndex()
+	if err != nil {
+		return nil, 0, err
+	}
+	return idx.Search(query, offset, limit)
+}
+
+// SubscribeStringPoolIndexProgress initializes the string pool index on demand and subscribes to its construction progress.
+func (w *Workbench) SubscribeStringPoolIndexProgress(ctx context.Context) (<-chan IndexProgressEvent, func(), error) {
+	idx, err := w.getOrInitStringPoolIndex()
+	if err != nil {
+		return nil, nil, err
+	}
+	ch, unsubscribe := idx.SubscribeProgress(ctx)
+	return ch, unsubscribe, nil
+}
+
+// StringPoolIndexStatus initializes the string pool index on demand and returns a snapshot of its construction progress.
+func (w *Workbench) StringPoolIndexStatus() (IndexState, float64, string, error) {
+	idx, err := w.getOrInitStringPoolIndex()
+	if err != nil {
+		return IndexStateFailed, 0, err.Error(), err
+	}
+	return idx.Status()
+}
+
+// getOrInitStringPoolIndex lazily initializes and starts background trigram indexing for the workbench string pool on first access.
+func (w *Workbench) getOrInitStringPoolIndex() (*StringPoolIndex, error) {
+	w.mu.RLock()
+	if w.closed {
+		w.mu.RUnlock()
+		return nil, ErrWorkbenchClosed
+	}
+	searchIndex := w.searchIndex
+	internPool := w.internPool
+	metadataChunks := w.metadataChunks
+	w.mu.RUnlock()
+
+	w.stringPoolMu.Lock()
+	defer w.stringPoolMu.Unlock()
+
+	if w.IsClosed() {
+		return nil, ErrWorkbenchClosed
+	}
+	if w.stringPoolIndex != nil {
+		return w.stringPoolIndex, nil
+	}
+
+	values := collectWorkbenchStrings(searchIndex, internPool, metadataChunks)
+	idx := NewStringPoolIndex(values)
+	ctx, cancel := context.WithCancel(context.Background())
+	w.stringPoolIndex = idx
+	w.cancelStringPool = cancel
+	idx.StartAsyncTrigramBuild(ctx)
+	return idx, nil
 }
 
 // collectWorkbenchStrings gathers all unique non-empty strings from a Workbench dataset ordered by masking priority.
@@ -418,70 +484,4 @@ func collectWorkbenchStrings(
 	}
 
 	return ordered
-}
-
-// getOrInitStringPoolIndex lazily initializes and starts background trigram indexing for the workbench string pool on first access.
-func (w *Workbench) getOrInitStringPoolIndex() (*StringPoolIndex, error) {
-	w.mu.RLock()
-	if w.closed {
-		w.mu.RUnlock()
-		return nil, ErrWorkbenchClosed
-	}
-	searchIndex := w.searchIndex
-	internPool := w.internPool
-	metadataChunks := w.metadataChunks
-	w.mu.RUnlock()
-
-	w.stringPoolMu.Lock()
-	defer w.stringPoolMu.Unlock()
-
-	if w.IsClosed() {
-		return nil, ErrWorkbenchClosed
-	}
-	if w.stringPoolIndex != nil {
-		return w.stringPoolIndex, nil
-	}
-
-	values := collectWorkbenchStrings(searchIndex, internPool, metadataChunks)
-	idx := NewStringPoolIndex(values)
-	ctx, cancel := context.WithCancel(context.Background())
-	w.stringPoolIndex = idx
-	w.cancelStringPool = cancel
-	idx.StartAsyncTrigramBuild(ctx)
-	return idx, nil
-}
-
-// HasInitializedStringPoolIndex reports whether the on-demand string pool index has been initialized for this workbench.
-func (w *Workbench) HasInitializedStringPoolIndex() bool {
-	w.stringPoolMu.Lock()
-	defer w.stringPoolMu.Unlock()
-	return w.stringPoolIndex != nil
-}
-
-// ListStrings returns a paginated slice of unique strings matching query and the total match count.
-func (w *Workbench) ListStrings(query string, offset int, limit int) ([]string, int, error) {
-	idx, err := w.getOrInitStringPoolIndex()
-	if err != nil {
-		return nil, 0, err
-	}
-	return idx.Search(query, offset, limit)
-}
-
-// SubscribeStringPoolIndexProgress initializes the string pool index on demand and subscribes to its construction progress.
-func (w *Workbench) SubscribeStringPoolIndexProgress(ctx context.Context) (<-chan IndexProgressEvent, func(), error) {
-	idx, err := w.getOrInitStringPoolIndex()
-	if err != nil {
-		return nil, nil, err
-	}
-	ch, unsubscribe := idx.SubscribeProgress(ctx)
-	return ch, unsubscribe, nil
-}
-
-// StringPoolIndexStatus initializes the string pool index on demand and returns a snapshot of its construction progress.
-func (w *Workbench) StringPoolIndexStatus() (IndexState, float64, string, error) {
-	idx, err := w.getOrInitStringPoolIndex()
-	if err != nil {
-		return IndexStateFailed, 0, err.Error(), err
-	}
-	return idx.Status()
 }

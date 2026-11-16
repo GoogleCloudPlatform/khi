@@ -22,4 +22,5 @@ You MUST adhere to the following rules for all code comments.
 ### 3. Documentation Comments (API level)
 
 - **First Sentence Summary:** Start all doc comments (e.g., TSDoc, GoDoc) with a concise single-sentence summary on its own line.
+- **GoDoc Convention:** On exported Go declarations (`type`, `func`, `method`, `const`, `var`), start the GoDoc comment with the exact declared symbol name followed by a third-person singular verb (e.g., `// ParseFilter parses ...`) and end it with a period (`.`).
 - **Public APIs:** Documentation comments are mandatory for all public classes, methods, and fields.

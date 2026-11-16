@@ -17,6 +17,8 @@ package defaultinit
 import (
 	"fmt"
 
+	"go.opentelemetry.io/otel"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/legacy"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/options"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -27,8 +29,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
-	"go.opentelemetry.io/otel"
 )
+
+// InitializerIDInspectionTaskServer creates InspectionTaskServer and registers tasks.
+const InitializerIDInspectionTaskServer coreinit.InitializerID = "khi.default/inspection-task-server"
 
 var (
 	// IOConfigKey stores the IOConfig instance.
@@ -37,9 +41,6 @@ var (
 	// InspectionTaskServerKey stores the InspectionTaskServer instance.
 	InspectionTaskServerKey = typedmap.NewTypedKey[*coreinspection.InspectionTaskServer]("khi.google.com/init/inspection-task-server")
 )
-
-// InitializerIDInspectionTaskServer creates InspectionTaskServer and registers tasks.
-const InitializerIDInspectionTaskServer coreinit.InitializerID = "khi.default/inspection-task-server"
 
 // InspectionTaskServerInitializer constructs the inspection task server and registers all tasks.
 var InspectionTaskServerInitializer = &coreinit.Initializer{

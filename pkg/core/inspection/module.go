@@ -23,6 +23,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+var _ coretask.UntypedTask = (*scopedTask)(nil)
+
 // Scope is a set of inspection type label conditions.
 // Tasks in a module are available only for inspection types whose labels match every condition.
 type Scope map[string]string
@@ -46,6 +48,12 @@ type Module struct {
 type flattenedModule struct {
 	tasks           []coretask.UntypedTask
 	inspectionTypes []InspectionType
+}
+
+// scopedTask attaches precomputed scope labels to a task without changing its behavior.
+type scopedTask struct {
+	coretask.UntypedTask
+	labels *typedmap.ReadonlyTypedMap
 }
 
 // flatten resolves the scopes of the module tree and returns its tasks labeled with the resolved scopes.
@@ -86,6 +94,11 @@ func (m Module) flattenInto(result *flattenedModule, parentPath string, parentSc
 	return nil
 }
 
+// Labels returns the precomputed merged labels of the base task and the module scope.
+func (s *scopedTask) Labels() *typedmap.ReadonlyTypedMap {
+	return s.labels
+}
+
 // applyScope labels the task with the inspection type selector of the scope.
 // A task in an empty scope stays available for all inspection types.
 // It returns an error if the task already carries LabelKeyInspectionTypeLabelSelector.
@@ -102,16 +115,3 @@ func applyScope(task coretask.UntypedTask, scope Scope) (coretask.UntypedTask, e
 		labels:      typedmap.Merge(task.Labels(), scopeLabels),
 	}, nil
 }
-
-// scopedTask attaches precomputed scope labels to a task without changing its behavior.
-type scopedTask struct {
-	coretask.UntypedTask
-	labels *typedmap.ReadonlyTypedMap
-}
-
-// Labels returns the precomputed merged labels of the base task and the module scope.
-func (s *scopedTask) Labels() *typedmap.ReadonlyTypedMap {
-	return s.labels
-}
-
-var _ coretask.UntypedTask = (*scopedTask)(nil)

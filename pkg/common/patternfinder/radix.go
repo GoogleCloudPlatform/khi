@@ -19,6 +19,8 @@ import (
 	"sync"
 )
 
+var _ PatternFinder[any] = (*radixPatternFinder[any])(nil)
+
 // radixNode represents a node in the Radix Tree (compressed Patricia tree).
 type radixNode[T any] struct {
 	prefix   string
@@ -34,23 +36,11 @@ type radixPatternFinder[T any] struct {
 	mu   sync.RWMutex
 }
 
-var _ PatternFinder[any] = (*radixPatternFinder[any])(nil)
-
 // NewRadixPatternFinder creates a new instance of radixPatternFinder backed by a Radix Tree.
 func NewRadixPatternFinder[T any]() PatternFinder[T] {
 	return &radixPatternFinder[T]{
 		root: &radixNode[T]{},
 	}
-}
-
-// longestCommonPrefix returns the length of the longest common prefix of s1 and s2.
-func longestCommonPrefix(s1, s2 string) int {
-	maxLen := min(len(s1), len(s2))
-	i := 0
-	for i < maxLen && s1[i] == s2[i] {
-		i++
-	}
-	return i
 }
 
 // AddPattern adds a new pattern and its outcome to the finder.
@@ -175,6 +165,57 @@ func (f *radixPatternFinder[T]) DeletePattern(pattern string) (T, error) {
 	return f.delete(f.root, pattern)
 }
 
+// Match checks for the longest registered pattern that is a prefix of the searchTarget.
+func (f *radixPatternFinder[T]) Match(searchTarget string) (PatternMatchResult[T], bool) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	curr := f.root
+	search := searchTarget
+	currentOffset := 0
+
+	var bestVal T
+	var bestEnd int
+	var found bool
+
+	if curr.hasValue {
+		bestVal = curr.value
+		bestEnd = 0
+		found = true
+	}
+
+	for len(search) > 0 {
+		idx := strings.IndexByte(curr.indices, search[0])
+		if idx == -1 {
+			break
+		}
+
+		child := curr.children[idx]
+		if !strings.HasPrefix(search, child.prefix) {
+			break
+		}
+
+		currentOffset += len(child.prefix)
+		search = search[len(child.prefix):]
+		curr = child
+
+		if curr.hasValue {
+			bestVal = curr.value
+			bestEnd = currentOffset
+			found = true
+		}
+	}
+
+	if found {
+		return PatternMatchResult[T]{
+			Value: bestVal,
+			Start: 0,
+			End:   bestEnd,
+		}, true
+	}
+	return PatternMatchResult[T]{}, false
+}
+
 // delete removes a pattern from the subtree rooted at curr.
 func (f *radixPatternFinder[T]) delete(curr *radixNode[T], search string) (T, error) {
 	idx := strings.IndexByte(curr.indices, search[0])
@@ -229,53 +270,12 @@ func (f *radixPatternFinder[T]) delete(curr *radixNode[T], search string) (T, er
 	return out, nil
 }
 
-// Match checks for the longest registered pattern that is a prefix of the searchTarget.
-func (f *radixPatternFinder[T]) Match(searchTarget string) (PatternMatchResult[T], bool) {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-
-	curr := f.root
-	search := searchTarget
-	currentOffset := 0
-
-	var bestVal T
-	var bestEnd int
-	var found bool
-
-	if curr.hasValue {
-		bestVal = curr.value
-		bestEnd = 0
-		found = true
+// longestCommonPrefix returns the length of the longest common prefix of s1 and s2.
+func longestCommonPrefix(s1, s2 string) int {
+	maxLen := min(len(s1), len(s2))
+	i := 0
+	for i < maxLen && s1[i] == s2[i] {
+		i++
 	}
-
-	for len(search) > 0 {
-		idx := strings.IndexByte(curr.indices, search[0])
-		if idx == -1 {
-			break
-		}
-
-		child := curr.children[idx]
-		if !strings.HasPrefix(search, child.prefix) {
-			break
-		}
-
-		currentOffset += len(child.prefix)
-		search = search[len(child.prefix):]
-		curr = child
-
-		if curr.hasValue {
-			bestVal = curr.value
-			bestEnd = currentOffset
-			found = true
-		}
-	}
-
-	if found {
-		return PatternMatchResult[T]{
-			Value: bestVal,
-			Start: 0,
-			End:   bestEnd,
-		}, true
-	}
-	return PatternMatchResult[T]{}, false
+	return i
 }

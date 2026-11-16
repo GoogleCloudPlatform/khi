@@ -26,34 +26,41 @@ import (
 // TagNodeNameDiscovery is the tag for discovery tasks producing node names.
 var TagNodeNameDiscovery = coretask.NewTag[[]string]("khi.google.com/inspection/commonlogk8saudit/nodename")
 
+// NodeNameInventoryTaskID is the task ID for the inventory task aggregating discovered node names.
 var NodeNameInventoryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-inventory")
-
-type UIDToResourceIdentity = map[string]*ResourceIdentity
 
 // TagResourceUIDDiscovery is the tag for discovery tasks producing resource UID maps.
 var TagResourceUIDDiscovery = coretask.NewTag[UIDToResourceIdentity]("khi.google.com/inspection/commonlogk8saudit/resourceuid")
 
+// ResourceUIDInventoryTaskID is the task ID for the inventory task aggregating resource UID mappings.
 var ResourceUIDInventoryTaskID = taskid.NewDefaultImplementationID[UIDToResourceIdentity](TaskIDPrefix + "resource-uid-inventory")
-
-type ContainerIDToContainerIdentity = map[string]*ContainerIdentity
 
 // TagContainerIDDiscovery is the tag for discovery tasks producing container ID maps.
 var TagContainerIDDiscovery = coretask.NewTag[ContainerIDToContainerIdentity]("khi.google.com/inspection/commonlogk8saudit/containerid")
 
+// ContainerIDInventoryTaskID is the task ID for the inventory task aggregating container ID mappings.
 var ContainerIDInventoryTaskID = taskid.NewDefaultImplementationID[ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-inventory")
-
-type IPLeaseHistory = *resourcelease.ResourceLeaseHistory[*ResourceIdentity]
 
 // TagIPLeaseHistoryDiscovery is the tag for discovery tasks producing IP lease histories.
 var TagIPLeaseHistoryDiscovery = coretask.NewTag[IPLeaseHistory]("khi.google.com/inspection/commonlogk8saudit/iplease")
 
+// IPLeaseHistoryInventoryTaskID is the task ID for the inventory task aggregating IP lease histories.
 var IPLeaseHistoryInventoryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-inventory")
-
-// TimelineCreationTimes maps a timeline path to its observed creation timestamps in chronological order.
-type TimelineCreationTimes = map[*khifilev6.TimelinePath][]time.Time
 
 // TagTimelineCreationTimeDiscovery is the tag for discovery tasks producing creation timestamps per timeline path.
 var TagTimelineCreationTimeDiscovery = coretask.NewTag[TimelineCreationTimes]("khi.google.com/inspection/commonlogk8saudit/timelinecreationtime")
 
 // TimelineCreationTimeInventoryTaskID is the task ID for the inventory task aggregating creation timestamps per timeline path.
 var TimelineCreationTimeInventoryTaskID = taskid.NewDefaultImplementationID[TimelineCreationTimes](TaskIDPrefix + "timeline-creation-time-inventory")
+
+// UIDToResourceIdentity maps Kubernetes resource UIDs to their ResourceIdentity.
+type UIDToResourceIdentity = map[string]*ResourceIdentity
+
+// ContainerIDToContainerIdentity maps container IDs to their ContainerIdentity.
+type ContainerIDToContainerIdentity = map[string]*ContainerIdentity
+
+// IPLeaseHistory tracks IP address leases associated with Kubernetes resources over time.
+type IPLeaseHistory = *resourcelease.ResourceLeaseHistory[*ResourceIdentity]
+
+// TimelineCreationTimes maps a timeline path to its observed creation timestamps in chronological order.
+type TimelineCreationTimes = map[*khifilev6.TimelinePath][]time.Time

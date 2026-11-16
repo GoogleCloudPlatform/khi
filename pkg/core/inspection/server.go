@@ -19,42 +19,60 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
-	"golang.org/x/exp/slices"
 )
 
+// InspectionType describes a selectable log inspection mode and its display metadata.
 type InspectionType struct {
-	Id          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Icon        string            `json:"icon"`
-	Priority    int               `json:"-"`
-	Labels      map[string]string `json:"labels,omitempty"`
+	// Id uniquely identifies this inspection type.
+	Id string `json:"id"`
+	// Name is the human-readable display name of the inspection type.
+	Name string `json:"name"`
+	// Description explains what logs and features this inspection type supports.
+	Description string `json:"description"`
+	// Icon is the path or identifier of the icon displayed in the UI.
+	Icon string `json:"icon"`
+	// Priority determines the sort order of inspection types in descending order.
+	Priority int `json:"-"`
+	// Labels holds key-value labels matched against task LabelKeyInspectionTypeLabelSelector values.
+	Labels map[string]string `json:"labels,omitempty"`
 
-	// Document properties
+	// DocumentDescription provides an extended description used for generated documentation.
 	DocumentDescription string `json:"-"`
 }
 
+// FeatureListItem describes a toggleable feature task presented in the UI feature list.
 type FeatureListItem struct {
-	Id          string `json:"id"`
-	Label       string `json:"label"`
+	// Id is the task implementation ID of the feature task.
+	Id string `json:"id"`
+	// Label is the display title shown for the feature toggle.
+	Label string `json:"label"`
+	// Description explains what the feature collects or analyzes.
 	Description string `json:"description"`
-	Enabled     bool   `json:"enabled"`
+	// Enabled reports whether the feature is currently enabled in the runner.
+	Enabled bool `json:"enabled"`
 	// Order is the criteria of sorting []FeatureListItem.
 	Order int `json:"-"`
 }
 
+// InspectionDryRunResult holds the serializable metadata produced by a dry-run execution.
 type InspectionDryRunResult struct {
+	// Metadata contains the serialized dry-run metadata entries such as form fields and queries.
 	Metadata interface{} `json:"metadata"`
 }
 
+// InspectionRunResult holds the serialized metadata and result store produced by a completed inspection run.
 type InspectionRunResult struct {
-	Metadata    interface{}
+	// Metadata contains the serialized run metadata entries.
+	Metadata interface{}
+	// ResultStore provides access to the serialized KHI inspection output data.
 	ResultStore inspectioncore.Store
 }
 
@@ -77,6 +95,7 @@ type InspectionTaskServer struct {
 	inspectionIntercepters []InspectionInterceptor
 }
 
+// NewServer creates and initializes an InspectionTaskServer with core inspection tasks.
 func NewServer(ioConfig *inspectioncore.IOConfig) (*InspectionTaskServer, error) {
 	ns, err := coretask.NewTaskSet([]coretask.UntypedTask{})
 	if err != nil {
@@ -99,7 +118,7 @@ func NewServer(ioConfig *inspectioncore.IOConfig) (*InspectionTaskServer, error)
 	return server, nil
 }
 
-// AddInspectionType register a inspection type.
+// AddInspectionType registers an inspection type with the server.
 func (s *InspectionTaskServer) AddInspectionType(newInspectionType InspectionType) error {
 	if strings.Contains(newInspectionType.Id, "/") {
 		return fmt.Errorf("inspection type must not contain /")
@@ -118,7 +137,7 @@ func (s *InspectionTaskServer) AddInspectionType(newInspectionType InspectionTyp
 	return nil
 }
 
-// AddTask register a task usable for the inspection task graph execution.
+// AddTask registers a task usable for the inspection task graph execution.
 func (s *InspectionTaskServer) AddTask(task coretask.UntypedTask) error {
 	return s.RootTaskSet.Add(task)
 }
@@ -150,7 +169,7 @@ func (s *InspectionTaskServer) AddInspectionInterceptor(interceptor InspectionIn
 	s.inspectionIntercepters = append(s.inspectionIntercepters, interceptor)
 }
 
-// CreateInspection generates an inspection and returns inspection ID
+// CreateInspection generates an inspection and returns inspection ID.
 func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, error) {
 	id := s.inspectionIDGenerator.Generate()
 	inspectionRunner := NewInspectionRunner(s, s.ioConfig, id, s.runContextOptions...)
@@ -165,17 +184,19 @@ func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, 
 	return inspectionRunner.ID, nil
 }
 
-// Inspection returns an instance of an Inspection queried with given inspection ID.
+// GetInspection returns an instance of an Inspection queried with given inspection ID.
 func (s *InspectionTaskServer) GetInspection(inspectionID string) *InspectionTaskRunner {
 	s.inspectionsMu.RLock()
 	defer s.inspectionsMu.RUnlock()
 	return s.inspections[inspectionID]
 }
 
+// GetAllInspectionTypes returns a copy of all inspection types registered on the server.
 func (s *InspectionTaskServer) GetAllInspectionTypes() []*InspectionType {
 	return append([]*InspectionType{}, s.inspectionTypes...)
 }
 
+// GetInspectionType returns the registered InspectionType matching inspectionTypeId, or nil if not found.
 func (s *InspectionTaskServer) GetInspectionType(inspectionTypeId string) *InspectionType {
 	for _, registeredType := range s.inspectionTypes {
 		if registeredType.Id == inspectionTypeId {
@@ -185,6 +206,7 @@ func (s *InspectionTaskServer) GetInspectionType(inspectionTypeId string) *Inspe
 	return nil
 }
 
+// GetAllRunners returns a slice of all inspection runners currently registered on the server.
 func (s *InspectionTaskServer) GetAllRunners() []*InspectionTaskRunner {
 	s.inspectionsMu.RLock()
 	defer s.inspectionsMu.RUnlock()

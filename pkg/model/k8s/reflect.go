@@ -23,8 +23,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
+// MAXIMUM_STRUCTURE_DEPTH is the maximum nesting depth allowed when reflecting Kubernetes resource types.
 const MAXIMUM_STRUCTURE_DEPTH = 100
 
+// FromResourceTypeReflection constructs a MergeConfigResolver by inspecting JSON and strategic merge patch tags on resourceType.
 func FromResourceTypeReflection(resourceType interface{}) (*structured.MergeConfigResolver, error) {
 	result := &structured.MergeConfigResolver{
 		MergeStrategies: make(map[string]structured.MergeArrayStrategy),

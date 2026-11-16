@@ -77,7 +77,79 @@ func (t *GCPOperationTracker) MarkResourceRevision(path *khifilev6.TimelinePath)
 	t.hasResourceRevision[path.ID] = struct{}{}
 }
 
-// // ProcessGCPClusterNodepoolOperationLog processes a GCP operation log for a cluster or node pool resource timeline.
+// TrackAndGetManifest tracks the latest resource manifest from an audit log and returns it if updated.
+func (t *GCPOperationTracker) TrackAndGetManifest(audit *GCPAuditLogFieldSet) (structured.Node, bool) {
+	var manifestNode structured.Node
+	manifest := ""
+	if resp, err := audit.ResponseString(); err == nil && resp != "" {
+		manifest = resp
+		if audit.Response != nil {
+			manifestNode = audit.Response.Node
+		}
+	} else if req, err := audit.RequestString(); err == nil && req != "" {
+		manifest = req
+		if audit.Request != nil {
+			manifestNode = audit.Request.Node
+		}
+	}
+	if manifest == "" || manifestNode == nil {
+		return nil, false
+	}
+	if t.lastManifest == manifest {
+		return manifestNode, false
+	}
+	t.lastManifest = manifest
+	return manifestNode, true
+}
+
+// ProcessOperationLog adds necessary operation revisions or events to the TimelineChangeSet.
+// If an ending log is encountered without a prior starting log, it automatically prepends
+// a dummy starting revision with RevisionStateOperationStartedLogNotFound at Unix time 0.
+func (t *GCPOperationTracker) ProcessOperationLog(ctx context.Context, cs *khifilev6.TimelineChangeSet, targetPath *khifilev6.TimelinePath, audit *GCPAuditLogFieldSet, timestamp time.Time) {
+	if audit.ImmediateOperation() {
+		cs.AddEvent(targetPath)
+		return
+	}
+
+	if audit.Starting() {
+		t.MarkStarted(audit.OperationID)
+	}
+
+	_, hasStarted := t.startedOperations[audit.OperationID]
+	if audit.Ending() && !hasStarted {
+		cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+			VerbType:    VerbOperationStart,
+			StateType:   RevisionStateOperationStartedLogNotFound,
+			Principal:   audit.PrincipalEmail,
+			ChangedTime: time.Unix(0, 0),
+		})
+	}
+
+	revisionState := RevisionStateOperationStarted
+	verb := VerbOperationStart
+	if audit.Ending() {
+		if audit.Status <= 0 { // -1 should be the default value of the field set reader.
+			revisionState = RevisionStateOperationSucceed
+		} else {
+			revisionState = RevisionStateOperationFailed
+		}
+		verb = VerbOperationFinish
+	}
+
+	var body structured.Node
+	if audit.Request != nil {
+		body = audit.Request.Node
+	}
+	cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+		ResourceBody: body,
+		VerbType:     verb,
+		StateType:    revisionState,
+		Principal:    audit.PrincipalEmail,
+		ChangedTime:  timestamp,
+	})
+}
+
+// ProcessGCPClusterNodepoolOperationLog processes a GCP operation log for a cluster or node pool resource timeline.
 // It generates resource creation/deletion/enrollment/unenrollment revisions, handles missing start logs by prepending
 // appropriate LogNotFound revisions at Unix time 0, and updates operation tracking.
 func ProcessGCPClusterNodepoolOperationLog(
@@ -210,76 +282,4 @@ func ProcessGCPClusterNodepoolOperationLog(
 	}
 
 	tracker.ProcessOperationLog(ctx, cs, operationTimeline, audit, logTimestamp)
-}
-
-// TrackAndGetManifest tracks the latest resource manifest from an audit log and returns it if updated.
-func (t *GCPOperationTracker) TrackAndGetManifest(audit *GCPAuditLogFieldSet) (structured.Node, bool) {
-	var manifestNode structured.Node
-	manifest := ""
-	if resp, err := audit.ResponseString(); err == nil && resp != "" {
-		manifest = resp
-		if audit.Response != nil {
-			manifestNode = audit.Response.Node
-		}
-	} else if req, err := audit.RequestString(); err == nil && req != "" {
-		manifest = req
-		if audit.Request != nil {
-			manifestNode = audit.Request.Node
-		}
-	}
-	if manifest == "" || manifestNode == nil {
-		return nil, false
-	}
-	if t.lastManifest == manifest {
-		return manifestNode, false
-	}
-	t.lastManifest = manifest
-	return manifestNode, true
-}
-
-// ProcessOperationLog adds necessary operation revisions or events to the TimelineChangeSet.
-// If an ending log is encountered without a prior starting log, it automatically prepends
-// a dummy starting revision with RevisionStateOperationStartedLogNotFound at Unix time 0.
-func (t *GCPOperationTracker) ProcessOperationLog(ctx context.Context, cs *khifilev6.TimelineChangeSet, targetPath *khifilev6.TimelinePath, audit *GCPAuditLogFieldSet, timestamp time.Time) {
-	if audit.ImmediateOperation() {
-		cs.AddEvent(targetPath)
-		return
-	}
-
-	if audit.Starting() {
-		t.MarkStarted(audit.OperationID)
-	}
-
-	_, hasStarted := t.startedOperations[audit.OperationID]
-	if audit.Ending() && !hasStarted {
-		cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-			VerbType:    VerbOperationStart,
-			StateType:   RevisionStateOperationStartedLogNotFound,
-			Principal:   audit.PrincipalEmail,
-			ChangedTime: time.Unix(0, 0),
-		})
-	}
-
-	revisionState := RevisionStateOperationStarted
-	verb := VerbOperationStart
-	if audit.Ending() {
-		if audit.Status <= 0 { // -1 should be the default value of the field set reader.
-			revisionState = RevisionStateOperationSucceed
-		} else {
-			revisionState = RevisionStateOperationFailed
-		}
-		verb = VerbOperationFinish
-	}
-
-	var body structured.Node
-	if audit.Request != nil {
-		body = audit.Request.Node
-	}
-	cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-		ResourceBody: body,
-		VerbType:     verb,
-		StateType:    revisionState,
-		Principal:    audit.PrincipalEmail,
-		ChangedTime:  timestamp,
-	})
 }

@@ -51,6 +51,26 @@ var csmTrafficDirectorLogGrouperTask = inspectiontaskbase.DefineLogGrouperTask(
 	},
 )
 
+// csmTrafficDirectorLogToTimelineMapperTask maps CSM Traffic Director logs to timelines.
+var csmTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
+	csm.CSMTrafficDirectorLogToTimelineMapperTaskID,
+	inspectiontaskbase.TimelineMapperInputs{
+		LogIngester: csm.CSMTrafficDirectorLogIngesterTaskID.Ref(),
+		GroupedLogs: csm.CSMTrafficDirectorLogGrouperTaskID.Ref(),
+	},
+	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
+		return &csmTrafficDirectorTimelineMapper{}
+	},
+	inspectioncore.FeatureTaskLabel(
+		"CSM Resource Audit Logs",
+		"Gather audit logs for Traffic Director resources created by the TD-based CSM to map them to timelines alongside associated Kubernetes resource logs.",
+		10100,
+		false,
+	),
+)
+
+var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*csmTrafficDirectorTimelineMapper)(nil)
+
 // csmTrafficDirectorTimelineMapper maps CSM Traffic Director logs to resource timelines.
 type csmTrafficDirectorTimelineMapper struct {
 	inspectiontaskbase.SinglePassMapperBase[*gcpcommon.GCPOperationTracker]
@@ -107,26 +127,6 @@ func (m *csmTrafficDirectorTimelineMapper) ProcessLogByGroup(ctx context.Context
 
 	return cs, tracker, nil
 }
-
-var _ inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] = (*csmTrafficDirectorTimelineMapper)(nil)
-
-// csmTrafficDirectorLogToTimelineMapperTask maps CSM Traffic Director logs to timelines.
-var csmTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.DefineLogToTimelineMapperTask(
-	csm.CSMTrafficDirectorLogToTimelineMapperTaskID,
-	inspectiontaskbase.TimelineMapperInputs{
-		LogIngester: csm.CSMTrafficDirectorLogIngesterTaskID.Ref(),
-		GroupedLogs: csm.CSMTrafficDirectorLogGrouperTaskID.Ref(),
-	},
-	func(b *coretask.Binder) inspectiontaskbase.TimelineMapper[*gcpcommon.GCPOperationTracker] {
-		return &csmTrafficDirectorTimelineMapper{}
-	},
-	inspectioncore.FeatureTaskLabel(
-		"CSM Resource Audit Logs",
-		"Gather audit logs for Traffic Director resources created by the TD-based CSM to map them to timelines alongside associated Kubernetes resource logs.",
-		10100,
-		false,
-	),
-)
 
 // parseGCPResource parses a GCP resource name string into type and name.
 func parseGCPResource(resourceName string) (string, string) {

@@ -21,10 +21,11 @@ import (
 	"strconv"
 	"time"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
-	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 const (
@@ -36,47 +37,72 @@ const (
 
 // GetTimelineLogsInput defines the input parameters for the get_timeline_logs MCP tool.
 type GetTimelineLogsInput struct {
-	InspectionID string                      `json:"inspectionId" jsonschema:"The target inspection ID."`
-	TimelineID   string                      `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
-	Filter       workbench.TimelineLogFilter `json:"filter,omitempty" jsonschema:"Log CEL and time range filter parameters."`
-	PageSize     int                         `json:"pageSize,omitempty" jsonschema:"Maximum number of logs per page (default 50, max 500)."`
-	PageToken    string                      `json:"pageToken,omitempty" jsonschema:"The pageToken value from the last line of the previous response."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	// TimelineID is the timeline ID returned by search_timelines or search_logs.
+	TimelineID string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	// Filter narrows the timeline's logs by CEL expression and time range.
+	Filter workbench.TimelineLogFilter `json:"filter,omitempty" jsonschema:"Log CEL and time range filter parameters."`
+	// PageSize limits the number of logs returned per page.
+	PageSize int `json:"pageSize,omitempty" jsonschema:"Maximum number of logs per page (default 50, max 500)."`
+	// PageToken is the pagination cursor from the previous response.
+	PageToken string `json:"pageToken,omitempty" jsonschema:"The pageToken value from the last line of the previous response."`
 }
 
 // GetLogInput defines the input parameters for the get_log MCP tool.
 type GetLogInput struct {
+	// InspectionID is the unique identifier of the target inspection.
 	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
-	LogID        string `json:"logId" jsonschema:"The log ID from search_logs or get_timeline_logs."`
-	ByteOffset   int    `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body."`
+	// LogID is the log ID returned by search_logs or get_timeline_logs.
+	LogID string `json:"logId" jsonschema:"The log ID from search_logs or get_timeline_logs."`
+	// ByteOffset specifies the starting byte offset when continuing a truncated log body.
+	ByteOffset int `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body."`
 }
 
 // GetResourceRevisionsInput defines the input parameters for the get_resource_revisions MCP tool.
 type GetResourceRevisionsInput struct {
-	InspectionID string     `json:"inspectionId" jsonschema:"The target inspection ID."`
-	TimelineID   string     `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
-	StartTime    *time.Time `json:"startTime,omitempty" jsonschema:"Inclusive start of the revision time range in RFC3339 format."`
-	EndTime      *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the revision time range in RFC3339 format."`
-	PageSize     int        `json:"pageSize,omitempty" jsonschema:"Maximum number of revisions per page (default 50, max 500)."`
-	PageToken    string     `json:"pageToken,omitempty" jsonschema:"The pageToken value from the last line of the previous response."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	// TimelineID is the timeline ID returned by search_timelines or search_logs.
+	TimelineID string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	// StartTime sets the inclusive start of the revision time range filter.
+	StartTime *time.Time `json:"startTime,omitempty" jsonschema:"Inclusive start of the revision time range in RFC3339 format."`
+	// EndTime sets the inclusive end of the revision time range filter.
+	EndTime *time.Time `json:"endTime,omitempty" jsonschema:"Inclusive end of the revision time range in RFC3339 format."`
+	// PageSize limits the number of revisions returned per page.
+	PageSize int `json:"pageSize,omitempty" jsonschema:"Maximum number of revisions per page (default 50, max 500)."`
+	// PageToken is the pagination cursor from the previous response.
+	PageToken string `json:"pageToken,omitempty" jsonschema:"The pageToken value from the last line of the previous response."`
 }
 
 // GetResourceManifestInput defines the input parameters for the get_resource_manifest MCP tool.
 type GetResourceManifestInput struct {
-	InspectionID         string     `json:"inspectionId" jsonschema:"The target inspection ID."`
-	TimelineID           string     `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
-	RevisionIndex        *int       `json:"revisionIndex,omitempty" jsonschema:"The revision index from get_resource_revisions. Specify either revisionIndex or time."`
-	Time                 *time.Time `json:"time,omitempty" jsonschema:"Selects the revision effective at this time in RFC3339 format. Specify either revisionIndex or time."`
-	ByteOffset           int        `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body. Pass it with the revisionIndex of that response."`
-	IncludeManagedFields bool       `json:"includeManagedFields,omitempty" jsonschema:"Include metadata.managedFields in the returned manifest. Defaults to false because managedFields is large and rarely needed."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	// TimelineID is the timeline ID returned by search_timelines or search_logs.
+	TimelineID string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	// RevisionIndex selects the target revision by its 0-based index.
+	RevisionIndex *int `json:"revisionIndex,omitempty" jsonschema:"The revision index from get_resource_revisions. Specify either revisionIndex or time."`
+	// Time selects the revision effective at the specified timestamp.
+	Time *time.Time `json:"time,omitempty" jsonschema:"Selects the revision effective at this time in RFC3339 format. Specify either revisionIndex or time."`
+	// ByteOffset specifies the starting byte offset when continuing a truncated manifest body.
+	ByteOffset int `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated body. Pass it with the revisionIndex of that response."`
+	// IncludeManagedFields controls whether metadata.managedFields is retained in the returned manifest.
+	IncludeManagedFields bool `json:"includeManagedFields,omitempty" jsonschema:"Include metadata.managedFields in the returned manifest. Defaults to false because managedFields is large and rarely needed."`
 }
 
 // GetResourceDiffInput defines the input parameters for the get_resource_diff MCP tool.
 type GetResourceDiffInput struct {
-	InspectionID         string `json:"inspectionId" jsonschema:"The target inspection ID."`
-	TimelineID           string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
-	RevisionIndex        int    `json:"revisionIndex" jsonschema:"The revision index from get_resource_revisions. The diff is taken against the revision right before it."`
-	ByteOffset           int    `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated diff."`
-	IncludeManagedFields bool   `json:"includeManagedFields,omitempty" jsonschema:"Include metadata.managedFields in the computed diff. Defaults to false because managedFields is large and rarely needed."`
+	// InspectionID is the unique identifier of the target inspection.
+	InspectionID string `json:"inspectionId" jsonschema:"The target inspection ID."`
+	// TimelineID is the timeline ID returned by search_timelines or search_logs.
+	TimelineID string `json:"timelineId" jsonschema:"The timeline ID from search_timelines or search_logs."`
+	// RevisionIndex identifies the target revision to diff against the preceding revision.
+	RevisionIndex int `json:"revisionIndex" jsonschema:"The revision index from get_resource_revisions. The diff is taken against the revision right before it."`
+	// ByteOffset specifies the starting byte offset when continuing a truncated diff.
+	ByteOffset int `json:"byteOffset,omitempty" jsonschema:"The byteOffset value from the last line of the previous response to read the rest of a truncated diff."`
+	// IncludeManagedFields controls whether metadata.managedFields is included in the diff calculation.
+	IncludeManagedFields bool `json:"includeManagedFields,omitempty" jsonschema:"Include metadata.managedFields in the computed diff. Defaults to false because managedFields is large and rarely needed."`
 }
 
 func (h *WorkbenchHandler) handleGetTimelineLogs(ctx context.Context, _ *mcpsdk.CallToolRequest, input GetTimelineLogsInput) (*mcpsdk.CallToolResult, any, error) {

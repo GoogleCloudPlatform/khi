@@ -23,13 +23,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/cdp"
 )
 
+// InitializerIDCDPBrowser identifies the Initializer that launches the headless Chrome browser.
+const InitializerIDCDPBrowser coreinit.InitializerID = "khi.default/cdp-browser"
+
 var (
 	// CDPBrowserKey stores the headless Chrome cdp.Browser instance.
 	CDPBrowserKey = typedmap.NewTypedKey[*cdp.Browser]("khi.google.com/init/cdp-browser")
 )
-
-// InitializerIDCDPBrowser identifies the Initializer that launches the headless Chrome browser.
-const InitializerIDCDPBrowser coreinit.InitializerID = "khi.default/cdp-browser"
 
 // CDPBrowserInitializer starts a headless Chrome browser when not in job mode and not disabled via --mcp-disable-renderer.
 var CDPBrowserInitializer = &coreinit.Initializer{
