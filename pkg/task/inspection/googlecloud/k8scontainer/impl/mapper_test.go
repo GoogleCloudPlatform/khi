@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/id"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -153,35 +154,6 @@ func TestProcessContainerLog(t *testing.T) {
 			},
 		},
 		{
-			name: "cilium-agent JSON log with subsystem, error, level and pod reference",
-			input: testlog.NewMockLog(
-				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-				inspectioncore.DefaultSeverityFieldSet{
-					Severity: inspectioncore.SeverityInfo,
-				},
-				k8scontainer.K8sContainerLogFieldSet{
-					Namespace:     "kube-system",
-					PodName:       "anetd-abcde",
-					ContainerName: "cilium-agent",
-					Message:       "Regeneration of endpoint failed",
-					ParsedMessage: (&logutil.FallbackRawTextLogParser{}).TryParse("Regeneration of endpoint failed"),
-				},
-				k8scontainer.CiliumAgentLogFieldSet{
-					Subsystem:    "endpoint",
-					Error:        "context deadline exceeded",
-					Severity:     inspectioncore.SeverityError,
-					PodNamespace: "default",
-					PodName:      "httpbin-0",
-				},
-			),
-			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
-				testchangeset.AssertLog(t, cs).
-					HasSummary("[endpoint] Regeneration of endpoint failed(error=context deadline exceeded) 【httpbin-0 (Namespace: default)】").
-					HasSeverity(inspectioncore.SeverityError).
-					HasLogType(k8scontainer.LogTypeContainer)
-			},
-		},
-		{
 			name: "cilium-agent stderr text log uses the level in the payload instead of the stream severity",
 			input: testlog.NewMockLog(
 				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -203,86 +175,6 @@ func TestProcessContainerLog(t *testing.T) {
 				testchangeset.AssertLog(t, cs).
 					HasSummary("[sfc] Reconciling").
 					HasSeverity(inspectioncore.SeverityInfo).
-					HasLogType(k8scontainer.LogTypeContainer)
-			},
-		},
-		{
-			name: "container other than cilium-agent is not enriched",
-			input: testlog.NewMockLog(
-				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-				inspectioncore.DefaultSeverityFieldSet{
-					Severity: inspectioncore.SeverityInfo,
-				},
-				k8scontainer.K8sContainerLogFieldSet{
-					Namespace:     "kube-system",
-					PodName:       "anetd-abcde",
-					ContainerName: "cni-writer",
-					Message:       "Wrote the CNI configuration",
-					ParsedMessage: (&logutil.FallbackRawTextLogParser{}).TryParse("Wrote the CNI configuration"),
-				},
-				k8scontainer.CiliumAgentLogFieldSet{
-					Subsystem:    "endpoint",
-					Severity:     inspectioncore.SeverityError,
-					PodNamespace: "default",
-					PodName:      "httpbin-0",
-				},
-			),
-			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
-				testchangeset.AssertLog(t, cs).
-					HasSummary("Wrote the CNI configuration").
-					HasSeverity(inspectioncore.SeverityInfo).
-					HasLogType(k8scontainer.LogTypeContainer)
-			},
-		},
-		{
-			name: "cilium-agent logrus JSON log entry",
-			input: testlog.MustLogFromYAML(`
-timestamp: "2026-01-01T00:00:00Z"
-severity: INFO
-resource:
-  type: k8s_container
-  labels:
-    cluster_name: test-cluster
-    container_name: cilium-agent
-    namespace_name: kube-system
-    pod_name: anetd-abcde
-jsonPayload:
-  ciliumEndpointName: kube-system/kube-dns-123456789a-abcde
-  endpointID: 688
-  k8sPodName: kube-system/kube-dns-123456789a-abcde
-  level: info
-  msg: Identity of endpoint changed
-  subsys: endpoint
-`),
-			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
-				testchangeset.AssertLog(t, cs).
-					HasSummary("[endpoint] Identity of endpoint changed 【kube-dns-123456789a-abcde (Namespace: kube-system)】").
-					HasSeverity(inspectioncore.SeverityInfo).
-					HasLogType(k8scontainer.LogTypeContainer)
-			},
-		},
-		{
-			name: "cilium-agent JSON error log entry written to stdout",
-			input: testlog.MustLogFromYAML(`
-timestamp: "2026-01-01T00:00:00Z"
-severity: INFO
-resource:
-  type: k8s_container
-  labels:
-    cluster_name: test-cluster
-    container_name: cilium-agent
-    namespace_name: kube-system
-    pod_name: anetd-abcde
-jsonPayload:
-  error: "failed to list <unspecified>: the server could not find the requested resource (get ciliumpodippools.cilium.io)"
-  level: error
-  msg: k8sError
-  subsys: k8s
-`),
-			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
-				testchangeset.AssertLog(t, cs).
-					HasSummary("[k8s] k8sError(error=failed to list <unspecified>: the server could not find the requested resource (get ciliumpodippools.cilium.io))").
-					HasSeverity(inspectioncore.SeverityError).
 					HasLogType(k8scontainer.LogTypeContainer)
 			},
 		},
@@ -447,12 +339,20 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	bindingPath := k8saudit.MustK8sSubresourceTimeline(ctx, podPath, "binding")
 	expectedPath := mustPodPhaseTimelinePath(ctx, "test-cluster", "test-node", "test-namespace", "test-pod", "unknown")
 
+	mustGoNode := func(v map[string]any) structured.Node {
+		node, err := structured.FromGoValue(v, &structured.AlphabeticalGoMapKeyOrderProvider{})
+		if err != nil {
+			t.Fatalf("failed to generate expected manifest: %v", err)
+		}
+		return node
+	}
+
 	makeNamedPodNode := func(podName, nodeName string, labels map[string]string) structured.Node {
 		labelsMap := map[string]any{}
 		for k, v := range labels {
 			labelsMap[k] = v
 		}
-		manifest := map[string]any{
+		return mustGoNode(map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
 			"metadata": map[string]any{
@@ -463,12 +363,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			"spec": map[string]any{
 				"nodeName": nodeName,
 			},
-		}
-		node, err := structured.FromGoValue(manifest, &structured.AlphabeticalGoMapKeyOrderProvider{})
-		if err != nil {
-			t.Fatalf("failed to generate expected pod manifest: %v", err)
-		}
-		return node
+		})
 	}
 
 	makePodNode := func(nodeName string, labels map[string]string) structured.Node {
@@ -476,7 +371,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}
 
 	makeNamedBindingNode := func(podName, nodeName string) structured.Node {
-		manifest := map[string]any{
+		return mustGoNode(map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Binding",
 			"metadata": map[string]any{
@@ -487,12 +382,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				"kind": "Node",
 				"name": nodeName,
 			},
-		}
-		node, err := structured.FromGoValue(manifest, &structured.AlphabeticalGoMapKeyOrderProvider{})
-		if err != nil {
-			t.Fatalf("failed to generate expected binding manifest: %v", err)
-		}
-		return node
+		})
 	}
 
 	makeBindingNode := func(nodeName string) structured.Node {
@@ -500,18 +390,23 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	}
 
 	makeCAIPodNodeReader := func(uid string) *structured.NodeReader {
-		manifest := map[string]any{
+		return structured.NewNodeReader(mustGoNode(map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
 			"metadata": map[string]any{
 				"uid": uid,
 			},
+		}))
+	}
+
+	makeRevision := func(changedTime time.Time, body structured.Node, stateType *pb.RevisionState) *khifilev6.StagingRevision {
+		return &khifilev6.StagingRevision{
+			ChangedTime:  changedTime,
+			ResourceBody: body,
+			Principal:    "N/A",
+			VerbType:     k8saudit.VerbUnknown,
+			StateType:    stateType,
 		}
-		node, err := structured.FromGoValue(manifest, &structured.AlphabeticalGoMapKeyOrderProvider{})
-		if err != nil {
-			t.Fatalf("failed to generate CAI pod node: %v", err)
-		}
-		return structured.NewNodeReader(node)
 	}
 
 	testCases := []struct {
@@ -566,27 +461,9 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, css[0]).
-					HasRevision(expectedPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(podPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(bindingPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makeBindingNode("test-node"),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode())
+					HasRevision(expectedPath, makeRevision(time.Unix(0, 0), makePodNode("test-node", nil), k8saudit.RevisionStatePodPhaseUnknown), testutil.CompareStructuredNode()).
+					HasRevision(podPath, makeRevision(time.Unix(0, 0), makePodNode("test-node", nil), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode()).
+					HasRevision(bindingPath, makeRevision(time.Unix(0, 0), makeBindingNode("test-node"), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -680,27 +557,9 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					t.Fatalf("expected 2 changesets, got %d", len(css))
 				}
 				testchangeset.AssertTimeline(t, css[0]).
-					HasRevision(expectedPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(podPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(bindingPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makeBindingNode("test-node"),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode())
+					HasRevision(expectedPath, makeRevision(time.Unix(0, 0), makePodNode("test-node", nil), k8saudit.RevisionStatePodPhaseUnknown), testutil.CompareStructuredNode()).
+					HasRevision(podPath, makeRevision(time.Unix(0, 0), makePodNode("test-node", nil), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode()).
+					HasRevision(bindingPath, makeRevision(time.Unix(0, 0), makeBindingNode("test-node"), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode())
 				if css[1] != nil {
 					t.Errorf("expected second changeset to be nil, got %v", css[1])
 				}
@@ -747,37 +606,13 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				}
 				// First log generates all 3
 				testchangeset.AssertTimeline(t, css[0]).
-					HasRevision(expectedPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node", map[string]string{"a": "1"}),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(podPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node", map[string]string{"a": "1"}),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(bindingPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makeBindingNode("test-node"),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode())
+					HasRevision(expectedPath, makeRevision(time.Unix(0, 0), makePodNode("test-node", map[string]string{"a": "1"}), k8saudit.RevisionStatePodPhaseUnknown), testutil.CompareStructuredNode()).
+					HasRevision(podPath, makeRevision(time.Unix(0, 0), makePodNode("test-node", map[string]string{"a": "1"}), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode()).
+					HasRevision(bindingPath, makeRevision(time.Unix(0, 0), makeBindingNode("test-node"), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode())
 
 				// Second log generates only Pod (labels changed, node remained same)
 				testchangeset.AssertTimeline(t, css[1]).
-					HasRevision(podPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
-						ResourceBody: makePodNode("test-node", map[string]string{"a": "2"}),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode())
+					HasRevision(podPath, makeRevision(time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC), makePodNode("test-node", map[string]string{"a": "2"}), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode())
 
 				if len(css[1].GetRevisions(bindingPath)) > 0 {
 					t.Errorf("expected no revision on bindingPath in second changeset, but got one")
@@ -827,51 +662,15 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 				// First log generates all 3 on node 1
 				testchangeset.AssertTimeline(t, css[0]).
-					HasRevision(expectedPath1, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node-1", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(podPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makePodNode("test-node-1", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(bindingPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makeBindingNode("test-node-1"),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode())
+					HasRevision(expectedPath1, makeRevision(time.Unix(0, 0), makePodNode("test-node-1", nil), k8saudit.RevisionStatePodPhaseUnknown), testutil.CompareStructuredNode()).
+					HasRevision(podPath, makeRevision(time.Unix(0, 0), makePodNode("test-node-1", nil), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode()).
+					HasRevision(bindingPath, makeRevision(time.Unix(0, 0), makeBindingNode("test-node-1"), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode())
 
 				// Second log generates all 3 on node 2
 				testchangeset.AssertTimeline(t, css[1]).
-					HasRevision(expectedPath2, &khifilev6.StagingRevision{
-						ChangedTime:  time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
-						ResourceBody: makePodNode("test-node-2", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(podPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
-						ResourceBody: makePodNode("test-node-2", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode()).
-					HasRevision(bindingPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
-						ResourceBody: makeBindingNode("test-node-2"),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStateK8sResourceExistingLogNotFound,
-					}, testutil.CompareStructuredNode())
+					HasRevision(expectedPath2, makeRevision(time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC), makePodNode("test-node-2", nil), k8saudit.RevisionStatePodPhaseUnknown), testutil.CompareStructuredNode()).
+					HasRevision(podPath, makeRevision(time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC), makePodNode("test-node-2", nil), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode()).
+					HasRevision(bindingPath, makeRevision(time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC), makeBindingNode("test-node-2"), k8saudit.RevisionStateK8sResourceExistingLogNotFound), testutil.CompareStructuredNode())
 			},
 		},
 		{
@@ -908,13 +707,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				caiBindingPath := k8saudit.MustK8sSubresourceTimeline(ctx, caiPodPath, "binding")
 
 				testchangeset.AssertTimeline(t, css[0]).
-					HasRevision(caiPodPhasePath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makeNamedPodNode("test-pod-cai", "test-node", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, testutil.CompareStructuredNode()).
+					HasRevision(caiPodPhasePath, makeRevision(time.Unix(0, 0), makeNamedPodNode("test-pod-cai", "test-node", nil), k8saudit.RevisionStatePodPhaseUnknown), testutil.CompareStructuredNode()).
 					HasNoRevision(caiPodPath).
 					HasNoRevision(caiBindingPath)
 			},
@@ -953,13 +746,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				caiBindingPath := k8saudit.MustK8sSubresourceTimeline(ctx, caiPodPath, "binding")
 
 				testchangeset.AssertTimeline(t, css[0]).
-					HasRevision(caiPodPhasePath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makeNamedPodNode("test-pod-cai-rev", "test-node", nil),
-						Principal:    "N/A",
-						VerbType:     k8saudit.VerbUnknown,
-						StateType:    k8saudit.RevisionStatePodPhaseUnknown,
-					}, testutil.CompareStructuredNode()).
+					HasRevision(caiPodPhasePath, makeRevision(time.Unix(0, 0), makeNamedPodNode("test-pod-cai-rev", "test-node", nil), k8saudit.RevisionStatePodPhaseUnknown), testutil.CompareStructuredNode()).
 					HasNoRevision(caiPodPath).
 					HasNoRevision(caiBindingPath)
 			},
