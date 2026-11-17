@@ -125,7 +125,7 @@ func CheckUnusedExports(repoRoot string, pkgsFlag string) ([]ConventionViolation
 }
 
 func (a *unusedExportAnalyzer) parseAllPackages() error {
-	for _, rootDir := range []string{"cmd", "pkg", "scripts"} {
+	for _, rootDir := range []string{"cmd", "internal", "pkg", "scripts"} {
 		if err := a.walkRootDir(rootDir); err != nil {
 			return err
 		}
@@ -466,7 +466,7 @@ func (s *fileUseScanner) visitIdent(ident *ast.Ident) {
 }
 
 func isTargetPkgDir(relDir string, patterns []string) bool {
-	if !strings.HasPrefix(relDir, "pkg/") {
+	if !strings.HasPrefix(relDir, "pkg/") && !strings.HasPrefix(relDir, "internal/") {
 		return false
 	}
 	if relDir == "pkg/generated" || strings.HasPrefix(relDir, "pkg/generated/") {

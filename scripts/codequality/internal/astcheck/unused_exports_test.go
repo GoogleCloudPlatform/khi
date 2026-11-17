@@ -235,6 +235,34 @@ var UnusedInB = a.UsedByB
 				},
 			},
 		},
+		{
+			name:     "scans internal directory for references and unused exports",
+			pkgsFlag: "./...",
+			files: map[string]string{
+				"go.mod": "module example.com/testmod\n\ngo 1.24\n",
+				"pkg/a/a.go": `package a
+
+const UsedByInternal = 1
+`,
+				"internal/foo/foo.go": `package foo
+
+import "example.com/testmod/pkg/a"
+
+var _ = a.UsedByInternal
+
+const UnusedInInternal = 2
+`,
+			},
+			want: []ConventionViolation{
+				{
+					File:    "internal/foo/foo.go",
+					Line:    7,
+					Column:  7,
+					Rule:    RuleUnusedExportedDecl,
+					Message: "exported const UnusedInInternal has no references in the repository",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
