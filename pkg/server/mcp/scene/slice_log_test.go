@@ -138,6 +138,145 @@ timestamp: 2026-10-01T09:25:00Z
 				},
 			},
 		},
+		{
+			name:    "omits summary when includeSummary is false and retains beforeLines context",
+			yaml:    serializedLogYAML,
+			summary: "Container web-1 terminated with OOMKilled",
+			opts: LogSliceOptions{
+				IncludeSummary: boolRef(false),
+				Windows: []SliceWindow{
+					{Query: "principalEmail", BeforeLines: 1, AfterLines: 0},
+				},
+			},
+			want: &LogSliceResult{
+				TotalLines: 16,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 lines omitted"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 3, Text: "  authenticationInfo:"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 4,
+						Text:       "    principalEmail: kubelet@node-1",
+						Parts: []LinePart{
+							{Text: "    "},
+							{Text: "principalEmail", Matched: true},
+							{Text: ": kubelet@node-1"},
+						},
+					},
+					{Kind: ExcerptLineKindOmitted, Omitted: 12, Text: "⋮ 12 lines omitted"},
+				},
+			},
+		},
+		{
+			name:    "omits empty summary even when includeSummary is true and slices multiline block header",
+			yaml:    serializedLogYAML,
+			summary: "",
+			opts: LogSliceOptions{
+				IncludeSummary: boolRef(true),
+				MaxLines:       2,
+				Windows: []SliceWindow{
+					{Path: "$.textPayload"},
+				},
+			},
+			want: &LogSliceResult{
+				TotalLines: 16,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 9,
+						Text:       "textPayload: |",
+						Parts: []LinePart{
+							{Text: "textPayload: |", Matched: true},
+						},
+					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 10, Text: "  panic: runtime error: out of memory"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 6, Text: "⋮ 6 lines omitted"},
+				},
+			},
+		},
+		{
+			name: "respects path scope boundary, beforeLines, maxMatches across scopes, and query-over-node highlight",
+			yaml: `items:
+- note: match-1
+- note: match-2
+afterItems: match-1
+`,
+			summary: "Two items",
+			opts: LogSliceOptions{
+				IncludeSummary: boolRef(false),
+				Windows: []SliceWindow{
+					{Path: "$.items[0]"},
+					{Path: "$.items[*].note", Query: "match", BeforeLines: 1, MaxMatches: 2},
+				},
+			},
+			want: &LogSliceResult{
+				TotalLines: 4,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "⋮ 1 line omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 2,
+						Text:       "- note: match-1",
+						Parts: []LinePart{
+							{Text: "- note: "},
+							{Text: "match", Matched: true},
+							{Text: "-1"},
+						},
+					},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 3,
+						Text:       "- note: match-2",
+						Parts: []LinePart{
+							{Text: "- note: "},
+							{Text: "match", Matched: true},
+							{Text: "-2"},
+						},
+					},
+					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "⋮ 1 line omitted"},
+				},
+			},
+		},
+		{
+			name: "keeps quoted lines containing literal backslash-n unexpanded and stops at maxMatches=1",
+			yaml: `literal: "keep \\n literal"
+hits:
+  first: target
+  second: target
+outside: target
+`,
+			summary: "Escapes",
+			opts: LogSliceOptions{
+				IncludeSummary: boolRef(false),
+				Windows: []SliceWindow{
+					{Path: "$.literal"},
+					{Path: "$.hits", Query: "target", BeforeLines: 1, MaxMatches: 1},
+				},
+			},
+			want: &LogSliceResult{
+				TotalLines: 5,
+				Lines: []ExcerptLine{
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 1,
+						Text:       `literal: "keep \\n literal"`,
+						Parts:      []LinePart{{Text: `literal: "keep \\n literal"`, Matched: true}},
+					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 2, Text: "hits:"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 3,
+						Text:       "  first: target",
+						Parts: []LinePart{
+							{Text: "  first: "},
+							{Text: "target", Matched: true},
+						},
+					},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 lines omitted"},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -194,4 +333,70 @@ message: OOMKilled
 			t.Fatalf("SliceLogBody() err = %T (%v), want *InvalidSliceWindowError", err, err)
 		}
 	})
+
+	t.Run("unmatched JSONPath returns SliceQueryNotFoundError with available keys", func(t *testing.T) {
+		_, err := SliceLogBody(logYAML, "Container app OOMKilled", LogSliceOptions{
+			Windows: []SliceWindow{{Path: "$.missing"}},
+		})
+		var gotErr *SliceQueryNotFoundError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceLogBody() err = %T (%v), want *SliceQueryNotFoundError", err, err)
+		}
+		want := &SliceQueryNotFoundError{
+			WindowIndex:   0,
+			Path:          "$.missing",
+			AvailableKeys: []string{"insertId", "message"},
+			TopLevelKeys:  []string{"insertId", "message"},
+			Summary:       "Container app OOMKilled",
+		}
+		if diff := cmp.Diff(want, gotErr); diff != "" {
+			t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("matched JSONPath with unmatched query returns SliceQueryNotFoundError", func(t *testing.T) {
+		_, err := SliceLogBody(logYAML, "Container app OOMKilled", LogSliceOptions{
+			Windows: []SliceWindow{{Path: "$.message", Query: "NoMatch"}},
+		})
+		var gotErr *SliceQueryNotFoundError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceLogBody() err = %T (%v), want *SliceQueryNotFoundError", err, err)
+		}
+		want := &SliceQueryNotFoundError{
+			WindowIndex:  0,
+			Path:         "$.message",
+			Query:        "NoMatch",
+			TopLevelKeys: []string{"insertId", "message"},
+			Summary:      "Container app OOMKilled",
+		}
+		if diff := cmp.Diff(want, gotErr); diff != "" {
+			t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("empty body returns nil expansion slices and invalid escape line remains unexpanded", func(t *testing.T) {
+		exp, starts, ends := expandMultilineYAMLLinesWithMap("")
+		if exp != nil || starts != nil || ends != nil {
+			t.Errorf("expandMultilineYAMLLinesWithMap(\"\") = (%v, %v, %v), want (nil, nil, nil)", exp, starts, ends)
+		}
+		expInvalid, _, _ := expandMultilineYAMLLinesWithMap(`invalid: "bad \q\nkeep"`)
+		if diff := cmp.Diff([]string{`invalid: "bad \q\nkeep"`}, expInvalid); diff != "" {
+			t.Errorf("expandMultilineYAMLLinesWithMap(invalid) mismatch (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func TestLogSlicer_DocCachesParsedDocument(t *testing.T) {
+	s := &logSlicer{yamlBody: "message: ok\n"}
+	first, err := s.doc()
+	if err != nil {
+		t.Fatalf("first doc() unexpected error = %v", err)
+	}
+	second, err := s.doc()
+	if err != nil {
+		t.Fatalf("second doc() unexpected error = %v", err)
+	}
+	if first == nil || first != second {
+		t.Errorf("second doc() pointer = %p, want cached %p", second, first)
+	}
 }

@@ -65,6 +65,16 @@ type diffHunkRange struct {
 	opEnd   int
 }
 
+type diffSlicer struct {
+	ops           []workbench.DiffOp
+	hunks         []diffHunkRange
+	oldDoc        *indexedYAMLDocument
+	newDoc        *indexedYAMLDocument
+	selectedOp    []bool
+	oldHighlights map[int][]byteSpan
+	newHighlights map[int][]byteSpan
+}
+
 // SliceResourceDiff fetches the managedFields-stripped revision pair from wb and slices its unified diff according to opts.
 func SliceResourceDiff(wb *workbench.Workbench, timelineID uint32, revisionIndex int, opts DiffSliceOptions) (*ResourceDiffSlice, error) {
 	pair, err := wb.GetRevisionPair(timelineID, revisionIndex, false)
@@ -95,7 +105,6 @@ func SliceUnifiedDiff(oldText, newText string, isInitialRevision bool, opts Diff
 	if err != nil {
 		return nil, err
 	}
-
 	oldDoc, err := parseIndexedYAMLDocument(oldText)
 	if err != nil {
 		return nil, err
@@ -106,13 +115,6 @@ func SliceUnifiedDiff(oldText, newText string, isInitialRevision bool, opts Diff
 	}
 
 	ops := workbench.DiffLines(oldDoc.lines, newDoc.lines)
-	changes := workbench.CountDiffOps(ops)
-	hunks := collectDiffHunks(ops)
-	totalDiffLines := 0
-	for _, h := range hunks {
-		totalDiffLines += h.opEnd - h.opStart
-	}
-
 	if len(ops) == 0 {
 		return nil, &SliceQueryNotFoundError{
 			WindowIndex: compiledPaths[0].index,
@@ -121,225 +123,95 @@ func SliceUnifiedDiff(oldText, newText string, isInitialRevision bool, opts Diff
 		}
 	}
 
-	selectedOp := make([]bool, len(ops))
-	oldHighlights := make(map[int][]byteSpan)
-	newHighlights := make(map[int][]byteSpan)
-
-	for _, p := range compiledPaths {
-		oldSels := evalCompiledJSONPath(oldDoc, p)
-		newSels := evalCompiledJSONPath(newDoc, p)
-		if len(oldSels) == 0 && len(newSels) == 0 {
-			matchedPrefix, availableKeys := diagnoseUnmatchedJSONPath(p, newDoc, oldDoc)
-			topKeys := extractChangedTopLevelYAMLKeys(ops)
-			if len(topKeys) == 0 {
-				topKeys = extractTopLevelYAMLKeys(newText)
-			}
-			preview := buildDiffPreview(ops, hunks)
-			if preview == "" {
-				preview = "(no manifest changes outside metadata.managedFields)"
-			}
-			return nil, &SliceQueryNotFoundError{
-				WindowIndex:   p.index,
-				Path:          p.raw,
-				MatchedPrefix: matchedPrefix,
-				AvailableKeys: availableKeys,
-				TopLevelKeys:  topKeys,
-				Preview:       preview,
-			}
-		}
-
-		oldLineSet := buildSelectedLineBitmap(len(oldDoc.lines), oldSels, oldHighlights)
-		newLineSet := buildSelectedLineBitmap(len(newDoc.lines), newSels, newHighlights)
-		markMatchingDiffOps(ops, oldLineSet, newLineSet, len(oldSels) > 0, len(newSels) > 0, selectedOp)
+	changes := workbench.CountDiffOps(ops)
+	hunks := collectDiffHunks(ops)
+	slicer := &diffSlicer{
+		ops:           ops,
+		hunks:         hunks,
+		oldDoc:        oldDoc,
+		newDoc:        newDoc,
+		selectedOp:    make([]bool, len(ops)),
+		oldHighlights: make(map[int][]byteSpan),
+		newHighlights: make(map[int][]byteSpan),
+	}
+	if err := slicer.selectPaths(compiledPaths, newText); err != nil {
+		return nil, err
 	}
 
-	orderedOps, orderedSelected := groupSelectedReplacementPairs(ops, selectedOp)
-	matchSpansByOp := make(map[int][]byteSpan)
-	var rawIntervals []lineInterval
-	runStart := -1
-	for i, sel := range orderedSelected {
-		if sel {
-			if runStart < 0 {
-				runStart = i
-			}
-			op := orderedOps[i]
-			switch op.Kind {
-			case workbench.DiffOpDelete:
-				if spans := oldHighlights[op.OldPos+1]; len(spans) > 0 {
-					matchSpansByOp[i] = append(matchSpansByOp[i], spans...)
-				}
-			case workbench.DiffOpInsert, workbench.DiffOpEqual:
-				if spans := newHighlights[op.NewPos+1]; len(spans) > 0 {
-					matchSpansByOp[i] = append(matchSpansByOp[i], spans...)
-				} else if op.Kind == workbench.DiffOpEqual {
-					if oldSpans := oldHighlights[op.OldPos+1]; len(oldSpans) > 0 {
-						matchSpansByOp[i] = append(matchSpansByOp[i], oldSpans...)
-					}
-				}
-			}
-		} else if runStart >= 0 {
-			rawIntervals = append(rawIntervals, lineInterval{start: runStart, end: i})
-			runStart = -1
-		}
-	}
-	if runStart >= 0 {
-		rawIntervals = append(rawIntervals, lineInterval{start: runStart, end: len(orderedSelected)})
-	}
-
+	orderedOps, orderedSelected := groupSelectedReplacementPairs(ops, slicer.selectedOp)
+	rawIntervals := collectSelectedRuns(orderedSelected, 0, len(orderedSelected))
+	matchSpansByOp := slicer.collectSelectedMatchSpans(orderedOps, orderedSelected)
 	merged := capIntervals(mergeIntervals(rawIntervals), maxLines)
 	return &DiffSliceResult{
 		Changes:        changes,
-		TotalDiffLines: totalDiffLines,
+		TotalDiffLines: countTotalHunkLines(hunks),
 		Lines:          renderDiffIntervals(orderedOps, hunks, merged, matchSpansByOp),
 	}, nil
 }
 
-func buildSelectedLineBitmap(totalLines int, sels []yamlLineSelection, highlights map[int][]byteSpan) []bool {
-	if len(sels) == 0 || totalLines == 0 {
-		return nil
-	}
-	selected := make([]bool, totalLines+1)
-	for _, s := range sels {
-		lo := clampInt(s.startLine, 1, totalLines)
-		hi := clampInt(s.endLine, lo, totalLines)
-		for line := lo; line <= hi; line++ {
-			selected[line] = true
+func (s *diffSlicer) selectPaths(paths []compiledJSONPath, newText string) error {
+	for _, p := range paths {
+		oldSels := evalCompiledJSONPath(s.oldDoc, p)
+		newSels := evalCompiledJSONPath(s.newDoc, p)
+		if len(oldSels) == 0 && len(newSels) == 0 {
+			return s.unmatchedPathError(p, newText)
 		}
-		if s.highlightLine >= 1 && s.highlightLine <= totalLines {
-			highlights[s.highlightLine] = append(highlights[s.highlightLine], s.highlightSpan)
-		}
+		oldLineSet := buildSelectedLineBitmap(len(s.oldDoc.lines), oldSels, s.oldHighlights)
+		newLineSet := buildSelectedLineBitmap(len(s.newDoc.lines), newSels, s.newHighlights)
+		markMatchingDiffOps(s.ops, oldLineSet, newLineSet, s.selectedOp)
 	}
-	return selected
+	return nil
 }
 
-func markMatchingDiffOps(
-	ops []workbench.DiffOp,
-	oldLineSet []bool,
-	newLineSet []bool,
-	hasOld bool,
-	hasNew bool,
-	selectedOp []bool,
-) {
-	inOld := func(lineNum int) bool {
-		return lineNum >= 1 && lineNum < len(oldLineSet) && oldLineSet[lineNum]
+func (s *diffSlicer) unmatchedPathError(p compiledJSONPath, newText string) error {
+	matchedPrefix, availableKeys := diagnoseUnmatchedJSONPath(p, s.newDoc, s.oldDoc)
+	topKeys := extractChangedTopLevelYAMLKeys(s.ops)
+	if len(topKeys) == 0 {
+		topKeys = extractTopLevelYAMLKeys(newText)
 	}
-	inNew := func(lineNum int) bool {
-		return lineNum >= 1 && lineNum < len(newLineSet) && newLineSet[lineNum]
+	preview := buildDiffPreview(s.ops, s.hunks)
+	if preview == "" {
+		preview = "(no manifest changes outside metadata.managedFields)"
 	}
+	return &SliceQueryNotFoundError{
+		WindowIndex:   p.index,
+		Path:          p.raw,
+		MatchedPrefix: matchedPrefix,
+		AvailableKeys: availableKeys,
+		TopLevelKeys:  topKeys,
+		Preview:       preview,
+	}
+}
 
-	for i, op := range ops {
+func (s *diffSlicer) collectSelectedMatchSpans(orderedOps []workbench.DiffOp, orderedSelected []bool) map[int][]byteSpan {
+	matchSpansByOp := make(map[int][]byteSpan)
+	for i, sel := range orderedSelected {
+		if !sel {
+			continue
+		}
+		op := orderedOps[i]
 		switch op.Kind {
-		case workbench.DiffOpEqual:
-			switch {
-			case hasOld && hasNew:
-				if inOld(op.OldPos+1) && inNew(op.NewPos+1) {
-					selectedOp[i] = true
-				}
-			case hasNew:
-				if inNew(op.NewPos + 1) {
-					selectedOp[i] = true
-				}
-			case hasOld:
-				if inOld(op.OldPos + 1) {
-					selectedOp[i] = true
-				}
-			}
 		case workbench.DiffOpDelete:
-			if hasOld && inOld(op.OldPos+1) {
-				selectedOp[i] = true
-			}
+			matchSpansByOp[i] = append(matchSpansByOp[i], s.oldHighlights[op.OldPos]...)
 		case workbench.DiffOpInsert:
-			if hasNew && inNew(op.NewPos+1) {
-				selectedOp[i] = true
+			matchSpansByOp[i] = append(matchSpansByOp[i], s.newHighlights[op.NewPos]...)
+		default:
+			spans := s.newHighlights[op.NewPos]
+			if len(spans) == 0 {
+				spans = s.oldHighlights[op.OldPos]
 			}
+			matchSpansByOp[i] = append(matchSpansByOp[i], spans...)
 		}
 	}
+	return matchSpansByOp
 }
 
-// groupSelectedReplacementPairs keeps paired selected '-' and '+' sub-runs adjacent within multi-line replacement blocks
-// so unselected sibling changes in the same block fold into leading/interior/trailing omitted counts rather than splitting '-/+'.
-func groupSelectedReplacementPairs(ops []workbench.DiffOp, selected []bool) ([]workbench.DiffOp, []bool) {
-	outOps := make([]workbench.DiffOp, 0, len(ops))
-	outSel := make([]bool, 0, len(selected))
-
-	i := 0
-	for i < len(ops) {
-		if ops[i].Kind != workbench.DiffOpDelete {
-			outOps = append(outOps, ops[i])
-			outSel = append(outSel, selected[i])
-			i++
-			continue
-		}
-		delStart := i
-		for i < len(ops) && ops[i].Kind == workbench.DiffOpDelete {
-			i++
-		}
-		insStart := i
-		for i < len(ops) && ops[i].Kind == workbench.DiffOpInsert {
-			i++
-		}
-		pairEnd := i
-		if insStart == pairEnd {
-			outOps = append(outOps, ops[delStart:pairEnd]...)
-			outSel = append(outSel, selected[delStart:pairEnd]...)
-			continue
-		}
-
-		delRuns := collectSelectedRuns(selected, delStart, insStart)
-		insRuns := collectSelectedRuns(selected, insStart, pairEnd)
-		if len(delRuns) == 0 || len(insRuns) == 0 || len(delRuns) != len(insRuns) {
-			outOps = append(outOps, ops[delStart:pairEnd]...)
-			outSel = append(outSel, selected[delStart:pairEnd]...)
-			continue
-		}
-
-		appendRange := func(lo, hi int, sel bool) {
-			for idx := lo; idx < hi; idx++ {
-				outOps = append(outOps, ops[idx])
-				outSel = append(outSel, sel)
-			}
-		}
-
-		// Leading unselected '-' and '+' ops before the first selected pair.
-		appendRange(delStart, delRuns[0].start, false)
-		appendRange(insStart, insRuns[0].start, false)
-
-		for k := range delRuns {
-			if k > 0 {
-				// Interior unselected '-' and '+' ops between pair k-1 and pair k.
-				appendRange(delRuns[k-1].end, delRuns[k].start, false)
-				appendRange(insRuns[k-1].end, insRuns[k].start, false)
-			}
-			appendRange(delRuns[k].start, delRuns[k].end, true)
-			appendRange(insRuns[k].start, insRuns[k].end, true)
-		}
-
-		// Trailing unselected '-' and '+' ops after the last selected pair.
-		lastK := len(delRuns) - 1
-		appendRange(delRuns[lastK].end, insStart, false)
-		appendRange(insRuns[lastK].end, pairEnd, false)
+func countTotalHunkLines(hunks []diffHunkRange) int {
+	total := 0
+	for _, h := range hunks {
+		total += h.opEnd - h.opStart
 	}
-
-	return outOps, outSel
-}
-
-func collectSelectedRuns(selected []bool, lo, hi int) []lineInterval {
-	var runs []lineInterval
-	runStart := -1
-	for i := lo; i < hi; i++ {
-		if selected[i] {
-			if runStart < 0 {
-				runStart = i
-			}
-		} else if runStart >= 0 {
-			runs = append(runs, lineInterval{start: runStart, end: i})
-			runStart = -1
-		}
-	}
-	if runStart >= 0 {
-		runs = append(runs, lineInterval{start: runStart, end: hi})
-	}
-	return runs
+	return total
 }
 
 func collectDiffHunks(ops []workbench.DiffOp) []diffHunkRange {
@@ -428,15 +300,16 @@ func gapHasChanges(ops []workbench.DiffOp, start, end int) bool {
 	return false
 }
 
+func changedHunkOverlap(ops []workbench.DiffOp, h diffHunkRange, start, end int) (int, int, bool) {
+	lo := max(h.opStart, start)
+	hi := min(h.opEnd, end)
+	return lo, hi, gapHasChanges(ops, lo, hi)
+}
+
 func countSkippedDiffLines(ops []workbench.DiffOp, hunks []diffHunkRange, gapStart, gapEnd int) int {
 	total := 0
 	for _, h := range hunks {
-		lo := max(h.opStart, gapStart)
-		hi := min(h.opEnd, gapEnd)
-		if lo >= hi {
-			continue
-		}
-		if gapHasChanges(ops, lo, hi) {
+		if lo, hi, ok := changedHunkOverlap(ops, h, gapStart, gapEnd); ok {
 			total += hi - lo
 		}
 	}
@@ -447,15 +320,7 @@ func renderGap(ops []workbench.DiffOp, hunks []diffHunkRange, gapStart, gapEnd i
 	var out []ExcerptLine
 	cursor := gapStart
 	for _, h := range hunks {
-		if h.opEnd <= cursor {
-			continue
-		}
-		if h.opStart >= gapEnd {
-			break
-		}
-		lo := max(h.opStart, cursor)
-		hi := min(h.opEnd, gapEnd)
-		if gapHasChanges(ops, lo, hi) {
+		if lo, hi, ok := changedHunkOverlap(ops, h, cursor, gapEnd); ok {
 			if lo > cursor {
 				out = append(out, makeDiffOmittedLine(lo-cursor, false))
 			}

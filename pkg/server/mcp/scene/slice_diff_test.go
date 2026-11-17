@@ -314,9 +314,176 @@ subsets:
 			},
 		},
 		{
+			name: "groups multiple selected replacement pairs while folding interior unselected changes",
+			oldText: `spec:
+  a: 1
+  b: 2
+  c: 3
+  d: 4
+  e: 5
+`,
+			newText: `spec:
+  a: 10
+  b: 20
+  c: 30
+  d: 40
+  e: 50
+`,
+			opts: DiffSliceOptions{
+				Paths: []string{"$.spec.b", "$.spec.d"},
+			},
+			want: &DiffSliceResult{
+				Changes:        workbench.LineChangeCount{Added: 5, Deleted: 5},
+				TotalDiffLines: 11,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 diff lines omitted"},
+					{
+						Kind:       ExcerptLineKindDeleted,
+						OldLineNum: 3,
+						Text:       "  b: 2",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "b: 2", Matched: true},
+						},
+					},
+					{
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 3,
+						Text:       "  b: 20",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "b: 20", Matched: true},
+						},
+					},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{
+						Kind:       ExcerptLineKindDeleted,
+						OldLineNum: 5,
+						Text:       "  d: 4",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "d: 4", Matched: true},
+						},
+					},
+					{
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 5,
+						Text:       "  d: 40",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "d: 40", Matched: true},
+						},
+					},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := SliceUnifiedDiff(tc.oldText, tc.newText, tc.isInitialRevision, tc.opts)
+			if err != nil {
+				t.Fatalf("SliceUnifiedDiff() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("SliceUnifiedDiff() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSliceUnifiedDiff_GapAndBoundarySlices(t *testing.T) {
+	testCases := []struct {
+		name    string
+		oldText string
+		newText string
+		opts    DiffSliceOptions
+		want    *DiffSliceResult
+	}{
+		{
+			name: "selects equal context line when path matches only old document and uses old highlight",
+			oldText: `oldOnly:
+  shared: same
+`,
+			newText: `newOnly:
+  shared: same
+`,
+			opts: DiffSliceOptions{
+				Paths: []string{"$.oldOnly.shared"},
+			},
+			want: &DiffSliceResult{
+				Changes:        workbench.LineChangeCount{Added: 1, Deleted: 1},
+				TotalDiffLines: 3,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						OldLineNum: 2,
+						NewLineNum: 2,
+						Text:       "  shared: same",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "shared: same", Matched: true},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "selects equal context line when path matches only new document",
+			oldText: `oldOnly:
+  shared: same
+`,
+			newText: `newOnly:
+  shared: same
+`,
+			opts: DiffSliceOptions{
+				Paths: []string{"$.newOnly.shared"},
+			},
+			want: &DiffSliceResult{
+				Changes:        workbench.LineChangeCount{Added: 1, Deleted: 1},
+				TotalDiffLines: 3,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						OldLineNum: 2,
+						NewLineNum: 2,
+						Text:       "  shared: same",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "shared: same", Matched: true},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "excludes equal line aligned across swapped list indices unless selected in both",
+			oldText: `items:
+- k: first
+- k: second
+`,
+			newText: `items:
+- k: second
+- k: first
+`,
+			opts: DiffSliceOptions{
+				Paths: []string{"$.items[0]"},
+			},
+			want: &DiffSliceResult{
+				Changes:        workbench.LineChangeCount{Added: 1, Deleted: 1},
+				TotalDiffLines: 4,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindDeleted, OldLineNum: 2, Text: "- k: first"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+				},
+			},
+		},
+		{
 			name: "renders both unchanged and diff omitted placeholders when gap skips an entire middle hunk",
-			oldText: `a: 1
-b: 2
+			oldText: `b: 2
 c: 3
 d: 4
 e: 5
@@ -333,9 +500,8 @@ o: 15
 p: 16
 q: 17
 r: 18
-s: 19
 `,
-			newText: `a: 1_mod
+			newText: `a: 1
 b: 2
 c: 3
 d: 4
@@ -353,42 +519,84 @@ o: 15
 p: 16
 q: 17
 r: 18
-s: 19_mod
+s: 19
 `,
 			opts: DiffSliceOptions{
 				Paths: []string{"$.a", "$.s"},
 			},
 			want: &DiffSliceResult{
-				Changes:        workbench.LineChangeCount{Added: 3, Deleted: 3},
-				TotalDiffLines: 18,
+				Changes:        workbench.LineChangeCount{Added: 3, Deleted: 1},
+				TotalDiffLines: 16,
 				Lines: []ExcerptLine{
-					{
-						Kind:       ExcerptLineKindDeleted,
-						OldLineNum: 1,
-						Text:       "a: 1",
-						Parts:      []LinePart{{Text: "a: 1", Matched: true}},
-					},
 					{
 						Kind:       ExcerptLineKindAdded,
 						NewLineNum: 1,
-						Text:       "a: 1_mod",
-						Parts:      []LinePart{{Text: "a: 1_mod", Matched: true}},
+						Text:       "a: 1",
+						Parts:      []LinePart{{Text: "a: 1", Matched: true}},
 					},
 					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 unchanged lines omitted"},
 					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 diff lines omitted"},
 					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 unchanged lines omitted"},
 					{
-						Kind:       ExcerptLineKindDeleted,
-						OldLineNum: 19,
+						Kind:       ExcerptLineKindAdded,
+						NewLineNum: 19,
 						Text:       "s: 19",
 						Parts:      []LinePart{{Text: "s: 19", Matched: true}},
 					},
+				},
+			},
+		},
+		{
+			name: "slices pure deletion block at end of diff",
+			oldText: `metadata:
+  name: web-1
+spec:
+  replicas: 2
+  deprecated: true
+`,
+			newText: `metadata:
+  name: web-1
+spec:
+  replicas: 2
+`,
+			opts: DiffSliceOptions{
+				Paths: []string{"$.spec.deprecated"},
+			},
+			want: &DiffSliceResult{
+				Changes:        workbench.LineChangeCount{Deleted: 1},
+				TotalDiffLines: 4,
+				Lines: []ExcerptLine{
 					{
-						Kind:       ExcerptLineKindAdded,
-						NewLineNum: 19,
-						Text:       "s: 19_mod",
-						Parts:      []LinePart{{Text: "s: 19_mod", Matched: true}},
+						Kind:       ExcerptLineKindDeleted,
+						OldLineNum: 5,
+						Text:       "  deprecated: true",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "deprecated: true", Matched: true},
+						},
 					},
+				},
+			},
+		},
+		{
+			name: "slices full diff starting at index 0 through end of ops",
+			oldText: `a: 1
+b: 2
+`,
+			newText: `a: 10
+b: 20
+`,
+			opts: DiffSliceOptions{
+				Paths: []string{"$.*"},
+			},
+			want: &DiffSliceResult{
+				Changes:        workbench.LineChangeCount{Added: 2, Deleted: 2},
+				TotalDiffLines: 4,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindDeleted, OldLineNum: 1, Text: "a: 1", Parts: []LinePart{{Text: "a: 1", Matched: true}}},
+					{Kind: ExcerptLineKindDeleted, OldLineNum: 2, Text: "b: 2", Parts: []LinePart{{Text: "b: 2", Matched: true}}},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 1, Text: "a: 10", Parts: []LinePart{{Text: "a: 10", Matched: true}}},
+					{Kind: ExcerptLineKindAdded, NewLineNum: 2, Text: "b: 20", Parts: []LinePart{{Text: "b: 20", Matched: true}}},
 				},
 			},
 		},
@@ -396,7 +604,7 @@ s: 19_mod
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := SliceUnifiedDiff(tc.oldText, tc.newText, tc.isInitialRevision, tc.opts)
+			got, err := SliceUnifiedDiff(tc.oldText, tc.newText, false, tc.opts)
 			if err != nil {
 				t.Fatalf("SliceUnifiedDiff() unexpected error = %v", err)
 			}
@@ -467,6 +675,45 @@ status:
 			TopLevelKeys:  []string{"status"},
 			Preview: `-  phase: Pending
 +  phase: Running`,
+		}
+		if diff := cmp.Diff(want, gotErr); diff != "" {
+			t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("returns empty resource diff preview when both old and new texts are empty", func(t *testing.T) {
+		_, err := SliceUnifiedDiff("", "", false, DiffSliceOptions{
+			Paths: []string{"$.status"},
+		})
+		var gotErr *SliceQueryNotFoundError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceUnifiedDiff() err = %T (%v), want *SliceQueryNotFoundError", err, err)
+		}
+		want := &SliceQueryNotFoundError{
+			WindowIndex: 0,
+			Path:        "$.status",
+			Preview:     "(empty resource diff)",
+		}
+		if diff := cmp.Diff(want, gotErr); diff != "" {
+			t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("returns no manifest changes preview when old and new texts are identical", func(t *testing.T) {
+		_, err := SliceUnifiedDiff(oldYAML, oldYAML, false, DiffSliceOptions{
+			Paths: []string{"$.status.missing"},
+		})
+		var gotErr *SliceQueryNotFoundError
+		if !errors.As(err, &gotErr) {
+			t.Fatalf("SliceUnifiedDiff() err = %T (%v), want *SliceQueryNotFoundError", err, err)
+		}
+		want := &SliceQueryNotFoundError{
+			WindowIndex:   0,
+			Path:          "$.status.missing",
+			MatchedPrefix: "$.status",
+			AvailableKeys: []string{"phase"},
+			TopLevelKeys:  []string{"apiVersion", "kind", "metadata", "status"},
+			Preview:       "(no manifest changes outside metadata.managedFields)",
 		}
 		if diff := cmp.Diff(want, gotErr); diff != "" {
 			t.Errorf("SliceQueryNotFoundError mismatch (-want +got):\n%s", diff)

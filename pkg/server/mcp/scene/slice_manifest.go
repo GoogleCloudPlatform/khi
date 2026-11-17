@@ -24,23 +24,32 @@ import (
 
 // ManifestSliceOptions configures JSONPath slicing of a resource YAML manifest body.
 type ManifestSliceOptions struct {
-	Paths    []string
+	// Paths specifies non-empty JSONPath selectors evaluated against the resource manifest.
+	Paths []string
+	// MaxLines caps the total number of manifest lines returned across all selected paths.
 	MaxLines int
 }
 
 // ManifestSliceResult holds the sliced lines and total line count for a resource manifest.
 type ManifestSliceResult struct {
+	// TotalLines is the total number of lines in the managedFields-stripped YAML manifest.
 	TotalLines int
-	Lines      []ExcerptLine
+	// Lines contains the sliced manifest lines including omitted-gap markers.
+	Lines []ExcerptLine
 }
 
 // ResourceManifestSlice combines revision and active interval metadata with sliced manifest lines.
 type ResourceManifestSlice struct {
-	TimelineID       uint32
-	Segments         []workbench.TimelineSegment
-	Revision         workbench.ResourceRevision
+	// TimelineID is the resource timeline ID containing the revision.
+	TimelineID uint32
+	// Segments holds the timeline path segments identifying the resource.
+	Segments []workbench.TimelineSegment
+	// Revision holds metadata for the target resource revision.
+	Revision workbench.ResourceRevision
+	// NextRevisionTime is the timestamp of the following revision, or nil if this is the latest revision.
 	NextRevisionTime *time.Time
-	Slice            ManifestSliceResult
+	// Slice contains the sliced manifest lines and total line count.
+	Slice ManifestSliceResult
 }
 
 // SliceResourceManifest fetches the untruncated managedFields-stripped manifest from wb and slices it according to opts.
@@ -109,8 +118,9 @@ func SliceManifestBody(yamlBody string, opts ManifestSliceOptions) (*ManifestSli
 				start: sel.startLine - 1,
 				end:   sel.endLine,
 			})
-			if sel.highlightLine > 0 {
-				matchSpansByLine[sel.highlightLine-1] = append(matchSpansByLine[sel.highlightLine-1], sel.highlightSpan)
+			if sel.highlightLine != 0 {
+				lineIdx := sel.highlightLine - 1
+				matchSpansByLine[lineIdx] = append(matchSpansByLine[lineIdx], sel.highlightSpan)
 			}
 		}
 	}
@@ -123,8 +133,5 @@ func SliceManifestBody(yamlBody string, opts ManifestSliceOptions) (*ManifestSli
 }
 
 func buildManifestPreview(lines []string) string {
-	if len(lines) == 0 {
-		return "(empty resource manifest)"
-	}
 	return strings.Join(lines[:min(len(lines), maxSlicePreviewLines)], "\n")
 }

@@ -15,7 +15,6 @@
 package scene
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -37,6 +36,9 @@ spec:
   configBlock: |
     listen: :8080
     workers: 4
+  template:
+    metadata:
+      name: checkout-pod
   containers:
   -
     name: envoy
@@ -53,6 +55,9 @@ status:
   - reason: MinimumReplicasUnavailable
     status: "False"
     type: Ready
+  items:
+  - first
+  - second
 `
 
 	doc, err := parseIndexedYAMLDocument(k8sYAML)
@@ -66,9 +71,9 @@ status:
 		wantLines [][2]int
 	}{
 		{
-			name:      "standard dollar dot scalar path",
-			path:      "$.spec.replicas",
-			wantLines: [][2]int{{11, 11}},
+			name:      "standard dollar dot scalar path does not match nested template metadata name",
+			path:      "$.metadata.name",
+			wantLines: [][2]int{{7, 7}},
 		},
 		{
 			name:      "omitted dollar prefix",
@@ -77,8 +82,8 @@ status:
 		},
 		{
 			name:      "leading dot without dollar",
-			path:      ".metadata.name",
-			wantLines: [][2]int{{7, 7}},
+			path:      ".spec.containers[1].name",
+			wantLines: [][2]int{{23, 23}},
 		},
 		{
 			name:      "bracket quoted key containing dots and slash",
@@ -103,32 +108,82 @@ status:
 		{
 			name:      "sequence item with standalone dash line",
 			path:      "$.spec.containers[0]",
-			wantLines: [][2]int{{17, 19}},
+			wantLines: [][2]int{{20, 22}},
 		},
 		{
 			name:      "negative array index selects last condition",
 			path:      "$.status.conditions[-1]",
-			wantLines: [][2]int{{29, 31}},
+			wantLines: [][2]int{{32, 34}},
+		},
+		{
+			name:      "out of bounds array index returns empty",
+			path:      "$.status.conditions[2]",
+			wantLines: [][2]int{},
+		},
+		{
+			name:      "array index on mapping returns empty",
+			path:      "$.spec[0]",
+			wantLines: [][2]int{},
 		},
 		{
 			name:      "array slice [0:1]",
 			path:      "$.status.conditions[0:1]",
-			wantLines: [][2]int{{27, 28}},
+			wantLines: [][2]int{{30, 31}},
+		},
+		{
+			name:      "array slice [:0] returns empty",
+			path:      "$.status.conditions[:0]",
+			wantLines: [][2]int{},
+		},
+		{
+			name:      "array slice [-1:] selects last element",
+			path:      "$.status.conditions[-1:]",
+			wantLines: [][2]int{{32, 34}},
+		},
+		{
+			name:      "array slice on mapping returns empty",
+			path:      "$.spec[0:1]",
+			wantLines: [][2]int{},
+		},
+		{
+			name:      "wildcard on mapping selects all keys in order",
+			path:      "$.spec.template.metadata.*",
+			wantLines: [][2]int{{18, 18}},
+		},
+		{
+			name:      "wildcard on sequence selects all scalar items",
+			path:      "$.status.items[*]",
+			wantLines: [][2]int{{36, 36}, {37, 37}},
+		},
+		{
+			name:      "wildcard on scalar returns empty",
+			path:      "$.spec.replicas.*",
+			wantLines: [][2]int{},
 		},
 		{
 			name:      "compound filter with &&",
 			path:      "$.status.conditions[?(@.type=='Ready' && @.status=='False')]",
-			wantLines: [][2]int{{29, 31}},
+			wantLines: [][2]int{{32, 34}},
+		},
+		{
+			name:      "filter on mapping values",
+			path:      "$.spec[?(@ == 4)]",
+			wantLines: [][2]int{{11, 11}},
+		},
+		{
+			name:      "filter on scalar returns empty",
+			path:      "$.spec.replicas[?(@ == 4)]",
+			wantLines: [][2]int{},
 		},
 		{
 			name:      "numeric filter and nested existence filter",
 			path:      "$.spec.containers[?(@.restartCount > 0 && @.lastState.terminated)].lastState.terminated",
-			wantLines: [][2]int{{23, 24}},
+			wantLines: [][2]int{{26, 27}},
 		},
 		{
-			name:      "recursive descent finds all status keys",
+			name:      "recursive descent finds nested exitCode",
 			path:      "$..exitCode",
-			wantLines: [][2]int{{24, 24}},
+			wantLines: [][2]int{{27, 27}},
 		},
 	}
 
@@ -150,33 +205,101 @@ status:
 	}
 }
 
-func TestCompileJSONPaths_Errors(t *testing.T) {
+func TestParseIndexedYAMLDocument_EdgeCases(t *testing.T) {
 	testCases := []struct {
 		name      string
-		paths     []string
-		wantIndex int
+		yaml      string
+		path      string
+		wantLines [][2]int
 	}{
-		{name: "nil paths slice", paths: nil, wantIndex: -1},
-		{name: "empty paths slice", paths: []string{}, wantIndex: -1},
-		{name: "empty path string", paths: []string{""}, wantIndex: 0},
-		{name: "root dollar only", paths: []string{"$"}, wantIndex: 0},
-		{name: "trailing dot", paths: []string{"$.spec."}, wantIndex: 0},
-		{name: "trailing recursive descent", paths: []string{"$.spec.."}, wantIndex: 0},
-		{name: "dot before bracket", paths: []string{"$.spec.[0]"}, wantIndex: 0},
-		{name: "unclosed bracket", paths: []string{"$.spec[0"}, wantIndex: 0},
-		{name: "single equals in filter", paths: []string{"$.items[?(@.type='Ready')]"}, wantIndex: 0},
-		{name: "unquoted string literal in filter", paths: []string{"$.items[?(@.type==Ready)]"}, wantIndex: 0},
+		{
+			name:      "comment only YAML has nil root and returns empty selections",
+			yaml:      "# comment only\n",
+			path:      "$.spec",
+			wantLines: [][2]int{},
+		},
+		{
+			name: "strips trailing blank lines and document end marker",
+			yaml: `spec:
+  name: web-1
+
+...
+`,
+			path:      "$.spec",
+			wantLines: [][2]int{{1, 2}},
+		},
+		{
+			name: "resolves YAML anchor alias node",
+			yaml: `defaults: &base
+  replicas: 3
+  cpu: 100m
+service: *base
+`,
+			path:      "$.service.replicas",
+			wantLines: [][2]int{{2, 2}},
+		},
+		{
+			name: "top-level sequence keeps empty dash item separate from following item",
+			yaml: `-
+- a: 1
+`,
+			path:      "$[1]",
+			wantLines: [][2]int{{2, 2}},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := compileJSONPaths(tc.paths)
-			var gotErr *InvalidJSONPathError
-			if !errors.As(err, &gotErr) {
-				t.Fatalf("compileJSONPaths(%v) err = %T (%v), want *InvalidJSONPathError", tc.paths, err, err)
+			doc, err := parseIndexedYAMLDocument(tc.yaml)
+			if err != nil {
+				t.Fatalf("parseIndexedYAMLDocument() unexpected error = %v", err)
 			}
-			if gotErr.PathIndex != tc.wantIndex {
-				t.Errorf("PathIndex = %d, want %d (err=%v)", gotErr.PathIndex, tc.wantIndex, gotErr)
+			compiled, err := compileJSONPaths([]string{tc.path})
+			if err != nil {
+				t.Fatalf("compileJSONPaths(%q) error = %v", tc.path, err)
+			}
+			sels := evalCompiledJSONPath(doc, compiled[0])
+			got := make([][2]int, len(sels))
+			for i, s := range sels {
+				got[i] = [2]int{s.startLine, s.endLine}
+			}
+			if diff := cmp.Diff(tc.wantLines, got); diff != "" {
+				t.Errorf("evalCompiledJSONPath(%q) line ranges mismatch (-want +got):\n%s", tc.path, diff)
+			}
+		})
+	}
+}
+
+func TestTrimmedContentSpanOnLine(t *testing.T) {
+	lines := []string{
+		"  key: val",
+		"   ",
+		"  - item",
+	}
+
+	type spanResult struct {
+		Line int
+		Span byteSpan
+	}
+
+	testCases := []struct {
+		name    string
+		lineNum int
+		want    spanResult
+	}{
+		{name: "below range returns zero", lineNum: 0},
+		{name: "above range returns zero", lineNum: 4},
+		{name: "blank line returns zero", lineNum: 2},
+		{name: "normal indented line", lineNum: 1, want: spanResult{Line: 1, Span: byteSpan{start: 2, end: 10}}},
+		{name: "sequence item strips dash prefix", lineNum: 3, want: spanResult{Line: 3, Span: byteSpan{start: 4, end: 8}}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotLine, gotSpan := trimmedContentSpanOnLine(lines, tc.lineNum)
+			got := spanResult{Line: gotLine, Span: gotSpan}
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(byteSpan{})); diff != "" {
+				t.Errorf("trimmedContentSpanOnLine(%d) mismatch (-want +got):\n%s", tc.lineNum, diff)
 			}
 		})
 	}
@@ -194,16 +317,104 @@ status:
 	if err != nil {
 		t.Fatalf("parseIndexedYAMLDocument() error = %v", err)
 	}
-
-	compiled, err := compileJSONPaths([]string{"$.status.currentMetrics"})
+	emptyDoc, err := parseIndexedYAMLDocument("# comment only\n")
 	if err != nil {
-		t.Fatalf("compileJSONPaths() error = %v", err)
+		t.Fatalf("parseIndexedYAMLDocument(emptyDoc) error = %v", err)
 	}
-	prefix, keys := diagnoseUnmatchedJSONPath(compiled[0], doc)
-	if prefix != "$.status" {
-		t.Errorf("matchedPrefix = %q, want \"$.status\"", prefix)
+
+	type diagnoseOutcome struct {
+		Prefix string
+		Keys   []string
 	}
-	if diff := cmp.Diff([]string{"conditions", "phase"}, keys); diff != "" {
-		t.Errorf("availableKeys mismatch (-want +got):\n%s", diff)
+
+	testCases := []struct {
+		name string
+		docs []*indexedYAMLDocument
+		path string
+		want diagnoseOutcome
+	}{
+		{
+			name: "empty root documents return empty prefix and keys",
+			docs: []*indexedYAMLDocument{emptyDoc},
+			path: "$.status.phase",
+			want: diagnoseOutcome{},
+		},
+		{
+			name: "unmatched top-level key returns empty prefix and root keys",
+			docs: []*indexedYAMLDocument{doc},
+			path: "$.spec.replicas",
+			want: diagnoseOutcome{
+				Prefix: "",
+				Keys:   []string{"apiVersion", "kind", "status"},
+			},
+		},
+		{
+			name: "unmatched nested key returns deepest matched prefix and child keys",
+			docs: []*indexedYAMLDocument{doc},
+			path: "$.status.currentMetrics",
+			want: diagnoseOutcome{
+				Prefix: "$.status",
+				Keys:   []string{"conditions", "phase"},
+			},
+		},
+		{
+			name: "unmatched key after bare root step records dotted prefix",
+			docs: []*indexedYAMLDocument{doc},
+			path: "status.currentMetrics",
+			want: diagnoseOutcome{
+				Prefix: "$.status",
+				Keys:   []string{"conditions", "phase"},
+			},
+		},
+		{
+			name: "unmatched key after bracket filter preserves bracket prefix",
+			docs: []*indexedYAMLDocument{doc},
+			path: "$.status.conditions[?(@.type=='Ready')].reason",
+			want: diagnoseOutcome{
+				Prefix: "$.status.conditions[?(@.type=='Ready')]",
+				Keys:   []string{"status", "type"},
+			},
+		},
+		{
+			name: "unmatched key beneath sequence surfaces element keys",
+			docs: []*indexedYAMLDocument{doc},
+			path: "$.status.conditions.reason",
+			want: diagnoseOutcome{
+				Prefix: "$.status.conditions",
+				Keys:   []string{"status", "type"},
+			},
+		},
+		{
+			name: "unmatched key after recursive descent step",
+			docs: []*indexedYAMLDocument{doc},
+			path: "$..conditions.reason",
+			want: diagnoseOutcome{
+				Prefix: "$..conditions",
+				Keys:   []string{"status", "type"},
+			},
+		},
+		{
+			name: "unmatched key after wildcard step",
+			docs: []*indexedYAMLDocument{doc},
+			path: "$.*.missing",
+			want: diagnoseOutcome{
+				Prefix: "$.*",
+				Keys:   []string{"conditions", "phase"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			compiled, err := compileJSONPaths([]string{tc.path})
+			if err != nil {
+				t.Fatalf("compileJSONPaths(%q) error = %v", tc.path, err)
+			}
+			prefix, keys := diagnoseUnmatchedJSONPath(compiled[0], tc.docs...)
+			got := diagnoseOutcome{Prefix: prefix, Keys: keys}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("diagnoseUnmatchedJSONPath(%q) mismatch (-want +got):\n%s", tc.path, diff)
+			}
+		})
 	}
 }

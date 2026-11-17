@@ -159,6 +159,58 @@ status:
 				},
 			},
 		},
+		{
+			name: "highlights exact parent line even when child path two lines below was already registered",
+			yaml: hpaManifestYAML,
+			opts: ManifestSliceOptions{
+				MaxLines: 4,
+				Paths:    []string{"$.spec.minReplicas", "$.spec"},
+			},
+			want: &ManifestSliceResult{
+				TotalLines: 29,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 6,
+						Text:       "spec:",
+						Parts:      []LinePart{{Text: "spec:", Matched: true}},
+					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 7, Text: "  maxReplicas: 10"},
+					{
+						Kind:       ExcerptLineKindContext,
+						NewLineNum: 8,
+						Text:       "  minReplicas: 2",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "minReplicas: 2", Matched: true},
+						},
+					},
+					{Kind: ExcerptLineKindContext, NewLineNum: 9, Text: "  metrics:"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 20, Text: "⋮ 20 lines omitted"},
+				},
+			},
+		},
+		{
+			name: "renders sequence mapping item without line highlight when keyNode is absent",
+			yaml: hpaManifestYAML,
+			opts: ManifestSliceOptions{
+				Paths: []string{"$.spec.metrics[0]"},
+			},
+			want: &ManifestSliceResult{
+				TotalLines: 29,
+				Lines: []ExcerptLine{
+					{Kind: ExcerptLineKindOmitted, Omitted: 9, Text: "⋮ 9 lines omitted"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 10, Text: "  - resource:"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 11, Text: "      name: cpu"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 12, Text: "      target:"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 13, Text: "        averageUtilization: 40"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 14, Text: "        type: Utilization"},
+					{Kind: ExcerptLineKindContext, NewLineNum: 15, Text: "    type: Resource"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 14, Text: "⋮ 14 lines omitted"},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

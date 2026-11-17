@@ -528,3 +528,144 @@ func TestStore_ServeSceneAndConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestMergeAnnotations_AllLayersAndRemoveIDs(t *testing.T) {
+	tAnchor := time.Date(2026, 10, 1, 9, 5, 0, 0, time.UTC)
+
+	testCases := []struct {
+		name  string
+		base  *Annotations
+		patch *Annotations
+		want  *Annotations
+	}{
+		{
+			name: "removes targeted items across all layers while keeping unbadged items when removeIds contains whitespace",
+			base: &Annotations{
+				ClearLayers:     []AnnotationLayer{AnnotationLayerAll},
+				RemoveIDs:       []string{"stale"},
+				DimUnlistedRows: boolRef(true),
+				Palette: []PaletteEntry{
+					{ID: "p-del", Color: "red"},
+					{ID: "p-keep", Color: "blue"},
+				},
+				Markers: []MarkerAnnotation{
+					{Badge: "M1", Label: "Keep me", Anchor: Anchor{Time: &tAnchor}},
+					{Badge: "", Label: "Marker by label", Anchor: Anchor{Time: &tAnchor}},
+					{Badge: "", Label: "Unbadged kept marker", Anchor: Anchor{Time: &tAnchor}},
+				},
+				Spans: []SpanAnnotation{
+					{Label: "Span drop", Start: Anchor{Time: &tAnchor}, End: Anchor{Time: &tAnchor}},
+					{Label: "Span keep", Start: Anchor{Time: &tAnchor}, End: Anchor{Time: &tAnchor}},
+				},
+				RowHighlights: []RowHighlight{
+					{RoleLabel: "ROLE-DROP", TimelineIDs: []uint32{1}},
+					{RoleLabel: "", TimelineIDs: []uint32{2}},
+				},
+				DiffExcerpts: []DiffExcerpt{
+					{Badge: "D1", Revision: RevisionRef{TimelineID: 1, RevisionIndex: 0}, Paths: []string{"$.spec"}},
+					{Badge: "", Revision: RevisionRef{TimelineID: 2, RevisionIndex: 0}, Paths: []string{"$.spec"}},
+				},
+				ManifestExcerpts: []ManifestExcerpt{
+					{Badge: "MF1", TimelineID: 1, Time: timeRef(tAnchor), Paths: []string{"$.spec"}},
+					{Badge: "", TimelineID: 2, Time: timeRef(tAnchor), Paths: []string{"$.spec"}},
+				},
+				LogExcerpts: []LogExcerpt{
+					{Badge: "L1", LogID: 10},
+					{Badge: "", LogID: 11},
+				},
+				Connectors: []ConnectorAnnotation{
+					{Badge: "C1", Label: "Conn keep?", From: Anchor{Time: &tAnchor}, To: Anchor{Time: &tAnchor}},
+					{Badge: "", Label: "Conn drop by label", From: Anchor{Time: &tAnchor}, To: Anchor{Time: &tAnchor}},
+					{Badge: "", Label: "Conn kept", From: Anchor{Time: &tAnchor}, To: Anchor{Time: &tAnchor}},
+				},
+				Callouts: []CalloutAnnotation{
+					{Label: "Call drop", Anchor: Anchor{Time: &tAnchor}},
+					{Label: "Call kept", Anchor: Anchor{Time: &tAnchor}},
+				},
+			},
+			patch: &Annotations{
+				DimUnlistedRows: boolRef(false),
+				RemoveIDs: []string{
+					"   ",
+					"p-del",
+					"Marker by label",
+					"Span drop",
+					"ROLE-DROP",
+					"D1",
+					"MF1",
+					"L1",
+					"C1",
+					"Conn drop by label",
+					"Call drop",
+				},
+				Palette:          []PaletteEntry{{ID: "p-new", Color: "green"}},
+				Markers:          []MarkerAnnotation{{Badge: "M2", Label: "Added marker", Anchor: Anchor{Time: &tAnchor}}},
+				Spans:            []SpanAnnotation{{Label: "Added span", Start: Anchor{Time: &tAnchor}, End: Anchor{Time: &tAnchor}}},
+				RowHighlights:    []RowHighlight{{RoleLabel: "ROLE-NEW", TimelineIDs: []uint32{3}}},
+				DiffExcerpts:     []DiffExcerpt{{Badge: "D2", Revision: RevisionRef{TimelineID: 3, RevisionIndex: 0}, Paths: []string{"$.status"}}},
+				ManifestExcerpts: []ManifestExcerpt{{Badge: "MF2", TimelineID: 3, Time: timeRef(tAnchor), Paths: []string{"$.status"}}},
+				LogExcerpts:      []LogExcerpt{{Badge: "L2", LogID: 12}},
+				Connectors:       []ConnectorAnnotation{{Badge: "C2", Label: "Added conn", From: Anchor{Time: &tAnchor}, To: Anchor{Time: &tAnchor}}},
+				Callouts:         []CalloutAnnotation{{Label: "Added callout", Anchor: Anchor{Time: &tAnchor}}},
+			},
+			want: &Annotations{
+				DimUnlistedRows: boolRef(false),
+				Palette: []PaletteEntry{
+					{ID: "p-keep", Color: "blue"},
+					{ID: "p-new", Color: "green"},
+				},
+				Markers: []MarkerAnnotation{
+					{Badge: "M1", Label: "Keep me", Anchor: Anchor{Time: &tAnchor}},
+					{Badge: "", Label: "Unbadged kept marker", Anchor: Anchor{Time: &tAnchor}},
+					{Badge: "M2", Label: "Added marker", Anchor: Anchor{Time: &tAnchor}},
+				},
+				Spans: []SpanAnnotation{
+					{Label: "Span keep", Start: Anchor{Time: &tAnchor}, End: Anchor{Time: &tAnchor}},
+					{Label: "Added span", Start: Anchor{Time: &tAnchor}, End: Anchor{Time: &tAnchor}},
+				},
+				RowHighlights: []RowHighlight{
+					{RoleLabel: "", TimelineIDs: []uint32{2}},
+					{RoleLabel: "ROLE-NEW", TimelineIDs: []uint32{3}},
+				},
+				DiffExcerpts: []DiffExcerpt{
+					{Badge: "", Revision: RevisionRef{TimelineID: 2, RevisionIndex: 0}, Paths: []string{"$.spec"}},
+					{Badge: "D2", Revision: RevisionRef{TimelineID: 3, RevisionIndex: 0}, Paths: []string{"$.status"}},
+				},
+				ManifestExcerpts: []ManifestExcerpt{
+					{Badge: "", TimelineID: 2, Time: timeRef(tAnchor), Paths: []string{"$.spec"}},
+					{Badge: "MF2", TimelineID: 3, Time: timeRef(tAnchor), Paths: []string{"$.status"}},
+				},
+				LogExcerpts: []LogExcerpt{
+					{Badge: "", LogID: 11},
+					{Badge: "L2", LogID: 12},
+				},
+				Connectors: []ConnectorAnnotation{
+					{Badge: "", Label: "Conn kept", From: Anchor{Time: &tAnchor}, To: Anchor{Time: &tAnchor}},
+					{Badge: "C2", Label: "Added conn", From: Anchor{Time: &tAnchor}, To: Anchor{Time: &tAnchor}},
+				},
+				Callouts: []CalloutAnnotation{
+					{Label: "Call kept", Anchor: Anchor{Time: &tAnchor}},
+					{Label: "Added callout", Anchor: Anchor{Time: &tAnchor}},
+				},
+			},
+		},
+		{
+			name:  "nil base appends all layers cleanly",
+			base:  nil,
+			patch: &Annotations{Callouts: []CalloutAnnotation{{Label: "Sole callout", Anchor: Anchor{Time: &tAnchor}}}},
+			want:  &Annotations{Callouts: []CalloutAnnotation{{Label: "Sole callout", Anchor: Anchor{Time: &tAnchor}}}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, errRes := mergeAnnotations(tc.base, tc.patch)
+			if errRes != nil {
+				t.Fatalf("mergeAnnotations() unexpected error = %+v", errRes)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("mergeAnnotations() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

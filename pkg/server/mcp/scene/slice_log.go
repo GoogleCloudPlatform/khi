@@ -60,6 +60,16 @@ type LogExcerptSlice struct {
 	Slice LogSliceResult
 }
 
+type logSlicer struct {
+	yamlBody         string
+	summary          string
+	expanded         []string
+	rawToExpStart    []int
+	rawToExpEnd      []int
+	parsedDoc        *indexedYAMLDocument
+	matchSpansByLine map[int][]byteSpan
+}
+
 // SliceLogDetail fetches the untruncated YAML body for logID from wb and slices it according to opts.
 func SliceLogDetail(wb *workbench.Workbench, logID uint32, opts LogSliceOptions) (*LogExcerptSlice, error) {
 	raw, err := wb.GetRawLogDetail(logID)
@@ -92,14 +102,11 @@ func SliceLogBody(yamlBody, summary string, opts LogSliceOptions) (*LogSliceResu
 
 	expanded, rawToExpStart, rawToExpEnd := expandMultilineYAMLLinesWithMap(yamlBody)
 	totalLines := len(expanded)
-
 	if len(windows) == 0 {
 		if summary != "" {
 			return &LogSliceResult{
 				TotalLines: totalLines,
-				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindSummary, Text: summary},
-				},
+				Lines:      []ExcerptLine{{Kind: ExcerptLineKindSummary, Text: summary}},
 			}, nil
 		}
 		return nil, &InvalidSliceWindowError{
@@ -108,118 +115,21 @@ func SliceLogBody(yamlBody, summary string, opts LogSliceOptions) (*LogSliceResu
 		}
 	}
 
-	var parsedDoc *indexedYAMLDocument
-	ensureParsedDoc := func() (*indexedYAMLDocument, error) {
-		if parsedDoc != nil {
-			return parsedDoc, nil
-		}
-		doc, parseErr := parseIndexedYAMLDocument(yamlBody)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		parsedDoc = doc
-		return parsedDoc, nil
+	slicer := &logSlicer{
+		yamlBody:         yamlBody,
+		summary:          summary,
+		expanded:         expanded,
+		rawToExpStart:    rawToExpStart,
+		rawToExpEnd:      rawToExpEnd,
+		matchSpansByLine: make(map[int][]byteSpan),
 	}
-
-	matchSpansByLine := make(map[int][]byteSpan)
 	var rawIntervals []lineInterval
-
 	for _, w := range windows {
-		if w.path != nil {
-			doc, parseErr := ensureParsedDoc()
-			if parseErr != nil {
-				return nil, parseErr
-			}
-			selections := evalCompiledJSONPath(doc, *w.path)
-			if len(selections) == 0 {
-				matchedPrefix, availableKeys := diagnoseUnmatchedJSONPath(*w.path, doc)
-				return nil, &SliceQueryNotFoundError{
-					WindowIndex:   w.index,
-					Path:          w.path.raw,
-					MatchedPrefix: matchedPrefix,
-					AvailableKeys: availableKeys,
-					TopLevelKeys:  extractTopLevelYAMLKeys(yamlBody),
-					Summary:       summary,
-				}
-			}
-
-			var scopedIntervals []lineInterval
-			for _, sel := range selections {
-				expStart := rawToExpStart[sel.startLine-1]
-				expEnd := rawToExpEnd[sel.endLine-1]
-				scopedIntervals = append(scopedIntervals, lineInterval{start: expStart, end: expEnd})
-				if w.query == "" && sel.highlightLine > 0 {
-					expHL := rawToExpStart[sel.highlightLine-1]
-					_, hlSpan := trimmedContentSpanOnLine(expanded, expHL+1)
-					if hlSpan.end > hlSpan.start {
-						matchSpansByLine[expHL] = append(matchSpansByLine[expHL], hlSpan)
-					}
-				}
-			}
-
-			if w.query == "" {
-				rawIntervals = append(rawIntervals, scopedIntervals...)
-				continue
-			}
-
-			// Search w.query strictly within the YAML subtrees selected by w.path.
-			matchedCount := 0
-			for _, scope := range mergeIntervals(scopedIntervals) {
-				for lineIdx := scope.start; lineIdx < scope.end; lineIdx++ {
-					spans := findQuerySpans(expanded[lineIdx], w)
-					if len(spans) == 0 {
-						continue
-					}
-					matchSpansByLine[lineIdx] = append(matchSpansByLine[lineIdx], spans...)
-					rawIntervals = append(rawIntervals, lineInterval{
-						start: max(scope.start, lineIdx-w.before),
-						end:   min(scope.end, lineIdx+w.after+1),
-					})
-					matchedCount++
-					if matchedCount >= w.maxMatches {
-						break
-					}
-				}
-				if matchedCount >= w.maxMatches {
-					break
-				}
-			}
-			if matchedCount == 0 {
-				return nil, &SliceQueryNotFoundError{
-					WindowIndex:  w.index,
-					Path:         w.path.raw,
-					Query:        w.query,
-					TopLevelKeys: extractTopLevelYAMLKeys(yamlBody),
-					Summary:      summary,
-				}
-			}
-			continue
+		ivs, err := slicer.sliceWindow(w)
+		if err != nil {
+			return nil, err
 		}
-
-		matchedCount := 0
-		for lineIdx, line := range expanded {
-			spans := findQuerySpans(line, w)
-			if len(spans) == 0 {
-				continue
-			}
-			matchSpansByLine[lineIdx] = append(matchSpansByLine[lineIdx], spans...)
-			rawIntervals = append(rawIntervals, lineInterval{
-				start: max(0, lineIdx-w.before),
-				end:   min(totalLines, lineIdx+w.after+1),
-			})
-			matchedCount++
-			if matchedCount >= w.maxMatches {
-				break
-			}
-		}
-		if matchedCount == 0 {
-			return nil, &SliceQueryNotFoundError{
-				WindowIndex:  w.index,
-				Query:        w.query,
-				TopLevelKeys: extractTopLevelYAMLKeys(yamlBody),
-				Summary:      summary,
-			}
-		}
+		rawIntervals = append(rawIntervals, ivs...)
 	}
 
 	prependedSummary := ""
@@ -229,8 +139,96 @@ func SliceLogBody(yamlBody, summary string, opts LogSliceOptions) (*LogSliceResu
 	merged := capIntervals(mergeIntervals(rawIntervals), maxLines)
 	return &LogSliceResult{
 		TotalLines: totalLines,
-		Lines:      renderLogIntervals(expanded, merged, matchSpansByLine, prependedSummary),
+		Lines:      renderLogIntervals(expanded, merged, slicer.matchSpansByLine, prependedSummary),
 	}, nil
+}
+
+func (s *logSlicer) doc() (*indexedYAMLDocument, error) {
+	if s.parsedDoc != nil {
+		return s.parsedDoc, nil
+	}
+	doc, err := parseIndexedYAMLDocument(s.yamlBody)
+	if err != nil {
+		return nil, err
+	}
+	s.parsedDoc = doc
+	return doc, nil
+}
+
+func (s *logSlicer) sliceWindow(w compiledWindow) ([]lineInterval, error) {
+	if w.path == nil {
+		return s.findQueryIntervalsInScopes(w, []lineInterval{{start: 0, end: len(s.expanded)}}, "")
+	}
+	return s.slicePathWindow(w)
+}
+
+func (s *logSlicer) slicePathWindow(w compiledWindow) ([]lineInterval, error) {
+	doc, err := s.doc()
+	if err != nil {
+		return nil, err
+	}
+	selections := evalCompiledJSONPath(doc, *w.path)
+	if len(selections) == 0 {
+		matchedPrefix, availableKeys := diagnoseUnmatchedJSONPath(*w.path, doc)
+		return nil, &SliceQueryNotFoundError{
+			WindowIndex:   w.index,
+			Path:          w.path.raw,
+			MatchedPrefix: matchedPrefix,
+			AvailableKeys: availableKeys,
+			TopLevelKeys:  extractTopLevelYAMLKeys(s.yamlBody),
+			Summary:       s.summary,
+		}
+	}
+
+	scopedIntervals := make([]lineInterval, 0, len(selections))
+	for _, sel := range selections {
+		expStart := s.rawToExpStart[sel.startLine-1]
+		expEnd := s.rawToExpEnd[sel.endLine-1]
+		scopedIntervals = append(scopedIntervals, lineInterval{start: expStart, end: expEnd})
+		if w.query == "" && sel.highlightLine != 0 {
+			expHL := s.rawToExpStart[sel.highlightLine-1]
+			hlLine, hlSpan := trimmedContentSpanOnLine(s.expanded, expHL+1)
+			if hlLine != 0 {
+				s.matchSpansByLine[expHL] = append(s.matchSpansByLine[expHL], hlSpan)
+			}
+		}
+	}
+	if w.query == "" {
+		return scopedIntervals, nil
+	}
+	return s.findQueryIntervalsInScopes(w, mergeIntervals(scopedIntervals), w.path.raw)
+}
+
+func (s *logSlicer) findQueryIntervalsInScopes(w compiledWindow, scopes []lineInterval, pathRaw string) ([]lineInterval, error) {
+	var intervals []lineInterval
+	matchedCount := 0
+	for _, scope := range scopes {
+		for lineIdx := scope.start; lineIdx < scope.end; lineIdx++ {
+			spans := findQuerySpans(s.expanded[lineIdx], w)
+			if len(spans) == 0 {
+				continue
+			}
+			s.matchSpansByLine[lineIdx] = append(s.matchSpansByLine[lineIdx], spans...)
+			intervals = append(intervals, lineInterval{
+				start: max(scope.start, lineIdx-w.before),
+				end:   min(scope.end, lineIdx+w.after+1),
+			})
+			matchedCount++
+			if matchedCount == w.maxMatches {
+				return intervals, nil
+			}
+		}
+	}
+	if matchedCount == 0 {
+		return nil, &SliceQueryNotFoundError{
+			WindowIndex:  w.index,
+			Path:         pathRaw,
+			Query:        w.query,
+			TopLevelKeys: extractTopLevelYAMLKeys(s.yamlBody),
+			Summary:      s.summary,
+		}
+	}
+	return intervals, nil
 }
 
 func renderLogIntervals(
@@ -288,38 +286,39 @@ func makeLogOmittedLine(count int) ExcerptLine {
 	}
 }
 
-func expandMultilineYAMLLinesWithMap(yamlBody string) (expanded []string, rawToExpStart []int, rawToExpEnd []int) {
+func expandMultilineYAMLLinesWithMap(yamlBody string) ([]string, []int, []int) {
 	rawLines := workbench.SplitLines(yamlBody)
 	if len(rawLines) == 0 {
 		return nil, nil, nil
 	}
-	expanded = make([]string, 0, len(rawLines))
-	rawToExpStart = make([]int, len(rawLines))
-	rawToExpEnd = make([]int, len(rawLines))
+	expanded := make([]string, 0, len(rawLines))
+	rawToExpStart := make([]int, len(rawLines))
+	rawToExpEnd := make([]int, len(rawLines))
 
 	for rawIdx, line := range rawLines {
 		rawToExpStart[rawIdx] = len(expanded)
-		prefix, quoted, indent, ok := splitYAMLQuotedScalarLine(line)
-		if !ok || !strings.Contains(quoted, `\n`) {
-			expanded = append(expanded, line)
-			rawToExpEnd[rawIdx] = len(expanded)
-			continue
-		}
-		unescaped, ok := unescapeYAMLQuotedString(quoted)
-		if !ok || !strings.Contains(unescaped, "\n") {
-			expanded = append(expanded, line)
-			rawToExpEnd[rawIdx] = len(expanded)
-			continue
-		}
-		expanded = append(expanded, prefix+"|")
-		childIndent := indent + "  "
-		subLines := strings.Split(strings.TrimSuffix(unescaped, "\n"), "\n")
-		for _, sub := range subLines {
-			expanded = append(expanded, childIndent+sub)
-		}
+		expanded = appendExpandedYAMLStringLine(expanded, line)
 		rawToExpEnd[rawIdx] = len(expanded)
 	}
 	return expanded, rawToExpStart, rawToExpEnd
+}
+
+func appendExpandedYAMLStringLine(expanded []string, line string) []string {
+	prefix, quoted, indent, ok := splitYAMLQuotedScalarLine(line)
+	if !ok {
+		return append(expanded, line)
+	}
+	unescaped, ok := unescapeYAMLQuotedString(quoted)
+	if !ok || !strings.Contains(unescaped, "\n") {
+		return append(expanded, line)
+	}
+	expanded = append(expanded, prefix+"|")
+	childIndent := indent + "  "
+	subLines := strings.Split(strings.TrimSuffix(unescaped, "\n"), "\n")
+	for _, sub := range subLines {
+		expanded = append(expanded, childIndent+sub)
+	}
+	return expanded
 }
 
 func splitYAMLQuotedScalarLine(line string) (prefix string, quoted string, indent string, ok bool) {
