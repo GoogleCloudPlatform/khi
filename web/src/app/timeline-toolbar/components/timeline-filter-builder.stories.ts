@@ -27,10 +27,11 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TimelineType } from 'src/app/store/domain/style';
 
 const createMockType = (
+  id: number,
   label: string,
   color: [number, number, number, number],
 ): TimelineType => ({
-  id: Math.random(),
+  id,
   label,
   description: `Mock ${label}`,
   icon: 'timeline',
@@ -49,9 +50,9 @@ const createMockType = (
 });
 
 const MOCK_TIMELINE_TYPES: TimelineType[] = [
-  createMockType('K8sResource', [0.25, 0.32, 0.71, 1]),
-  createMockType('K8sNamespace', [0.78, 0.18, 0.36, 1]),
-  createMockType('Gke', [0.15, 0.68, 0.37, 1]),
+  createMockType(1, 'K8sResource', [0.25, 0.32, 0.71, 1]),
+  createMockType(2, 'K8sNamespace', [0.78, 0.18, 0.36, 1]),
+  createMockType(3, 'Gke', [0.15, 0.68, 0.37, 1]),
 ];
 
 const meta: Meta<TimelineFilterBuilderComponent> = {

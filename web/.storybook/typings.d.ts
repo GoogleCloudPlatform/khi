@@ -18,3 +18,36 @@ declare module '*.md' {
   const content: string;
   export default content;
 }
+
+interface KhiVrtViewport {
+  readonly width: number;
+  readonly height: number;
+}
+
+interface KhiVrtParameters {
+  readonly skip?: boolean;
+  readonly viewport?: KhiVrtViewport;
+  readonly fullPage?: boolean;
+  readonly readySelector?: string;
+  readonly waitForHiddenSelector?: string;
+  readonly diffPixelRatio?: number;
+  readonly maskSelectors?: readonly string[];
+}
+
+interface KhiVrtState {
+  readonly storyId: string;
+  readonly status: string;
+  readonly errorMessage: string;
+  readonly parameters: KhiVrtParameters;
+  readonly isFullscreen: boolean;
+}
+
+interface KhiVrtBridge {
+  readonly getState: () => KhiVrtState;
+  readonly waitForReady: () => Promise<KhiVrtState>;
+}
+
+interface Window {
+  __khiVRT?: KhiVrtBridge;
+  __khiVRTWaitSettled?: (timeoutMs?: number) => Promise<void>;
+}

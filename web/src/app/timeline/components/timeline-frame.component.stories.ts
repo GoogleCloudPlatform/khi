@@ -334,6 +334,10 @@ const meta: Meta<TimelineFrameStoriesComponent> = {
   tags: ['autodocs'],
   parameters: {
     layout: 'fullscreen',
+    vrt: {
+      readySelector: 'khi-timeline-chart canvas.gl-canvas',
+      waitForHiddenSelector: 'khi-timeline-chart .overlay',
+    },
   },
   argTypes: {
     viewModel: {
