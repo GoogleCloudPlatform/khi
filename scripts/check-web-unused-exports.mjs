@@ -14,19 +14,29 @@
  * limitations under the License.
  */
 
-import fs from 'node:fs';
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Normalizes a filesystem path to forward slashes and lowercases any Windows drive letter.
+ */
+function normalizePath(p) {
+  const resolved = path.resolve(p).replaceAll("\\", "/");
+  return /^[a-zA-Z]:/.test(resolved)
+    ? resolved[0].toLowerCase() + resolved.slice(1)
+    : resolved;
+}
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
-const WEB_ROOT = path.join(REPO_ROOT, 'web');
-const WEB_SRC_ROOT = path.join(WEB_ROOT, 'src');
-const STORYBOOK_ROOT = path.join(WEB_ROOT, '.storybook');
+const REPO_ROOT = normalizePath(path.join(SCRIPT_DIR, ".."));
+const WEB_ROOT = normalizePath(path.join(REPO_ROOT, "web"));
+const WEB_SRC_ROOT = normalizePath(path.join(WEB_ROOT, "src"));
+const STORYBOOK_ROOT = normalizePath(path.join(WEB_ROOT, ".storybook"));
 
-const require = createRequire(path.join(WEB_ROOT, 'package.json'));
-const ts = require('typescript');
+const require = createRequire(path.join(WEB_ROOT, "package.json"));
+const ts = require("typescript");
 
 /**
  * Recursively collects all TypeScript source files under a directory.
@@ -39,46 +49,46 @@ function collectTsFiles(dir, out = []) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (
-        entry.name === 'node_modules' ||
-        entry.name === '.angular' ||
-        entry.name === 'dist'
+        entry.name === "node_modules" ||
+        entry.name === ".angular" ||
+        entry.name === "dist"
       ) {
         continue;
       }
       collectTsFiles(full, out);
-    } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-      out.push(full);
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+      out.push(normalizePath(full));
     }
   }
   return out;
 }
 
 function isGeneratedFile(fileName) {
-  const normalized = fileName.replaceAll('\\', '/');
+  const normalized = fileName.replaceAll("\\", "/");
   return (
-    normalized.includes('/src/app/generated/') ||
-    path.basename(normalized).startsWith('zzz-') ||
-    normalized.includes('/src/environments/version.')
+    normalized.includes("/src/app/generated/") ||
+    path.basename(normalized).startsWith("zzz-") ||
+    normalized.includes("/src/environments/version.")
   );
 }
 
 function isTestOrStoryFile(fileName) {
-  const normalized = fileName.replaceAll('\\', '/');
+  const normalized = fileName.replaceAll("\\", "/");
   return (
-    normalized.endsWith('.spec.ts') ||
-    normalized.endsWith('.stories.ts') ||
-    normalized.endsWith('/src/test.ts') ||
-    normalized.includes('/.storybook/')
+    normalized.endsWith(".spec.ts") ||
+    normalized.endsWith(".stories.ts") ||
+    normalized.endsWith("/src/test.ts") ||
+    normalized.includes("/.storybook/")
   );
 }
 
 function isEntrypointFile(fileName) {
-  const normalized = fileName.replaceAll('\\', '/');
+  const normalized = fileName.replaceAll("\\", "/");
   return (
-    normalized.endsWith('/src/main.ts') ||
-    normalized.endsWith('/src/polyfills.ts') ||
-    normalized.endsWith('.d.ts') ||
-    normalized.includes('/src/environments/')
+    normalized.endsWith("/src/main.ts") ||
+    normalized.endsWith("/src/polyfills.ts") ||
+    normalized.endsWith(".d.ts") ||
+    normalized.includes("/src/environments/")
   );
 }
 
@@ -94,14 +104,14 @@ function hasExportModifier(node) {
 }
 
 function getKindLabel(node) {
-  if (ts.isFunctionDeclaration(node)) return 'function';
-  if (ts.isClassDeclaration(node)) return 'class';
-  if (ts.isInterfaceDeclaration(node)) return 'interface';
-  if (ts.isTypeAliasDeclaration(node)) return 'type';
-  if (ts.isEnumDeclaration(node)) return 'enum';
-  if (ts.isVariableDeclaration(node)) return 'const';
-  if (ts.isExportSpecifier(node)) return 're-export';
-  return 'declaration';
+  if (ts.isFunctionDeclaration(node)) return "function";
+  if (ts.isClassDeclaration(node)) return "class";
+  if (ts.isInterfaceDeclaration(node)) return "interface";
+  if (ts.isTypeAliasDeclaration(node)) return "type";
+  if (ts.isEnumDeclaration(node)) return "enum";
+  if (ts.isVariableDeclaration(node)) return "const";
+  if (ts.isExportSpecifier(node)) return "re-export";
+  return "declaration";
 }
 
 function collectBindingIdentifiers(nameNode, out = []) {
@@ -156,17 +166,17 @@ function collectModuleSpecifiers(sf) {
 }
 
 function main() {
-  const jsonOutput = process.argv.includes('--json');
+  const jsonOutput = process.argv.includes("--json");
   const allTsFiles = [
     ...collectTsFiles(WEB_SRC_ROOT),
     ...collectTsFiles(STORYBOOK_ROOT),
   ];
 
-  const configPath = path.join(WEB_ROOT, 'tsconfig.json');
+  const configPath = path.join(WEB_ROOT, "tsconfig.json");
   const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
   if (configFile.error) {
     throw new Error(
-      ts.flattenDiagnosticMessageText(configFile.error.messageText, '\n'),
+      ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n"),
     );
   }
   const parsed = ts.parseJsonConfigFileContent(
@@ -179,12 +189,21 @@ function main() {
     baseUrl: WEB_ROOT,
   };
 
+  const snapshotCache = new Map();
   const servicesHost = {
     getScriptFileNames: () => allTsFiles,
-    getScriptVersion: () => '1',
+    getScriptVersion: () => "1",
     getScriptSnapshot: (fileName) => {
-      if (!fs.existsSync(fileName)) return undefined;
-      return ts.ScriptSnapshot.fromString(fs.readFileSync(fileName, 'utf8'));
+      const key = normalizePath(fileName);
+      let snapshot = snapshotCache.get(key);
+      if (!snapshot) {
+        if (!fs.existsSync(fileName)) return undefined;
+        snapshot = ts.ScriptSnapshot.fromString(
+          fs.readFileSync(fileName, "utf8"),
+        );
+        snapshotCache.set(key, snapshot);
+      }
+      return snapshot;
     },
     getCurrentDirectory: () => WEB_ROOT,
     getCompilationSettings: () => compilerOptions,
@@ -202,28 +221,28 @@ function main() {
   );
   const program = ls.getProgram();
   if (!program) {
-    throw new Error('Failed to create TypeScript program.');
+    throw new Error("Failed to create TypeScript program.");
   }
 
   const importedFiles = new Set();
   for (const sf of program.getSourceFiles()) {
-    const fileName = sf.fileName;
+    const fileName = normalizePath(sf.fileName);
     if (
-      !fileName.startsWith(WEB_SRC_ROOT + path.sep) &&
-      !fileName.startsWith(STORYBOOK_ROOT + path.sep)
+      !fileName.startsWith(WEB_SRC_ROOT + "/") &&
+      !fileName.startsWith(STORYBOOK_ROOT + "/")
     ) {
       continue;
     }
     for (const specifier of collectModuleSpecifiers(sf)) {
       const resolved = ts.resolveModuleName(
         specifier,
-        fileName,
+        sf.fileName,
         compilerOptions,
         ts.sys,
       );
       if (resolved.resolvedModule?.resolvedFileName) {
         importedFiles.add(
-          path.resolve(resolved.resolvedModule.resolvedFileName),
+          normalizePath(resolved.resolvedModule.resolvedFileName),
         );
       }
     }
@@ -233,7 +252,7 @@ function main() {
   const unusedExports = [];
 
   for (const fileName of allTsFiles) {
-    if (!fileName.startsWith(WEB_SRC_ROOT + path.sep)) continue;
+    if (!fileName.startsWith(WEB_SRC_ROOT + "/")) continue;
     if (
       isGeneratedFile(fileName) ||
       isTestOrStoryFile(fileName) ||
@@ -241,15 +260,15 @@ function main() {
     ) {
       continue;
     }
-    const resolvedFile = path.resolve(fileName);
-    const relFile = path.relative(REPO_ROOT, resolvedFile).replaceAll('\\', '/');
+    const resolvedFile = normalizePath(fileName);
+    const relFile = path.posix.relative(REPO_ROOT, resolvedFile);
 
     if (!importedFiles.has(resolvedFile)) {
       orphanFiles.push({
         file: relFile,
-        rule: 'orphan-ts-file',
+        rule: "orphan-ts-file",
         message:
-          'TypeScript file is never imported by any source, test, or story file',
+          "TypeScript file is never imported by any source, test, or story file",
       });
       continue;
     }
@@ -267,14 +286,15 @@ function main() {
       let sameFileNonDefRefs = 0;
       for (const group of refs) {
         for (const ref of group.references) {
+          const refFile = normalizePath(ref.fileName);
           if (
             ref.isDefinition &&
-            path.resolve(ref.fileName) === resolvedFile &&
+            refFile === resolvedFile &&
             ref.textSpan.start === pos
           ) {
             continue;
           }
-          if (path.resolve(ref.fileName) === resolvedFile) {
+          if (refFile === resolvedFile) {
             sameFileNonDefRefs++;
           } else {
             externalRefs++;
@@ -292,9 +312,7 @@ function main() {
           kind,
           sameFileUses: sameFileNonDefRefs,
           rule:
-            sameFileNonDefRefs === 0
-              ? 'unused-export'
-              : 'unnecessary-export',
+            sameFileNonDefRefs === 0 ? "unused-export" : "unnecessary-export",
           message:
             sameFileNonDefRefs === 0
               ? `exported ${kind} '${nameNode.text}' is never used anywhere`
