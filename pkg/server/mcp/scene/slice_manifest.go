@@ -59,7 +59,7 @@ func SliceResourceManifest(
 	selector workbench.RevisionSelector,
 	opts ManifestSliceOptions,
 ) (*ResourceManifestSlice, error) {
-	raw, err := wb.GetRawResourceManifest(timelineID, selector, false)
+	raw, err := wb.GetRawResourceManifest(timelineID, selector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read raw resource manifest: %w", err)
 	}
