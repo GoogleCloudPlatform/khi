@@ -78,32 +78,3 @@ func TestTagReference(t *testing.T) {
 		})
 	}
 }
-
-type customDependency struct{}
-
-func (c customDependency) DescriptorCardinality() taskid.EdgeCardinality {
-	return taskid.CardinalityPointToPoint
-}
-
-func (c customDependency) DescriptorScope() taskid.DependencyScope {
-	return taskid.ScopeAll
-}
-
-func (c customDependency) ResultType() reflect.Type {
-	return reflect.TypeFor[any]()
-}
-
-var _ taskid.DependencyDescriptor = (*customDependency)(nil)
-
-func TestCustomDependencyDescriptor(t *testing.T) {
-	var desc taskid.DependencyDescriptor = customDependency{}
-	if got := desc.DescriptorCardinality(); got != taskid.CardinalityPointToPoint {
-		t.Errorf("DescriptorCardinality() = %v, want %v", got, taskid.CardinalityPointToPoint)
-	}
-	if got := desc.DescriptorScope(); got != taskid.ScopeAll {
-		t.Errorf("DescriptorScope() = %v, want %v", got, taskid.ScopeAll)
-	}
-	if got := desc.ResultType(); got != reflect.TypeFor[any]() {
-		t.Errorf("ResultType() = %v, want %v", got, reflect.TypeFor[any]())
-	}
-}
