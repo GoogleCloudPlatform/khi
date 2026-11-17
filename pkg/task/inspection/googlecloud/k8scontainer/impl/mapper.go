@@ -166,6 +166,9 @@ func processContainerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeS
 				summary = msg
 			}
 		}
+		if containerFields.ContainerName == k8scontainer.CiliumAgentContainerName {
+			summary = enrichCiliumAgentLog(cs, l, containerFields, summary)
+		}
 		cs.SetSummary(summary)
 	}
 
@@ -173,6 +176,7 @@ func processContainerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeS
 }
 
 // mapContainerLog adds an event for a Kubernetes container log to the timeline of its container.
+// It also adds the event to the timeline of the Pod that a cilium-agent log refers to.
 // It uses fallbackClusterName when the cluster name in the log is empty or "unknown".
 func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string) (*khifilev6.TimelineChangeSet, error) {
 	containerFields, err := k8scontainer.ExtractK8sContainerLog(l.NodeReader, nil)
@@ -185,11 +189,7 @@ func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string
 		clusterName = fallbackClusterName
 	}
 
-	clusterPath := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionPath := k8saudit.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
-	kindPath := k8saudit.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
-	namespacePath := k8saudit.MustK8sNamespaceTimeline(ctx, kindPath, containerFields.Namespace)
-	podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, namespacePath, containerFields.PodName)
+	podPath := mustPodTimelinePath(ctx, clusterName, containerFields.Namespace, containerFields.PodName)
 	containerPath := k8saudit.MustK8sContainerTimeline(
 		ctx,
 		podPath,
@@ -198,6 +198,14 @@ func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(containerPath)
+
+	// cilium-agent logs the lifecycle of the endpoint of each Pod, so its log also appears on the timeline of the Pod it refers to.
+	if containerFields.ContainerName == k8scontainer.CiliumAgentContainerName {
+		ciliumFields := k8scontainer.ExtractCiliumAgentLog(l.NodeReader, containerFields.ParsedMessage)
+		if ciliumFields.HasPodReference() {
+			cs.AddEvent(mustPodTimelinePath(ctx, clusterName, ciliumFields.PodNamespace, ciliumFields.PodName))
+		}
+	}
 
 	return cs, nil
 }
@@ -321,13 +329,19 @@ func mapContainerLogPodPhase(ctx context.Context, l *log.Log, state *containerLo
 	return cs, nextState, nil
 }
 
+// mustPodTimelinePath resolves the timeline path for a Pod.
+func mustPodTimelinePath(ctx context.Context, clusterName, namespace, podName string) *khifilev6.TimelinePath {
+	return k8saudit.MustResourceTimeline(ctx, clusterName, &k8saudit.ResourceIdentity{
+		APIVersion: "core/v1",
+		Kind:       "pod",
+		Namespace:  namespace,
+		Name:       podName,
+	})
+}
+
 // mustPodAndBindingTimelinePaths resolves the timeline paths for a Pod and its binding subresource.
 func mustPodAndBindingTimelinePaths(ctx context.Context, clusterName, namespace, podName string) (*khifilev6.TimelinePath, *khifilev6.TimelinePath) {
-	cluster := k8saudit.MustK8sClusterTimeline(ctx, clusterName)
-	api := k8saudit.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
-	kind := k8saudit.MustK8sKindTimeline(ctx, api, "pod")
-	ns := k8saudit.MustK8sNamespaceTimeline(ctx, kind, namespace)
-	podPath := k8saudit.MustK8sNamespacedResourceTimeline(ctx, ns, podName)
+	podPath := mustPodTimelinePath(ctx, clusterName, namespace, podName)
 	bindingPath := k8saudit.MustK8sSubresourceTimeline(ctx, podPath, "binding")
 	return podPath, bindingPath
 }

@@ -130,6 +130,8 @@ export interface SpanItemViewModel {
   readonly colors: TimelineResolvedPaletteColors;
   /** True when the span is bounded to specific timeline rows rather than full chart height. */
   readonly isRowScoped: boolean;
+  /** True when the header chip is positioned above the span box rather than inside it. */
+  readonly isLabelAbove: boolean;
   /** True when corner bracket accents should be rendered on the span body. */
   readonly showCornerBrackets: boolean;
   /** True when a vertical marker stem coincides with the span's left boundary. */
@@ -599,11 +601,25 @@ export interface SpanBoxGeometry {
 }
 
 /**
+ * Horizontal stage bounds and optional right-neighbor ceiling for laying out a span header chip.
+ */
+export interface SpanChipHorizontalBounds {
+  /** Left X coordinate where the timeline chart viewport starts in CSS pixels. */
+  readonly chartLeftPx: number;
+  /** Total horizontal stage width in CSS pixels. */
+  readonly stageWidthPx: number;
+  /** Optional stage X ceiling imposed by an adjacent same-band above-box label chip to the right. */
+  readonly maxAboveRightStagePx?: number;
+}
+
+/**
  * Header label text and positioned chip coordinates for a timeline span band.
  */
 export interface SpanHeaderChipLayout {
   /** Formatted header label including duration suffix when present. */
   readonly headerText: string;
+  /** True when the header chip is positioned above the span box rather than inside it. */
+  readonly isLabelAbove: boolean;
   /** Horizontal offset of the header chip relative to span left in pixels. */
   readonly labelLeftPx: number;
   /** Left X coordinate of the header chip in stage CSS pixels. */

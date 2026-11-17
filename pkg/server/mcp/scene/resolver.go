@@ -41,7 +41,6 @@ const (
 
 var (
 	validMarkerStyles    = []MarkerStyle{MarkerStylePin, MarkerStyleReference}
-	validSpanPatterns    = []SpanPattern{SpanPatternSolid, SpanPatternHatched, SpanPatternOutline}
 	validConnectorStyles = []ConnectorStyle{ConnectorStyleCurve, ConnectorStyleStep, ConnectorStyleCaliper}
 	validCalloutSides    = []CalloutPlacement{CalloutPlacementAuto, CalloutPlacementLeft, CalloutPlacementRight, CalloutPlacementAbove, CalloutPlacementBelow}
 )
@@ -75,7 +74,16 @@ func Resolve(
 	if errRes, err := resolveMarkers(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
-	if errRes, err := resolveSpans(ctx, wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
+	spanCfg := spanResolveContext{
+		wb:           wb,
+		inspectionID: inspectionID,
+		spec:         spec,
+		applied:      applied,
+		paletteReg:   paletteReg,
+		autoInclude:  autoInclude,
+		overlay:      overlay,
+	}
+	if errRes, err := resolveSpans(ctx, spanCfg); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
 	if errRes, err := resolveRowHighlights(ctx, wb, inspectionID, spec, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
@@ -168,88 +176,6 @@ func resolveMarkers(
 			TimelineID:    pt.timelineID,
 			LogID:         pt.logID,
 			RevisionIndex: pt.revisionIndex,
-		})
-	}
-	return nil, nil
-}
-
-func resolveSpans(
-	ctx context.Context,
-	wb *workbench.Workbench,
-	inspectionID string,
-	spec *Spec,
-	applied workbench.AppliedFilter,
-	paletteReg *paletteRegistry,
-	autoInclude *roaring.Bitmap,
-	overlay *Overlay,
-) (*mcpsdk.CallToolResult, error) {
-	ann := spec.Annotations
-	for i := range ann.Spans {
-		s := &ann.Spans[i]
-		fieldPath := fmt.Sprintf("annotations.spans[%d]", i)
-		if strings.TrimSpace(s.Label) == "" {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.label` is required.", fieldPath))
-			return res, nil
-		}
-		if utf8.RuneCountInString(s.Label) > maxAnnotationRunes {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.label` exceeds maximum length of %d characters.", fieldPath, maxAnnotationRunes))
-			return res, nil
-		}
-		pattern := s.Pattern
-		if pattern == "" {
-			pattern = SpanPatternSolid
-		}
-		if !slices.Contains(validSpanPatterns, pattern) {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Unsupported `%s.pattern` `%s` (use `solid`, `hatched`, or `outline`).", fieldPath, pattern))
-			return res, nil
-		}
-		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, s.PaletteID)
-		if errRes != nil {
-			return errRes, nil
-		}
-
-		startPt, errRes, err := resolveAnchor(wb, inspectionID, applied, spec.Filter, fieldPath+".start", s.Start)
-		if err != nil || errRes != nil {
-			return errRes, err
-		}
-		endPt, errRes, err := resolveAnchor(wb, inspectionID, applied, spec.Filter, fieldPath+".end", s.End)
-		if err != nil || errRes != nil {
-			return errRes, err
-		}
-		if endPt.time.Before(startPt.time) {
-			res, _, _ := mdtemplate.ErrorResult(
-				"INVALID_ANCHOR",
-				fmt.Sprintf("`%s.end` (%s) must not be before `%s.start` (%s).", fieldPath, mdtemplate.FormatTime(endPt.time), fieldPath, mdtemplate.FormatTime(startPt.time)),
-			)
-			return res, nil
-		}
-		if startPt.timelineID != 0 {
-			autoInclude.Add(startPt.timelineID)
-		}
-		if endPt.timelineID != 0 {
-			autoInclude.Add(endPt.timelineID)
-		}
-
-		var scopedIDs []uint32
-		if s.TimelineQuery != "" || len(s.TimelineIDs) > 0 {
-			includeSubtree := s.IncludeSubtree == nil || *s.IncludeSubtree
-			scopedIDs, errRes, err = resolveScopedTimelineIDs(ctx, wb, inspectionID, fieldPath, s.TimelineQuery, s.TimelineIDs, includeSubtree, autoInclude)
-			if err != nil || errRes != nil {
-				return errRes, err
-			}
-		}
-
-		duration := endPt.time.Sub(startPt.time)
-		durationLabel := formatElapsedDelta(duration, false)
-		overlay.Spans = append(overlay.Spans, ResolvedSpan{
-			ID:            fmt.Sprintf("span-%d", i+1),
-			Label:         s.Label,
-			StartTimeMs:   startPt.time.UnixMilli(),
-			EndTimeMs:     endPt.time.UnixMilli(),
-			DurationLabel: durationLabel,
-			TimelineIDs:   scopedIDs,
-			Pattern:       pattern,
-			PaletteID:     paletteID,
 		})
 	}
 	return nil, nil

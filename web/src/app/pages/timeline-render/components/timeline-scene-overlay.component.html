@@ -185,6 +185,7 @@
   @for (span of sceneVm.spans; track span.id) {
     <span
       class="span-label-chip"
+      [class.above]="span.isLabelAbove"
       [style.--palette-main]="span.colors.main"
       [style.--palette-surface]="span.colors.surface"
       [style.left.px]="span.chipStageLeftPx"
