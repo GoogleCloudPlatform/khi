@@ -63,7 +63,7 @@ export type FilterProgressCallback = (
 /**
  * Final result of the filter pipeline containing sparse bitset representations of matching items.
  */
-export interface FilterTimelineResult {
+interface FilterTimelineResult {
   readonly timelineMode?: FilterResultMode;
   readonly timelineBitset?: SparseBitset;
   readonly logMode?: FilterResultMode;
@@ -73,7 +73,7 @@ export interface FilterTimelineResult {
 /**
  * Paginated list of candidate strings returned by ListWorkbenchStrings.
  */
-export interface WorkbenchStringsPage {
+interface WorkbenchStringsPage {
   readonly values: readonly string[];
   readonly totalCount: number;
 }
@@ -89,7 +89,7 @@ export interface MaskInspectionRuleInput {
 /**
  * Metadata describing a newly registered masked inspection archive.
  */
-export interface MaskedInspectionResult {
+interface MaskedInspectionResult {
   readonly inspectionId: string;
   readonly inspectionName: string;
   readonly suggestedFilename: string;
@@ -107,7 +107,7 @@ export type MaskedInspectionProgressCallback = (
 /**
  * Progress snapshot for on-demand string pool trigram index construction.
  */
-export interface StringPoolIndexProgressUpdate {
+interface StringPoolIndexProgressUpdate {
   readonly state: WatchIndexProgressResponse_IndexState;
   readonly progressPercentage: number;
   readonly message: string;

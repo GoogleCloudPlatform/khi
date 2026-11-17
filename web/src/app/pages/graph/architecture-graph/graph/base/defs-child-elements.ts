@@ -19,7 +19,7 @@ import { GraphObjectWithElementType } from './base-containers';
 /**
  * Graph wrapper that can be placed just under <defs>
  */
-export class GraphDefsChildItem<
+class GraphDefsChildItem<
   T extends SVGElement,
 > extends GraphObjectWithElementType<T> {}
 

@@ -65,12 +65,6 @@ export const METADATA_BOX_WARNING: ElementStyle = {
   ry: 4,
 };
 
-export const NODE_METADATA_LABEL_ERROR: ElementStyle = {
-  'font-weight': 500,
-  fill: GRAPH_COLORS.ERROR,
-  'font-size': 15,
-};
-
 export const NODE_METADATA_LABEL_NORMAL: ElementStyle = {
   fill: 'white',
   'font-size': 15,
@@ -146,16 +140,6 @@ export const CONTAINER_TYPE_LABEL: ElementStyle = {
   'font-size': 10,
   fill: 'white',
   'font-weight': 500,
-};
-
-export const KIND_LABEL_FONT_STYLE: ElementStyle = {
-  fill: 'white',
-  'font-weight': 500,
-};
-
-export const KIND_LABEL_BACKGROUND_BASE: ElementStyle = {
-  rx: 4,
-  ry: 4,
 };
 
 export const SERVICE_STYLE: ElementStyle = {

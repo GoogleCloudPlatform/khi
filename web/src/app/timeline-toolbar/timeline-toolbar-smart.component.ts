@@ -45,7 +45,7 @@ import { ToolbarFrameComponent } from './components/toolbar-frame.component';
 /**
  * Resolves a masked timeline display label back to its underlying unmasked raw labels for backend CEL queries.
  */
-export type MaskedTimelineLabelResolver = (
+type MaskedTimelineLabelResolver = (
   timelineType: string,
   maskedLabel: string,
 ) => readonly string[];

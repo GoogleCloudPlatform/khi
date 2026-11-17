@@ -20,12 +20,12 @@ import { Observable } from 'rxjs';
 /**
  * The mode of the progress bar.
  */
-export type ProgressMode = 'indeterminate' | 'determinate';
+type ProgressMode = 'indeterminate' | 'determinate';
 
 /**
  * ProgressTask represents a sub-task track in a multi-tier progress indicator.
  */
-export interface ProgressTask {
+interface ProgressTask {
   /**
    * Unique identifier for the progress task.
    */

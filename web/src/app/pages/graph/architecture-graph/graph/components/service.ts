@@ -64,9 +64,7 @@ export function generateServiceBox(service: ServiceGraphData): GraphObject {
     ]);
 }
 
-export function generateServiceMetadatabox(
-  service: ServiceGraphData,
-): GraphObject {
+function generateServiceMetadatabox(service: ServiceGraphData): GraphObject {
   return $empty().withChildren([
     $alignedBox(
       Direction.Vertical,

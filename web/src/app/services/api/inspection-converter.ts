@@ -131,7 +131,7 @@ export function mapProtoUploadStatusToFormUploadStatus(
 /**
  * Maps proto InspectionPhase to frontend InspectionMetadataProgressPhase.
  */
-export function mapProtoInspectionPhaseToProgressPhase(
+function mapProtoInspectionPhaseToProgressPhase(
   phase?: ProtoInspectionPhase,
 ): InspectionMetadataProgressPhase {
   switch (phase) {

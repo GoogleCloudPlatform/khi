@@ -26,7 +26,7 @@ export const KHI_FRONTEND_EXTENSION_BUNDLES = new InjectionToken<
   KHIExtensionBundle[]
 >('KHI_FRONTEND_EXTENSION_BUNDLE');
 
-export type KHIExtensionInitHandler = (extension: KHIExtensionBundle) => void;
+type KHIExtensionInitHandler = (extension: KHIExtensionBundle) => void;
 
 /**
  * KHIExtensionBundle provides APIs to extend KHI frontend for extension modules.

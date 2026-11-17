@@ -37,7 +37,7 @@ export class KHIVersionMismatchError extends Error {
 /**
  * Context provided when a chunk fails to decode.
  */
-export interface ChunkErrorContext {
+interface ChunkErrorContext {
   readonly version: number;
   readonly typeId: number;
   readonly chunkIndex: number;
@@ -61,7 +61,7 @@ export class KHIChunkDecodeError extends Error {
 /**
  * Context provided when the data assembly phase fails.
  */
-export interface AssemblyErrorContext {
+interface AssemblyErrorContext {
   readonly version: number;
   readonly typeId: number;
   readonly cause: unknown;

@@ -20,7 +20,7 @@ import { combineLatest, filter, from, Subject } from 'rxjs';
 /**
  * The information to be shown as a notification
  */
-export interface KHINotification {
+interface KHINotification {
   /**
    * Title of the notification
    */

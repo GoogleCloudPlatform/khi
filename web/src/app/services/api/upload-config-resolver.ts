@@ -29,7 +29,7 @@ import {
 /**
  * Options supplied to resolve the effective upload configuration.
  */
-export interface ResolveUploadConfigOptions {
+interface ResolveUploadConfigOptions {
   /** Optional chunk size suggested by the backend server in bytes. */
   readonly suggestedChunkSizeBytes?: number;
   /** Optional max concurrency requested by the programmatic caller. */
@@ -43,7 +43,7 @@ export interface ResolveUploadConfigOptions {
 /**
  * Resolved chunk upload parameters.
  */
-export interface ResolvedUploadConfig {
+interface ResolvedUploadConfig {
   /** The effective chunk size in bytes (clamped to >= 1). */
   readonly chunkSize: number;
   /** The effective maximum concurrency limit (clamped to >= 1). */

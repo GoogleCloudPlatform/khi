@@ -27,11 +27,6 @@ export type ReadonlyDomainElement<T> = T extends Function
       : T;
 
 /**
- * Type representing a value that can be undefined.
- */
-export type Undefinable<T> = T | undefined;
-
-/**
  * Helper to allocate an ArrayBuffer.
  */
 export function allocateBuffer(size: number): ArrayBuffer {

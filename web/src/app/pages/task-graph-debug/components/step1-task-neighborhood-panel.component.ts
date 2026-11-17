@@ -42,7 +42,7 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
 /**
  * Structure containing 3-layer neighborhood nodes, directed edges, and metadata for a focal task.
  */
-export interface TaskNeighborhoodGraph {
+interface TaskNeighborhoodGraph {
   /**
    * Focal center task metadata, or null if unselected/unregistered.
    */

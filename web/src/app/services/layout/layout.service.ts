@@ -47,7 +47,7 @@ import { ApiPathUtil } from 'src/app/services/api/api-path-util';
 /**
  * Type identifiers for components managed by LayoutService.
  */
-export enum LayoutComponentType {
+enum LayoutComponentType {
   Timeline = 'timeline',
   Log = 'log',
   History = 'history',

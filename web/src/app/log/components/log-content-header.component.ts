@@ -33,7 +33,7 @@ import { LogType, Severity } from 'src/app/store/domain/style';
  * Aggregates all the extracted view models required to render the log header,
  * including severity, type, timestamp, and related resource references.
  */
-export interface LogContentHeaderViewModel {
+interface LogContentHeaderViewModel {
   logType: LogType | null;
   severity: Severity | null;
   timestamp: string;

@@ -76,7 +76,7 @@ export function convertJsonPatchPathToArray(path: string): string[] {
 /**
  * Checks if the given ValueType is a scalar type (not Object or Array).
  */
-export function isScalarType(type: ValueType): boolean {
+function isScalarType(type: ValueType): boolean {
   return type !== ValueType.Object && type !== ValueType.Array;
 }
 
@@ -108,7 +108,7 @@ export function getValueType(value: unknown): ValueType {
 /**
  * Generates a hash string for an array element to pair them.
  */
-export function getHash(obj: unknown, index: number): string {
+function getHash(obj: unknown, index: number): string {
   if (obj && typeof obj === 'object') {
     const record = obj as Record<string, unknown>;
     if ('type' in record) {

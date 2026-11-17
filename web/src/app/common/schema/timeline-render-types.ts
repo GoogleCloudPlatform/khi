@@ -301,7 +301,7 @@ export interface KhiTimelineRendererBridge {
 /**
  * Container for Chrome DevTools Protocol automation bridges exposed on window.__khiCDPBridge.
  */
-export interface KhiCDPBridge {
+interface KhiCDPBridge {
   timelineRenderer?: KhiTimelineRendererBridge;
 }
 

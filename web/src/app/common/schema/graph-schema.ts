@@ -52,7 +52,7 @@ export interface GraphData {
   podOwnerOwners: { [kind in PodOwnerOwnerKinds]: GraphPodOwnerOwner[] };
 }
 
-export interface LabeledGraphElement {
+interface LabeledGraphElement {
   labels: { [label_key: string]: string };
 }
 
@@ -111,7 +111,7 @@ export interface PodConnectionGraphData {
   pod: PodGraphData;
 }
 
-export interface PodOwnerConnectionGraphData {
+interface PodOwnerConnectionGraphData {
   podOwner: GraphPodOwner;
 }
 
