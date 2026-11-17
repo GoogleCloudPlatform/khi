@@ -121,7 +121,7 @@ const mockScene = buildTimelineSceneViewModel({
         lines: [
           {
             kind: TimelineExcerptLineKind.OMITTED,
-            text: '⋮ 11 lines omitted',
+            text: '11 lines omitted',
             omitted: 11,
           },
           {
@@ -142,7 +142,7 @@ const mockScene = buildTimelineSceneViewModel({
           },
           {
             kind: TimelineExcerptLineKind.OMITTED,
-            text: '⋮ 14 lines omitted',
+            text: '14 lines omitted',
             omitted: 14,
           },
         ],

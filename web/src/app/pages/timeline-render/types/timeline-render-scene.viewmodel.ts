@@ -272,7 +272,7 @@ export interface ExcerptPinViewModel {
   readonly id: string;
   /** Short badge token tying the timeline pin to its deck card and S-curve tether. */
   readonly badge: string;
-  /** Evidence kind distinguishing resource manifest diffs from raw log excerpts. */
+  /** Evidence kind distinguishing resource manifest diffs, static manifests, and raw log excerpts. */
   readonly kind: TimelineExcerptKind;
   /** Palette identifier referenced by this excerpt pin. */
   readonly paletteId: string;
@@ -311,7 +311,7 @@ export interface ExcerptLineViewModel {
 }
 
 /**
- * ViewModel for a single bottom evidence deck diff or log card.
+ * ViewModel for a single bottom evidence deck diff, manifest, or log card.
  */
 export interface ExcerptCardViewModel {
   /** Unique scene identifier matching the source excerpt card payload. */
@@ -346,7 +346,7 @@ export interface ExcerptCardViewModel {
   readonly lines: readonly ExcerptLineViewModel[];
   /** Optional human-readable analyst note explaining the card's significance. */
   readonly note: string;
-  /** Action button text ('Open Diff' or 'Open Log'). */
+  /** Action button text ('Open Diff', 'Open Manifest', or 'Open Log'). */
   readonly actionLabel: string;
   /** Session jump target pointing to the backing timeline revision or log entry. */
   readonly jumpTarget: TimelineSessionJumpTarget;

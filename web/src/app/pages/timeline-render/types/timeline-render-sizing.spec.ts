@@ -403,9 +403,11 @@ describe('timeline-render-sizing', () => {
       ],
       fixedCharWidthMeasurer,
     );
-    expect(manifestPlan.preset).toBe(ExcerptDeckGridPreset.COLS_1);
-    expect(manifestPlan.columns).toBe(1);
-    expect(manifestPlan.requiredDeckWidthPx).toBeGreaterThan(0);
+    expect(manifestPlan).toEqual({
+      preset: ExcerptDeckGridPreset.COLS_1,
+      columns: 1,
+      requiredDeckWidthPx: 419,
+    });
   });
 
   it('should measure monotonic widths with createCanvasTextWidthMeasurer', () => {

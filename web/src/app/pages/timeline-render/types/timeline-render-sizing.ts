@@ -15,7 +15,6 @@
  */
 
 import { InjectionToken } from '@angular/core';
-import { unreachable } from 'src/app/common/misc-util';
 import {
   TimelineExcerptKind,
   TimelineResolvedExcerptCard,
@@ -332,36 +331,30 @@ function calculateIndexPaneWidthPx(
   );
 }
 
+const EXCERPT_KIND_LABELS: Readonly<Record<TimelineExcerptKind, string>> = {
+  [TimelineExcerptKind.DIFF]: 'DIFF',
+  [TimelineExcerptKind.MANIFEST]: 'MANIFEST',
+  [TimelineExcerptKind.LOG]: 'LOG',
+};
+
+const EXCERPT_ACTION_LABELS: Readonly<Record<TimelineExcerptKind, string>> = {
+  [TimelineExcerptKind.DIFF]: 'Open Diff',
+  [TimelineExcerptKind.MANIFEST]: 'Open Manifest',
+  [TimelineExcerptKind.LOG]: 'Open Log',
+};
+
 /**
  * Returns the uppercase kind pill text for an evidence deck card.
  */
 export function getExcerptKindLabel(kind: TimelineExcerptKind): string {
-  switch (kind) {
-    case TimelineExcerptKind.DIFF:
-      return 'DIFF';
-    case TimelineExcerptKind.MANIFEST:
-      return 'MANIFEST';
-    case TimelineExcerptKind.LOG:
-      return 'LOG';
-    default:
-      return unreachable(kind);
-  }
+  return EXCERPT_KIND_LABELS[kind];
 }
 
 /**
  * Returns the interactive jump button label for a diff, manifest, or log evidence deck card.
  */
 export function getExcerptActionLabel(kind: TimelineExcerptKind): string {
-  switch (kind) {
-    case TimelineExcerptKind.DIFF:
-      return 'Open Diff';
-    case TimelineExcerptKind.MANIFEST:
-      return 'Open Manifest';
-    case TimelineExcerptKind.LOG:
-      return 'Open Log';
-    default:
-      return unreachable(kind);
-  }
+  return EXCERPT_ACTION_LABELS[kind];
 }
 
 /**

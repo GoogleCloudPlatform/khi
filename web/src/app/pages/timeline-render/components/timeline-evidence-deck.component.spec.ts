@@ -152,10 +152,20 @@ describe('TimelineEvidenceDeckComponent', () => {
     );
     expect(kindTags).toEqual(['DIFF', 'MANIFEST', 'LOG']);
     expect(
+      cards[0]
+        .query(By.css('.card-kind-tag'))
+        .nativeElement.classList.contains('kind-manifest'),
+    ).toBeFalse();
+    expect(
       cards[1]
         .query(By.css('.card-kind-tag'))
         .nativeElement.classList.contains('kind-manifest'),
     ).toBeTrue();
+    expect(
+      cards[2]
+        .query(By.css('.card-kind-tag'))
+        .nativeElement.classList.contains('kind-manifest'),
+    ).toBeFalse();
     expect(cards[1].query(By.css('.line-manifest'))).not.toBeNull();
     expect(
       (
