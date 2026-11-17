@@ -142,3 +142,57 @@ download-fixtures: ## Download benchmark test fixtures from GCS
 upload-fixtures: ## Upload local benchmark test fixtures to GCS
 	@echo "Uploading fixtures to $(FIXTURES_GCS_BUCKET)..."
 	gcloud storage rsync -r ./pkg $(FIXTURES_GCS_BUCKET) --include-glob="**/testdata/fixtures/**.json"
+
+VRT_FILTER ?=
+VRT_WORKERS ?= 0
+VRT_OUT_DIR ?= vrt-output/snapshot
+VRT_BASE_DIR ?=
+VRT_REPORT_DIR ?= vrt-output/report
+VRT_STORYBOOK_DIR ?= web/storybook-static
+
+.PHONY: vrt
+ifneq ($(filter true 1,$(USE_CONTAINER)),)
+vrt: vrt-container
+else
+vrt: ## Capture Storybook screenshots locally (set VRT_FILTER=<regex> to narrow stories, VRT_BASE_DIR=<dir> to compare)
+	@if [ ! -f "$(VRT_STORYBOOK_DIR)/index.json" ]; then \
+		$(MAKE) build-storybook; \
+	fi
+	@if [ -n "$(VRT_BASE_DIR)" ]; then \
+		go run ./scripts/vrt --mode=compare --storybook-dir="$(VRT_STORYBOOK_DIR)" --base-dir="$(VRT_BASE_DIR)" --head-dir="$(VRT_OUT_DIR)" --report-dir="$(VRT_REPORT_DIR)" --filter="$(VRT_FILTER)" --workers="$(VRT_WORKERS)"; \
+	else \
+		go run ./scripts/vrt --mode=capture --storybook-dir="$(VRT_STORYBOOK_DIR)" --out-dir="$(VRT_OUT_DIR)" --filter="$(VRT_FILTER)" --workers="$(VRT_WORKERS)"; \
+	fi
+endif
+
+.PHONY: vrt-container
+vrt-container: build-builder ## Run Storybook visual regression capture/comparison inside the CI builder container
+	@if [ -z "$(CONTAINER_CMD)" ]; then \
+		echo "vrt-container requires docker or podman, but neither was found." >&2; exit 1; \
+	fi
+	$(CONTAINER_CMD) run --rm \
+		--shm-size=1g \
+		-u $(shell id -u):$(shell id -g) \
+		-v $(CURDIR):/workspace \
+		-v $(shell go env GOMODCACHE):/tmp/gomodcache:ro \
+		-w /workspace \
+		-e HOME=/tmp \
+		-e GOPATH=/tmp/go \
+		-e GOMODCACHE=/tmp/gomodcache \
+		-e GOCACHE=/tmp/gocache \
+		-e VRT_FILTER="$(VRT_FILTER)" \
+		-e VRT_WORKERS="$(VRT_WORKERS)" \
+		-e VRT_OUT_DIR="$(VRT_OUT_DIR)" \
+		-e VRT_BASE_DIR="$(VRT_BASE_DIR)" \
+		-e VRT_REPORT_DIR="$(VRT_REPORT_DIR)" \
+		-e VRT_STORYBOOK_DIR="$(VRT_STORYBOOK_DIR)" \
+		$(BUILDER_IMAGE) \
+		make vrt USE_CONTAINER=false
+
+.PHONY: vrt-ci
+vrt-ci: ## Run Storybook visual regression test pipeline for Cloud Build CI
+	/bin/bash ./scripts/run-vrt-ci.sh
+
+.PHONY: post-vrt-comment
+post-vrt-comment: ## Post or update sticky GitHub PR comment from completed VRT Cloud Build Check Run
+	/bin/bash ./scripts/post-vrt-pr-comment.sh

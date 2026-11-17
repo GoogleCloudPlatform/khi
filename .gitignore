@@ -50,3 +50,6 @@ pkg/model/khifile/v6/style/assets/
 **/testdata/fixtures/**/*.json
 pprof/
 *.pprof
+
+# Local visual regression test outputs
+vrt-output/
