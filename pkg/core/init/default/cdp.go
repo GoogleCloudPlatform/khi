@@ -54,7 +54,7 @@ var CDPBrowserInitializer = &coreinit.Initializer{
 		startCtx, cancel := context.WithTimeout(ctx.Context, cdp.DefaultStartTimeout)
 		defer cancel()
 
-		browser, err := cdp.StartBrowser(startCtx)
+		browser, err := cdp.StartBrowser(startCtx, cdp.BrowserOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to start headless Chrome: %w", err)
 		}
