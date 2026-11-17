@@ -262,6 +262,16 @@ func TestResolve_SpanErrors(t *testing.T) {
 			wantSubstr: "annotations.spans[0].start",
 		},
 		{
+			name: "invalid end anchor returns INVALID_ANCHOR",
+			span: SpanAnnotation{
+				Label: "bad end anchor",
+				Start: Anchor{Time: &validStart},
+				End:   Anchor{},
+			},
+			wantCode:   "INVALID_ANCHOR",
+			wantSubstr: "annotations.spans[0].end",
+		},
+		{
 			name: "unknown end logId returns LOG_NOT_FOUND",
 			span: SpanAnnotation{
 				Label: "bad end",
