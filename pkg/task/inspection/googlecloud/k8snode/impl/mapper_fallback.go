@@ -103,7 +103,7 @@ func (o *otherLogTimelineMapper) mapLog(ctx context.Context, l *log.Log, cluster
 	if msg, found := o.terminatingMessagesByComponent[componentFieldSet.Component]; found {
 		terminatingMessage = msg
 	}
-	checkStartingAndTerminationLog(ctx, cs, l, startingMessage, terminatingMessage, componentTimelinePath)
+	checkStartingAndTerminationLog(cs, l, startingMessage, terminatingMessage, componentTimelinePath)
 
 	cs.AddEvent(componentTimelinePath)
 

@@ -500,7 +500,6 @@ status:
 				role        string
 				identity    *k8saudit.ResourceIdentity
 				eventType   k8saudit.ChangeEventType
-				verb        *pb.Verb
 			}
 			var stepInfos []stepLogInfo
 
@@ -546,7 +545,6 @@ status:
 					role:        step.role,
 					identity:    identity,
 					eventType:   step.eventType,
-					verb:        step.verb,
 				})
 			}
 

@@ -883,13 +883,11 @@ func (m *mockContextCapturingMetricFetcher) QueryMetricCount(ctx context.Context
 }
 
 type mockContextCapturingProbeFetcher struct {
-	capturedContext context.Context
-	timestamps      []time.Time
-	err             error
+	timestamps []time.Time
+	err        error
 }
 
 func (m *mockContextCapturingProbeFetcher) ProbeLogTimestamps(ctx context.Context, container googlecloud.ResourceContainer, filter string, maxEntries int32) ([]time.Time, error) {
-	m.capturedContext = ctx
 	return m.timestamps, m.err
 }
 

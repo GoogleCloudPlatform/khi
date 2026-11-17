@@ -51,10 +51,7 @@ func TestLazyJSONBlockStore_BasicAndEviction(t *testing.T) {
 			for i, item := range tc.items {
 				data := []byte(item)
 				blockID := store.ReserveBlock(data)
-				compressed, err := compressBlockData(data)
-				if err != nil {
-					t.Fatalf("compressBlockData() failed: %v", err)
-				}
+				compressed := compressBlockData(data)
 				store.SetCompressed(blockID, compressed)
 				blockIDs[i] = blockID
 			}

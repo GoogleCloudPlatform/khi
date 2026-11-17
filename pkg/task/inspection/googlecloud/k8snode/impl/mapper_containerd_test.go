@@ -75,7 +75,7 @@ func TestProcessPodSandboxIDDiscoveryForLog(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(*tc.inputComponentFieldSet)
 			finder := patternfinder.NewNaivePatternFinder[*k8snode.PodSandboxIDInfo]()
-			processPodSandboxIDDiscoveryForLog(t.Context(), l, finder)
+			processPodSandboxIDDiscoveryForLog(l, finder)
 
 			got, _ := finder.GetPattern(podSandboxID)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
@@ -181,7 +181,7 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := testlog.NewMockLog(*tc.inputComponentFieldSet)
 			receiver := make(chan *k8saudit.ContainerIdentity, 1)
-			processContainerIDDiscoveryForLog(t.Context(), l, receiver)
+			processContainerIDDiscoveryForLog(l, receiver)
 
 			var got *k8saudit.ContainerIdentity
 			if len(receiver) != 0 {

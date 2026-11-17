@@ -712,10 +712,7 @@ uid: "test-uid"`,
 				GroupSet:         groupSet,
 			}
 
-			cs, nextState, err := mapperSetting.processLog(ctx, event, tc.inputState, initialStateProvider)
-			if err != nil {
-				t.Fatalf("processLog() failed: %v", err)
-			}
+			cs, nextState := mapperSetting.processLog(ctx, event, tc.inputState, initialStateProvider)
 
 			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(resourceRevisionLogToTimelineMapperState{}), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("state mismatch (-want +got):\n%s", diff)
@@ -1040,10 +1037,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 				if idx > 0 {
 					ev.EventType = k8saudit.ChangeEventTypeModification
 				}
-				cs, nextState, err := mapperSetting.processLog(ctx, ev, state, initialStateProvider)
-				if err != nil {
-					t.Fatalf("processLog() failed: %v", err)
-				}
+				cs, nextState := mapperSetting.processLog(ctx, ev, state, initialStateProvider)
 				state = nextState
 				changeSets = append(changeSets, cs)
 			}

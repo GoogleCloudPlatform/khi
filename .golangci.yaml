@@ -38,6 +38,7 @@ linters:
     - nolintlint
     - revive
     - staticcheck
+    - unparam
     - unused
   settings:
     decorder:
@@ -191,6 +192,7 @@ linters:
           - noctx
           - revive
           - staticcheck
+          - unparam
         path: _test\.go
       - linters:
           - forbidigo

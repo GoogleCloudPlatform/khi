@@ -151,10 +151,11 @@ func (r *resourceRevisionLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets
 
 // ProcessLog implements k8saudit.ManifestLogToTimelineMapper.
 func (r *resourceRevisionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperState) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperState, error) {
-	return r.processLog(ctx, event, prevGroupData, r.initialStateProviderInput.Get(ctx))
+	cs, nextState := r.processLog(ctx, event, prevGroupData, r.initialStateProviderInput.Get(ctx))
+	return cs, nextState, nil
 }
 
-func (r *resourceRevisionLogToTimelineMapperTaskSetting) processLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperState, initialStateProvider k8saudit.InitialResourceStateProvider) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperState, error) {
+func (r *resourceRevisionLogToTimelineMapperTaskSetting) processLog(ctx context.Context, event k8saudit.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperState, initialStateProvider k8saudit.InitialResourceStateProvider) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperState) {
 	if prevGroupData == nil {
 		prevGroupData = newResourceRevisionLogToTimelineMapperState()
 	}
@@ -163,25 +164,25 @@ func (r *resourceRevisionLogToTimelineMapperTaskSetting) processLog(ctx context.
 
 	switch event.GroupRole {
 	case "source":
-		err := r.handleParentChangeForSubresource(ctx, event, cs)
-		return cs, prevGroupData, err
+		r.handleParentChangeForSubresource(ctx, event, cs)
+		return cs, prevGroupData
 	default:
-		nextState, err := r.handleTargetChange(ctx, event, cs, prevGroupData, initialStateProvider)
-		return cs, nextState, err
+		nextState := r.handleTargetChange(ctx, event, cs, prevGroupData, initialStateProvider)
+		return cs, nextState
 	}
 }
 
 // handleParentChangeForSubresource handles the parent change for subresource.
-func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSubresource(ctx context.Context, event k8saudit.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet) error {
+func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSubresource(ctx context.Context, event k8saudit.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet) {
 	switch event.EventType {
 	case k8saudit.ChangeEventTypeDeletion:
 		targetGroup, found := event.GroupSet.Roles["target"]
 		if !found || targetGroup == nil {
-			return nil
+			return
 		}
 		k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 		if k8sFieldSet.IsDryRun {
-			return nil
+			return
 		}
 		targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, targetGroup.Resource)
 
@@ -197,19 +198,15 @@ func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 			VerbType:     k8saudit.VerbDelete,
 			StateType:    k8saudit.RevisionStateK8sResourceDeleted,
 		})
-		return nil
 	case k8saudit.ChangeEventTypeModification:
-		return nil
 	case k8saudit.ChangeEventTypeCreation:
-		return nil
 	default:
 		slog.WarnContext(ctx, "unknown event type", "eventType", event.EventType)
-		return nil
 	}
 }
 
 // handleTargetChange handles the target change.
-func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event k8saudit.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState, initialStateProvider k8saudit.InitialResourceStateProvider) (*resourceRevisionLogToTimelineMapperState, error) {
+func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event k8saudit.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState, initialStateProvider k8saudit.InitialResourceStateProvider) *resourceRevisionLogToTimelineMapperState {
 	k8sFieldSet, _ := k8saudit.ExtractK8sAuditLog(event.Log.NodeReader, nil)
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
@@ -219,11 +216,11 @@ func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 
 	if k8sFieldSet.IsDryRun {
 		cs.AddEvent(targetPath)
-		return prevGroupData, nil
+		return prevGroupData
 	}
 
 	if k8sFieldSet.Verb == k8saudit.VerbDeleteCollection && prevGroupData.WasCompletelyRemoved {
-		return prevGroupData, nil
+		return prevGroupData
 	}
 
 	state := k8saudit.RevisionStateK8sResourceExisting
@@ -398,7 +395,7 @@ func (r *resourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 		StateType:        state,
 		FieldAnnotations: fieldAnnotations,
 	})
-	return prevGroupData, nil
+	return prevGroupData
 }
 
 // newResourceRevisionLogToTimelineMapperState returns a new instance of resourceRevisionLogToTimelineMapperState.

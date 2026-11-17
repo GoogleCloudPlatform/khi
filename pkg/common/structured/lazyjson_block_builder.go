@@ -15,7 +15,6 @@
 package structured
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -111,11 +110,7 @@ func (b *LazyJSONBlockBuilder) flushCurrentBlockLocked() {
 	if !b.hasActiveBlock {
 		return
 	}
-	compressed, err := compressBlockData(b.currentBuffer)
-	if err != nil {
-		panic(fmt.Sprintf("failed to compress block %d: %v", b.currentBlockID, err))
-	}
-	b.store.SetCompressed(b.currentBlockID, compressed)
+	b.store.SetCompressed(b.currentBlockID, compressBlockData(b.currentBuffer))
 	b.hasActiveBlock = false
 	b.currentBuffer = nil
 	b.currentBlock = nil

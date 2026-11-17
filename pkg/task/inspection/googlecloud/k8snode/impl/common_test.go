@@ -432,7 +432,7 @@ func TestProcessK8sNodeLog(t *testing.T) {
 				*tc.inputNodeLogFieldSet,
 			)
 
-			cs, err := processK8sNodeLog(t.Context(), l, podIDFinder, containerIDFinder, resourceUIDFinder)
+			cs, err := processK8sNodeLog(l, podIDFinder, containerIDFinder, resourceUIDFinder)
 			if err != nil {
 				t.Fatalf("processK8sNodeLog() returned unexpected error: %v", err)
 			}

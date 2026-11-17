@@ -268,6 +268,6 @@ func (s *blockLRUShard) removeTail() *lazyJSONBlock {
 	return evicted.block
 }
 
-func compressBlockData(data []byte) ([]byte, error) {
-	return snappy.Encode(nil, data), nil
+func compressBlockData(data []byte) []byte {
+	return snappy.Encode(nil, data)
 }

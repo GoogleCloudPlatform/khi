@@ -387,7 +387,7 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 			wantNodePath := mustK8sNodeTimeline(ctx, "test-cluster", "test-node")
 			wantComponentPath := k8snode.MustNodeComponentTimeline(ctx, wantNodePath, "test-component")
 
-			checkStartingAndTerminationLog(ctx, cs, l, tc.startingLog, tc.terminationLog, wantComponentPath)
+			checkStartingAndTerminationLog(cs, l, tc.startingLog, tc.terminationLog, wantComponentPath)
 
 			tc.assert(t, ctx, cs)
 		})

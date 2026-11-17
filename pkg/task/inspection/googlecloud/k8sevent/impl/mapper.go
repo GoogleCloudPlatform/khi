@@ -43,7 +43,7 @@ var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
 		finder := coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-			return processK8sEventLog(ctx, l, finder.Get(ctx))
+			return processK8sEventLog(l, finder.Get(ctx))
 		}
 	},
 )
@@ -112,7 +112,7 @@ func extractContainerNameFromFieldPath(fieldPath string) string {
 
 // processK8sEventLog sets the log type, timestamp, severity and summary of a Kubernetes event log.
 // The summary shows the resources that finder resolves from the resource UIDs in the event message.
-func processK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
+func processK8sEventLog(l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err

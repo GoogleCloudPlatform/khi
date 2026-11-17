@@ -182,7 +182,7 @@ func buildTSMutPlanBundle(
 ) (tsMutPlanBundle, error) {
 	changedSpecFiles := sortedTSSpecFiles(opts.ChangedTestLinesByFile)
 	targets := slices.Concat(changedFiles, changedSpecFiles)
-	phaseIfPresent(opts.Progress, 3, 4, fmt.Sprintf("Extracting AST mutation sites from %d TypeScript file(s)...", len(changedFiles)))
+	phaseIfPresent(opts.Progress, 3, fmt.Sprintf("Extracting AST mutation sites from %d TypeScript file(s)...", len(changedFiles)))
 	extractions, err := InvokeTSMutatorScript(ctx, opts.RepoRoot, targets)
 	if err != nil {
 		return tsMutPlanBundle{}, err
@@ -293,7 +293,7 @@ func runTSPendingMutantsIfNeeded(
 	}
 
 	maxBudget, evalTarget := resolveTSMutantBudget(opts.MaxMutants, len(bundle.pendingMutants))
-	phaseIfPresent(opts.Progress, 4, 4, fmt.Sprintf("Evaluating up to %d TypeScript mutant(s) across %d spec file(s)...",
+	phaseIfPresent(opts.Progress, 4, fmt.Sprintf("Evaluating up to %d TypeScript mutant(s) across %d spec file(s)...",
 		evalTarget, len(specPlan.IncludeSpecs)))
 
 	workDir, err := os.MkdirTemp("", "khi-ts-mutation-*")
@@ -443,9 +443,9 @@ func hasMatchingTSSpec(prodFile string, changedSpecFiles []string) bool {
 	return false
 }
 
-func phaseIfPresent(p ProgressHooks, step int, total int, msg string) {
+func phaseIfPresent(p ProgressHooks, step int, msg string) {
 	if p != nil {
-		p.Phase(step, total, msg)
+		p.Phase(step, 4, msg)
 	}
 }
 

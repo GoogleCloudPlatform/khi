@@ -119,7 +119,7 @@ func (w *Workbench) BuildBaseSearchIndex() (*SearchIndex, error) {
 
 	// If there are raw logChunks (e.g. populated directly in test setups), process them
 	if len(w.logChunks) > 0 {
-		legacyLogs, err := w.indexLogsParallel(styles)
+		legacyLogs, err := w.indexLogsParallel()
 		if err != nil {
 			return nil, fmt.Errorf("failed to index logs: %w", err)
 		}
@@ -299,7 +299,7 @@ func (w *Workbench) buildStyleMaps() *styleMaps {
 	return s
 }
 
-func (w *Workbench) indexLogsParallel(styles *styleMaps) ([]cel.LogData, error) {
+func (w *Workbench) indexLogsParallel() ([]cel.LogData, error) {
 	if len(w.logChunks) == 0 {
 		return nil, nil
 	}

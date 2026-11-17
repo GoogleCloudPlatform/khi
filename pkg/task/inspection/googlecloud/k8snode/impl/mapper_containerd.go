@@ -74,7 +74,7 @@ var containerIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 							if !ok {
 								return nil
 							}
-							processContainerIDDiscoveryForLog(ctx, l, containerIdentitiesChan)
+							processContainerIDDiscoveryForLog(l, containerIdentitiesChan)
 							tracker.Inc()
 						}
 					}
@@ -143,7 +143,7 @@ var podSandboxIDDiscoveryTask = inspectiontaskbase.DefineInspectionTask(
 							if !ok {
 								return nil
 							}
-							processPodSandboxIDDiscoveryForLog(ctx, l, podSandboxIDFinder)
+							processPodSandboxIDDiscoveryForLog(l, podSandboxIDFinder)
 							tracker.Inc()
 						}
 					}
@@ -197,7 +197,7 @@ func (c *containerdLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *
 	return cs, struct{}{}, err
 }
 
-func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]) {
+func processPodSandboxIDDiscoveryForLog(l *log.Log, finder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo]) {
 	componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil || componentFieldSet.Message == nil {
 		return
@@ -243,7 +243,7 @@ func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) 
 	return nil, fmt.Errorf("pod index information not found:%w", khierrors.ErrNotFound)
 }
 
-func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, exportTarget chan *k8saudit.ContainerIdentity) {
+func processContainerIDDiscoveryForLog(l *log.Log, exportTarget chan *k8saudit.ContainerIdentity) {
 	componentFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil || componentFieldSet.Message == nil {
 		return
@@ -307,7 +307,7 @@ func mapContainerdLog(ctx context.Context, l *log.Log, clusterIdentity k8scommon
 	nodeTimelinePath := mustK8sNodeTimeline(ctx, clusterName, nodeLogFieldSet.NodeName)
 	componentTimelinePath := k8snode.MustNodeComponentTimeline(ctx, nodeTimelinePath, nodeLogFieldSet.Component)
 
-	checkStartingAndTerminationLog(ctx, cs, l, containerdStartingMsg, containerdTerminationMsg, componentTimelinePath)
+	checkStartingAndTerminationLog(cs, l, containerdStartingMsg, containerdTerminationMsg, componentTimelinePath)
 
 	cs.AddEvent(componentTimelinePath)
 

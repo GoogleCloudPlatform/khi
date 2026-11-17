@@ -285,7 +285,7 @@ func (b *Builder) Build(
 		}
 	}
 
-	edges := b.buildEdges(nodesMap, podsMap, servicesMap, serviceSelectors, podOwnersMap, podOwnerOwnersMap)
+	edges := b.buildEdges(podsMap, servicesMap, serviceSelectors, podOwnersMap, podOwnerOwnersMap)
 
 	nodes := sortedValuesByID(nodesMap)
 	pods := sortedValuesByID(podsMap)
@@ -315,7 +315,6 @@ func (b *Builder) Build(
 }
 
 func (b *Builder) buildEdges(
-	nodesMap map[string]*apiv1.GraphNode,
 	podsMap map[string]*apiv1.GraphPod,
 	servicesMap map[string]*apiv1.GraphService,
 	serviceSelectors map[string]map[string]string,

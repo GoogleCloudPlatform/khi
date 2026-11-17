@@ -90,10 +90,7 @@ func TestMapNonSuccessLog(t *testing.T) {
 			)
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			cs, err := mapperSetting.mapLog(ctx, logObj, nil)
-			if err != nil {
-				t.Fatalf("mapLog() failed: %v", err)
-			}
+			cs := mapperSetting.mapLog(ctx, logObj, nil)
 
 			testchangeset.AssertTimeline(t, cs).
 				HasEvent(tc.wantPath)
