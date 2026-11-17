@@ -194,7 +194,7 @@ describe('TimelineView', () => {
       'priority',
       'process',
     ]);
-    filter.process.and.callFake((ctx, store, signal) => {
+    filter.process.and.callFake((ctx, _store, signal) => {
       if (signal) {
         processSignals.push(signal);
       }
@@ -251,7 +251,7 @@ describe('TimelineView', () => {
     Object.defineProperty(filter, 'displayName', {
       get: () => 'ProgressFilter',
     });
-    filter.process.and.callFake((ctx, store, signal, onProgress) => {
+    filter.process.and.callFake((_ctx, _store, _signal, onProgress) => {
       onProgress?.(5, 10);
       return processPromise;
     });

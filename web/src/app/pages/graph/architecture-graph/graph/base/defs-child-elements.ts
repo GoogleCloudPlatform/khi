@@ -29,7 +29,7 @@ export class GraphDefsChildItem<
 export class GraphPattern extends GraphDefsChildItem<SVGPatternElement> {
   constructor(width: number, height: number) {
     super(document.createElementNS('http://www.w3.org/2000/svg', 'pattern'));
-    this.transform.onSvgElementUpdate = (pos, size) => {
+    this.transform.onSvgElementUpdate = (_pos, size) => {
       this.withMinSize(size.width, size.height);
       return;
     };

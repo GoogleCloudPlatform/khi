@@ -92,10 +92,10 @@ func TestBinder(t *testing.T) {
 		{
 			name: "records inputs in declaration order",
 			bind: func(b *Binder) {
-				UseTag(b, tag.Ref())
-				Use(b, requiredRef)
+				_ = UseTag(b, tag.Ref())
+				_ = Use(b, requiredRef)
 				After(b, orderingRef)
-				UseOptional(b, optionalRef)
+				_ = UseOptional(b, optionalRef)
 			},
 			wantSpecs: []string{
 				"tag tag:binder-test-tag",
@@ -112,15 +112,15 @@ func TestBinder(t *testing.T) {
 		{
 			name: "merges an input declared twice into one spec",
 			bind: func(b *Binder) {
-				Use(b, requiredRef)
-				Use(b, requiredRef)
+				_ = Use(b, requiredRef)
+				_ = Use(b, requiredRef)
 			},
 			wantSpecs: []string{"required ref:required"},
 		},
 		{
 			name: "merges an ordering dependency into the value input it duplicates",
 			bind: func(b *Binder) {
-				Use(b, requiredRef)
+				_ = Use(b, requiredRef)
 				After(b, orderingRef)
 				After(b, requiredRef)
 			},
@@ -129,7 +129,7 @@ func TestBinder(t *testing.T) {
 		{
 			name: "panics when declarations of the same input have conflicting result types",
 			bind: func(b *Binder) {
-				Use(b, requiredRef)
+				_ = Use(b, requiredRef)
 				After(b, taskid.NewTaskReference[int]("required"))
 			},
 			wantPanic: "declares input ref:required with conflicting result types string and int",
@@ -137,21 +137,21 @@ func TestBinder(t *testing.T) {
 		{
 			name: "panics when a required input uses a scope other than ScopeAll",
 			bind: func(b *Binder) {
-				Use(b, taskid.NewTaskReference[string]("required", taskid.ScopeActiveGraph))
+				_ = Use(b, taskid.NewTaskReference[string]("required", taskid.ScopeActiveGraph))
 			},
 			wantPanic: "declares required input required with a scope other than ScopeAll",
 		},
 		{
 			name: "panics when an optional input uses ScopeAll",
 			bind: func(b *Binder) {
-				UseOptional(b, requiredRef)
+				_ = UseOptional(b, requiredRef)
 			},
 			wantPanic: "declares optional input required with ScopeAll",
 		},
 		{
 			name: "panics when a tag input uses ScopeAll",
 			bind: func(b *Binder) {
-				UseTag(b, &tagReferenceImpl[string]{
+				_ = UseTag(b, &tagReferenceImpl[string]{
 					tag:    "binder-test-tag",
 					config: taskid.DependencyConfig{Cardinality: taskid.CardinalityFanIn, Scope: taskid.ScopeAll},
 				})
@@ -212,7 +212,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 			name: "required input merged with an ordering dependency declared before it is required",
 			bind: func(b *Binder) {
 				After(b, ref)
-				Use(b, ref)
+				_ = Use(b, ref)
 			},
 			wantKind:  InputKindRequired,
 			wantScope: taskid.ScopeAll,
@@ -220,7 +220,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "required input merged with an ordering dependency declared after it is required",
 			bind: func(b *Binder) {
-				Use(b, ref)
+				_ = Use(b, ref)
 				After(b, activeGraphRef)
 			},
 			wantKind:  InputKindRequired,
@@ -229,8 +229,8 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "required input merged with an optional input declared before it is required",
 			bind: func(b *Binder) {
-				UseOptional(b, activeGraphRef)
-				Use(b, ref)
+				_ = UseOptional(b, activeGraphRef)
+				_ = Use(b, ref)
 			},
 			wantKind:  InputKindRequired,
 			wantScope: taskid.ScopeAll,
@@ -238,8 +238,8 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "required input merged with an optional input declared after it is required",
 			bind: func(b *Binder) {
-				Use(b, ref)
-				UseOptional(b, activeGraphRef)
+				_ = Use(b, ref)
+				_ = UseOptional(b, activeGraphRef)
 			},
 			wantKind:  InputKindRequired,
 			wantScope: taskid.ScopeAll,
@@ -247,8 +247,8 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "optional input merged with an optional input with a broader scope is optional with the broader scope",
 			bind: func(b *Binder) {
-				UseOptional(b, activeGraphRef)
-				UseOptional(b, activeFeaturesRef)
+				_ = UseOptional(b, activeGraphRef)
+				_ = UseOptional(b, activeFeaturesRef)
 			},
 			wantKind:  InputKindOptional,
 			wantScope: taskid.ScopeActiveFeatures,
@@ -256,7 +256,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "optional input merged with a ScopeActiveFeatures ordering dependency declared after it is optional with the broader scope",
 			bind: func(b *Binder) {
-				UseOptional(b, activeGraphRef)
+				_ = UseOptional(b, activeGraphRef)
 				After(b, activeFeaturesRef)
 			},
 			wantKind:  InputKindOptional,
@@ -266,7 +266,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 			name: "optional input merged with a ScopeActiveFeatures ordering dependency declared before it is optional with the broader scope",
 			bind: func(b *Binder) {
 				After(b, activeFeaturesRef)
-				UseOptional(b, activeGraphRef)
+				_ = UseOptional(b, activeGraphRef)
 			},
 			wantKind:  InputKindOptional,
 			wantScope: taskid.ScopeActiveFeatures,
@@ -274,7 +274,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "optional input merged with a ScopeAll ordering dependency declared after it is required",
 			bind: func(b *Binder) {
-				UseOptional(b, activeGraphRef)
+				_ = UseOptional(b, activeGraphRef)
 				After(b, ref)
 			},
 			wantKind:  InputKindRequired,
@@ -284,7 +284,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 			name: "optional input merged with a ScopeAll ordering dependency declared before it is required",
 			bind: func(b *Binder) {
 				After(b, ref)
-				UseOptional(b, activeGraphRef)
+				_ = UseOptional(b, activeGraphRef)
 			},
 			wantKind:  InputKindRequired,
 			wantScope: taskid.ScopeAll,
@@ -293,7 +293,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 			name: "optional input merged with ordering dependencies declared before and after it is required when one uses ScopeAll",
 			bind: func(b *Binder) {
 				After(b, activeGraphRef)
-				UseOptional(b, activeGraphRef)
+				_ = UseOptional(b, activeGraphRef)
 				After(b, ref)
 			},
 			wantKind:  InputKindRequired,
@@ -302,7 +302,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "tag input merged with an ordering dependency declared after it is a tag input",
 			bind: func(b *Binder) {
-				UseTag(b, tag.Ref())
+				_ = UseTag(b, tag.Ref())
 				After(b, tag.Ref())
 			},
 			wantKind:  InputKindTag,
@@ -312,7 +312,7 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 			name: "tag input merged with an ordering dependency declared before it is a tag input",
 			bind: func(b *Binder) {
 				After(b, tag.Ref(taskid.ScopeActiveGraph))
-				UseTag(b, tag.Ref())
+				_ = UseTag(b, tag.Ref())
 			},
 			wantKind:  InputKindTag,
 			wantScope: taskid.ScopeActiveFeatures,
@@ -320,8 +320,8 @@ func TestBinder_MergesDuplicateInputs(t *testing.T) {
 		{
 			name: "tag input merged with a tag input with a broader scope is a tag input with the broader scope",
 			bind: func(b *Binder) {
-				UseTag(b, tag.Ref(taskid.ScopeActiveGraph))
-				UseTag(b, tag.Ref())
+				_ = UseTag(b, tag.Ref(taskid.ScopeActiveGraph))
+				_ = UseTag(b, tag.Ref())
 			},
 			wantKind:  InputKindTag,
 			wantScope: taskid.ScopeActiveFeatures,

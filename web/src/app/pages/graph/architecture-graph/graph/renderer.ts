@@ -79,9 +79,9 @@ export class GraphRenderer {
           .withGap(20)
           .withChildren([
             ...this.generateTopMessages(graphData),
-            generatePodOwnerRow(graphData, graphData.podOwnerOwners),
+            generatePodOwnerRow(graphData.podOwnerOwners),
             $pathPipe(Direction.Horizontal, `pod-owner-owner-pipe`),
-            generatePodOwnerRow(graphData, graphData.podOwners),
+            generatePodOwnerRow(graphData.podOwners),
             $pathPipe(Direction.Horizontal, `pod-owner-pipe`),
             $alignedGroup(Direction.Horizontal)
               .withGap(5)
