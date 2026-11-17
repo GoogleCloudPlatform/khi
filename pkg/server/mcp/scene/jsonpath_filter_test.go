@@ -121,14 +121,14 @@ func TestFilterExpr_Eval(t *testing.T) {
 			wantMatch: false,
 		},
 		{
-			name:      "non-null literal ne on null node is true",
-			filterRaw: `@.emptyVal != 'x'`,
+			name:      "non-null literal ne on null node is true even when scalar text is null",
+			filterRaw: `@.emptyVal != 'null'`,
 			candidate: alpha,
 			wantMatch: true,
 		},
 		{
-			name:      "non-null literal eq on null node is false",
-			filterRaw: `@.emptyVal == 'x'`,
+			name:      "non-null literal eq on null node is false even when scalar text is null",
+			filterRaw: `@.emptyVal == 'null'`,
 			candidate: alpha,
 			wantMatch: false,
 		},

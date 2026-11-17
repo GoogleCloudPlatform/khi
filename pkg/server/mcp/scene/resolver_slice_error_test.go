@@ -222,6 +222,25 @@ func TestSliceErrorResult(t *testing.T) {
 			},
 		},
 		{
+			name: "SliceQueryNotFoundError with matchedPrefix but empty availableKeys falls back to topLevelKeys",
+			err: &SliceQueryNotFoundError{
+				WindowIndex:   0,
+				Path:          "$.status.phase.extra",
+				MatchedPrefix: "$.status.phase",
+				TopLevelKeys:  []string{"apiVersion", "status"},
+			},
+			fieldPath: "annotations.manifestExcerpts[0]",
+			want: sliceErrorOutcome{
+				Handled: true,
+				Result: wantErrorResult(
+					"SLICE_QUERY_NOT_FOUND",
+					"JSONPath `$.status.phase.extra` in `annotations.manifestExcerpts[0].paths[0]` matched 0 YAML nodes.",
+					"Available top-level keys: `apiVersion`, `status`.",
+					"Inspect the full content with `get_resource_diff` / `get_resource_manifest` / `get_log` to verify available fields.",
+				),
+			},
+		},
+		{
 			name:      "unrelated error returns unhandled",
 			err:       errors.New("unexpected io error"),
 			fieldPath: "annotations.diffExcerpts[0]",

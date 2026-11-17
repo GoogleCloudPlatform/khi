@@ -66,6 +66,16 @@ func TestResolveMarkerAnchors_Errors(t *testing.T) {
 			wantSubstr: "Unsupported `annotations.markers[0].style` `dashed`",
 		},
 		{
+			name: "unknown marker paletteId returns UNKNOWN_PALETTE_ID",
+			spec: Spec{
+				InspectionID: fx.inspectionID,
+				Annotations: &Annotations{
+					Markers: []MarkerAnnotation{{Label: "bad palette", PaletteID: "missing", Anchor: Anchor{LogID: fx.oomEventLogID}}},
+				},
+			},
+			wantCode: "UNKNOWN_PALETTE_ID",
+		},
+		{
 			name: "anchor with neither logId nor revision nor time returns INVALID_ANCHOR",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
@@ -73,7 +83,8 @@ func TestResolveMarkerAnchors_Errors(t *testing.T) {
 					Markers: []MarkerAnnotation{{Label: "bad"}},
 				},
 			},
-			wantCode: "INVALID_ANCHOR",
+			wantCode:   "INVALID_ANCHOR",
+			wantSubstr: "`annotations.markers[0].anchor`",
 		},
 	}
 

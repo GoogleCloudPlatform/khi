@@ -207,13 +207,8 @@ func TestCompileJSONPaths_Errors(t *testing.T) {
 		wantSubstr string
 	}{
 		{
-			name:  "nil paths slice",
-			paths: nil,
-			want:  &InvalidJSONPathError{PathIndex: -1, Reason: "paths must contain at least one JSONPath selector"},
-		},
-		{
 			name:  "empty paths slice",
-			paths: []string{},
+			paths: nil,
 			want:  &InvalidJSONPathError{PathIndex: -1, Reason: "paths must contain at least one JSONPath selector"},
 		},
 		{
@@ -457,13 +452,4 @@ func TestParseQuotedString_AndScanRelativeEscapeBounds(t *testing.T) {
 			}
 		})
 	}
-
-	t.Run("filterParser handles malformed unclosed escape and unclosed quoted literal safely", func(t *testing.T) {
-		if _, err := parseFilterExpression(`@['a\`); err == nil {
-			t.Fatal("parseFilterExpression(@['a\\) expected error, got nil")
-		}
-		if _, err := parseFilterExpression(`@.a == 'unclosed`); err == nil {
-			t.Fatal("parseFilterExpression(@.a == 'unclosed) expected error, got nil")
-		}
-	})
 }

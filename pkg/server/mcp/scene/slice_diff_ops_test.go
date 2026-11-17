@@ -55,6 +55,15 @@ func TestBuildSelectedLineBitmap(t *testing.T) {
 				1: {{start: 2, end: 7}},
 			},
 		},
+		{
+			name:       "clamps out-of-range startLine and endLine to totalLines-1",
+			totalLines: 3,
+			sels: []yamlLineSelection{
+				{startLine: 4, endLine: 5},
+			},
+			wantBitmap:     []bool{false, false, true},
+			wantHighlights: map[int][]byteSpan{},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -181,7 +181,7 @@ func isSameMarkerExcerptAnchor(m ResolvedMarker, ex ResolvedExcerptCard) bool {
 	if m.TimelineID != 0 && m.RevisionIndex != nil && ex.RevisionIndex != nil {
 		return m.TimelineID == ex.TimelineID && *m.RevisionIndex == *ex.RevisionIndex
 	}
-	if m.LogID != 0 && ex.LogID != 0 && m.LogID == ex.LogID {
+	if m.LogID != 0 && m.LogID == ex.LogID {
 		return m.TimelineID == 0 || ex.TimelineID == 0 || m.TimelineID == ex.TimelineID
 	}
 	if m.Style != MarkerStyleReference && m.TimelineID != 0 && m.LogID == 0 && m.RevisionIndex == nil {

@@ -236,15 +236,16 @@ func TestSortPendingExcerpts_AndBadgeSync(t *testing.T) {
 		}
 	})
 
-	t.Run("accepts increasing and equal sequential badges, inherits explicit marker E1, and skips E1 on next auto badge", func(t *testing.T) {
+	t.Run("accepts increasing, equal sequential, and trailing custom badges while inheriting explicit marker E1 and skipping E1", func(t *testing.T) {
 		ann := &Annotations{
-			DiffExcerpts:     []DiffExcerpt{{Badge: "E2"}, {Badge: "E02"}},
+			DiffExcerpts:     []DiffExcerpt{{Badge: "E2"}, {Badge: "E02"}, {Badge: "CUSTOM"}},
 			ManifestExcerpts: []ManifestExcerpt{{}},
 			LogExcerpts:      []LogExcerpt{{}},
 		}
 		pending := []pendingExcerpt{
 			{kind: ExcerptKindDiff, itemIndex: 0, fieldPath: "annotations.diffExcerpts[0]", explicitBadge: true, card: ResolvedExcerptCard{Badge: "E2", TimeMs: 100, TimeLabel: "09:00:00Z"}},
 			{kind: ExcerptKindDiff, itemIndex: 1, fieldPath: "annotations.diffExcerpts[1]", explicitBadge: true, card: ResolvedExcerptCard{Badge: "E02", TimeMs: 200, TimeLabel: "09:01:00Z"}},
+			{kind: ExcerptKindDiff, itemIndex: 2, fieldPath: "annotations.diffExcerpts[2]", explicitBadge: true, card: ResolvedExcerptCard{Badge: "CUSTOM", TimeMs: 250, TimeLabel: "09:01:30Z"}},
 			{kind: ExcerptKindManifest, itemIndex: 0, fieldPath: "annotations.manifestExcerpts[0]", explicitBadge: false, card: ResolvedExcerptCard{TimeMs: 300, TimelineID: 10, LogID: 55}},
 			{kind: ExcerptKindLog, itemIndex: 0, fieldPath: "annotations.logExcerpts[0]", explicitBadge: false, card: ResolvedExcerptCard{TimeMs: 400, TimelineID: 20, LogID: 99}},
 		}
@@ -256,8 +257,8 @@ func TestSortPendingExcerpts_AndBadgeSync(t *testing.T) {
 		if errRes := validateAndSyncExcerptBadges(ann, pending, markers, overlay); errRes != nil {
 			t.Fatalf("validateAndSyncExcerptBadges() unexpected error = %+v", errRes)
 		}
-		gotBadges := []string{overlay.Excerpts[0].Badge, overlay.Excerpts[1].Badge, overlay.Excerpts[2].Badge, overlay.Excerpts[3].Badge}
-		if diff := cmp.Diff([]string{"E2", "E02", "E1", "E3"}, gotBadges); diff != "" {
+		gotBadges := []string{overlay.Excerpts[0].Badge, overlay.Excerpts[1].Badge, overlay.Excerpts[2].Badge, overlay.Excerpts[3].Badge, overlay.Excerpts[4].Badge}
+		if diff := cmp.Diff([]string{"E2", "E02", "CUSTOM", "E1", "E3"}, gotBadges); diff != "" {
 			t.Errorf("assigned badges mismatch (-want +got):\n%s", diff)
 		}
 		if ann.ManifestExcerpts[0].Badge != "E1" || ann.LogExcerpts[0].Badge != "E3" {
@@ -390,6 +391,12 @@ func TestIsSameMarkerExcerptAnchor(t *testing.T) {
 			name: "matching logId on different non-zero timelines returns false",
 			m:    ResolvedMarker{TimeMs: 100, TimelineID: 1, LogID: 10},
 			ex:   ResolvedExcerptCard{TimeMs: 100, TimelineID: 2, LogID: 10},
+			want: false,
+		},
+		{
+			name: "different non-zero logIds on same timeline return false",
+			m:    ResolvedMarker{TimeMs: 100, Style: MarkerStylePin, TimelineID: 1, LogID: 10},
+			ex:   ResolvedExcerptCard{TimeMs: 100, TimelineID: 1, LogID: 20},
 			want: false,
 		},
 		{

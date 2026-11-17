@@ -78,17 +78,10 @@ func TestResolve_Excerpts(t *testing.T) {
 	steadyPointTime := fx.baseTime.Add(28 * time.Minute)
 	maxNote := strings.Repeat("n", maxAnnotationRunes)
 
-	type excerptOutcome struct {
-		Overlay        *Overlay
-		DiffBadges     []string
-		ManifestBadges []string
-		LogBadges      []string
-	}
-
 	testCases := []struct {
 		name string
 		spec Spec
-		want excerptOutcome
+		want badgeSyncOutcome
 	}{
 		{
 			name: "diff excerpt resolves audit log insertId and timestamp without internal rev prefixes",
@@ -104,7 +97,7 @@ func TestResolve_Excerpts(t *testing.T) {
 					},
 				},
 			},
-			want: excerptOutcome{
+			want: badgeSyncOutcome{
 				Overlay: &Overlay{
 					AutoIncludeTimelineIDs: []uint32{fx.podTimelineID},
 					Palette: []ResolvedPaletteColors{
@@ -173,7 +166,7 @@ func TestResolve_Excerpts(t *testing.T) {
 					},
 				},
 			},
-			want: excerptOutcome{
+			want: badgeSyncOutcome{
 				Overlay: &Overlay{
 					AutoIncludeTimelineIDs: []uint32{fx.nodeTimelineID},
 					Palette: []ResolvedPaletteColors{
@@ -245,7 +238,7 @@ func TestResolve_Excerpts(t *testing.T) {
 					},
 				},
 			},
-			want: excerptOutcome{
+			want: badgeSyncOutcome{
 				Overlay: &Overlay{
 					AutoIncludeTimelineIDs: []uint32{fx.podTimelineID},
 					Palette: []ResolvedPaletteColors{
@@ -300,18 +293,7 @@ func TestResolve_Excerpts(t *testing.T) {
 			if errRes != nil {
 				t.Fatalf("Resolve() unexpected tool error = %+v", errRes)
 			}
-			got := excerptOutcome{Overlay: gotOverlay}
-			if specCopy.Annotations != nil {
-				for _, d := range specCopy.Annotations.DiffExcerpts {
-					got.DiffBadges = append(got.DiffBadges, d.Badge)
-				}
-				for _, me := range specCopy.Annotations.ManifestExcerpts {
-					got.ManifestBadges = append(got.ManifestBadges, me.Badge)
-				}
-				for _, l := range specCopy.Annotations.LogExcerpts {
-					got.LogBadges = append(got.LogBadges, l.Badge)
-				}
-			}
+			got := collectBadgeSyncOutcome(gotOverlay, specCopy.Annotations)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Resolve() mismatch (-want +got):\n%s", diff)
 			}
