@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"sync"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	apiv1 "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1"
 )
@@ -43,8 +41,6 @@ var (
 
 var popupIDGenerator = idgenerator.NewPrefixIDGenerator("popup-")
 
-var _ PopupForm = (*TextPopupForm)(nil)
-
 // PopupForm is a polymorphic interface for backend popup implementations.
 type PopupForm interface {
 	// BuildProtoForm constructs the proto message for this popup with the given ID.
@@ -53,18 +49,6 @@ type PopupForm interface {
 	Validate(ctx context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error)
 	// Answer handles answer submission for this popup. Returns the resolved result string for ShowPopup.
 	Answer(ctx context.Context, req *apiv1.SubmitPopupAnswerRequest) (string, error)
-}
-
-// TextPopupForm represents a standard text input popup.
-type TextPopupForm struct {
-	// Title is the heading displayed in the popup dialog.
-	Title string
-	// Description is the explanatory text shown below the title.
-	Description string
-	// Placeholder is the hint text displayed inside the empty text input.
-	Placeholder string
-	// Validator validates user input and returns an error message when invalid.
-	Validator func(value string) string
 }
 
 // PopupEventType represents the lifecycle state change of a popup form.
@@ -87,37 +71,6 @@ type PopupManager struct {
 	currentProto *apiv1.PopupForm
 	currentForm  PopupForm
 	subscribers  map[chan PopupEvent]struct{}
-}
-
-// BuildProtoForm implements PopupForm.
-func (t *TextPopupForm) BuildProtoForm(id string) *apiv1.PopupForm {
-	return &apiv1.PopupForm{
-		Id:          proto.String(id),
-		Title:       proto.String(t.Title),
-		Description: proto.String(t.Description),
-		Payload: &apiv1.PopupForm_Text{
-			Text: &apiv1.TextPopupPayload{
-				Placeholder: proto.String(t.Placeholder),
-			},
-		},
-	}
-}
-
-// Validate implements PopupForm.
-func (t *TextPopupForm) Validate(_ context.Context, req *apiv1.ValidatePopupAnswerRequest) (*apiv1.ValidatePopupAnswerResponse, error) {
-	var errStr string
-	if t.Validator != nil {
-		errStr = t.Validator(req.GetText().GetValue())
-	}
-	return &apiv1.ValidatePopupAnswerResponse{
-		Id:              proto.String(req.GetId()),
-		ValidationError: proto.String(errStr),
-	}, nil
-}
-
-// Answer implements PopupForm.
-func (t *TextPopupForm) Answer(_ context.Context, req *apiv1.SubmitPopupAnswerRequest) (string, error) {
-	return req.GetText().GetValue(), nil
 }
 
 // NewPopupManager creates an initialized instance of PopupManager.

@@ -40,6 +40,13 @@ else
 	$(GOLANGCILINT_CMD) run --config=.golangci.yaml $(LINT_PKG_ARGS)
 endif
 	go run ./scripts/codequality --lang=go --conventions --pkgs=$(LINT_PKGS)
+ifeq ($(LINT_PKGS),./...)
+	bash ./scripts/check-go-deadcode.sh
+endif
+
+.PHONY: lint-deadcode
+lint-deadcode: ## Run Go whole-program deadcode check
+	bash ./scripts/check-go-deadcode.sh
 
 .PHONY: format-go
 format-go: ## Format backend source code

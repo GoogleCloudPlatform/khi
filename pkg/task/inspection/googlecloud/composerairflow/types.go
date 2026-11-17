@@ -66,11 +66,6 @@ type AirflowTaskInstance struct {
 	status   Tistate
 }
 
-// AirflowWorker represents an Airflow worker host parsed from Composer logs.
-type AirflowWorker struct {
-	host string
-}
-
 // NewAirflowTaskInstance creates a new AirflowTaskInstance.
 func NewAirflowTaskInstance(dagId string, taskId string, runId string, mapIndex string, host string, status Tistate) *AirflowTaskInstance {
 	return &AirflowTaskInstance{
@@ -115,27 +110,6 @@ func (a *AirflowTaskInstance) Status() Tistate {
 
 // ToYaml serializes the task instance to a YAML string.
 func (a *AirflowTaskInstance) ToYaml() string {
-	b, err := yaml.Marshal(a)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
-// NewAirflowWorker creates a new AirflowWorker for the given host.
-func NewAirflowWorker(host string) *AirflowWorker {
-	return &AirflowWorker{
-		host: host,
-	}
-}
-
-// Host returns the worker host name.
-func (a *AirflowWorker) Host() string {
-	return a.host
-}
-
-// ToYaml serializes the worker to a YAML string.
-func (a *AirflowWorker) ToYaml() string {
 	b, err := yaml.Marshal(a)
 	if err != nil {
 		return ""

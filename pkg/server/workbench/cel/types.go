@@ -16,14 +16,8 @@ package cel
 
 import (
 	"cmp"
-	"context"
 	"slices"
 	"strings"
-)
-
-const (
-	timelineCtxKey contextKey = "khi_cel_timeline"
-	logCtxKey      contextKey = "khi_cel_log"
 )
 
 var _ StyleResolver = (*SimpleStyleResolver)(nil)
@@ -106,8 +100,6 @@ type LogData struct {
 	// BodyStructID is the intern pool ID of the structured log body.
 	BodyStructID uint32
 }
-
-type contextKey string
 
 // ForEachLogID iterates over all log IDs associated with this timeline's events and revisions.
 // If the callback returns false, iteration stops early.
@@ -210,30 +202,4 @@ func (s *SimpleStyleResolver) ResolveSeverity(id uint32) uint32 {
 		return s.Severities[id]
 	}
 	return 0
-}
-
-// WithTimelineContext binds the given TimelineData to the context for CEL evaluation.
-func WithTimelineContext(ctx context.Context, t *TimelineData) context.Context {
-	return context.WithValue(ctx, timelineCtxKey, t)
-}
-
-// TimelineFromContext retrieves the TimelineData bound to the context.
-func TimelineFromContext(ctx context.Context) *TimelineData {
-	if val, ok := ctx.Value(timelineCtxKey).(*TimelineData); ok {
-		return val
-	}
-	return nil
-}
-
-// WithLogContext binds the given LogData to the context for CEL evaluation.
-func WithLogContext(ctx context.Context, l *LogData) context.Context {
-	return context.WithValue(ctx, logCtxKey, l)
-}
-
-// LogFromContext retrieves the LogData bound to the context.
-func LogFromContext(ctx context.Context) *LogData {
-	if val, ok := ctx.Value(logCtxKey).(*LogData); ok {
-		return val
-	}
-	return nil
 }

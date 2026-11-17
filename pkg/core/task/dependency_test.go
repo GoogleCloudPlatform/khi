@@ -94,3 +94,16 @@ func (c customDependency) ResultType() reflect.Type {
 }
 
 var _ taskid.DependencyDescriptor = (*customDependency)(nil)
+
+func TestCustomDependencyDescriptor(t *testing.T) {
+	var desc taskid.DependencyDescriptor = customDependency{}
+	if got := desc.DescriptorCardinality(); got != taskid.CardinalityPointToPoint {
+		t.Errorf("DescriptorCardinality() = %v, want %v", got, taskid.CardinalityPointToPoint)
+	}
+	if got := desc.DescriptorScope(); got != taskid.ScopeAll {
+		t.Errorf("DescriptorScope() = %v, want %v", got, taskid.ScopeAll)
+	}
+	if got := desc.ResultType(); got != reflect.TypeFor[any]() {
+		t.Errorf("ResultType() = %v, want %v", got, reflect.TypeFor[any]())
+	}
+}

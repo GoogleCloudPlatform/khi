@@ -58,6 +58,9 @@ func TestNewTaskReference(t *testing.T) {
 			if got := ref.ReferenceIDString(); got != tc.wantReferenceID {
 				t.Errorf("ref.ReferenceIDString() = %q, want %q", got, tc.wantReferenceID)
 			}
+			if !ref.isTaskReference() {
+				t.Errorf("ref.isTaskReference() = false, want true")
+			}
 		})
 	}
 }

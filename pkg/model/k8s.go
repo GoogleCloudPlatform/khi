@@ -220,8 +220,3 @@ func (c *K8sResourceStatusCondition) ProbeLikeTime() (time.Time, error) {
 	}
 	return time.Time{}, fmt.Errorf("lastProbeTime and lastHeartbeatTime are both empty")
 }
-
-// SameWith reports whether all condition flags match those of other.
-func (c *EndpointSliceEndpointConditions) SameWith(other *EndpointSliceEndpointConditions) bool {
-	return c.Ready == other.Ready && c.Serving == other.Serving && c.Terminating == other.Terminating
-}
