@@ -771,16 +771,22 @@ data:
 	body0 := internTestYAML(t, pool, rev0YAML)
 	body1 := internTestYAML(t, pool, rev1YAML)
 
-	cmTimeline := &cel.TimelineData{
-		ID:           testPodTimelineID,
-		Name:         "big-cfg",
-		TimelineType: "ConfigMap",
-		Revisions: []cel.RevisionInfo{
-			{LogID: 1, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Resource exists", ResourceBodyStructID: body0},
-			{LogID: 2, ChangedTime: testRevision1Time.UnixNano(), PrincipalStringID: principalA, Verb: "PATCH", State: "Resource exists", ResourceBodyStructID: body1},
+	wb := newTestIndexedWorkbench(nil, []*cel.TimelineData{
+		{
+			ID: testPodTimelineID, Name: "big-cfg", TimelineType: "ConfigMap",
+			Revisions: []cel.RevisionInfo{
+				{LogID: 1, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Resource exists", ResourceBodyStructID: body0},
+				{LogID: 2, ChangedTime: testRevision1Time.UnixNano(), PrincipalStringID: principalA, Verb: "PATCH", State: "Resource exists", ResourceBodyStructID: body1},
+			},
 		},
-	}
-	wb := newTestIndexedWorkbench(nil, []*cel.TimelineData{cmTimeline}, nil)
+		{
+			ID: 11, Name: "zero-next-cfg", TimelineType: "ConfigMap",
+			Revisions: []cel.RevisionInfo{
+				{LogID: 3, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Resource exists", ResourceBodyStructID: body1},
+				{LogID: 4, ChangedTime: 0, PrincipalStringID: principalA, Verb: "DELETE", State: "Deleted"},
+			},
+		},
+	}, nil)
 	ingestTestPool(wb, pool)
 
 	wantSegments := []TimelineSegment{{Type: "ConfigMap", Name: "big-cfg"}}
@@ -788,35 +794,32 @@ data:
 	wantRev1 := ResourceRevision{Index: 1, Time: testRevision1Time, Verb: "PATCH", State: "Resource exists", Principal: testRevisionPrincipalA, LogID: 2, HasBody: true}
 
 	testCases := []struct {
-		name                 string
-		timelineID           uint32
-		selector             RevisionSelector
-		includeManagedFields bool
-		want                 *RawResourceManifest
-		wantErrTarget        error
+		name          string
+		timelineID    uint32
+		selector      RevisionSelector
+		want          *RawResourceManifest
+		wantErrTarget error
 	}{
 		{
-			name:                 "returns full untruncated manifest larger than bodyByteLimit with managedFields stripped and next revision time",
-			timelineID:           testPodTimelineID,
-			selector:             RevisionAtIndex(0),
-			includeManagedFields: false,
-			want: &RawResourceManifest{
-				TimelineID:       testPodTimelineID,
-				Segments:         wantSegments,
-				Revision:         wantRev0,
-				NextRevisionTime: &testRevision1Time,
-				YAMLBody:         wantStrippedRev0,
-			},
+			name:       "returns full untruncated manifest larger than bodyByteLimit with managedFields stripped and next revision time",
+			timelineID: testPodTimelineID,
+			selector:   RevisionAtIndex(0),
+			want:       &RawResourceManifest{TimelineID: testPodTimelineID, Segments: wantSegments, Revision: wantRev0, NextRevisionTime: &testRevision1Time, YAMLBody: wantStrippedRev0},
 		},
 		{
-			name:                 "selects effective revision at point in time and omits NextRevisionTime on latest revision",
-			timelineID:           testPodTimelineID,
-			selector:             RevisionAtTime(testRevision1Time.Add(30 * time.Second)),
-			includeManagedFields: false,
+			name:       "selects effective revision at point in time and omits NextRevisionTime on latest revision",
+			timelineID: testPodTimelineID,
+			selector:   RevisionAtTime(testRevision1Time.Add(30 * time.Second)),
+			want:       &RawResourceManifest{TimelineID: testPodTimelineID, Segments: wantSegments, Revision: wantRev1, YAMLBody: rev1YAML},
+		},
+		{
+			name:       "omits NextRevisionTime when following revision has zero ChangedTime",
+			timelineID: 11,
+			selector:   RevisionAtIndex(0),
 			want: &RawResourceManifest{
-				TimelineID: testPodTimelineID,
-				Segments:   wantSegments,
-				Revision:   wantRev1,
+				TimelineID: 11,
+				Segments:   []TimelineSegment{{Type: "ConfigMap", Name: "zero-next-cfg"}},
+				Revision:   ResourceRevision{Index: 0, Time: testRevision0Time, Verb: "CREATE", State: "Resource exists", Principal: testRevisionPrincipalA, LogID: 3, HasBody: true},
 				YAMLBody:   rev1YAML,
 			},
 		},
@@ -830,7 +833,7 @@ data:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := wb.GetRawResourceManifest(tc.timelineID, tc.selector, tc.includeManagedFields)
+			got, err := wb.GetRawResourceManifest(tc.timelineID, tc.selector)
 			if tc.wantErrTarget != nil {
 				if !errors.Is(err, tc.wantErrTarget) {
 					t.Fatalf("GetRawResourceManifest() err = %v, want %v", err, tc.wantErrTarget)

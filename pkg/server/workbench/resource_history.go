@@ -158,6 +158,14 @@ type RevisionBounds struct {
 	NextRevisionTime *time.Time
 }
 
+// resolvedRevision holds a ready index, timeline, path segments, and resolved revision index.
+type resolvedRevision struct {
+	index    *SearchIndex
+	timeline *cel.TimelineData
+	segments []TimelineSegment
+	revIdx   int
+}
+
 // RevisionAtIndex returns a selector for the revision at the 0-based index among all revisions of the timeline.
 func RevisionAtIndex(index int) RevisionSelector {
 	return RevisionSelector{index: index}
@@ -215,48 +223,20 @@ func (w *Workbench) GetResourceRevisions(timelineID uint32, query ResourceRevisi
 }
 
 // GetRawResourceManifest returns the untruncated manifest YAML and active interval bounds of the selected revision.
-// When includeManagedFields is false, metadata.managedFields is omitted from the manifest.
-func (w *Workbench) GetRawResourceManifest(timelineID uint32, selector RevisionSelector, includeManagedFields bool) (*RawResourceManifest, error) {
-	index, _, err := w.readyIndex()
+// It always omits metadata.managedFields from the manifest.
+func (w *Workbench) GetRawResourceManifest(timelineID uint32, selector RevisionSelector) (*RawResourceManifest, error) {
+	raw, err := w.loadRawResourceManifest(timelineID, selector)
 	if err != nil {
 		return nil, err
 	}
-	tl, segments, err := lookupTimeline(index, timelineID)
-	if err != nil {
-		return nil, err
-	}
-	revIdx, err := selectRevision(tl.Revisions, selector)
-	if err != nil {
-		return nil, err
-	}
-
-	bodies, err := w.readRevisionBodies(tl.Revisions[revIdx : revIdx+1])
-	if err != nil {
-		return nil, err
-	}
-	body := bodies[tl.Revisions[revIdx].ResourceBodyStructID]
-	hasBody := body != ""
-	if !includeManagedFields {
-		body = stripManagedFields(body)
-	}
-	var nextTime *time.Time
-	if revIdx+1 < len(tl.Revisions) && tl.Revisions[revIdx+1].ChangedTime > 0 {
-		t := time.Unix(0, tl.Revisions[revIdx+1].ChangedTime).UTC()
-		nextTime = &t
-	}
-	return &RawResourceManifest{
-		TimelineID:       timelineID,
-		Segments:         segments,
-		Revision:         toResourceRevision(index, tl.Revisions, revIdx, hasBody),
-		NextRevisionTime: nextTime,
-		YAMLBody:         body,
-	}, nil
+	raw.YAMLBody = stripManagedFields(raw.YAMLBody)
+	return raw, nil
 }
 
 // GetResourceManifest returns the manifest YAML of the selected revision, sliced from byteOffset.
 // When includeManagedFields is false, metadata.managedFields is omitted from the manifest.
 func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSelector, byteOffset int, includeManagedFields bool) (*ResourceManifest, error) {
-	raw, err := w.GetRawResourceManifest(timelineID, selector, includeManagedFields)
+	raw, err := w.loadRawResourceManifest(timelineID, selector)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +244,7 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 		TimelineID: raw.TimelineID,
 		Segments:   raw.Segments,
 		Revision:   raw.Revision,
-		Body:       truncateBody(raw.YAMLBody, byteOffset, bodyByteLimit),
+		Body:       truncateBody(resolveManifestBody(raw.YAMLBody, includeManagedFields), byteOffset, bodyByteLimit),
 	}, nil
 }
 
@@ -272,42 +252,29 @@ func (w *Workbench) GetResourceManifest(timelineID uint32, selector RevisionSele
 //
 // When includeManagedFields is false, metadata.managedFields is omitted from both revisions.
 func (w *Workbench) GetRevisionPair(timelineID uint32, revisionIndex int, includeManagedFields bool) (*RevisionPair, error) {
-	index, _, err := w.readyIndex()
+	resolved, err := w.resolveTimelineRevision(timelineID, RevisionAtIndex(revisionIndex))
 	if err != nil {
 		return nil, err
-	}
-	tl, segments, err := lookupTimeline(index, timelineID)
-	if err != nil {
-		return nil, err
-	}
-	if revisionIndex < 0 || revisionIndex >= len(tl.Revisions) {
-		return nil, fmt.Errorf("%w: index %d of timeline %d", ErrRevisionNotFound, revisionIndex, timelineID)
 	}
 
-	bodies, err := w.readRevisionBodies(tl.Revisions[max(revisionIndex-1, 0) : revisionIndex+1])
+	revs := resolved.timeline.Revisions
+	bodies, err := w.readRevisionBodies(revs[max(revisionIndex-1, 0) : revisionIndex+1])
 	if err != nil {
 		return nil, err
 	}
-	rawBody := bodies[tl.Revisions[revisionIndex].ResourceBodyStructID]
+	rawBody := bodies[revs[revisionIndex].ResourceBodyStructID]
 	pair := &RevisionPair{
-		TimelineID: timelineID,
-		Segments:   segments,
-		Revision:   toResourceRevision(index, tl.Revisions, revisionIndex, rawBody != ""),
-		Body:       rawBody,
-	}
-	if revisionIndex+1 < len(tl.Revisions) && tl.Revisions[revisionIndex+1].ChangedTime > 0 {
-		next := time.Unix(0, tl.Revisions[revisionIndex+1].ChangedTime).UTC()
-		pair.NextRevisionTime = &next
+		TimelineID:       timelineID,
+		Segments:         resolved.segments,
+		Revision:         toResourceRevision(resolved.index, revs, revisionIndex, rawBody != ""),
+		NextRevisionTime: nextRevisionChangedTime(revs, revisionIndex),
+		Body:             resolveManifestBody(rawBody, includeManagedFields),
 	}
 	if revisionIndex > 0 {
-		rawPrevBody := bodies[tl.Revisions[revisionIndex-1].ResourceBodyStructID]
-		prev := toResourceRevision(index, tl.Revisions, revisionIndex-1, rawPrevBody != "")
+		rawPrevBody := bodies[revs[revisionIndex-1].ResourceBodyStructID]
+		prev := toResourceRevision(resolved.index, revs, revisionIndex-1, rawPrevBody != "")
 		pair.Previous = &prev
-		pair.PreviousBody = rawPrevBody
-	}
-	if !includeManagedFields {
-		pair.Body = stripManagedFields(pair.Body)
-		pair.PreviousBody = stripManagedFields(pair.PreviousBody)
+		pair.PreviousBody = resolveManifestBody(rawPrevBody, includeManagedFields)
 	}
 	return pair, nil
 }
@@ -337,28 +304,60 @@ func (w *Workbench) GetResourceDiff(timelineID uint32, revisionIndex, byteOffset
 
 // ResolveRevisionBounds returns metadata for the revision at revisionIndex together with the next revision's timestamp when one exists.
 func (w *Workbench) ResolveRevisionBounds(timelineID uint32, revisionIndex int) (*RevisionBounds, error) {
-	index, _, err := w.readyIndex()
+	resolved, err := w.resolveTimelineRevision(timelineID, RevisionAtIndex(revisionIndex))
 	if err != nil {
 		return nil, err
+	}
+	revs := resolved.timeline.Revisions
+	rev := toResourceRevision(resolved.index, revs, revisionIndex, revs[revisionIndex].ResourceBodyStructID != 0)
+	return &RevisionBounds{
+		TimelineID:       timelineID,
+		Segments:         resolved.segments,
+		Revision:         rev,
+		NextRevisionTime: nextRevisionChangedTime(revs, revisionIndex),
+	}, nil
+}
+
+// loadRawResourceManifest resolves the selected revision and returns its unstripped manifest YAML and interval bounds.
+func (w *Workbench) loadRawResourceManifest(timelineID uint32, selector RevisionSelector) (*RawResourceManifest, error) {
+	resolved, err := w.resolveTimelineRevision(timelineID, selector)
+	if err != nil {
+		return nil, err
+	}
+	revs := resolved.timeline.Revisions
+	bodies, err := w.readRevisionBodies(revs[resolved.revIdx : resolved.revIdx+1])
+	if err != nil {
+		return nil, err
+	}
+	body := bodies[revs[resolved.revIdx].ResourceBodyStructID]
+	return &RawResourceManifest{
+		TimelineID:       timelineID,
+		Segments:         resolved.segments,
+		Revision:         toResourceRevision(resolved.index, revs, resolved.revIdx, body != ""),
+		NextRevisionTime: nextRevisionChangedTime(revs, resolved.revIdx),
+		YAMLBody:         body,
+	}, nil
+}
+
+// resolveTimelineRevision resolves timelineID and selector against the ready index.
+func (w *Workbench) resolveTimelineRevision(timelineID uint32, selector RevisionSelector) (resolvedRevision, error) {
+	index, _, err := w.readyIndex()
+	if err != nil {
+		return resolvedRevision{}, err
 	}
 	tl, segments, err := lookupTimeline(index, timelineID)
 	if err != nil {
-		return nil, err
+		return resolvedRevision{}, err
 	}
-	if revisionIndex < 0 || revisionIndex >= len(tl.Revisions) {
-		return nil, fmt.Errorf("%w: index %d of timeline %d", ErrRevisionNotFound, revisionIndex, timelineID)
+	revIdx, err := selectRevision(tl.Revisions, selector)
+	if err != nil {
+		return resolvedRevision{}, err
 	}
-	rev := toResourceRevision(index, tl.Revisions, revisionIndex, tl.Revisions[revisionIndex].ResourceBodyStructID != 0)
-	var nextTime *time.Time
-	if revisionIndex+1 < len(tl.Revisions) && tl.Revisions[revisionIndex+1].ChangedTime > 0 {
-		t := time.Unix(0, tl.Revisions[revisionIndex+1].ChangedTime).UTC()
-		nextTime = &t
-	}
-	return &RevisionBounds{
-		TimelineID:       timelineID,
-		Segments:         segments,
-		Revision:         rev,
-		NextRevisionTime: nextTime,
+	return resolvedRevision{
+		index:    index,
+		timeline: tl,
+		segments: segments,
+		revIdx:   revIdx,
 	}, nil
 }
 
@@ -369,6 +368,23 @@ func (w *Workbench) readRevisionBodies(revs []cel.RevisionInfo) (map[uint32]stri
 		structIDs[i] = rev.ResourceBodyStructID
 	}
 	return w.ReadStructYAMLs(structIDs)
+}
+
+// nextRevisionChangedTime returns the UTC timestamp of the revision after revIdx when one exists with a positive timestamp.
+func nextRevisionChangedTime(revs []cel.RevisionInfo, revIdx int) *time.Time {
+	if revIdx+1 < len(revs) && revs[revIdx+1].ChangedTime > 0 {
+		t := time.Unix(0, revs[revIdx+1].ChangedTime).UTC()
+		return &t
+	}
+	return nil
+}
+
+// resolveManifestBody returns yamlBody verbatim when includeManagedFields is true, or with metadata.managedFields removed otherwise.
+func resolveManifestBody(yamlBody string, includeManagedFields bool) string {
+	if includeManagedFields {
+		return yamlBody
+	}
+	return stripManagedFields(yamlBody)
 }
 
 // revisionIndexRange returns the half-open index range [startIdx, endIdx) of revisions whose ChangedTime falls in [start, end].
