@@ -156,13 +156,20 @@ const mockScene = buildTimelineSceneViewModel({
   },
 });
 
-export const Default: Story = {
-  decorators: [
-    componentWrapperDecorator(
-      (story) => `
-      <div style="position: relative; width: ${mockScene.stageWidthPx}px; height: ${mockScene.stageHeightPx}px; background: #fafafa; border: 1px solid #e0e0e0;">
+function createStageWrapperDecorator(widthPx: number, heightPx: number) {
+  return componentWrapperDecorator(
+    (story) => `
+      <div style="position: relative; width: ${widthPx}px; height: ${heightPx}px; background: #fafafa; border: 1px solid #e0e0e0;">
         ${story}
       </div>`,
+  );
+}
+
+export const Default: Story = {
+  decorators: [
+    createStageWrapperDecorator(
+      mockScene.stageWidthPx,
+      mockScene.stageHeightPx,
     ),
   ],
   args: {
@@ -258,11 +265,9 @@ const compactRowAboveSpanScene = buildTimelineSceneViewModel({
 
 export const CompactRowAboveSpanLabels: Story = {
   decorators: [
-    componentWrapperDecorator(
-      (story) => `
-      <div style="position: relative; width: ${compactRowAboveSpanScene.stageWidthPx}px; height: ${compactRowAboveSpanScene.stageHeightPx}px; background: #fafafa; border: 1px solid #e0e0e0;">
-        ${story}
-      </div>`,
+    createStageWrapperDecorator(
+      compactRowAboveSpanScene.stageWidthPx,
+      compactRowAboveSpanScene.stageHeightPx,
     ),
   ],
   args: {
