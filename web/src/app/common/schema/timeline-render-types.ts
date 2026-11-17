@@ -64,6 +64,18 @@ export enum TimelineSpanPattern {
 }
 
 /**
+ * Placement mode for a timeline span's header label chip relative to its bounding box.
+ */
+export enum TimelineSpanLabelPlacement {
+  /** Places the label chip above compact row-scoped spans and inside tall or full-height spans. */
+  AUTO = 'auto',
+  /** Places the label chip directly above the top border of the span box. */
+  ABOVE = 'above',
+  /** Places the label chip inside the top edge of the span box. */
+  INSIDE = 'inside',
+}
+
+/**
  * Routing geometry for connectors between two timeline anchors.
  */
 export enum TimelineConnectorStyle {
@@ -149,6 +161,10 @@ export interface TimelineResolvedSpan {
   readonly durationLabel: string;
   readonly timelineIds?: readonly number[];
   readonly pattern: TimelineSpanPattern;
+  /** Header chip placement mode ('auto', 'above', or 'inside'). */
+  readonly labelPlacement?: TimelineSpanLabelPlacement;
+  /** Omits the automatic duration suffix from the span header chip when true. */
+  readonly hideDuration?: boolean;
   readonly paletteId: string;
 }
 

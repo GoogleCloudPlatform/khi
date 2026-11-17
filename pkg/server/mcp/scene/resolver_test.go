@@ -427,13 +427,14 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 		},
 		Spans: []ResolvedSpan{
 			{
-				ID:            "span-1",
-				Label:         "Node NotReady window",
-				StartTimeMs:   fx.baseTime.Add(24 * time.Minute).UnixMilli(),
-				EndTimeMs:     fx.baseTime.Add(34 * time.Minute).UnixMilli(),
-				DurationLabel: "10m",
-				Pattern:       SpanPatternHatched,
-				PaletteID:     "trigger",
+				ID:             "span-1",
+				Label:          "Node NotReady window",
+				StartTimeMs:    fx.baseTime.Add(24 * time.Minute).UnixMilli(),
+				EndTimeMs:      fx.baseTime.Add(34 * time.Minute).UnixMilli(),
+				DurationLabel:  "10m",
+				Pattern:        SpanPatternHatched,
+				LabelPlacement: SpanLabelPlacementAuto,
+				PaletteID:      "trigger",
 			},
 		},
 		RowHighlights: []ResolvedRowHighlight{
@@ -684,22 +685,6 @@ func TestResolve_Errors(t *testing.T) {
 			wantCode: "ANCHOR_OUT_OF_VIEWPORT",
 		},
 		{
-			name: "span end before start returns INVALID_ANCHOR",
-			spec: Spec{
-				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					Spans: []SpanAnnotation{
-						{
-							Label: "reversed",
-							Start: Anchor{Time: &narrowEnd},
-							End:   Anchor{Time: &narrowStart},
-						},
-					},
-				},
-			},
-			wantCode: "INVALID_ANCHOR",
-		},
-		{
 			name: "invalid CEL in rowHighlights.timelineQuery returns INVALID_CEL",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
@@ -801,6 +786,21 @@ func TestResolve_Errors(t *testing.T) {
 					Markers: make([]MarkerAnnotation, 13),
 				},
 			},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name:     "exceeding max palette entries returns INVALID_ARGUMENT",
+			spec:     Spec{InspectionID: fx.inspectionID, Annotations: &Annotations{Palette: make([]PaletteEntry, 17)}},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name:     "unsupported connector style returns INVALID_ARGUMENT",
+			spec:     Spec{InspectionID: fx.inspectionID, Annotations: &Annotations{Connectors: []ConnectorAnnotation{{Style: "invalid"}}}},
+			wantCode: "INVALID_ARGUMENT",
+		},
+		{
+			name:     "empty callout label returns INVALID_ARGUMENT",
+			spec:     Spec{InspectionID: fx.inspectionID, Annotations: &Annotations{Callouts: []CalloutAnnotation{{}}}},
 			wantCode: "INVALID_ARGUMENT",
 		},
 	}

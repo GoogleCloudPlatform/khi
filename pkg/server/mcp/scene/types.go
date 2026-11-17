@@ -59,6 +59,15 @@ const (
 )
 
 const (
+	// SpanLabelPlacementAuto places the label chip above compact row-scoped spans and inside tall or full-height spans.
+	SpanLabelPlacementAuto SpanLabelPlacement = "auto"
+	// SpanLabelPlacementAbove places the label chip directly above the top border of the span box.
+	SpanLabelPlacementAbove SpanLabelPlacement = "above"
+	// SpanLabelPlacementInside places the label chip inside the top edge of the span box.
+	SpanLabelPlacementInside SpanLabelPlacement = "inside"
+)
+
+const (
 	// ConnectorStyleCurve renders a directed causal Bezier curve arrow.
 	ConnectorStyleCurve ConnectorStyle = "curve"
 	// ConnectorStyleStep renders a directed orthogonal elbow arrow.
@@ -115,6 +124,9 @@ type MarkerStyle string
 
 // SpanPattern defines the fill pattern of a time-range span annotation.
 type SpanPattern string
+
+// SpanLabelPlacement defines where a time-range span's header chip is positioned relative to its bounding box.
+type SpanLabelPlacement string
 
 // ConnectorStyle defines the routing geometry of a connector annotation.
 type ConnectorStyle string
@@ -243,6 +255,10 @@ type SpanAnnotation struct {
 	TimelineIDs []uint32 `json:"timelineIds,omitempty" jsonschema:"Optional timeline IDs scoping the box vertically. Omit both for a full-height chart span."`
 	// Pattern selects the visual fill style of the span band.
 	Pattern SpanPattern `json:"pattern,omitempty" jsonschema:"Fill style: 'solid' (default), 'hatched' (diagonal stripes + dashed border for missing logs), or 'outline'."`
+	// LabelPlacement specifies where the span header chip is placed relative to the span box.
+	LabelPlacement SpanLabelPlacement `json:"labelPlacement,omitempty" jsonschema:"Header chip placement: 'auto' (default: 'above' for compact row-scoped spans and 'inside' for tall or full-height spans), 'above', or 'inside'."`
+	// HideDuration omits the automatic '(duration)' suffix from the span header chip when true.
+	HideDuration bool `json:"hideDuration,omitempty" jsonschema:"Omits the automatic '(duration)' suffix from the span header chip when true."`
 	// IncludeSubtree controls whether descendants of matched timelines are included when scoped.
 	IncludeSubtree *bool `json:"includeSubtree,omitempty" jsonschema:"Defaults to true when scoped to specific timelines."`
 	// PaletteID references a named entry in Annotations.Palette.
@@ -425,6 +441,10 @@ type ResolvedSpan struct {
 	TimelineIDs []uint32 `json:"timelineIds,omitempty"`
 	// Pattern is the resolved fill pattern of the span band.
 	Pattern SpanPattern `json:"pattern"`
+	// LabelPlacement specifies where the span header chip is placed relative to the span box.
+	LabelPlacement SpanLabelPlacement `json:"labelPlacement,omitempty"`
+	// HideDuration omits the automatic duration suffix from the span header chip when true.
+	HideDuration bool `json:"hideDuration,omitempty"`
 	// PaletteID is the resolved palette entry ID coloring this span.
 	PaletteID string `json:"paletteId"`
 }
