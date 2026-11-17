@@ -205,6 +205,68 @@ type BadType struct {
 	}
 }
 
+func TestRunCLIUnusedExportsMode(t *testing.T) {
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{
+		"go.mod": "module example.com/unusedmod\n\ngo 1.24\n",
+		"pkg/used/used.go": `package used
+
+const Value = 1
+`,
+		"pkg/unused/unused.go": `package unused
+
+const Dead = 2
+`,
+		"cmd/app/main.go": `package main
+
+import "example.com/unusedmod/pkg/used"
+
+func main() {
+	_ = used.Value
+}
+`,
+	})
+
+	testCases := []struct {
+		name       string
+		args       []string
+		wantCode   int
+		wantStdout string
+	}{
+		{
+			name:     "used package passes with exit code 0",
+			args:     []string{"--repo-root=" + dir, "--lang=go", "--unused-exports", "--pkgs=./pkg/used"},
+			wantCode: 0,
+		},
+		{
+			name:       "unused export prints formatted line and exits 1",
+			args:       []string{"--repo-root=" + dir, "--lang=go", "--unused-exports", "--pkgs=./pkg/unused"},
+			wantCode:   1,
+			wantStdout: "pkg/unused/unused.go:3:7: exported const Dead has no references in the repository (unused-exported-decl)",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code, err := runCLI(context.Background(), cliEnv{
+				args:   tc.args,
+				stdout: &stdout,
+				stderr: &stderr,
+				getenv: func(string) string { return "" },
+			})
+			assertCLIOutcome(t, cliOutcomeCheck{
+				code:       code,
+				wantCode:   tc.wantCode,
+				err:        err,
+				stdout:     stdout.String(),
+				stderr:     stderr.String(),
+				wantStdout: tc.wantStdout,
+			})
+		})
+	}
+}
+
 func TestRunCLIReturnsExitCodeOneOnViolation(t *testing.T) {
 	repoDir := initTempGitRepoWithViolation(t)
 	summaryPath := filepath.Join(t.TempDir(), "viol_summary.md")

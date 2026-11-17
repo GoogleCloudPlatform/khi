@@ -83,7 +83,10 @@ func runCLI(ctx context.Context, env cliEnv) (int, error) {
 		return 2, err
 	}
 	if flags.conventions {
-		return runConventionsMode(repoRoot, flags.pkgs, env.stdout)
+		return runASTCheckMode(astcheck.CheckConventions, repoRoot, flags.pkgs, env.stdout)
+	}
+	if flags.unusedExports {
+		return runASTCheckMode(astcheck.CheckUnusedExports, repoRoot, flags.pkgs, env.stdout)
 	}
 
 	reports, baseLabel, err := executePipeline(ctx, flags, repoRoot, env)
@@ -105,8 +108,13 @@ func runCLI(ctx context.Context, env cliEnv) (int, error) {
 	return 0, nil
 }
 
-func runConventionsMode(repoRoot string, pkgs string, stdout io.Writer) (int, error) {
-	violations, err := astcheck.CheckConventions(repoRoot, pkgs)
+func runASTCheckMode(
+	check func(repoRoot string, pkgs string) ([]astcheck.ConventionViolation, error),
+	repoRoot string,
+	pkgs string,
+	stdout io.Writer,
+) (int, error) {
+	violations, err := check(repoRoot, pkgs)
 	if err != nil {
 		return 2, err
 	}

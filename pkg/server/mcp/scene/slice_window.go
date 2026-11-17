@@ -26,8 +26,6 @@ import (
 )
 
 const (
-	// DefaultExcerptContextLines is the default symmetric context kept around each matched line.
-	DefaultExcerptContextLines = 1
 	// MaxExcerptContextLines caps before and after context lines per match window.
 	MaxExcerptContextLines = 5
 	// DefaultExcerptMaxMatches is the default number of occurrences sliced per window.

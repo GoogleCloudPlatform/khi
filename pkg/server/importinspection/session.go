@@ -47,9 +47,6 @@ var (
 	ErrChunkSizeTooLarge = chunkedupload.ErrChunkSizeTooLarge
 )
 
-// ByteRange represents an uploaded byte interval [Start, End).
-type ByteRange = chunkedupload.ByteRange
-
 // ImportSession represents an in-progress chunked upload session.
 type ImportSession = chunkedupload.ChunkSession
 

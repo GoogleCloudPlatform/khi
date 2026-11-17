@@ -30,12 +30,6 @@ var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[k8scommon.GoogleCl
 // AutocompleteComposerClusterNamesTaskID is the task id for the task that autocompletes GKE cluster names created by Cloud Composer.
 var AutocompleteComposerClusterNamesTaskID = taskid.NewImplementationID(k8scommon.AutocompleteClusterIdentityTaskID.Ref(), "composer")
 
-// ComposerClusterNamePrefixTaskID is the task id for the task that returns the GKE cluster name prefix used by Cloud Composer.
-var ComposerClusterNamePrefixTaskID = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "composer")
-
-// AutocompleteComposerEnvironmentNamesTaskID is the task id for the task that autocompletes composer environment names.
-var AutocompleteComposerEnvironmentNamesTaskID taskid.TaskImplementationID[[]string] = taskid.NewDefaultImplementationID[[]string](GoogleCloudComposerTaskIDPrefix + "autocomplete/composer-environment-names")
-
 // AutocompleteComposerEnvironmentIdentityTaskID is the task id for the task that autocompletes composer environment identities.
 var AutocompleteComposerEnvironmentIdentityTaskID = taskid.NewDefaultImplementationID[*inspectioncore.AutocompleteResult[ComposerEnvironmentIdentity]](GoogleCloudComposerTaskIDPrefix + "autocomplete/composer-environment-identities")
 
