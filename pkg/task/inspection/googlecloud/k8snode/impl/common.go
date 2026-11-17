@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -60,8 +61,15 @@ var tailTask = coretask.DefineTailTask(
 	),
 )
 
+// summaryReference represents a resolved pod, container, or resource name for a log ID.
+type summaryReference struct {
+	readableName string
+	skipAppend   bool
+}
+
 // processK8sNodeLog sets the log type, timestamp, severity and summary of a Kubernetes node log.
 // The summary shows the pods, containers and resources that the finders resolve from the IDs in the log message.
+// The summary of a cilium-cni plugin log also shows the subsystem and the Pod written in the log, and shows the Pod only once.
 func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
@@ -76,32 +84,10 @@ func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patte
 		return nil, err
 	}
 
-	severity, err := nodeLogFS.Message.Severity()
-	if err == nil {
+	if severity, err := nodeLogFS.Message.Severity(); err == nil {
 		cs.SetSeverity(severity)
 	} else {
 		cs.SetSeverity(inspectioncore.SeverityInfo)
-	}
-
-	raw := nodeLogFS.Message.Raw()
-	summaryReplaceMap := map[string]string{}
-
-	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
-	for _, pod := range pods {
-		summaryReplaceMap[pod.PodSandboxID] = toReadablePodSandboxName(pod.PodNamespace, pod.PodName)
-	}
-	for _, containerRef := range containerRefs {
-		summaryReplaceMap[containerRef.Container.ContainerID] = toReadableContainerName(containerRef.Pod.PodNamespace, containerRef.Pod.PodName, containerRef.Container.ContainerName)
-	}
-
-	if resourceUIDPatternFinder != nil {
-		resourceFindResults := patternfinder.FindAllWithStarterRunes(raw, resourceUIDPatternFinder, false, nodeLogUIDStarterRunes...)
-		for _, result := range resourceFindResults {
-			uid, err := result.GetMatchedString(raw)
-			if err == nil {
-				summaryReplaceMap[uid] = toReadableResourceName(result.Value.APIVersion, result.Value.Kind, result.Value.Namespace, result.Value.Name)
-			}
-		}
 	}
 
 	summary, err := parseDefaultSummary(nodeLogFS.Message)
@@ -110,53 +96,118 @@ func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patte
 	}
 
 	if nodeLogFS.Component == "kubelet" {
-		klogExitCode, err := nodeLogFS.Message.StringField("exitCode")
-		if err == nil && klogExitCode != "" && klogExitCode != "0" {
-			if klogExitCode == "137" {
-				cs.SetSeverity(inspectioncore.SeverityError)
-			} else {
-				cs.SetSeverity(inspectioncore.SeverityWarning)
-			}
-		}
-
-		podNameWithNamespace, err := nodeLogFS.Message.StringField("pod")
-		if err == nil && podNameWithNamespace != "" {
-			podNamespace, podName, err := slashSplittedPodNameToNamespaceAndName(podNameWithNamespace)
-			if err == nil {
-				containerName, err := nodeLogFS.Message.StringField("containerName")
-				if err == nil && containerName != "" {
-					summary = fmt.Sprintf("%s %s", summary, toReadableContainerName(podNamespace, podName, containerName))
-				} else {
-					summary = fmt.Sprintf("%s %s", summary, toReadablePodSandboxName(podNamespace, podName))
-				}
-			}
-		} else {
-			podNames, err := nodeLogFS.Message.StringField("pods")
-			if err == nil && podNames != "" {
-				podNames = strings.Trim(podNames, "[]")
-				podNamesSplitted := strings.Split(podNames, ",")
-				for _, podNamespaceAndNameWithSlash := range podNamesSplitted {
-					podNamespaceAndNameWithSlash = strings.Trim(podNamespaceAndNameWithSlash, `"`)
-					podNamespace, podName, err := slashSplittedPodNameToNamespaceAndName(podNamespaceAndNameWithSlash)
-					if err == nil {
-						summary = fmt.Sprintf("%s %s", summary, toReadablePodSandboxName(podNamespace, podName))
-					}
-				}
-			}
-		}
+		applyKubeletExitCodeSeverity(cs, nodeLogFS.Message)
+		summary = appendKubeletPodSummary(nodeLogFS.Message, summary)
 	}
 
-	for k, v := range summaryReplaceMap {
-		i := strings.Index(summary, k)
-		if i == -1 {
-			summary = fmt.Sprintf("%s %s", summary, v)
-		} else {
-			summary = strings.ReplaceAll(summary, k, v)
-		}
-	}
-	cs.SetSummary(summary)
+	summary = formatCiliumCNISummary(nodeLogFS.Message, summary)
+	refs := collectSummaryReferences(nodeLogFS.Message, podSandboxIDFinder, containerIDPatternFinder, resourceUIDPatternFinder)
+	cs.SetSummary(applySummaryReferences(summary, refs))
 
 	return cs, nil
+}
+
+// applyKubeletExitCodeSeverity raises log severity when a kubelet log reports a non-zero exitCode field.
+func applyKubeletExitCodeSeverity(cs *khifilev6.LogChangeSet, message *logutil.ParseStructuredLogResult) {
+	exitCode, _ := message.StringField("exitCode")
+	if exitCode == "" || exitCode == "0" {
+		return
+	}
+	if exitCode == "137" {
+		cs.SetSeverity(inspectioncore.SeverityError)
+	} else {
+		cs.SetSeverity(inspectioncore.SeverityWarning)
+	}
+}
+
+// appendKubeletPodSummary appends readable pod or container names parsed from kubelet klog fields to summary.
+func appendKubeletPodSummary(message *logutil.ParseStructuredLogResult, summary string) string {
+	if podRef, _ := message.StringField("pod"); podRef != "" {
+		ns, name, err := slashSplittedPodNameToNamespaceAndName(podRef)
+		if err != nil {
+			return summary
+		}
+		if container, _ := message.StringField("containerName"); container != "" {
+			return fmt.Sprintf("%s %s", summary, toReadableContainerName(ns, name, container))
+		}
+		return fmt.Sprintf("%s %s", summary, toReadablePodSandboxName(ns, name))
+	}
+
+	podNames, _ := message.StringField("pods")
+	for _, rawPod := range strings.Split(strings.Trim(podNames, "[]"), ",") {
+		if ns, name, err := slashSplittedPodNameToNamespaceAndName(strings.Trim(rawPod, `"`)); err == nil {
+			summary = fmt.Sprintf("%s %s", summary, toReadablePodSandboxName(ns, name))
+		}
+	}
+	return summary
+}
+
+// formatCiliumCNISummary prepends the cilium-cni tag and appends the referenced Pod name when present.
+func formatCiliumCNISummary(message *logutil.ParseStructuredLogResult, summary string) string {
+	if !isCiliumCNILog(message) {
+		return summary
+	}
+	// The plugin can end its messages with a space, which would otherwise widen the gap before the appended references.
+	summary = fmt.Sprintf("[cilium-cni] %s", strings.TrimSpace(summary))
+	if ns, name, found := findCiliumCNIPodReference(message); found {
+		summary = fmt.Sprintf("%s %s", summary, toReadablePodSandboxName(ns, name))
+	}
+	return summary
+}
+
+// collectSummaryReferences maps pod sandbox IDs, container IDs, and resource UIDs in message to readable summary replacements.
+func collectSummaryReferences(
+	message *logutil.ParseStructuredLogResult,
+	podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo],
+	containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity],
+	resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity],
+) map[string]summaryReference {
+	raw := message.Raw()
+	refs := map[string]summaryReference{}
+
+	ciliumPodNs, ciliumPodName, hasCiliumPod := findCiliumCNIPodReference(message)
+	isCiliumPod := func(namespace, name string) bool {
+		return hasCiliumPod && namespace == ciliumPodNs && name == ciliumPodName
+	}
+
+	pods, containerRefs := findPodAndContainerReferences(raw, podSandboxIDFinder, containerIDPatternFinder)
+	for _, pod := range pods {
+		refs[pod.PodSandboxID] = summaryReference{
+			readableName: toReadablePodSandboxName(pod.PodNamespace, pod.PodName),
+			skipAppend:   isCiliumPod(pod.PodNamespace, pod.PodName),
+		}
+	}
+	for _, containerRef := range containerRefs {
+		refs[containerRef.Container.ContainerID] = summaryReference{
+			readableName: toReadableContainerName(containerRef.Pod.PodNamespace, containerRef.Pod.PodName, containerRef.Container.ContainerName),
+		}
+	}
+
+	if resourceUIDPatternFinder != nil {
+		for _, result := range patternfinder.FindAllWithStarterRunes(raw, resourceUIDPatternFinder, false, nodeLogUIDStarterRunes...) {
+			if uid, err := result.GetMatchedString(raw); err == nil {
+				refs[uid] = summaryReference{
+					readableName: toReadableResourceName(result.Value.APIVersion, result.Value.Kind, result.Value.Namespace, result.Value.Name),
+					skipAppend:   result.Value.Kind == "pod" && isCiliumPod(result.Value.Namespace, result.Value.Name),
+				}
+			}
+		}
+	}
+	return refs
+}
+
+// applySummaryReferences replaces IDs present in summary with their readable names and appends unmentioned references.
+func applySummaryReferences(summary string, refs map[string]summaryReference) string {
+	for id, ref := range refs {
+		if strings.Contains(summary, id) {
+			summary = strings.ReplaceAll(summary, id, ref.readableName)
+			continue
+		}
+		if !ref.skipAppend {
+			summary = fmt.Sprintf("%s %s", summary, ref.readableName)
+		}
+	}
+	return summary
 }
 
 // defineParserTypeFilterTask defines a filter task that passes only the logs of the given parser type.
