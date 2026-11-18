@@ -32,27 +32,27 @@ import { ReadonlyDomainElement } from './types';
 /**
  * Severity level DTO for the style store.
  */
-export type SeverityDTO = Severity;
+type SeverityDTO = Severity;
 
 /**
  * Log category or source DTO for the style store.
  */
-export type LogTypeDTO = LogType;
+type LogTypeDTO = LogType;
 
 /**
  * Action verb DTO for the style store.
  */
-export type VerbDTO = Verb;
+type VerbDTO = Verb;
 
 /**
  * Revision status DTO for the style store.
  */
-export type RevisionStateDTO = RevisionState;
+type RevisionStateDTO = RevisionState;
 
 /**
  * Timeline presentation style DTO for the style store.
  */
-export type TimelineTypeDTO = TimelineType;
+type TimelineTypeDTO = TimelineType;
 
 /**
  * DTO representation of the MSDF icon atlas.

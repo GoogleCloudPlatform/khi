@@ -18,7 +18,7 @@ import { GraphObjectWithElementType, ElementStyle } from './base-containers';
 
 const DEFAULT_SHAPE_COLOR = '#333';
 
-export class ArchShape<
+class ArchShape<
   T extends SVGGraphicsElement | null,
 > extends GraphObjectWithElementType<T> {
   constructor(shapeElement: T) {

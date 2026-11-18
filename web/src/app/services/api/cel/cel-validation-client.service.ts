@@ -20,7 +20,7 @@ import { ConnectClientService } from 'src/app/services/api/connect-client.servic
 /**
  * Result of a CEL expression validation query.
  */
-export interface CelValidationResult {
+interface CelValidationResult {
   /** Whether the CEL expression syntax and variable types are valid. */
   readonly valid: boolean;
   /** Error message describing compilation or syntax failures if invalid. */

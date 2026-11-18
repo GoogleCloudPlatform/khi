@@ -54,14 +54,14 @@ import {
 /**
  * Visual theme representation for a timeline type chip and row.
  */
-export interface TimelineTypeColor {
+interface TimelineTypeColor {
   readonly chipBackgroundColor: string;
   readonly chipForegroundColor: string;
   readonly rowBackgroundColor: string;
   readonly rowForegroundColor: string;
 }
 
-export enum ToolbarPopupStatus {
+enum ToolbarPopupStatus {
   None = 'NONE_OPEN',
   KindFilter = 'KIND_FILTER_OPEN',
   NamespaceFilter = 'NAMESPACE_FILTER_OPEN',

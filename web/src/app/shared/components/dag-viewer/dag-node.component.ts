@@ -46,7 +46,7 @@ const TAG_GAP_PX = 6;
 /**
  * Visual badge representation for a provided tag on a task node card.
  */
-export interface TagBadge {
+interface TagBadge {
   /** Descriptive tooltip text for the badge. */
   readonly tooltip: string;
   /** Formatted display text prefixed with hash. */

@@ -10,6 +10,7 @@ ifneq ($(filter true 1,$(USE_CONTAINER)),)
 test-web: test-web-container
 else
 test-web: $(GENERATE_FRONTEND_DUMMY) $(FRONTEND_SOURCE_FILES)## Run frontend tests
+	cd web && npm run test:scripts
 	cd web && KARMA_PORT=$(KARMA_PORT) npx ng test --browsers ChromeHeadlessNoSandbox --watch=false
 endif
 

@@ -25,7 +25,7 @@ import {
 /**
  * Options configuring DAG layout spacing and sizing dimensions.
  */
-export interface DagLayoutOptions {
+interface DagLayoutOptions {
   /**
    * Width of each node card in pixels. Defaults to 420.
    */

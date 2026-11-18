@@ -100,7 +100,7 @@ export interface TimelineType {
 /**
  * Represents common properties in the BMFont configuration.
  */
-export interface BMFontCommon {
+interface BMFontCommon {
   readonly lineHeight: number;
   readonly base: number;
   readonly scaleW: number;

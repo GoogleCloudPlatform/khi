@@ -32,7 +32,7 @@ export interface ChunkUploadProgressCallback {
 /**
  * Configuration options for executing chunked file uploads.
  */
-export interface ChunkUploadExecutorOptions {
+interface ChunkUploadExecutorOptions {
   /** The source file to upload in chunks. */
   readonly file: File;
 

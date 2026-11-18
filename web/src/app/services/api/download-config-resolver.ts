@@ -35,7 +35,7 @@ export const DEFAULT_DOWNLOAD_MAX_CONCURRENCY = 10;
 /**
  * Options supplied to resolve the effective download configuration.
  */
-export interface ResolveDownloadConfigOptions {
+interface ResolveDownloadConfigOptions {
   /** Optional URL search query string (defaults to window.location.search when available). */
   readonly searchString?: string;
   /** Optional explicit environment download configuration override. */
@@ -45,7 +45,7 @@ export interface ResolveDownloadConfigOptions {
 /**
  * Effective download configuration.
  */
-export interface ResolvedDownloadConfig {
+interface ResolvedDownloadConfig {
   /** Effective chunk payload size in bytes. */
   readonly chunkSize: number;
   /** Effective maximum number of concurrent chunk downloads. */

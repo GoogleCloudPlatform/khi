@@ -24,6 +24,7 @@ LINT_PKG_ARGS = $(subst $(COMMA), ,$(LINT_PKGS))
 lint-web: $(GENERATE_FRONTEND_DUMMY)## Run frontend linter
 	cd web && NODE_OPTIONS="--max-old-space-size=$(NODE_MAX_OLD_SPACE_SIZE)" npx ng lint
 	cd web && npm run lint:style
+	cd web && npm run lint:unused
 
 .PHONY: lint-go
 lint-go: ## Run backend linter

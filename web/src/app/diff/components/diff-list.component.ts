@@ -56,13 +56,13 @@ export enum PrincipalType {
   NotAvailable = 'N/A',
 }
 
-export interface ResourceOperatorPrincipal {
+interface ResourceOperatorPrincipal {
   type: PrincipalType;
   full: string;
   short: string;
 }
 
-export interface DiffListRowViewModel {
+interface DiffListRowViewModel {
   revision: ReadonlyDomainElement<Revision>;
   index: number;
   isContentChanged: boolean;

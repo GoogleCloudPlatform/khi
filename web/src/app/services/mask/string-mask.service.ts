@@ -24,7 +24,7 @@ import {
 /**
  * Minimal rule definition accepted by the single-pass string masking compiler.
  */
-export interface MaskTransformRule {
+interface MaskTransformRule {
   /**
    * Exact non-empty substring to match across the inspection dataset.
    */
@@ -44,7 +44,7 @@ export interface MaskTransformRule {
 /**
  * Represents a single substring masking rule configured by the user.
  */
-export interface MaskRuleEntry extends MaskTransformRule {
+interface MaskRuleEntry extends MaskTransformRule {
   /**
    * Sequential numbered placeholder originally assigned to this rule for identity comparison.
    */

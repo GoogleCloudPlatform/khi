@@ -30,7 +30,7 @@ import {
 /**
  * Key-value pair entry for labels display.
  */
-export interface NodeLabelEntry {
+interface NodeLabelEntry {
   /** Label key name. */
   readonly key: string;
   /** Label value string. */

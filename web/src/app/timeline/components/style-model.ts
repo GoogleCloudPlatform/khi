@@ -103,7 +103,7 @@ export interface TimelineRulerStyle {
 /**
  * Style configuration for timeline revisions.
  */
-export interface TimelineRevisionStyle {
+interface TimelineRevisionStyle {
   /**
    * Vertical padding inside the revision box in pixels.
    */
@@ -165,7 +165,7 @@ export interface TimelineRevisionStyle {
 /**
  * Style configuration for distinct revision states (Normal, Deleted, PartialInfo).
  */
-export interface TimelineRevisionStateStyle {
+interface TimelineRevisionStateStyle {
   /**
    * Alpha transparency of the revision state pattern (0-1).
    */
@@ -183,7 +183,7 @@ export interface TimelineRevisionStateStyle {
 /**
  * Style configuration for timeline events.
  */
-export interface TimelineEventStyle {
+interface TimelineEventStyle {
   /**
    * Vertical padding for the event indicator in pixels.
    */

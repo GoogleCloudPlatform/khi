@@ -65,16 +65,6 @@ export interface GetInspectionTypesResponse {
 }
 
 /**
- * The response schema of POST /api/v3/inspection/types/<InspectionType.id> .
- */
-export interface CreateInspectionResponse {
-  /**
-   * ID of the inspection created.
-   */
-  inspectionID: string;
-}
-
-/**
  * Representing  a feature of inspection. This usually represents a log type(e.g. Kubernetes Audit Log, Kubernetes Event log ...etc).
  */
 export interface InspectionFeature {
@@ -114,26 +104,6 @@ export interface GetInspectionFeatureResponse {
    * List of features for the inspection.
    */
   features: InspectionFeature[];
-}
-
-/**
- * Request schema of PUT /api/v3/inspection/<inspection-id>/features .
- */
-export interface PutInspectionFeatureRequest {
-  /**
-   * List of IDs to be enabled.
-   */
-  features: string[];
-}
-
-/**
- * Request schema of PATCH /api/v3/inspection/<inspection-id>/features .
- */
-export interface PatchInspectionFeatureRequest {
-  /**
-   * Map of features mapped against true if enabled
-   */
-  features: { [key: string]: boolean };
 }
 
 /**

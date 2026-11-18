@@ -29,7 +29,7 @@ import { IdBitset } from 'src/app/store/domain/filter/id-bitset';
  * Represents the state required by shared timeline rendering resources.
  * This includes viewport dimensions, zoom level, and time-related parameters.
  */
-export interface TimelineRendererSharedResourceState {
+interface TimelineRendererSharedResourceState {
   /** The width of the viewport in logical pixels. */
   width: number;
   /** The height of the viewport in logical pixels. */

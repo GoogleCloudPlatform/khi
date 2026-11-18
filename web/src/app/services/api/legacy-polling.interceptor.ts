@@ -78,7 +78,7 @@ import { environment } from 'src/environments/environment';
 /**
  * Maximum number of consecutive transient errors tolerated during polling before aborting.
  */
-export const MAX_CONSECUTIVE_POLL_ERRORS = 5;
+const MAX_CONSECUTIVE_POLL_ERRORS = 5;
 
 /**
  * Checks whether legacy polling mode is enabled via URL query parameter or environment configuration.
@@ -96,7 +96,7 @@ export function isLegacyPollingMode(): boolean {
 /**
  * StreamToPollAdapter maps a stream request into an async iterable of response messages via unary polling.
  */
-export type StreamToPollAdapter = (
+type StreamToPollAdapter = (
   req: StreamRequest,
   transport: Transport,
 ) => AsyncIterable<Message>;

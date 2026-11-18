@@ -55,7 +55,7 @@ const NOOP_PROGRESS_UPDATOR: ProgressDialogStatusUpdator = {
 /**
  * Visible time range in milliseconds applied to the timeline viewport.
  */
-export interface ViewportTimeRange {
+interface ViewportTimeRange {
   readonly viewStartTimeMs: number;
   readonly viewEndTimeMs: number;
 }
