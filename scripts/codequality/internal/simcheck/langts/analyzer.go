@@ -230,7 +230,7 @@ func (a *Analyzer) IsSharedModule(modulePath string) bool {
 }
 
 func (a *Analyzer) runBatchExtractor(ctx context.Context, req batchRequest) (*batchResponse, error) {
-	webDir, err := a.resolveWebDir()
+	webDir, err := gotestutil.ResolveWebDir(a.webDir)
 	if err != nil {
 		return nil, err
 	}
@@ -259,19 +259,6 @@ func (a *Analyzer) runBatchExtractor(ctx context.Context, req batchRequest) (*ba
 		return nil, fmt.Errorf("failed decoding TypeScript AST output: %w", err)
 	}
 	return &parsed, nil
-}
-
-func (a *Analyzer) resolveWebDir() (string, error) {
-	if a.webDir != "" {
-		if _, err := os.Stat(filepath.Join(a.webDir, "package.json")); err == nil {
-			return a.webDir, nil
-		}
-	}
-	repoRoot, err := gotestutil.ResolveRepoRoot("")
-	if err != nil {
-		return "", fmt.Errorf("could not locate web/package.json for TypeScript parser: %w", err)
-	}
-	return filepath.Join(repoRoot, "web"), nil
 }
 
 func isIgnoredAngularSrcDir(baseName string) bool {

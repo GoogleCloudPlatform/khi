@@ -6,12 +6,39 @@ globs: **/*.ts
 ## Typescript Coding rules
 
 - Use TSDoc-style comments for all public types, functions, and methods.
+- **Comments and TSDoc (Strict Logic Alignment)**: Every TSDoc (`/** ... */`) and inline (`// ...`) comment must accurately match the actual implementation behavior, Angular signal/RxJS reactivity, timestamp units (`bigint` nanoseconds vs `*Ms`), nullability, and error/fallback handling. When refactoring code (for example migrating from RxJS `Subject` or `@Input()` to `signal()` / `input()`), update or remove affected comments in the same change.
+- **Identifier Naming (Functions, Methods, Parameters, and Variables)**:
+  - Choose clear, domain-descriptive names that match how values and functions are actually used.
+  - **Avoid Cryptic or Overly Short Names**: Outside narrow conventional idioms (such as `i`/`j` in tiny index loops, `el`/`ev` in brief one-line DOM callbacks, and `x`/`y`/`w`/`h` in explicit 2D canvas geometry), do **NOT** use opaque 1–2 letter or generic placeholder names (`d`, `m`, `tmp`, `val`, `data`, `res`, `proc`, `handle`, `cb`) across non-trivial logic.
+  - **Match Name to Actual Usage**: Never give a variable, parameter, property, or method a name that contradicts its unit, boolean polarity, mutability, or side effects (for example, naming a `bigint` nanosecond timestamp `timestampMs`, naming a state-mutating method `isValid()` or `get*()`, or inverting boolean meaning).
+
+```ts
+// BAD: cryptic short names and misleading unit/side-effect names.
+function check(d: bigint, m: Map<string, string>): number {
+  const timeoutMs = d; // Misleading: d is bigint nanoseconds, not milliseconds!
+  m.delete('expired'); // Mutates caller map despite "check" name!
+  return m.size;
+}
+
+// GOOD: names communicate exact domain role, unit, and mutating behavior.
+function pruneExpiredEntries(
+  timeoutNs: bigint,
+  entriesByKey: Map<string, string>,
+): number {
+  if (timeoutNs <= 0n) {
+    return entriesByKey.size;
+  }
+  entriesByKey.delete('expired');
+  return entriesByKey.size;
+}
+```
+
 - Test files must be named with `A.spec.ts` if `A.ts` exists. Do not define spec files by scenarios.
 - Do NOT use `any`.
 - Make fields `readonly` as much as possible.
 - Define enum type rather than define a union of string literal types.
 - Write import path in absolute form from the project base path like `src/app/...`.
-- Run `make codequality` (or `make codequality-web`, adding `USE_CONTAINER=true` when Chrome is only inside the builder container, and `CODEQUALITY_SIMILARITY=true` / `CODEQUALITY_SIMILARITY_PROJECT=<project-id>` to opt in to Vertex AI `gemini-embedding-2` AST-normalized function similarity advisories locally) to verify differential line coverage, mutation score (assertion strength), and absence of redundant specs on changed TypeScript logic. When a mutant survives:
+- Run `make codequality` (or `make codequality-web`, adding `USE_CONTAINER=true` when Chrome is only inside the builder container, and `CODEQUALITY_SIMILARITY=true` / `CODEQUALITY_SIMILARITY_PROJECT=<project-id>` to opt in to Vertex AI `gemini-embedding-2` AST-normalized function similarity advisories locally) to verify differential line coverage, mutation score (assertion strength), and absence of redundant specs on changed TypeScript logic. Run `make codequality-decisions` (or `CODEQUALITY_DECISIONS=true`) to evaluate declarative Gemini Decisions semantic rules (`ts_code_quality` and `ts_test_quality`) on changed `.ts` and `.spec.ts` files. When a mutant survives:
   - First check if the branch is redundant or guarded by an existing invariant (e.g., unreachable CSR `typeof document !== 'undefined'` fallbacks) — **never** suppress invariant, defensive, or unreachable conditions with `CODEQUALITY_ALLOW`; simplify or delete the redundant branch instead.
   - Because Karma runs in real Headless Chromium, **never** blanket-suppress DOM layout, scroll math, or `should create`-only component effects as `external`. Instead, extract non-trivial calculations into pure `*calculator.ts` / `*.viewmodel.ts` helpers or strengthen assertions in `*.spec.ts`.
   - Only for genuine non-deletable cases, suppress with a required rule ID, category, and explanation (`// CODEQUALITY_ALLOW(func_surviving_mutants, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is `equivalent` [e.g., sub-pixel `< 1` rounding tolerance], `perf` [e.g., DOM/Canvas property dirty-check caches or memoization], `observability`, or `external` [strictly browser I/O boundaries unobservable in headless unit tests such as `window.open`, Clipboard, file downloads, or raw GPU shader pixel output]).
@@ -25,6 +52,53 @@ globs: **/*.ts
 - Do NOT use Object literal type in non test code. Define an interface instead.
 - Do NOT reference types by accessing fields of other types (e.g., `Type['field']`). Use the official type name directly.
 - Internal TypeScript code in KHI requires no backward compatibility. When refactoring functions, classes, interfaces, or Angular component inputs/outputs, update all call sites across the codebase directly without leaving deprecated wrappers, unnecessary optional parameters, or fallback logic. Refer to the `backward-compatibility-policy` skill for anti-patterns and details.
+
+## TypeScript Unit Testing Practices (`*.spec.ts`)
+
+1. **Mandatory Spec Explanation Comments**:
+   - Place a concise `// ...` comment (ending with `.`) immediately above **every** `it(...)` spec explaining the input scenario/preconditions and expected behavior.
+   - Ensure the spec's setup, trigger, and `expect(...)` assertions genuinely verify that described scenario and cannot pass coincidentally (for example, populate state before testing `clear()`).
+2. **Test Structure: Arrange, Act, Assert (AAA)**:
+   - Structure every `it(...)` block into three linear phases separated by blank lines (add explicit `// Arrange.`, `// Act.`, and `// Assert.` comments when any phase spans multiple blocks so `Act` stands out immediately):
+     - **Arrange**: Minimal inputs, spies, component inputs, and subscriptions needed for the target behavior.
+     - **Act**: Invoke the single function, method, DOM event, or signal update under test (plus `fixture.detectChanges()` when exercising Angular view rendering).
+     - **Assert**: Verify the returned outputs, DOM state, or recorded emissions with `expect(...)`.
+   - **One Behavior per Spec**: Do **NOT** chain multiple `Act -> Assert -> Act -> Assert` sequences testing independent behaviors inside a single `it(...)` block, and do **NOT** compute expected values dynamically via `if`/`else` or `for` loops inside the spec body.
+3. **Testing Callbacks and Subscriptions**:
+   - When testing functions accepting callbacks, Angular `output()` subscriptions (`.subscribe(...)`), RxJS Observables, or event listeners, **NEVER** place `expect(...)` or `fail(...)` directly inside the callback or `.subscribe(...)` handler. If a defect prevents the callback or Observable from firing, assertions inside the handler never run and the spec silently passes; it also mixes Assert into Arrange.
+   - Instead:
+     - **Arrange**: Record emitted values/arguments into a local array or variable (or pass a `jasmine.createSpy(...)`).
+     - **Act**: Trigger the function, method, or DOM event under test.
+     - **Assert**: **Outside** the callback (after `Act`), assert on the recorded values or spy (`expect(emitted).toEqual([...])` or `expect(onProgress).toHaveBeenCalledWith(...)`).
+
+```ts
+// BAD 1: assertion inside subscribe silently passes if timeRangeSelected never emits!
+it('emits selected time range', () => {
+  component.timeRangeSelected.subscribe((range) => {
+    expect(range).toEqual({ startNs: 100n, endNs: 200n });
+  });
+  triggerRangeDrag(fixture, 100, 200);
+});
+
+// BAD 2: interleaved Act -> Assert -> Act -> Assert for two independent behaviors.
+it('adds and clears entries', () => {
+  store.add('k', 'v');
+  expect(store.size()).toBe(1);
+  store.clear();
+  expect(store.size()).toBe(0);
+});
+
+// GOOD: preceding comment, linear Arrange -> Act -> Assert, and callback recorded outside Assert.
+// Emits the dragged time range once when the pointer drag completes on the ruler.
+it('emits selected time range on pointer up', () => {
+  const emittedRanges: TimeRangeNs[] = [];
+  component.timeRangeSelected.subscribe((range) => emittedRanges.push(range));
+
+  triggerRangeDrag(fixture, 100, 200);
+
+  expect(emittedRanges).toEqual([{ startNs: 100n, endNs: 200n }]);
+});
+```
 
 ## Angular coding rules
 

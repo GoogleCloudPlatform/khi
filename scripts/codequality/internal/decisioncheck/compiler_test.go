@@ -15,6 +15,8 @@
 package decisioncheck
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 // TestCompileQuestionsAndEvaluateBatchResolvesOutcomeSpecificFixHints verifies template expansion and per-option/per-level fix_hint resolution.
@@ -210,7 +213,6 @@ Plain text body.
 			},
 		},
 	}
-
 	testCases := []struct {
 		name   string
 		rule   RuleSpec
@@ -367,6 +369,138 @@ Plain text body.
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := CompileQuestions("gemini-decision-1", "shared-ctx", tc.rule, tc.bundle)
+
+			if err != nil {
+				t.Fatalf("CompileQuestions() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreFields(CompiledBatch{}, "Meta")); diff != "" {
+				t.Errorf("CompileQuestions() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestCompileQuestionsTypeScript verifies question expansion across TypeScript declaration, function, and spec AST extractors when TypeScript is available.
+func TestCompileQuestionsTypeScript(t *testing.T) {
+	webDir, err := gotestutil.ResolveWebDir("")
+	if err != nil {
+		t.Skipf("skipping TypeScript compiler test: could not locate web directory (%v)", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(webDir, "node_modules", "typescript")); statErr != nil {
+		t.Skipf("skipping TypeScript compiler test: web/node_modules/typescript not installed (%v)", statErr)
+	}
+
+	tsBundle := TargetBundle{
+		ID:          "web/src/app/demo.ts",
+		PrimaryFile: "web/src/app/demo.ts",
+		WebDir:      webDir,
+		Files: []BundledFile{
+			{
+				RelPath: "web/src/app/demo.ts",
+				Content: []byte(`export interface DemoConfig {
+  readonly enabled: boolean;
+}
+
+export function runDemo(): void {}
+`),
+			},
+			{
+				RelPath: "web/src/app/demo.spec.ts",
+				Content: []byte(`describe('Demo', () => {
+  it('runs cleanly', () => {});
+});
+`),
+			},
+		},
+	}
+
+	testCases := []struct {
+		name string
+		rule RuleSpec
+		want []CompiledBatch
+	}{
+		// Expands changed_ts_decls across production TypeScript interfaces and functions.
+		{
+			name: "changed_ts_decls extractor renders noul criteria for TS declarations",
+			rule: RuleSpec{
+				ID:   "ts_decl_rule",
+				Name: "TS Decl Rule",
+				Questions: []QuestionSpec{{
+					ID: "q_ts_decl", ForEach: ExtractorChangedTSDecls, Type: QuestionTypeNoul,
+					Instructions: "Inspect {{.Kind}} {{.Name}}",
+					Criteria:     NoulCriteriaSpec{TrueDescription: "Valid {{.Name}}"},
+					FixHint:      "Fix",
+					Pass:         PassSpec{Expect: ptr(true), MinProbability: 0.5},
+				}},
+			},
+			want: []CompiledBatch{{
+				Request: DecisionRequest{
+					Model: "gemini-decision-1",
+					Input: "shared-ctx",
+					Questions: map[string]WireQuestion{
+						"q_ts_decl_0": {Type: QuestionTypeNoul, Instructions: "Inspect interface DemoConfig", Criteria: map[string]string{"true_description": "Valid DemoConfig"}},
+						"q_ts_decl_1": {Type: QuestionTypeNoul, Instructions: "Inspect function runDemo", Criteria: map[string]string{"true_description": "Valid runDemo"}},
+					},
+				},
+				Order: []string{"q_ts_decl_0", "q_ts_decl_1"},
+			}},
+		},
+		// Expands changed_ts_funcs and renders choice criteria for production TypeScript functions.
+		{
+			name: "changed_ts_funcs extractor renders choice criteria for TS functions",
+			rule: RuleSpec{
+				ID:   "ts_func_rule",
+				Name: "TS Func Rule",
+				Questions: []QuestionSpec{{
+					ID: "q_ts_func", ForEach: ExtractorChangedTSFuncs, Type: QuestionTypeChoice,
+					Instructions: "Check {{.Name}}",
+					Options: map[string]ChoiceOptionSpec{
+						"ok":  {Description: "{{.Name}} good"},
+						"bad": {Description: "{{.Name}} bad", FixHint: "Fix"},
+					},
+					Pass: PassSpec{ExpectedChoice: "ok", MinProbability: 0.5},
+				}},
+			},
+			want: []CompiledBatch{{
+				Request: DecisionRequest{
+					Model: "gemini-decision-1",
+					Input: "shared-ctx",
+					Questions: map[string]WireQuestion{
+						"q_ts_func_0": {Type: QuestionTypeChoice, Instructions: "Check runDemo", Criteria: map[string]string{"ok": "runDemo good", "bad": "runDemo bad"}},
+					},
+				},
+				Order: []string{"q_ts_func_0"},
+			}},
+		},
+		// Expands changed_ts_specs and renders ordered score level criteria for Jasmine specs.
+		{
+			name: "changed_ts_specs extractor renders score criteria for TS specs",
+			rule: RuleSpec{
+				ID:   "ts_spec_rule",
+				Name: "TS Spec Rule",
+				Questions: []QuestionSpec{{
+					ID: "q_ts_spec", ForEach: ExtractorChangedTSSpecs, Type: QuestionTypeScore,
+					Instructions: "Score {{.Name}}",
+					Levels:       []ScoreLevelSpec{{Description: "{{.Name}} low", FixHint: "Fix"}, {Description: "{{.Name}} high"}},
+					Pass:         PassSpec{MinScore: ptr(1.0)},
+				}},
+			},
+			want: []CompiledBatch{{
+				Request: DecisionRequest{
+					Model: "gemini-decision-1",
+					Input: "shared-ctx",
+					Questions: map[string]WireQuestion{
+						"q_ts_spec_0": {Type: QuestionTypeScore, Instructions: `Score Demo > "runs cleanly"`, Criteria: []string{`Demo > "runs cleanly" low`, `Demo > "runs cleanly" high`}},
+					},
+				},
+				Order: []string{"q_ts_spec_0"},
+			}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := CompileQuestions("gemini-decision-1", "shared-ctx", tc.rule, tsBundle)
 
 			if err != nil {
 				t.Fatalf("CompileQuestions() unexpected error: %v", err)

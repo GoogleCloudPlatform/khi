@@ -200,6 +200,12 @@ func extractItemsForQuestion(kind ExtractorKind, bundle TargetBundle) ([]Extract
 		return ExtractChangedGoTestFuncs(bundle.ID, bundle.Files, bundle.ChangedLines)
 	case ExtractorChangedGoTestCases:
 		return ExtractChangedGoTestCases(bundle.ID, bundle.Files, bundle.ChangedLines)
+	case ExtractorChangedTSDecls:
+		return ExtractChangedTSDecls(bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
+	case ExtractorChangedTSFuncs:
+		return ExtractChangedTSFuncs(bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
+	case ExtractorChangedTSSpecs:
+		return ExtractChangedTSSpecs(bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
 	default:
 		return nil, fmt.Errorf("unsupported extractor %q", kind)
 	}

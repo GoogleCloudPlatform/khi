@@ -1,0 +1,106 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id: ts_code_quality
+name: TypeScript Comment-Logic Alignment & Identifier Naming
+description: Verifies that TypeScript comments and TSDoc match actual implementation logic and that function, method, parameter, and variable names clearly and accurately reflect their role and usage.
+enabled: true
+enforcement: advisory
+
+target:
+  kind: changed_file
+  include:
+    - "web/src/**/*.ts"
+  exclude:
+    - "**/*.spec.ts"
+    - "**/*.stories.ts"
+    - "**/*.d.ts"
+    - "**/generated/**"
+    - "**/testdata/**"
+
+context:
+  line_numbers: true
+
+questions:
+  - id: comment_logic_alignment
+    for_each: changed_ts_decls
+    type: choice
+    instructions: >-
+      Verify whether all TSDoc (/** ... */) and inline (// ...) comments on or inside
+      {{.Kind}} "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) accurately match its
+      actual TypeScript and Angular implementation (including signal()/computed()/input()/output()
+      vs RxJS reactivity, bigint nanosecond vs *Ms units, nullability, mutability, and error/fallback contracts).
+    options:
+      aligned:
+        description: >-
+          Either the declaration is a self-explanatory unexported symbol without comments,
+          or every TSDoc and inline comment accurately matches the implementation's behavior,
+          Angular signal()/computed()/input()/output() vs RxJS reactivity, timestamp units
+          (bigint nanoseconds vs *Ms), nullability, mutability, and error/fallback contracts.
+      stale_symbol_or_structure:
+        description: >-
+          A TSDoc or inline comment references a stale Angular/RxJS primitive
+          (for example claiming RxJS Subject or @Input() when signal()/input()/output() is used),
+          data structure, parameter, or helper that no longer matches the code.
+        fix_hint: >-
+          Update or remove stale type, reactivity primitive, or symbol references in the comments of
+          "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) to match the current implementation.
+      behavior_or_invariant_mismatch:
+        description: >-
+          A TSDoc or inline comment claims a timestamp unit (such as bigint nanoseconds vs *Ms),
+          nullability/readonly guarantee, mutability, ordering rule, or error/fallback contract
+          that is violated by the code.
+        fix_hint: >-
+          Reconcile "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) so either the implementation
+          upholds every guarantee stated in its comments or the inaccurate comment is corrected.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: identifier_naming
+    for_each: changed_ts_funcs
+    type: choice
+    instructions: >-
+      Evaluate whether the function/method name, parameter names, and local variable names in
+      {{.Kind}} "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) clearly communicate their role
+      and accurately match how they are used. Standard narrow-scope TypeScript idioms (such as i/j in
+      tiny index loops, el/ev in brief one-line DOM callbacks, and x/y/w/h in explicit 2D canvas geometry)
+      are valid.
+    options:
+      aligned:
+        description: >-
+          Function, method, parameter, and local variable names clearly express their domain role and
+          accurately reflect their timestamp/numeric units (bigint ns vs *Ms), boolean polarity,
+          mutability, and side effects.
+      cryptic_or_too_short:
+        description: >-
+          Uses opaque single-letter, overly abbreviated, or generic placeholder names
+          (such as d, m, tmp, val, data, res, proc, handle, or cb) across non-trivial scope
+          outside narrow i/j, el/ev, or x/y/w/h idioms.
+        fix_hint: >-
+          Rename cryptic or overly generic identifiers in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          to descriptive names that express their domain role.
+      misleading_for_actual_usage:
+        description: >-
+          A function, method, parameter, or variable name contradicts its actual unit
+          (such as naming a bigint nanosecond timestamp *Ms), boolean polarity,
+          filtering/normalization stage, mutability, or side effects (for example an isValid() or get*() method mutating state).
+        fix_hint: >-
+          Rename misleading identifiers in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          so their names accurately match their actual units, side effects, and runtime behavior.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55

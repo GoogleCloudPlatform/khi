@@ -125,13 +125,13 @@ func (s *decisionsSession) evaluate(ctx context.Context, repoRoot string, diffRe
 		RuleFilter:    parseCSVSet(s.flags.decisionsRules),
 		ForceBlocking: s.flags.decisionsFailOnViolations,
 		TargetOpts: decisioncheck.ResolveOptions{
-			RepoRoot:       repoRoot,
-			TrustedRoot:    trustedRoot,
-			Full:           s.flags.full,
-			MaxTargets:     s.flags.decisionsMaxTargets,
-			ChangedFiles:   diffRes.ChangedFiles,
-			DeletedFiles:   diffRes.DeletedFiles,
-			ChangedGoLines: mergeGoChangedLines(diffRes.ChangedLines, diffRes.ChangedTestLines),
+			RepoRoot:     repoRoot,
+			TrustedRoot:  trustedRoot,
+			Full:         s.flags.full,
+			MaxTargets:   s.flags.decisionsMaxTargets,
+			ChangedFiles: diffRes.ChangedFiles,
+			DeletedFiles: diffRes.DeletedFiles,
+			ChangedLines: mergeChangedLines(diffRes.ChangedLines, diffRes.ChangedTestLines, diffRes.TSChangedLines, diffRes.TSChangedTestLines),
 			ReadDiff: func(relPaths []string) (string, error) {
 				return collectPathsUnifiedDiff(ctx, repoRoot, diffRes, relPaths)
 			},
@@ -211,16 +211,19 @@ func collectPathsUnifiedDiff(ctx context.Context, repoRoot string, diffRes gotes
 	return string(out), err
 }
 
-func mergeGoChangedLines(prod map[string]map[int]struct{}, tests map[string]map[int]struct{}) map[string]map[int]struct{} {
-	if len(prod) == 0 && len(tests) == 0 {
+func mergeChangedLines(maps ...map[string]map[int]struct{}) map[string]map[int]struct{} {
+	total := 0
+	for _, linesByFile := range maps {
+		total += len(linesByFile)
+	}
+	if total == 0 {
 		return nil
 	}
-	merged := make(map[string]map[int]struct{}, len(prod)+len(tests))
-	for filePath, lines := range prod {
-		merged[filePath] = lines
-	}
-	for filePath, lines := range tests {
-		merged[filePath] = lines
+	merged := make(map[string]map[int]struct{}, total)
+	for _, linesByFile := range maps {
+		for filePath, lines := range linesByFile {
+			merged[filePath] = lines
+		}
 	}
 	return merged
 }
