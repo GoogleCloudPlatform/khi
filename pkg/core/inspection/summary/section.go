@@ -39,7 +39,6 @@ type destination struct {
 }
 
 type featureInfo struct {
-	id    string
 	title string
 	order int
 }
@@ -70,7 +69,6 @@ func newSectionResolver(taskGraph *coretask.TaskSet) *sectionResolver {
 		switch {
 		case typedmap.GetOrDefault(labels, inspectioncore.LabelKeyInspectionFeatureFlag, false):
 			features[id] = featureInfo{
-				id:    id,
 				title: title,
 				order: typedmap.GetOrDefault(labels, inspectioncore.LabelKeyFeatureTaskOrder, 0),
 			}

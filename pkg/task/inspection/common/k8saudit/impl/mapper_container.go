@@ -192,7 +192,7 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 
 	currentStateReaders := map[string]*structured.NodeReader{}
 	if hasBody && bodyReader != nil {
-		findContainerStateReaders := func(containerType containerType, fieldPath structured.FieldPath) {
+		findContainerStateReaders := func(fieldPath structured.FieldPath) {
 			statuses, err := bodyReader.GetReader(fieldPath)
 			if err == nil {
 				statuses.Children()(func(key structured.NodeChildrenKey, status structured.NodeReader) bool {
@@ -205,9 +205,9 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 				})
 			}
 		}
-		findContainerStateReaders(ContainerTypeContainer, pathContainerStatuses)
-		findContainerStateReaders(ContainerTypeInitContainer, pathInitContainerStatuses)
-		findContainerStateReaders(ContainerTypeEphemeral, pathEphemeralContainerStatuses)
+		findContainerStateReaders(pathContainerStatuses)
+		findContainerStateReaders(pathInitContainerStatuses)
+		findContainerStateReaders(pathEphemeralContainerStatuses)
 	}
 
 	for _, identity := range state.containerIdentities {

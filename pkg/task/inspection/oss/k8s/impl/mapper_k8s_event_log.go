@@ -37,7 +37,7 @@ var ossK8sEventLogIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 	func(b *coretask.Binder) inspectiontaskbase.LogIngesterFunc {
 		finder := coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-			return processOSSK8sEventLog(ctx, l, finder.Get(ctx))
+			return processOSSK8sEventLog(l, finder.Get(ctx))
 		}
 	},
 )
@@ -89,7 +89,7 @@ func (m *ossK8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 
 // processOSSK8sEventLog sets the log type, timestamp, severity and summary of a Kubernetes event in an OSS audit log.
 // The summary shows the resources that finder resolves from the resource UIDs in the event message.
-func processOSSK8sEventLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
+func processOSSK8sEventLog(l *log.Log, finder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err

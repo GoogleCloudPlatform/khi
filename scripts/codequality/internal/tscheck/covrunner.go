@@ -115,7 +115,7 @@ func loadOrRunTSCoverage(ctx context.Context, opts Options) (map[string]gotestut
 
 	if opts.TSCoveragePath != "" {
 		if info, err := os.Stat(opts.TSCoveragePath); err == nil && !info.IsDir() {
-			phaseIfPresent(opts.Progress, 2, 4, fmt.Sprintf("Loading Istanbul coverage %s...", filepath.Base(opts.TSCoveragePath)))
+			phaseIfPresent(opts.Progress, 2, fmt.Sprintf("Loading Istanbul coverage %s...", filepath.Base(opts.TSCoveragePath)))
 			loaded, loadErr := gotestutil.LoadTSCoverageIfPresent(opts.TSCoveragePath, opts.RepoRoot)
 			if loadErr != nil {
 				return nil, false, loadErr
@@ -151,7 +151,7 @@ func executeFreshKarmaCoverage(
 	if plan.SkipKarma {
 		return make(map[string]gotestutil.IstanbulFileCoverage), true, nil
 	}
-	phaseIfPresent(opts.Progress, 2, 4, fmt.Sprintf("Running TypeScript coverage across %d spec(s)...", len(plan.IncludeSpecs)))
+	phaseIfPresent(opts.Progress, 2, fmt.Sprintf("Running TypeScript coverage across %d spec(s)...", len(plan.IncludeSpecs)))
 	covDir, err := os.MkdirTemp("", "khi-ts-cov-*")
 	if err != nil {
 		return nil, false, err

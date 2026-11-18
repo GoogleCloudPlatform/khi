@@ -71,8 +71,6 @@ type JobTestHarness struct {
 	cpuProfilePath string
 	memProfilePath string
 	isRecordMode   bool
-	isCPUProfile   bool
-	isMemProfile   bool
 	stubsInitOnce  sync.Once
 	stubsInitErr   error
 
@@ -128,8 +126,6 @@ func NewJobTestHarness(t testing.TB, server *coreinspection.InspectionTaskServer
 		cpuProfilePath: cpuPath,
 		memProfilePath: memPath,
 		isRecordMode:   isRecord,
-		isCPUProfile:   isCPU,
-		isMemProfile:   isMem,
 	}
 }
 

@@ -16,29 +16,22 @@ package structured
 
 import (
 	"strings"
-	"unique"
 )
 
 // EmptyFieldPath represents an empty field path pointing to the root node itself.
 var EmptyFieldPath = FieldPath{}
 
-// FieldPath represents a pre-parsed and interned field path for fast traversal on StandardMapNode.
+// FieldPath represents a pre-parsed field path for fast traversal on StandardMapNode.
 type FieldPath struct {
 	segments []string
-	handles  []unique.Handle[string]
 }
 
-// CompileFieldPath parses and interns a field path string (e.g., "resource.labels.node_name").
+// CompileFieldPath parses a field path string (e.g., "resource.labels.node_name").
 func CompileFieldPath(s string) FieldPath {
 	if s == "" {
 		return EmptyFieldPath
 	}
-	segments := ParseFieldPath(s)
-	handles := make([]unique.Handle[string], len(segments))
-	for i, seg := range segments {
-		handles[i] = unique.Make(seg)
-	}
-	return FieldPath{segments: segments, handles: handles}
+	return FieldPath{segments: ParseFieldPath(s)}
 }
 
 // Segments returns the underlying path segments.

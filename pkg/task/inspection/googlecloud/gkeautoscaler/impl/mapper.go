@@ -92,16 +92,10 @@ func (m *autoscalerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	clusterTimeline := gcpcommon.MustGKEClusterTimeline(ctx, projectTimeline, clusterName)
 
 	if autoscalerFieldSet.DecisionLog != nil {
-		err := mapDecision(ctx, clusterName, clusterTimeline, autoscalerFieldSet.DecisionLog, cs)
-		if err != nil {
-			return nil, struct{}{}, err
-		}
+		mapDecision(ctx, clusterName, clusterTimeline, autoscalerFieldSet.DecisionLog, cs)
 	}
 	if autoscalerFieldSet.NoDecisionLog != nil {
-		err := mapNoDecision(ctx, clusterName, clusterTimeline, autoscalerFieldSet.NoDecisionLog, cs)
-		if err != nil {
-			return nil, struct{}{}, err
-		}
+		mapNoDecision(ctx, clusterName, clusterTimeline, autoscalerFieldSet.NoDecisionLog, cs)
 	}
 	if autoscalerFieldSet.ResultInfoLog != nil {
 		err := mapResultInfo(ctx, clusterTimeline, autoscalerFieldSet.ResultInfoLog, cs)
@@ -223,7 +217,7 @@ func getNodeTimeline(ctx context.Context, clusterName string, nodeName string) *
 	return k8saudit.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, nodeName)
 }
 
-func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifilev6.TimelinePath, decision *gkeautoscaler.DecisionLog, cs *khifilev6.TimelineChangeSet) error {
+func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifilev6.TimelinePath, decision *gkeautoscaler.DecisionLog, cs *khifilev6.TimelineChangeSet) {
 	if decision.ScaleUp != nil {
 		scaleUp := decision.ScaleUp
 		for _, mig := range scaleUp.IncreasedMigs {
@@ -270,10 +264,9 @@ func mapDecision(ctx context.Context, clusterName string, clusterTimeline *khifi
 	}
 	autoscalerPath := gkeautoscaler.MustAutoscalerTimeline(ctx, clusterTimeline)
 	cs.AddEvent(autoscalerPath)
-	return nil
 }
 
-func mapNoDecision(ctx context.Context, clusterName string, clusterTimeline *khifilev6.TimelinePath, noDecision *gkeautoscaler.NoDecisionStatusLog, cs *khifilev6.TimelineChangeSet) error {
+func mapNoDecision(ctx context.Context, clusterName string, clusterTimeline *khifilev6.TimelinePath, noDecision *gkeautoscaler.NoDecisionStatusLog, cs *khifilev6.TimelineChangeSet) {
 	if noDecision.NoScaleUp != nil {
 		noScaleUp := noDecision.NoScaleUp
 		for _, mig := range noScaleUp.SkippedMigs {
@@ -308,7 +301,6 @@ func mapNoDecision(ctx context.Context, clusterName string, clusterTimeline *khi
 	}
 	autoscalerPath := gkeautoscaler.MustAutoscalerTimeline(ctx, clusterTimeline)
 	cs.AddEvent(autoscalerPath)
-	return nil
 }
 
 func mapResultInfo(ctx context.Context, clusterTimeline *khifilev6.TimelinePath, resultInfo *gkeautoscaler.ResultInfoLog, cs *khifilev6.TimelineChangeSet) error {

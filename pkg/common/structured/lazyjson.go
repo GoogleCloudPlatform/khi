@@ -55,10 +55,7 @@ func NewLazyJSONNode(store *LazyJSONBlockStore, node Node) (Node, error) {
 // NewLazyJSONNodeFromBytes creates a LazyJSONNode backed by a LazyJSONBlockStore from a JSON byte slice.
 func NewLazyJSONNodeFromBytes(store *LazyJSONBlockStore, data []byte) Node {
 	blockID := store.ReserveBlock(data)
-	compressed, err := compressBlockData(data)
-	if err == nil {
-		store.SetCompressed(blockID, compressed)
-	}
+	store.SetCompressed(blockID, compressBlockData(data))
 	return &LazyJSONNode{
 		store:   store,
 		blockID: blockID,

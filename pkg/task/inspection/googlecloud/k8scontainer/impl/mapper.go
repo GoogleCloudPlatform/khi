@@ -133,8 +133,7 @@ type containerLogPodPhaseTimelineMapper struct {
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *containerLogTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	cs, err := mapContainerLog(ctx, l, m.clusterIdentity.Get(ctx).ClusterName)
-	return cs, struct{}{}, err
+	return mapContainerLog(ctx, l, m.clusterIdentity.Get(ctx).ClusterName), struct{}{}, nil
 }
 
 // ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
@@ -178,10 +177,10 @@ func processContainerLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeS
 // mapContainerLog adds an event for a Kubernetes container log to the timeline of its container.
 // It also adds the event to the timeline of the Pod that a cilium-agent log refers to.
 // It uses fallbackClusterName when the cluster name in the log is empty or "unknown".
-func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string) (*khifilev6.TimelineChangeSet, error) {
+func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string) *khifilev6.TimelineChangeSet {
 	containerFields, err := k8scontainer.ExtractK8sContainerLog(l.NodeReader, nil)
 	if err != nil {
-		return nil, nil
+		return nil
 	}
 
 	clusterName := containerFields.ClusterName
@@ -207,7 +206,7 @@ func mapContainerLog(ctx context.Context, l *log.Log, fallbackClusterName string
 		}
 	}
 
-	return cs, nil
+	return cs
 }
 
 // mapContainerLogPodPhase supplements the Pod phase, Pod and binding revisions of the Pod that a container log belongs to from the node name and labels in the log.
