@@ -72,6 +72,7 @@ export default defineConfig([
       ],
 
       "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/no-useless-empty-export": "error",
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/array-type": ["error", { default: "array" }],
     },

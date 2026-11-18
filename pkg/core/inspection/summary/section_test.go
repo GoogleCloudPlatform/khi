@@ -76,26 +76,26 @@ func TestSectionResolver_ExampleDAGFromIssue1039(t *testing.T) {
 	)
 
 	listAuditTask := newTestTaskWithBind("list-audit-logs", func(b *coretask.Binder) {
-		coretask.Use(b, formTask.ID().Ref())
+		_ = coretask.Use(b, formTask.ID().Ref())
 	})
 	auditMapperTask := newTestTaskWithBind("audit-log-mapper", func(b *coretask.Binder) {
-		coretask.Use(b, listAuditTask.ID().Ref())
-		coretask.Use(b, inventoryTask.ID().Ref())
-		coretask.Use(b, emptyInventoryTask.ID().Ref())
+		_ = coretask.Use(b, listAuditTask.ID().Ref())
+		_ = coretask.Use(b, inventoryTask.ID().Ref())
+		_ = coretask.Use(b, emptyInventoryTask.ID().Ref())
 	})
 	featureAuditTask := newTestTaskWithBind("feature-audit", func(b *coretask.Binder) {
-		coretask.Use(b, auditMapperTask.ID().Ref())
+		_ = coretask.Use(b, auditMapperTask.ID().Ref())
 	}, inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 1, true))
 
 	listEventTask := newTestTaskWithBind("list-event-logs", func(b *coretask.Binder) {
-		coretask.Use(b, formTask.ID().Ref())
+		_ = coretask.Use(b, formTask.ID().Ref())
 	})
 	eventMapperTask := newTestTaskWithBind("event-log-mapper", func(b *coretask.Binder) {
-		coretask.Use(b, listEventTask.ID().Ref())
-		coretask.Use(b, inventoryTask.ID().Ref())
+		_ = coretask.Use(b, listEventTask.ID().Ref())
+		_ = coretask.Use(b, inventoryTask.ID().Ref())
 	})
 	featureEventTask := newTestTaskWithBind("feature-event", func(b *coretask.Binder) {
-		coretask.Use(b, eventMapperTask.ID().Ref())
+		_ = coretask.Use(b, eventMapperTask.ID().Ref())
 	}, inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 2, true))
 
 	available := []coretask.UntypedTask{
@@ -215,7 +215,7 @@ func TestSectionResolver_BoundariesAndMultiFeatureFanOut(t *testing.T) {
 
 	formHelperTask := newTestTask("form-autocomplete-helper")
 	formTask := newTestTaskWithBind("form-cluster-name", func(b *coretask.Binder) {
-		coretask.Use(b, formHelperTask.ID().Ref())
+		_ = coretask.Use(b, formHelperTask.ID().Ref())
 	}, inspectioncore.NewFormTaskLabelOpt("Cluster Name", "Form field"))
 
 	inventoryTask := inspectiontaskbase.DefineInventoryTask(
@@ -226,54 +226,54 @@ func TestSectionResolver_BoundariesAndMultiFeatureFanOut(t *testing.T) {
 
 	// Shared downstream consumer of inventory, required by both features at unequal hop distances (2 hops to audit, 1 hop to event).
 	sharedPatternFinderTask := newTestTaskWithBind("resource-uid-pattern-finder", func(b *coretask.Binder) {
-		coretask.Use(b, inventoryTask.ID().Ref())
+		_ = coretask.Use(b, inventoryTask.ID().Ref())
 	})
 
 	listAuditTask := newTestTaskWithBind("list-audit-logs", func(b *coretask.Binder) {
-		coretask.Use(b, formTask.ID().Ref())
+		_ = coretask.Use(b, formTask.ID().Ref())
 	})
 	auditExtractorTask := newTestTaskWithBind("audit-log-extractor", func(b *coretask.Binder) {
-		coretask.Use(b, listAuditTask.ID().Ref())
+		_ = coretask.Use(b, listAuditTask.ID().Ref())
 	})
 	auditMapperTask := newTestTaskWithBind("audit-log-mapper", func(b *coretask.Binder) {
-		coretask.Use(b, auditExtractorTask.ID().Ref())
-		coretask.Use(b, sharedPatternFinderTask.ID().Ref())
+		_ = coretask.Use(b, auditExtractorTask.ID().Ref())
+		_ = coretask.Use(b, sharedPatternFinderTask.ID().Ref())
 	})
 	// Task required by feature-audit, but only optionally referenced by event-log-mapper.
 	auditOnlyProducerTask := newTestTask("audit-manifest-table")
 	featureAuditConsumerTask := newTestTaskWithBind("audit-manifest-consumer", func(b *coretask.Binder) {
-		coretask.Use(b, auditOnlyProducerTask.ID().Ref())
+		_ = coretask.Use(b, auditOnlyProducerTask.ID().Ref())
 	})
 	featureAuditTask := newTestTaskWithBind("feature-audit", func(b *coretask.Binder) {
-		coretask.Use(b, auditMapperTask.ID().Ref())
-		coretask.Use(b, featureAuditConsumerTask.ID().Ref())
+		_ = coretask.Use(b, auditMapperTask.ID().Ref())
+		_ = coretask.Use(b, featureAuditConsumerTask.ID().Ref())
 	}, inspectioncore.FeatureTaskLabel("Kubernetes Audit Logs", "", 10, true))
 
 	gatedDiscoveryTask := newTestTaskWithBind("discovery-node-names", func(b *coretask.Binder) {
-		coretask.Use(b, listAuditTask.ID().Ref())
+		_ = coretask.Use(b, listAuditTask.ID().Ref())
 	}, coretask.ProvidesTag(tagNodeNames), coretask.WithFeatureGate(featureAuditTask.ID().Ref()))
 
 	listEventTask := newTestTaskWithBind("list-event-logs", func(b *coretask.Binder) {
-		coretask.Use(b, formTask.ID().Ref())
+		_ = coretask.Use(b, formTask.ID().Ref())
 	})
 	eventMapperTask := newTestTaskWithBind("event-log-mapper", func(b *coretask.Binder) {
-		coretask.Use(b, listEventTask.ID().Ref())
-		coretask.UseOptional(b, auditOnlyProducerTask.ID().Ref(coretask.FromActiveGraph))
+		_ = coretask.Use(b, listEventTask.ID().Ref())
+		_ = coretask.UseOptional(b, auditOnlyProducerTask.ID().Ref(coretask.FromActiveGraph))
 	})
 	featureEventTask := newTestTaskWithBind("feature-event", func(b *coretask.Binder) {
-		coretask.Use(b, eventMapperTask.ID().Ref())
-		coretask.Use(b, sharedPatternFinderTask.ID().Ref())
+		_ = coretask.Use(b, eventMapperTask.ID().Ref())
+		_ = coretask.Use(b, sharedPatternFinderTask.ID().Ref())
 	}, inspectioncore.FeatureTaskLabel("Kubernetes Event Logs", "", 1, true))
 
 	serializerTask := newTestTaskWithBind("serializer", func(b *coretask.Binder) {
-		coretask.UseOptional(b, featureAuditTask.ID().Ref(coretask.FromActiveGraph))
-		coretask.UseOptional(b, featureEventTask.ID().Ref(coretask.FromActiveGraph))
+		_ = coretask.UseOptional(b, featureAuditTask.ID().Ref(coretask.FromActiveGraph))
+		_ = coretask.UseOptional(b, featureEventTask.ID().Ref(coretask.FromActiveGraph))
 	}, coretask.NewRequiredTaskLabel())
 
 	// Also test a helper upstream of an ungated discovery task: stops at fan-in boundary -> Shared.
 	ungatedDiscoveryHelperTask := newTestTask("ungated-discovery-helper")
 	ungatedDiscoveryTask := newTestTaskWithBind("ungated-discovery", func(b *coretask.Binder) {
-		coretask.Use(b, ungatedDiscoveryHelperTask.ID().Ref())
+		_ = coretask.Use(b, ungatedDiscoveryHelperTask.ID().Ref())
 	}, coretask.ProvidesTag(tagNodeNames))
 
 	available := []coretask.UntypedTask{

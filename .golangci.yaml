@@ -32,6 +32,7 @@ linters:
     - godoclint
     - godot
     - govet
+    - iface
     - ineffassign
     - noctx
     - nolintlint
@@ -187,7 +188,6 @@ linters:
           - funcorder
           - godoclint
           - godot
-          - govet
           - noctx
           - revive
           - staticcheck
