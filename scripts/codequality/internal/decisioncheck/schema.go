@@ -52,6 +52,12 @@ const (
 	ExtractorChangedGoTestFuncs ExtractorKind = "changed_go_test_funcs"
 	// ExtractorChangedGoTestCases expands one question per table-driven test case or standalone Test* function touched by the VCS diff.
 	ExtractorChangedGoTestCases ExtractorKind = "changed_go_test_cases"
+	// ExtractorChangedTSDecls expands one question per production TypeScript declaration touched by the VCS diff.
+	ExtractorChangedTSDecls ExtractorKind = "changed_ts_decls"
+	// ExtractorChangedTSFuncs expands one question per production TypeScript function or class method touched by the VCS diff.
+	ExtractorChangedTSFuncs ExtractorKind = "changed_ts_funcs"
+	// ExtractorChangedTSSpecs expands one question per TypeScript Jasmine spec block (it/fit/xit) touched by the VCS diff.
+	ExtractorChangedTSSpecs ExtractorKind = "changed_ts_specs"
 
 	// QuestionTypeNoul evaluates a binary true/false proposition returning calibrated P(true).
 	QuestionTypeNoul QuestionType = "noul"
@@ -117,6 +123,8 @@ type ContextSpec struct {
 	ReferenceFiles []string `yaml:"reference_files"`
 	// IncludeCompanionGo bundles sibling <base>.go production files alongside *_test.go changed_file targets when true.
 	IncludeCompanionGo bool `yaml:"include_companion_go"`
+	// IncludeCompanionTS bundles sibling <base>.ts production files alongside *.spec.ts changed_file targets when true.
+	IncludeCompanionTS bool `yaml:"include_companion_ts"`
 	// IncludeDiff appends unified VCS diff hunks for the target when true.
 	IncludeDiff bool `yaml:"include_diff"`
 	// LineNumbers prefixes rendered file lines with 1-based line numbers when true.
@@ -440,7 +448,10 @@ func isValidExtractor(e ExtractorKind) bool {
 		ExtractorChangedGoDecls,
 		ExtractorChangedGoFuncs,
 		ExtractorChangedGoTestFuncs,
-		ExtractorChangedGoTestCases:
+		ExtractorChangedGoTestCases,
+		ExtractorChangedTSDecls,
+		ExtractorChangedTSFuncs,
+		ExtractorChangedTSSpecs:
 		return true
 	default:
 		return false

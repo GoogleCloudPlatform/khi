@@ -335,52 +335,44 @@ func TestParseCSVSet(t *testing.T) {
 	}
 }
 
-func TestMergeGoChangedLines(t *testing.T) {
+// TestMergeChangedLines verifies that mergeChangedLines returns nil for empty inputs and merges Go and TS line maps while ignoring nil entries.
+func TestMergeChangedLines(t *testing.T) {
 	testCases := []struct {
-		name  string
-		prod  map[string]map[int]struct{}
-		tests map[string]map[int]struct{}
-		want  map[string]map[int]struct{}
+		name string
+		maps []map[string]map[int]struct{}
+		want map[string]map[int]struct{}
 	}{
-		// Returns nil when both production and test changed-line maps are empty.
+		// Returns nil when all input changed-line maps are nil or empty.
 		{
-			name:  "empty inputs return nil",
-			prod:  nil,
-			tests: map[string]map[int]struct{}{},
-			want:  nil,
+			name: "empty and nil maps return nil",
+			maps: []map[string]map[int]struct{}{nil, {}},
+			want: nil,
 		},
-		// Preserves production entries when only production Go files changed.
+		// Combines Go and TypeScript production and test changed-line maps while skipping nil entries.
 		{
-			name:  "production only preserves prod map",
-			prod:  map[string]map[int]struct{}{"pkg/a/a.go": {10: {}}},
-			tests: nil,
-			want:  map[string]map[int]struct{}{"pkg/a/a.go": {10: {}}},
-		},
-		// Preserves test entries when only Go test files changed.
-		{
-			name:  "tests only preserves test map",
-			prod:  nil,
-			tests: map[string]map[int]struct{}{"pkg/a/a_test.go": {20: {}}},
-			want:  map[string]map[int]struct{}{"pkg/a/a_test.go": {20: {}}},
-		},
-		// Combines production and test changed-line maps into one merged map.
-		{
-			name:  "merges both production and test entries",
-			prod:  map[string]map[int]struct{}{"pkg/a/a.go": {1: {}}},
-			tests: map[string]map[int]struct{}{"pkg/a/a_test.go": {2: {}}},
+			name: "merges Go and TS changed-line maps while skipping empty entries",
+			maps: []map[string]map[int]struct{}{
+				{"pkg/a/a.go": {1: {}}},
+				{"pkg/a/a_test.go": {2: {}}},
+				{"web/src/app/a.ts": {3: {}}},
+				{"web/src/app/a.spec.ts": {4: {}}},
+				nil,
+			},
 			want: map[string]map[int]struct{}{
-				"pkg/a/a.go":      {1: {}},
-				"pkg/a/a_test.go": {2: {}},
+				"pkg/a/a.go":            {1: {}},
+				"pkg/a/a_test.go":       {2: {}},
+				"web/src/app/a.ts":      {3: {}},
+				"web/src/app/a.spec.ts": {4: {}},
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := mergeGoChangedLines(tc.prod, tc.tests)
+			got := mergeChangedLines(tc.maps...)
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("mergeGoChangedLines() mismatch (-want +got):\n%s", diff)
+				t.Errorf("mergeChangedLines() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

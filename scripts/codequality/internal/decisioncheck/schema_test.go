@@ -29,9 +29,10 @@ import (
 // TestParseAndValidateRuleYAML verifies strict YAML decoding, template checks, and rule validation errors.
 func TestParseAndValidateRuleYAML(t *testing.T) {
 	testCases := []struct {
-		name    string
-		yaml    string
-		wantErr string
+		name                   string
+		yaml                   string
+		wantIncludeCompanionTS bool
+		wantErr                string
 	}{
 		// Accepts a valid rule combining score, choice, and noul questions with outcome-specific fix_hints.
 		{
@@ -76,6 +77,45 @@ questions:
       min_probability: 0.5
 `,
 			wantErr: "",
+		},
+		// Accepts a changed_file TS rule using include_companion_ts and all TypeScript extractors.
+		{
+			name: "valid TS rule with include_companion_ts and TS extractors passes",
+			yaml: `
+id: ts_demo
+name: TS Demo
+target:
+  kind: changed_file
+  include: ["web/src/**/*.ts"]
+context:
+  include_companion_ts: true
+questions:
+  - id: decls
+    for_each: changed_ts_decls
+    type: noul
+    instructions: "Check {{.Kind}} {{.Name}}"
+    fix_hint: "Fix {{.File}}"
+    pass:
+      expect: true
+      min_probability: 0.5
+  - id: funcs
+    for_each: changed_ts_funcs
+    type: noul
+    instructions: "Name {{.Name}}"
+    fix_hint: "Rename {{.Name}}"
+    pass:
+      expect: true
+      min_probability: 0.5
+  - id: specs
+    for_each: changed_ts_specs
+    type: noul
+    instructions: "Spec {{.Name}}"
+    fix_hint: "Fix {{.Name}}"
+    pass:
+      expect: true
+      min_probability: 0.5
+`,
+			wantIncludeCompanionTS: true,
 		},
 		// Rejects unknown YAML keys through yaml.v3 KnownFields strict decoding.
 		{
@@ -194,10 +234,13 @@ questions:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseRuleYAML([]byte(tc.yaml))
+			got, err := ParseRuleYAML([]byte(tc.yaml))
 
 			if tc.wantErr == "" && err != nil {
 				t.Fatalf("ParseRuleYAML() unexpected error: %v", err)
+			}
+			if tc.wantErr == "" && got.Context.IncludeCompanionTS != tc.wantIncludeCompanionTS {
+				t.Errorf("Context.IncludeCompanionTS = %v, want %v", got.Context.IncludeCompanionTS, tc.wantIncludeCompanionTS)
 			}
 			if tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
 				t.Errorf("ParseRuleYAML() error = %v, want substring %q", err, tc.wantErr)
@@ -270,11 +313,9 @@ func TestBuiltinRulesDirectoryValidatesCleanly(t *testing.T) {
 
 	specs, err := LoadRulesDir(rulesDir)
 
-	if err != nil {
-		t.Fatalf("LoadRulesDir(%s) failed validation: %v", rulesDir, err)
-	}
-	if len(specs) < 2 {
-		t.Errorf("LoadRulesDir(%s) returned %d rules, want >= 2", rulesDir, len(specs))
+	assertLoadedRuleIDs(t, specs, err, []string{"go_code_quality", "go_test_quality", "ts_code_quality", "ts_test_quality"}, "")
+	if !specs[3].Context.IncludeCompanionTS {
+		t.Errorf("ts_test_quality.Context.IncludeCompanionTS = false, want true")
 	}
 }
 

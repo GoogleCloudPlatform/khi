@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 func TestExtractTSUnitsAndFilterBoilerplate(t *testing.T) {
@@ -271,18 +272,15 @@ func TestDiscoverTSCorpusAndSharedModule(t *testing.T) {
 	}
 }
 
+// TestExtractAllRepositoryProductionTSFiles verifies that Analyzer discovers and extracts qualifying TypeScript units across the repository.
 func TestExtractAllRepositoryProductionTSFiles(t *testing.T) {
-	analyzer := NewAnalyzer("")
-	webDir, err := analyzer.resolveWebDir()
+	webDir, err := gotestutil.ResolveWebDir("")
 	if err != nil {
-		t.Fatalf("resolveWebDir() failed: %v", err)
+		t.Fatalf("ResolveWebDir(\"\") failed: %v", err)
 	}
 	repoRoot := filepath.Dir(webDir)
 
 	explicitAnalyzer := NewAnalyzer(repoRoot)
-	if gotWebDir, err := explicitAnalyzer.resolveWebDir(); err != nil || gotWebDir != webDir {
-		t.Fatalf("explicit resolveWebDir() = (%q, %v), want (%q, nil)", gotWebDir, err, webDir)
-	}
 
 	files, err := explicitAnalyzer.DiscoverCorpusFiles(repoRoot)
 	if err != nil {
@@ -319,7 +317,7 @@ func TestExtractAllRepositoryProductionTSFiles(t *testing.T) {
 
 func skipIfTypeScriptUnavailable(t *testing.T) {
 	t.Helper()
-	webDir, err := NewAnalyzer("").resolveWebDir()
+	webDir, err := gotestutil.ResolveWebDir("")
 	if err != nil {
 		t.Skipf("skipping TypeScript AST test: could not locate web directory (%v)", err)
 	}

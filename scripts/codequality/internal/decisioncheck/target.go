@@ -31,13 +31,15 @@ type TargetBundle struct {
 	ID string
 	// PrimaryFile is the default repository-relative file path attributed to bundle-level findings.
 	PrimaryFile string
+	// WebDir locates the frontend web/ directory used to resolve TypeScript AST dependencies.
+	WebDir string
 	// Files holds bundled files in deterministic order.
 	Files []BundledFile
 	// ASTSummary holds the optional precomputed Go AST index when Go files are present.
 	ASTSummary string
 	// SubstantiveGoUnits holds precomputed substantive Go units when Go files are present.
 	SubstantiveGoUnits []ExtractedItem
-	// ChangedLines maps repository-relative Go file paths to changed 1-based line sets.
+	// ChangedLines maps repository-relative Go and TypeScript file paths to changed 1-based line sets.
 	ChangedLines map[string]map[int]struct{}
 }
 
@@ -55,8 +57,8 @@ type ResolveOptions struct {
 	ChangedFiles []string
 	// DeletedFiles lists deleted repository-relative paths from VCS diff.
 	DeletedFiles []string
-	// ChangedGoLines maps modified Go production files to changed 1-based line sets (`nil` in Full mode).
-	ChangedGoLines map[string]map[int]struct{}
+	// ChangedLines maps modified Go and TypeScript files to changed 1-based line sets (`nil` in Full mode).
+	ChangedLines map[string]map[int]struct{}
 	// ReadDiff optionally returns unified diff text for a slice of repository-relative paths.
 	ReadDiff func(relPaths []string) (string, error)
 }
@@ -76,11 +78,7 @@ func ResolveTargets(rule RuleSpec, opts ResolveOptions) ([]TargetBundle, error) 
 // RenderSharedInput assembles the shared text context sent to the Gemini Decisions API for bundle.
 func RenderSharedInput(rule RuleSpec, bundle TargetBundle, opts ResolveOptions) (string, error) {
 	var builder strings.Builder
-	trustedRoot := opts.TrustedRoot
-	if trustedRoot == "" {
-		trustedRoot = opts.RepoRoot
-	}
-	if err := appendReferenceDocs(&builder, trustedRoot, rule.Context); err != nil {
+	if err := appendReferenceDocs(&builder, resolveEffectiveTrustedRoot(opts), rule.Context); err != nil {
 		return "", err
 	}
 	fmt.Fprintf(&builder, "=== TARGET: %s ===\n", bundle.ID)
@@ -204,11 +202,12 @@ func buildPackageBundle(repoRoot string, pkgDir string, rule RuleSpec, opts Reso
 	}
 	var changedMap map[string]map[int]struct{}
 	if !opts.Full {
-		changedMap = opts.ChangedGoLines
+		changedMap = opts.ChangedLines
 	}
 	return TargetBundle{
 		ID:                 pkgDir,
 		PrimaryFile:        primary,
+		WebDir:             resolveBundleWebDir(opts),
 		Files:              files,
 		ASTSummary:         astSummary,
 		SubstantiveGoUnits: units,
@@ -274,11 +273,12 @@ func buildSingleChangedFileBundle(relPath string, rule RuleSpec, opts ResolveOpt
 	}
 	var changedMap map[string]map[int]struct{}
 	if !opts.Full {
-		changedMap = opts.ChangedGoLines
+		changedMap = opts.ChangedLines
 	}
 	return TargetBundle{
 		ID:                 relPath,
 		PrimaryFile:        relPath,
+		WebDir:             resolveBundleWebDir(opts),
 		Files:              bundledFiles,
 		ASTSummary:         astSummary,
 		SubstantiveGoUnits: units,
@@ -394,13 +394,27 @@ func writeFileBody(builder *strings.Builder, content string, ctxSpec ContextSpec
 
 func buildChangedFileSlice(repoRoot string, relPath string, ctxSpec ContextSpec) ([]BundledFile, error) {
 	paths := []string{relPath}
-	if ctxSpec.IncludeCompanionGo && strings.HasSuffix(relPath, "_test.go") {
-		companion := strings.TrimSuffix(relPath, "_test.go") + ".go"
-		if info, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(companion))); err == nil && !info.IsDir() {
-			paths = []string{companion, relPath}
-		}
+	if companion, ok := findCompanionFile(repoRoot, relPath, ctxSpec); ok {
+		paths = []string{companion, relPath}
 	}
 	return readBundledFiles(repoRoot, paths)
+}
+
+func findCompanionFile(repoRoot string, relPath string, ctxSpec ContextSpec) (string, bool) {
+	var companion string
+	switch {
+	case ctxSpec.IncludeCompanionGo && strings.HasSuffix(relPath, "_test.go"):
+		companion = strings.TrimSuffix(relPath, "_test.go") + ".go"
+	case ctxSpec.IncludeCompanionTS && strings.HasSuffix(relPath, ".spec.ts"):
+		companion = strings.TrimSuffix(relPath, ".spec.ts") + ".ts"
+	default:
+		return "", false
+	}
+	info, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(companion)))
+	if err != nil || info.IsDir() {
+		return "", false
+	}
+	return companion, true
 }
 
 func buildChangedFileASTMetadata(repoRoot string, relPath string, bundledFiles []BundledFile, ctxSpec ContextSpec) ([]ExtractedItem, string, error) {
@@ -441,4 +455,19 @@ func readSiblingProdGoFiles(repoRoot string, relDir string) ([]BundledFile, erro
 	}
 	slices.Sort(relPaths)
 	return readBundledFiles(repoRoot, relPaths)
+}
+
+func resolveEffectiveTrustedRoot(opts ResolveOptions) string {
+	if opts.TrustedRoot != "" {
+		return opts.TrustedRoot
+	}
+	return opts.RepoRoot
+}
+
+func resolveBundleWebDir(opts ResolveOptions) string {
+	root := resolveEffectiveTrustedRoot(opts)
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, "web")
 }

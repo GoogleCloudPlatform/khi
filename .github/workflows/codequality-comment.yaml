@@ -36,6 +36,7 @@ jobs:
           sparse-checkout: |
             scripts
             .agents
+            web
 
       - name: Resolve open PR and check Gemini Decisions configuration
         id: pr_meta
@@ -65,6 +66,7 @@ jobs:
           cache-dependency-path: "go.sum"
 
       - name: Build trusted codequality binary and fetch passive PR tree
+        id: pr_tree
         if: steps.pr_meta.outputs.run_decisions == 'true'
         env:
           BASE_REF: ${{ steps.pr_meta.outputs.base_ref }}
@@ -83,6 +85,26 @@ jobs:
             git -C "${pr_dir}" -c protocol.file.allow=never fetch --no-tags --unshallow origin || true
           fi
           git -C "${pr_dir}" checkout --detach "${HEAD_SHA}"
+          changed_files="$(git -C "${pr_dir}" diff --name-only "origin/${BASE_REF}" "${HEAD_SHA}")"
+          if grep -qE '\.ts$' <<< "${changed_files}"; then
+            echo "has_ts_changes=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_ts_changes=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Set up Node.js for trusted TypeScript AST extractor
+        if: steps.pr_meta.outputs.run_decisions == 'true' && steps.pr_tree.outputs.has_ts_changes == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: "./.node-version"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
+
+      - name: Install trusted web dependencies for TypeScript AST extraction
+        if: steps.pr_meta.outputs.run_decisions == 'true' && steps.pr_tree.outputs.has_ts_changes == 'true'
+        run: |
+          cd "${GITHUB_WORKSPACE}"
+          npm --prefix web ci --ignore-scripts --no-audit --no-fund
 
       - name: Evaluate declarative Gemini Decisions rules (isolated secret scope)
         if: steps.pr_meta.outputs.run_decisions == 'true'

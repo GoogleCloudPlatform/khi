@@ -8,6 +8,8 @@ Adding a new semantic check requires **no Go code changes**: create a `*.yaml` f
 
 - **`go_code_quality.yaml`**: Verifies comment-to-logic alignment and clear, accurate function/parameter/variable naming on modified Go production files.
 - **`go_test_quality.yaml`**: Verifies preceding test-case explanation comments and logic alignment, linear Arrange-Act-Assert structure, callback testing practices (recording inside callbacks and asserting outside), and clear naming on modified Go `*_test.go` files.
+- **`ts_code_quality.yaml`**: Verifies TSDoc and inline comment-to-logic alignment and clear, accurate function/method/parameter/variable naming on modified TypeScript production files (`web/src/**/*.ts`).
+- **`ts_test_quality.yaml`**: Verifies preceding spec explanation comments and logic alignment, linear Arrange-Act-Assert structure, callback and subscription testing practices (recording inside callbacks/`.subscribe(...)` and asserting outside), and clear naming on modified TypeScript `*.spec.ts` files.
 
 ## Running Rules Locally
 
@@ -47,6 +49,7 @@ Each resolved target bundle is sent once as shared `input` in a single `POST /v1
 
 - `include_files` / `exclude_files`: Target-relative globs controlling which files are included in a `go_logical_package` bundle.
 - `include_companion_go`: When `true` on `changed_file` targets ending in `_test.go`, automatically prepends the sibling `<base>.go` file if present.
+- `include_companion_ts`: When `true` on `changed_file` targets ending in `.spec.ts`, automatically prepends the sibling `<base>.ts` file if present.
 - `reference_files`: Repository-relative Markdown/doc files (such as `.agents/rules/description-rule.md`) prepended to the shared input from the trusted repository root.
 - `include_diff`: Appends unified VCS diff hunks for the target when `true`.
 - `line_numbers`: Prefixes file lines with 1-based line numbers (`true` by default).
@@ -65,6 +68,11 @@ Each question supports `for_each` expansion and Go `text/template` variables:
 | `changed_go_funcs` | Production Go functions and methods overlapping the VCS diff | `.Target`, `.File`, `.Line`, `.StartLine`, `.EndLine`, `.Name`, `.Kind`, `.Doc` |
 | `changed_go_test_funcs` | Go unit test functions (`Test*`) overlapping the VCS diff | `.Target`, `.File`, `.Line`, `.StartLine`, `.EndLine`, `.Name`, `.Kind`, `.Doc` |
 | `changed_go_test_cases` | Table-driven test cases and standalone `Test*` functions overlapping the VCS diff | `.Target`, `.File`, `.Line`, `.StartLine`, `.EndLine`, `.Name`, `.Kind`, `.Doc` |
+| `changed_ts_decls` | Production TypeScript declarations (classes, interfaces, enums, types, functions, and methods) overlapping the VCS diff | `.Target`, `.File`, `.Line`, `.StartLine`, `.EndLine`, `.Name`, `.Kind`, `.Doc` |
+| `changed_ts_funcs` | Production TypeScript functions and class methods overlapping the VCS diff | `.Target`, `.File`, `.Line`, `.StartLine`, `.EndLine`, `.Name`, `.Kind`, `.Doc` |
+| `changed_ts_specs` | Jasmine spec blocks (`it`, `fit`, `xit`) in `*.spec.ts` files overlapping the VCS diff | `.Target`, `.File`, `.Line`, `.StartLine`, `.EndLine`, `.Name`, `.Kind`, `.Doc` |
+
+TypeScript extractors (`changed_ts_decls`, `changed_ts_funcs`, `changed_ts_specs`) parse ASTs via the Node.js TypeScript Compiler API (`web/node_modules/typescript`).
 
 Supported `type` primitives and required `fix_hint` placement:
 

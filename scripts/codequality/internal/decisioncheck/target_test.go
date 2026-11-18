@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestLogicalGoPackageDir(t *testing.T) {
@@ -141,10 +142,10 @@ func TestResolveLogicalPackageTargets(t *testing.T) {
 			},
 			opts: func(repo string) ResolveOptions {
 				return ResolveOptions{
-					RepoRoot:       repo,
-					ChangedFiles:   []string{"README.md", "pkg/alpha/impl/module.go", "pkg/nodoc/taskid.go", "pkg/dirreq/README.md", "pkg/asfile/phantom.go", "cmd/outside/main.go"},
-					DeletedFiles:   []string{"pkg/beta/removed.go"},
-					ChangedGoLines: map[string]map[int]struct{}{"pkg/alpha/A_alpha.go": {1: {}}},
+					RepoRoot:     repo,
+					ChangedFiles: []string{"README.md", "pkg/alpha/impl/module.go", "pkg/nodoc/taskid.go", "pkg/dirreq/README.md", "pkg/asfile/phantom.go", "cmd/outside/main.go"},
+					DeletedFiles: []string{"pkg/beta/removed.go"},
+					ChangedLines: map[string]map[int]struct{}{"pkg/alpha/A_alpha.go": {1: {}}},
 				}
 			},
 			wantBundles: []TargetBundle{
@@ -257,9 +258,9 @@ func TestResolveLogicalPackageTargets(t *testing.T) {
 			},
 			opts: func(repo string) ResolveOptions {
 				return ResolveOptions{
-					RepoRoot:       repo,
-					Full:           true,
-					ChangedGoLines: map[string]map[int]struct{}{"pkg/one/one.go": {1: {}}},
+					RepoRoot:     repo,
+					Full:         true,
+					ChangedLines: map[string]map[int]struct{}{"pkg/one/one.go": {1: {}}},
 				}
 			},
 			wantBundles: []TargetBundle{
@@ -298,7 +299,7 @@ func TestResolveLogicalPackageTargets(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ResolveTargets() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tc.wantBundles, gotBundles); diff != "" {
+			if diff := cmp.Diff(tc.wantBundles, gotBundles, cmpopts.IgnoreFields(TargetBundle{}, "WebDir")); diff != "" {
 				t.Errorf("ResolveTargets() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -343,9 +344,9 @@ func TestResolveChangedFileTargets(t *testing.T) {
 			},
 			opts: func(repo string) ResolveOptions {
 				return ResolveOptions{
-					RepoRoot:       repo,
-					ChangedFiles:   []string{"pkg/store/standalone_test.go", "pkg/store/query_test.go", "pkg/store/README.md", "pkg/store/deleted_test.go"},
-					ChangedGoLines: map[string]map[int]struct{}{"pkg/store/query_test.go": {1: {}}},
+					RepoRoot:     repo,
+					ChangedFiles: []string{"pkg/store/standalone_test.go", "pkg/store/query_test.go", "pkg/store/README.md", "pkg/store/deleted_test.go"},
+					ChangedLines: map[string]map[int]struct{}{"pkg/store/query_test.go": {1: {}}},
 				}
 			},
 			wantBundles: []TargetBundle{
@@ -446,10 +447,10 @@ func TestResolveChangedFileTargets(t *testing.T) {
 			},
 			opts: func(repo string) ResolveOptions {
 				return ResolveOptions{
-					RepoRoot:       repo,
-					Full:           true,
-					MaxTargets:     4,
-					ChangedGoLines: map[string]map[int]struct{}{"main.go": {1: {}}},
+					RepoRoot:     repo,
+					Full:         true,
+					MaxTargets:   4,
+					ChangedLines: map[string]map[int]struct{}{"main.go": {1: {}}},
 				}
 			},
 			wantBundles: []TargetBundle{
@@ -484,6 +485,79 @@ func TestResolveChangedFileTargets(t *testing.T) {
 				},
 			},
 		},
+		// Prepends existing sibling .ts production file for *.spec.ts when IncludeCompanionTS is true and skips missing or directory companion .ts paths.
+		{
+			name: "companion ts bundles existing file and skips missing or directory companion",
+			setup: func(t *testing.T) string {
+				repo := t.TempDir()
+				writeRepoFile(t, repo, "web/src/app/widget.ts", "export class Widget {}\n")
+				writeRepoFile(t, repo, "web/src/app/widget.spec.ts", "it('works', () => {});\n")
+				writeRepoFile(t, repo, "web/src/app/standalone.spec.ts", "it('alone', () => {});\n")
+				writeRepoFile(t, repo, "web/src/app/dir_only.ts/nested.ts", "export const x = 1;\n")
+				writeRepoFile(t, repo, "web/src/app/dir_only.spec.ts", "it('dir', () => {});\n")
+				return repo
+			},
+			rule: RuleSpec{
+				ID:          "ts_test_quality",
+				Name:        "TypeScript Unit Testing Standards",
+				Enforcement: EnforcementAdvisory,
+				Target: TargetSpec{
+					Kind:    TargetChangedFile,
+					Include: []string{"web/src/**/*.spec.ts"},
+				},
+				Context: ContextSpec{
+					IncludeCompanionTS: true,
+					LineNumbers:        true,
+				},
+			},
+			opts: func(repo string) ResolveOptions {
+				return ResolveOptions{
+					RepoRoot:     repo,
+					ChangedFiles: []string{"web/src/app/dir_only.spec.ts", "web/src/app/standalone.spec.ts", "web/src/app/widget.spec.ts"},
+					ChangedLines: map[string]map[int]struct{}{"web/src/app/widget.spec.ts": {1: {}}},
+				}
+			},
+			wantBundles: []TargetBundle{
+				{
+					ID:           "web/src/app/dir_only.spec.ts",
+					PrimaryFile:  "web/src/app/dir_only.spec.ts",
+					Files:        []BundledFile{{RelPath: "web/src/app/dir_only.spec.ts", Content: []byte("it('dir', () => {});\n")}},
+					ChangedLines: map[string]map[int]struct{}{"web/src/app/widget.spec.ts": {1: {}}},
+				},
+				{
+					ID:           "web/src/app/standalone.spec.ts",
+					PrimaryFile:  "web/src/app/standalone.spec.ts",
+					Files:        []BundledFile{{RelPath: "web/src/app/standalone.spec.ts", Content: []byte("it('alone', () => {});\n")}},
+					ChangedLines: map[string]map[int]struct{}{"web/src/app/widget.spec.ts": {1: {}}},
+				},
+				{
+					ID:          "web/src/app/widget.spec.ts",
+					PrimaryFile: "web/src/app/widget.spec.ts",
+					Files: []BundledFile{
+						{RelPath: "web/src/app/widget.ts", Content: []byte("export class Widget {}\n")},
+						{RelPath: "web/src/app/widget.spec.ts", Content: []byte("it('works', () => {});\n")},
+					},
+					ChangedLines: map[string]map[int]struct{}{"web/src/app/widget.spec.ts": {1: {}}},
+				},
+			},
+		},
+		// Omits sibling .ts production file for *.spec.ts when IncludeCompanionTS is false.
+		{
+			name: "disabled companion ts omits existing sibling ts",
+			setup: func(t *testing.T) string {
+				repo := t.TempDir()
+				writeRepoFile(t, repo, "web/src/app/widget.ts", "export class Widget {}\n")
+				writeRepoFile(t, repo, "web/src/app/widget.spec.ts", "it('works', () => {});\n")
+				return repo
+			},
+			rule: RuleSpec{ID: "ts_plain", Name: "TS Plain", Enforcement: EnforcementAdvisory, Target: TargetSpec{Kind: TargetChangedFile, Include: []string{"web/src/**/*.spec.ts"}}},
+			opts: func(repo string) ResolveOptions {
+				return ResolveOptions{RepoRoot: repo, ChangedFiles: []string{"web/src/app/widget.spec.ts"}, ChangedLines: map[string]map[int]struct{}{"web/src/app/widget.spec.ts": {1: {}}}}
+			},
+			wantBundles: []TargetBundle{
+				{ID: "web/src/app/widget.spec.ts", PrimaryFile: "web/src/app/widget.spec.ts", Files: []BundledFile{{RelPath: "web/src/app/widget.spec.ts", Content: []byte("it('works', () => {});\n")}}, ChangedLines: map[string]map[int]struct{}{"web/src/app/widget.spec.ts": {1: {}}}},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -495,7 +569,7 @@ func TestResolveChangedFileTargets(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ResolveTargets() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tc.wantBundles, gotBundles); diff != "" {
+			if diff := cmp.Diff(tc.wantBundles, gotBundles, cmpopts.IgnoreFields(TargetBundle{}, "WebDir")); diff != "" {
 				t.Errorf("ResolveTargets() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -742,6 +816,44 @@ package a
 			}
 			if diff := cmp.Diff(tc.wantRendered, gotRendered); diff != "" {
 				t.Errorf("RenderSharedInput() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestResolveBundleWebDirEmpty verifies that resolveBundleWebDir returns an empty string when both roots are empty.
+func TestResolveBundleWebDirEmpty(t *testing.T) {
+	got := resolveBundleWebDir(ResolveOptions{})
+
+	if got != "" {
+		t.Errorf("resolveBundleWebDir(empty) = %q, want empty", got)
+	}
+}
+
+func TestResolveTargetsWebDir(t *testing.T) {
+	repo, trusted := t.TempDir(), t.TempDir()
+	writeRepoFile(t, repo, "pkg/d/d.go", "package d\n")
+	writeRepoFile(t, repo, "web/d.ts", "export const x = 1;\n")
+	testCases := []struct {
+		name string
+		rule RuleSpec
+		opts ResolveOptions
+		want string
+	}{
+		// Populates TargetBundle.WebDir from TrustedRoot/web on logical package bundles.
+		{name: "package uses TrustedRoot", rule: RuleSpec{ID: "r", Name: "R", Target: TargetSpec{Kind: TargetGoLogicalPackage}}, opts: ResolveOptions{RepoRoot: repo, TrustedRoot: trusted, ChangedFiles: []string{"pkg/d/d.go"}}, want: filepath.Join(trusted, "web")},
+		// Populates TargetBundle.WebDir from RepoRoot/web on changed-file bundles when TrustedRoot is empty.
+		{name: "file uses RepoRoot", rule: RuleSpec{ID: "r", Name: "R", Target: TargetSpec{Kind: TargetChangedFile}}, opts: ResolveOptions{RepoRoot: repo, MaxTargets: 1, ChangedFiles: []string{"web/d.ts"}}, want: filepath.Join(repo, "web")},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolveTargets(tc.rule, tc.opts)
+
+			if err != nil {
+				t.Fatalf("ResolveTargets() unexpected error: %v", err)
+			}
+			if len(got) != 1 || got[0].WebDir != tc.want {
+				t.Fatalf("ResolveTargets() = %+v, want single bundle with WebDir=%q", got, tc.want)
 			}
 		})
 	}
