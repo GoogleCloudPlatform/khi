@@ -20,6 +20,17 @@ substitutions:
   _DOCKER_SLIM_TAGS: "-t gcr.io/kubernetes-history-inspector/develop:${COMMIT_SHA}-slim"
 
 steps:
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: cancel_superseded
+    entrypoint: bash
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "LOCATION=${LOCATION}"
+      - "PR_NUMBER=${_PR_NUMBER}"
+      - "COMMIT_SHA=${COMMIT_SHA}"
+    args:
+      - "./scripts/cancel-superseded-cloudbuild.sh"
   - name: "gcr.io/kubernetes-history-inspector/builder:latest"
     args:
       - "-c"
@@ -28,7 +39,7 @@ steps:
         npm ci
     id: install_deps
     waitFor:
-      - "-"
+      - cancel_superseded
     entrypoint: /bin/bash
   - name: "gcr.io/kubernetes-history-inspector/builder:latest"
     args:
@@ -59,5 +70,6 @@ steps:
 options:
   machineType: E2_HIGHCPU_32
   logging: CLOUD_LOGGING_ONLY
+  substitutionOption: ALLOW_LOOSE
 serviceAccount: >-
   projects/kubernetes-history-inspector/serviceAccounts/oss-khi-cicd@kubernetes-history-inspector.iam.gserviceaccount.com

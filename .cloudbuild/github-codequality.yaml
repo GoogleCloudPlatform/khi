@@ -18,8 +18,21 @@ substitutions:
   _SIMILARITY: "true"
 
 steps:
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: cancel_superseded
+    entrypoint: bash
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "LOCATION=${LOCATION}"
+      - "PR_NUMBER=${_PR_NUMBER}"
+      - "COMMIT_SHA=${COMMIT_SHA}"
+    args:
+      - "./scripts/cancel-superseded-cloudbuild.sh"
   - name: "gcr.io/kubernetes-history-inspector/builder:latest"
     id: codequality
+    waitFor:
+      - cancel_superseded
     entrypoint: make
     env:
       - "BASE_BRANCH=${_BASE_BRANCH}"
