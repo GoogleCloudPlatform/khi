@@ -226,7 +226,7 @@ func (r *ChromeTimelineImageRenderer) executeRenderLocked(ctx context.Context, r
 		return nil, fmt.Errorf("failed waiting for stable timeline frame: %w", err)
 	}
 
-	pngBytes, err := r.client.CapturePNGScreenshot(ctx)
+	pngBytes, err := r.client.CapturePNGScreenshot(ctx, cdp.ScreenshotOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to capture timeline screenshot: %w", err)
 	}

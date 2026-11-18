@@ -777,7 +777,7 @@ func TestChromeTimelineImageRenderer_EndToEndWithLocalServer(t *testing.T) {
 	startCtx, startCancel := context.WithTimeout(context.Background(), cdp.DefaultStartTimeout)
 	defer startCancel()
 
-	browser, err := cdp.StartBrowser(startCtx)
+	browser, err := cdp.StartBrowser(startCtx, cdp.BrowserOptions{})
 	if err != nil {
 		t.Fatalf("cdp.StartBrowser() failed: %v", err)
 	}
