@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 # Cancels superseded Cloud Build PR runs in both directions:
 #   1. If this build's commit is already older than the PR head, the PR is
 #      closed/merged, or a newer build exists for the same trigger & PR, this
@@ -21,9 +20,10 @@
 #   2. Otherwise, this build cancels any older QUEUED or WORKING builds for
 #      the same trigger & PR.
 #
-# Required tools: bash, gcloud, git, python3 (optional: curl).
+# Required tools: bash, gcloud, git (optional: curl).
 
 set -euo pipefail
+export LC_ALL=C
 
 readonly PROJECT_ID="${PROJECT_ID:-}"
 readonly BUILD_ID="${BUILD_ID:-}"
@@ -33,9 +33,6 @@ readonly COMMIT_SHA="${COMMIT_SHA:-}"
 readonly REPO_URL="${REPO_URL:-https://github.com/GoogleCloudPlatform/khi.git}"
 readonly GITHUB_REPO="${GITHUB_REPO:-GoogleCloudPlatform/khi}"
 readonly SKIP_GITHUB_API="${SKIP_GITHUB_API:-false}"
-
-TMP_FILE=""
-trap '[[ -n "${TMP_FILE}" ]] && rm -f "${TMP_FILE}"' EXIT
 
 cancel_build() {
   local target_id="$1"
@@ -52,8 +49,20 @@ cancel_self_and_exit() {
   exit 1
 }
 
+# Normalizes a UTC RFC 3339 timestamp (Z or +00:00) to fixed-width nanosecond
+# precision so ASCII lexicographical comparison matches chronological order.
+normalize_utc_ts() {
+  local raw="$1"
+  if [[ ! "${raw}" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\.([0-9]+))?(Z|\+00:00)$ ]]; then
+    return 1
+  fi
+  local base="${BASH_REMATCH[1]}"
+  local frac="${BASH_REMATCH[3]}000000000"
+  printf '%s.%sZ' "${base}" "${frac:0:9}"
+}
+
 check_git_pr_head() {
-  if [[ -z "${COMMIT_SHA}" ]]; then
+  if [[ -z "${COMMIT_SHA}" ]] || ! command -v git >/dev/null 2>&1; then
     return
   fi
   local ls_out
@@ -76,108 +85,81 @@ check_github_pr_open() {
     "https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}" 2>/dev/null)"; then
     return
   fi
-  local pr_state
-  pr_state="$(python3 -c '
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print(data.get("state", ""))
-except Exception:
-    pass
-' <<< "${pr_json}")"
+  # In GitHub's PR REST payload, top-level "state" precedes title/body and any nested objects.
+  local pr_state=""
+  if [[ "${pr_json}" =~ \"state\"[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
+    pr_state="${BASH_REMATCH[1]}"
+  fi
   if [[ -n "${pr_state}" && "${pr_state}" != "open" ]]; then
     cancel_self_and_exit "PR #${PR_NUMBER} is already ${pr_state}"
   fi
 }
 
 reconcile_ongoing_builds() {
-  local current_json
-  if ! current_json="$(gcloud builds describe "${BUILD_ID}" \
+  local current_info
+  if ! current_info="$(gcloud builds describe "${BUILD_ID}" \
     --region="${REGION}" \
     --project="${PROJECT_ID}" \
-    --format=json 2>/dev/null)"; then
+    --format="value[separator=|](buildTriggerId,createTime.date(format='%Y-%m-%dT%H:%M:%S.%fZ',tz=UTC))" 2>/dev/null)"; then
     echo "cancel-superseded: unable to describe build ${BUILD_ID}; continuing."
     return
   fi
 
-  local trigger_id
-  local current_create_time
-  read -r trigger_id current_create_time < <(python3 -c '
-import json, sys
-data = json.load(sys.stdin)
-print(data.get("buildTriggerId", ""), data.get("createTime", ""))
-' <<< "${current_json}")
-
+  local trigger_id=""
+  local current_create_time=""
+  IFS='|' read -r trigger_id current_create_time <<< "${current_info}"
   if [[ -z "${trigger_id}" || -z "${current_create_time}" ]]; then
     return
   fi
 
-  local ongoing_json
-  if ! ongoing_json="$(gcloud builds list \
+  local cur_norm_ts
+  if ! cur_norm_ts="$(normalize_utc_ts "${current_create_time}")"; then
+    echo "cancel-superseded: unable to parse build createTime '${current_create_time}'; continuing."
+    return
+  fi
+
+  local ongoing_rows
+  if ! ongoing_rows="$(gcloud builds list \
     --ongoing \
     --region="${REGION}" \
     --project="${PROJECT_ID}" \
     --filter="buildTriggerId=${trigger_id} AND substitutions._PR_NUMBER=${PR_NUMBER}" \
-    --format=json 2>/dev/null)"; then
+    --format="value[separator=|](createTime.date(format='%Y-%m-%dT%H:%M:%S.%fZ',tz=UTC),id)" 2>/dev/null)"; then
     echo "cancel-superseded: unable to list ongoing builds; continuing."
     return
   fi
 
-  TMP_FILE="$(mktemp)"
-  printf '%s\n' "${ongoing_json}" > "${TMP_FILE}"
+  local newer_id=""
+  local -a older_ids=()
+  local row_ts row_id norm_ts
+  while IFS='|' read -r row_ts row_id; do
+    if [[ -z "${row_id}" || "${row_id}" == "${BUILD_ID}" || -z "${row_ts}" ]]; then
+      continue
+    fi
+    if ! norm_ts="$(normalize_utc_ts "${row_ts}")"; then
+      continue
+    fi
+    if [[ "${norm_ts}" > "${cur_norm_ts}" || ( "${norm_ts}" == "${cur_norm_ts}" && "${row_id}" > "${BUILD_ID}" ) ]]; then
+      newer_id="${row_id}"
+      break
+    else
+      older_ids+=("${row_id}")
+    fi
+  done <<< "${ongoing_rows}"
 
-  local plan
-  plan="$(python3 - "${BUILD_ID}" "${current_create_time}" "${TMP_FILE}" <<'EOF'
-import datetime
-import json
-import sys
+  if [[ -n "${newer_id}" ]]; then
+    cancel_self_and_exit "newer ongoing build ${newer_id} already exists for PR #${PR_NUMBER}"
+  fi
 
-cur_id = sys.argv[1]
-cur_ts_raw = sys.argv[2]
-ongoing_path = sys.argv[3]
-
-def parse_ts(raw):
-    return datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
-
-cur_key = (parse_ts(cur_ts_raw), cur_id)
-with open(ongoing_path, encoding="utf-8") as fh:
-    builds = json.load(fh) or []
-
-newer = []
-older = []
-for b in builds:
-    bid = b.get("id", "")
-    ts_raw = b.get("createTime", "")
-    if not bid or bid == cur_id or not ts_raw:
-        continue
-    key = (parse_ts(ts_raw), bid)
-    if key > cur_key:
-        newer.append(bid)
-    else:
-        older.append(bid)
-
-if newer:
-    print("SELF_STALE " + newer[0])
-else:
-    for bid in older:
-        print("CANCEL_OLD " + bid)
-EOF
-)"
-
-  if [[ -z "${plan}" ]]; then
+  if [[ "${#older_ids[@]}" -eq 0 ]]; then
     return
   fi
 
-  local action target_id
-  while read -r action target_id; do
-    [[ -z "${action}" ]] && continue
-    if [[ "${action}" == "SELF_STALE" ]]; then
-      cancel_self_and_exit "newer ongoing build ${target_id} already exists for PR #${PR_NUMBER}"
-    elif [[ "${action}" == "CANCEL_OLD" ]]; then
-      echo "cancel-superseded: cancelling older build ${target_id} for PR #${PR_NUMBER}..."
-      cancel_build "${target_id}"
-    fi
-  done <<< "${plan}"
+  local target_id
+  for target_id in "${older_ids[@]}"; do
+    echo "cancel-superseded: cancelling older build ${target_id} for PR #${PR_NUMBER}..."
+    cancel_build "${target_id}"
+  done
 }
 
 main() {

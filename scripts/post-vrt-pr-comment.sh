@@ -39,9 +39,9 @@ find_open_pr_numbers_for_head() {
 extract_envelope_from_log() {
   local log_file="$1"
   local out_file="$2"
-  node - "${log_file}" "${out_file}" "${ENVELOPE_BEGIN}" "${ENVELOPE_END}" <<'EOF'
+  node - "${log_file}" "${out_file}" "${ENVELOPE_BEGIN}" "${ENVELOPE_END}" "${COMMENT_MARKER}" <<'EOF'
 const fs = require('fs');
-const [logPath, outPath, beginTag, endTag] = process.argv.slice(2);
+const [logPath, outPath, beginTag, endTag, marker] = process.argv.slice(2);
 const text = fs.readFileSync(logPath, 'utf8');
 const beginIdx = text.lastIndexOf(beginTag);
 if (beginIdx < 0) {
@@ -52,9 +52,19 @@ const endIdx = rest.indexOf(endTag);
 if (endIdx < 0) {
   process.exit(1);
 }
-const b64 = rest.slice(0, endIdx).replace(/\s+/g, '');
+// Cloud Build prefixes multi-step or named-step log lines with
+// `Step #N: ` or `Step #N - "<id>": `; strip those prefixes before decoding.
+const b64 = rest
+  .slice(0, endIdx)
+  .split(/\r?\n/)
+  .map((line) => line.replace(/^\s*Step #\d+(?:\s*-\s*"[^"]*")?:\s*/, ''))
+  .join('')
+  .replace(/\s+/g, '');
+if (!b64 || b64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) {
+  process.exit(1);
+}
 const decoded = Buffer.from(b64, 'base64').toString('utf8');
-if (!decoded.trim()) {
+if (!decoded.trim() || !decoded.includes(marker)) {
   process.exit(1);
 }
 fs.writeFileSync(outPath, decoded, 'utf8');

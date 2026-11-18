@@ -53,6 +53,18 @@ func TestPostVRTPRCommentScript(t *testing.T) {
 		})
 	})
 
+	t.Run("extracts envelope from Cloud Build step-prefixed logs", func(t *testing.T) {
+		runPostVRTScriptScenario(t, scriptPath, postVRTScriptScenario{
+			mode:       "create_with_step_prefixed_envelope",
+			conclusion: "success",
+			wantSubstr: []string{
+				"POST repos/GoogleCloudPlatform/khi/issues/1280/comments",
+				report.PRCommentMarker,
+				"Frontend Visual Regression Report",
+			},
+		})
+	})
+
 	t.Run("updates existing sticky comment with fallback body when envelope absent", func(t *testing.T) {
 		runPostVRTScriptScenario(t, scriptPath, postVRTScriptScenario{
 			mode:       "update_fallback",
@@ -81,12 +93,22 @@ func runPostVRTScriptScenario(t *testing.T, scriptPath string, sc postVRTScriptS
 	checkLogFile := filepath.Join(tmpDir, "check_log.txt")
 
 	var logBuf bytes.Buffer
-	if sc.mode == "create_with_envelope" {
+	switch sc.mode {
+	case "create_with_envelope":
 		body := report.FormatPRCommentBody(report.ComparisonReport{
 			Summary: report.Summary{Total: 10, Unchanged: 10},
 		}, report.PRCommentMeta{CommitSHA: "abcdef123456"})
 		report.WriteCommentEnvelope(&logBuf, body)
-	} else {
+	case "create_with_step_prefixed_envelope":
+		var raw bytes.Buffer
+		body := report.FormatPRCommentBody(report.ComparisonReport{
+			Summary: report.Summary{Total: 10, Unchanged: 10},
+		}, report.PRCommentMeta{CommitSHA: "abcdef123456"})
+		report.WriteCommentEnvelope(&raw, body)
+		for _, line := range strings.Split(strings.TrimSuffix(raw.String(), "\n"), "\n") {
+			logBuf.WriteString(`Step #1 - "vrt": ` + line + "\n")
+		}
+	default:
 		logBuf.WriteString("Step #0: storybook build failed\n")
 	}
 	if err := os.WriteFile(checkLogFile, logBuf.Bytes(), 0o600); err != nil {
