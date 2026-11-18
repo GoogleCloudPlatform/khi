@@ -72,12 +72,12 @@ check-format-web: $(GENERATE_FRONTEND_DUMMY) ## Check frontend source code forma
 	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(ts|json|html|scss|mjs)"
 
 .PHONY: format-misc
-format-misc: ## Format misc config files (.cloudbuild, .github, .vscode)
-	npx prettier --write "{.cloudbuild,.github,.vscode}/**/*.{yaml,yml,json}"
+format-misc: ## Format misc config files (.cloudbuild, .github, .vscode, scripts/codequality/rules)
+	npx prettier --write "{.cloudbuild,.github,.vscode,scripts/codequality/rules}/**/*.{yaml,yml,json}"
 
 .PHONY: check-format-misc
 check-format-misc: ## Check misc config file format
-	npx prettier --check "{.cloudbuild,.github,.vscode}/**/*.{yaml,yml,json}"
+	npx prettier --check "{.cloudbuild,.github,.vscode,scripts/codequality/rules}/**/*.{yaml,yml,json}"
 
 .PHONY: lint-md
 lint-md: ## Run markdown linter

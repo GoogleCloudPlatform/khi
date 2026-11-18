@@ -1,0 +1,208 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id: go_test_quality
+name: Go Unit Testing Standards
+description: Verifies test case explanation comments and logic alignment, Arrange-Act-Assert structure, callback testing practices, and clear test identifier naming.
+enabled: true
+enforcement: advisory
+
+target:
+  kind: changed_file
+  include:
+    - "pkg/**/*_test.go"
+    - "cmd/**/*_test.go"
+    - "internal/**/*_test.go"
+    - "scripts/**/*_test.go"
+  exclude:
+    - "pkg/generated/**"
+    - "**/testdata/**"
+
+context:
+  include_companion_go: true
+  line_numbers: true
+  include_go_ast_summary: true
+
+questions:
+  - id: test_case_explanation
+    for_each: changed_go_test_cases
+    type: choice
+    instructions: >-
+      Evaluate {{.Kind}} {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}}).
+      Extracted preceding comment: {{if .Doc}}"{{.Doc}}"{{else}}(NONE){{end}}.
+      Verify that (1) a preceding // comment is present explaining the scenario/preconditions and expected outcome,
+      and (2) the test case's setup inputs, Act invocation, and Assert expectations genuinely verify that described scenario
+      without coincidental passes.
+    options:
+      aligned:
+        description: >-
+          A preceding // comment clearly states the scenario and expected behavior, and the test inputs,
+          invocation, and assertions accurately verify that exact behavior.
+      missing_explanation_comment:
+        description: >-
+          No preceding // comment is present ((NONE)), or the comment merely repeats the test identifier
+          without explaining what scenario and expected outcome are tested.
+        fix_hint: >-
+          Add a concise // comment (ending with a period) immediately above {{.Name}} at {{.File}}:L{{.Line}}
+          explaining the input scenario/preconditions and expected behavior.
+      logic_or_setup_mismatch:
+        description: >-
+          The preceding // comment claims a scenario, boundary condition, or expected outcome that contradicts
+          the actual test inputs, want value, or assertions, or the setup allows a coincidental pass without exercising the claimed behavior.
+        fix_hint: >-
+          Align the inputs, setup, and expected assertions of {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          with its explanation comment (or fix the inaccurate comment).
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: test_structure_aaa
+    for_each: changed_go_test_funcs
+    type: choice
+    instructions: |
+      Evaluate whether unit test "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) follows a clean,
+      linear Arrange -> Act -> Assert structure (within each t.Run subtest body for table-driven tests,
+      or across the function body for standalone tests). Note that t.Fatal/t.Fatalf precondition checks
+      on fixture/temp-file setup in Arrange are valid setup checks, not behavioral assertions.
+
+      Example GOOD (single linear Arrange -> Act -> Assert):
+        cache := NewCache()
+        cache.Add("k", "v")
+
+        cache.Clear()
+
+        if got := cache.Len(); got != 0 {
+            t.Errorf("Len() = %d, want 0", got)
+        }
+
+      Example BAD (interleaved_multiple_behaviors — chained Act -> Assert -> Act -> Assert):
+        cache.Add("k", "v")
+        if got := cache.Len(); got != 1 { t.Errorf("got %d, want 1", got) }
+        cache.Clear()
+        if got := cache.Len(); got != 0 { t.Errorf("got %d, want 0", got) }
+
+      Example BAD (blurred_phases_or_test_logic — computing want dynamically inside the loop):
+        _ = Init(ctx, tc.jobMode)
+        wantMCP := !tc.jobMode
+        if got := HasMCP(ctx); got != wantMCP { t.Errorf("got %v, want %v", got, wantMCP) }
+    options:
+      aligned:
+        description: >-
+          Each test or subtest body follows a single linear Arrange -> Act -> Assert sequence
+          with clear separation, minimal setup, and straight-line assertions without computing expected values dynamically.
+      interleaved_multiple_behaviors:
+        description: >-
+          Chains multiple sequential Act -> Assert -> Act -> Assert cycles testing independent behaviors
+          inside a single test or subtest body instead of separating them into distinct table cases or Test* functions.
+        fix_hint: >-
+          Split interleaved Act -> Assert sequences in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          into separate table-driven test cases or dedicated Test* functions so each case tests one behavior.
+      blurred_phases_or_test_logic:
+        description: >-
+          Mixes behavioral t.Error/t.Errorf assertions into Arrange before Act, obscures the Act call,
+          or computes expected values dynamically using branching/looping logic inside the test body.
+        fix_hint: >-
+          Restructure "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) into linear Arrange, Act, and Assert phases
+          (separated by blank lines or // Arrange., // Act., // Assert. comments) with literal expected values.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: callback_testing
+    for_each: changed_go_test_funcs
+    type: choice
+    instructions: |
+      Evaluate callback testing in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}).
+      If the test passes a callback/closure/listener/progress function to the system under test
+      (note: t.Run and t.Cleanup closures are test-framework hooks, NOT SUT callbacks),
+      verify that the callback records invocations/arguments into local test state during Arrange
+      and assertions occur outside the callback in Assert rather than inside the callback body.
+
+      Example GOOD (callback records arguments in Arrange; Assert verifies recorded values outside):
+        var gotProgress []float64
+        recordProgress := func(pct float64) {
+            gotProgress = append(gotProgress, pct)
+        }
+
+        err := Export(items, recordProgress)
+
+        if err != nil { t.Fatalf("Export() error: %v", err) }
+        if diff := cmp.Diff([]float64{0.5, 1.0}, gotProgress); diff != "" {
+            t.Errorf("progress mismatch (-want +got):\n%s", diff)
+        }
+
+      Example BAD (assertion_inside_callback — silently passes if Export never invokes callback):
+        _ = Export(items, func(pct float64) {
+            if pct < 0 || pct > 1 { t.Errorf("pct = %v, want in [0, 1]", pct) }
+        })
+
+      Example BAD (unverified_callback_invocation — callback behavior never asserted outside):
+        _ = Export(items, func(pct float64) { _ = pct })
+    options:
+      aligned:
+        description: >-
+          Either "{{.Name}}" does not pass a callback to the system under test (or passes a pure stub dependency
+          whose invocation is not the behavior under test), OR the callback records calls/arguments into local state
+          and assertions run outside the callback in the Assert phase.
+      assertion_inside_callback:
+        description: >-
+          Embeds behavioral test assertions (such as t.Error, t.Errorf, t.Fatal, t.Fatalf, or cmp.Diff)
+          directly inside a callback passed to the system under test, risking a silent pass if the callback is never called.
+        fix_hint: >-
+          Move assertions out of the callback in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}):
+          record invocations/arguments into a local variable or slice inside the callback during Arrange,
+          and assert on the recorded values after Act completes.
+      unverified_callback_invocation:
+        description: >-
+          Tests callback-driven behavior by passing a callback to the system under test,
+          but never asserts outside the callback whether it was invoked or what values it received.
+        fix_hint: >-
+          Record callback invocations/arguments in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          and assert on the recorded call count or values in the Assert phase.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: test_identifier_naming
+    for_each: changed_go_test_funcs
+    type: choice
+    instructions: >-
+      Evaluate whether the test function name, table struct field names, and local variable/helper names in
+      "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) are clear and match their actual usage.
+      Standard Go test idioms (such as t, tc, got, want, wantErr, diff, err, ctx) are valid.
+    options:
+      aligned:
+        description: >-
+          Test function, table fields, helpers, and local variables have descriptive names that accurately reflect what they hold or do.
+      vague_or_cryptic_name:
+        description: >-
+          Uses cryptic single-letter or vague placeholder names (beyond standard t, tc, got, want, diff, err, ctx)
+          or non-descriptive test names (such as Test1 or case1) that obscure test intent.
+        fix_hint: >-
+          Rename vague or cryptic identifiers in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          so the tested behavior, inputs, and assertions are self-explanatory.
+      misleading_name:
+        description: >-
+          A variable, table field, or test helper name contradicts its actual value or behavior
+          (for example validYAML holding malformed YAML, wantErr holding a success payload, or a read-only fake mutating external state).
+        fix_hint: >-
+          Rename misleading variables, fields, or helpers in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          to match their actual test data or behavior.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55

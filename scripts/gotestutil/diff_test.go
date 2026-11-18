@@ -230,6 +230,7 @@ func TestParseUnifiedDiffDetailsAllLanguagesAndDeletions(t *testing.T) {
 		diff string
 		want UnifiedDiffDetails
 	}{
+		// Records added and modified line numbers while ignoring pure deletion hunks in Go production files.
 		{
 			name: "zero context additions modifications and pure deletions",
 			diff: `diff --git a/pkg/foo/bar.go b/pkg/foo/bar.go
@@ -250,14 +251,36 @@ index 1111111..2222222 100644
 				ProdLines: map[string]map[int]struct{}{
 					"pkg/foo/bar.go": {6: {}, 7: {}, 20: {}},
 				},
-				TestLines:   map[string]map[int]struct{}{},
-				TSLines:     map[string]map[int]struct{}{},
-				TSTestLines: map[string]map[int]struct{}{},
+				TestLines:    map[string]map[int]struct{}{},
+				TSLines:      map[string]map[int]struct{}{},
+				TSTestLines:  map[string]map[int]struct{}{},
+				ChangedFiles: []string{"pkg/foo/bar.go"},
+				DeletedFiles: []string{},
 			},
 		},
+		// Separates Go production, Go test, TypeScript production, TypeScript spec, Markdown/YAML, deleted, and non-target Go files.
 		{
-			name: "partitions Go prod/test TypeScript prod/spec deleted Go and non-target Go files",
-			diff: `diff --git a/pkg/generated/foo.pb.go b/pkg/generated/foo.pb.go
+			name: "partitions Go prod/test TypeScript prod/spec Markdown/YAML deleted and non-target files",
+			diff: `diff --git a/pkg/foo/README.md b/pkg/foo/README.md
+new file mode 100644
+--- /dev/null
++++ b/pkg/foo/README.md
+@@ -0,0 +1,2 @@
++# Foo Architecture
++Overview.
+diff --git a/pkg/foo/README_ja.md b/pkg/foo/README_ja.md
+deleted file mode 100644
+--- a/pkg/foo/README_ja.md
++++ /dev/null
+@@ -1,1 +0,0 @@
+-# 旧ドキュメント
+diff --git a/scripts/codequality/rules/pkg_doc.yaml b/scripts/codequality/rules/pkg_doc.yaml
+--- a/scripts/codequality/rules/pkg_doc.yaml
++++ b/scripts/codequality/rules/pkg_doc.yaml
+@@ -1 +1 @@
+-enabled: false
++enabled: true
+diff --git a/pkg/generated/foo.pb.go b/pkg/generated/foo.pb.go
 --- a/pkg/generated/foo.pb.go
 +++ b/pkg/generated/foo.pb.go
 @@ -1,0 +2,1 @@
@@ -316,13 +339,25 @@ diff --git a/web/src/app/foo.component.spec.ts b/web/src/app/foo.component.spec.
 				},
 				DeletedGoFiles:      []string{"pkg/foo/deleted.go"},
 				OtherChangedGoFiles: []string{"pkg/generated/foo.pb.go", "pkg/generated/old.pb.go"},
+				ChangedFiles: []string{
+					"pkg/foo/README.md",
+					"pkg/foo/service.go",
+					"pkg/foo/service_test.go",
+					"pkg/generated/foo.pb.go",
+					"scripts/codequality/rules/pkg_doc.yaml",
+					"web/src/app/foo.component.spec.ts",
+					"web/src/app/foo.component.ts",
+				},
+				DeletedFiles: []string{"pkg/foo/README_ja.md", "pkg/foo/deleted.go", "pkg/generated/old.pb.go"},
 			},
 		},
+		// Resets hunk parser state cleanly across gitless file headers, empty new paths, blank lines, malformed hunks, and binary entries.
 		{
 			name: "resets state cleanly across gitless headers blank hunk lines malformed hunks and diff boundaries",
 			diff: `--- a/pkg/foo/stale_old.go
 --- /dev/null
 +++ /dev/null
++++ ./
 +++ b/pkg/foo/a.go
 @@ -0,0 +2,3 @@
 +	lineTwo()
@@ -371,6 +406,8 @@ diff --git a/binary.dat b/binary.dat
 				TSLines:        map[string]map[int]struct{}{},
 				TSTestLines:    map[string]map[int]struct{}{},
 				DeletedGoFiles: []string{"pkg/foo/first_del.go"},
+				ChangedFiles:   []string{"README.md", "pkg/foo/a.go", "pkg/foo/b.go", "pkg/foo/c.go", "pkg/foo/d.go"},
+				DeletedFiles:   []string{"README.md", "pkg/foo/first_del.go"},
 			},
 		},
 	}
@@ -621,5 +658,38 @@ func initTestJJDiffRepo(t *testing.T, tmpDir string) {
 	runJJ("new", "-m", "second")
 	if err := os.WriteFile(filepath.Join(pkgDir, "jjdemo.go"), []byte("package jjdemo\n\nfunc Val() int { return 7 }\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile failed: %v", err)
+	}
+}
+
+// TestBuildDiffResult verifies that buildDiffResult copies all diff maps, file lists, and metadata fields from UnifiedDiffDetails.
+func TestBuildDiffResult(t *testing.T) {
+	details := UnifiedDiffDetails{
+		ProdLines:           map[string]map[int]struct{}{"pkg/a/a.go": {1: {}}},
+		TestLines:           map[string]map[int]struct{}{"pkg/a/a_test.go": {2: {}}},
+		TSLines:             map[string]map[int]struct{}{"web/src/a.ts": {3: {}}},
+		TSTestLines:         map[string]map[int]struct{}{"web/src/a.spec.ts": {4: {}}},
+		DeletedGoFiles:      []string{"pkg/a/old.go"},
+		OtherChangedGoFiles: []string{"pkg/generated/gen.pb.go"},
+		ChangedFiles:        []string{"pkg/a/a.go", "README.md"},
+		DeletedFiles:        []string{"pkg/a/old.go", "OLD.md"},
+	}
+
+	got := buildDiffResult("git", "origin/main", "abc123", details)
+
+	want := DiffResult{
+		VCS:                 "git",
+		BaseLabel:           "origin/main",
+		ResolvedBaseRev:     "abc123",
+		ChangedLines:        map[string]map[int]struct{}{"pkg/a/a.go": {1: {}}},
+		ChangedTestLines:    map[string]map[int]struct{}{"pkg/a/a_test.go": {2: {}}},
+		TSChangedLines:      map[string]map[int]struct{}{"web/src/a.ts": {3: {}}},
+		TSChangedTestLines:  map[string]map[int]struct{}{"web/src/a.spec.ts": {4: {}}},
+		DeletedGoFiles:      []string{"pkg/a/old.go"},
+		OtherChangedGoFiles: []string{"pkg/generated/gen.pb.go"},
+		ChangedFiles:        []string{"pkg/a/a.go", "README.md"},
+		DeletedFiles:        []string{"pkg/a/old.go", "OLD.md"},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("buildDiffResult() mismatch (-want +got):\n%s", diff)
 	}
 }

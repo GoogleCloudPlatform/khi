@@ -21,13 +21,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/sqlitecache"
 )
 
 const (
@@ -62,16 +60,7 @@ type VectorCache struct {
 
 // DefaultCachePath resolves the shared cross-workspace SQLite cache path from environment or OS user cache dir.
 func DefaultCachePath(getenv func(string) string) (string, error) {
-	if getenv != nil {
-		if custom := strings.TrimSpace(getenv("CODEQUALITY_SIMILARITY_CACHE_DIR")); custom != "" {
-			return filepath.Join(custom, "embeddings_v1.db"), nil
-		}
-	}
-	base, err := os.UserCacheDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve user cache directory: %w", err)
-	}
-	return filepath.Join(base, "khi", "codesim", "embeddings_v1.db"), nil
+	return sqlitecache.DefaultPath(getenv, "CODEQUALITY_SIMILARITY_CACHE_DIR", "codesim", "embeddings_v1.db")
 }
 
 // ComputeCacheKey computes a 32-byte SHA-256 digest over embedding configuration and input text.
@@ -85,28 +74,14 @@ func ComputeCacheKey(model string, mode string, dims int, text string) CacheKey 
 
 // OpenVectorCache opens or initializes the SQLite vector cache at path (or in-memory when path is empty).
 func OpenVectorCache(ctx context.Context, path string) (*VectorCache, error) {
-	dsn, err := prepareSQLiteDSN(path)
-	if err != nil {
-		return nil, err
-	}
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open sqlite cache: %w", err)
-	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.ExecContext(ctx, createSchemaSQL); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("failed to initialize sqlite cache schema: %w", err)
-	}
-	return &VectorCache{db: db}, nil
+	return sqlitecache.OpenWith(ctx, path, createSchemaSQL, func(db *sql.DB) *VectorCache {
+		return &VectorCache{db: db}
+	})
 }
 
-// Close releases the underlying SQLite connection pool.
+// Close releases the underlying SQLite database connection (no-op when c is nil).
 func (c *VectorCache) Close() error {
-	if c == nil {
-		return nil
-	}
-	return c.db.Close()
+	return sqlitecache.CloseWith(c, func(cache *VectorCache) *sql.DB { return cache.db })
 }
 
 // LookupBatch fetches only the requested keys from SQLite in chunks and returns decoded L2-normalized vectors.
@@ -180,16 +155,6 @@ func (c *VectorCache) queryChunk(ctx context.Context, chunk []CacheKey, dst map[
 		}
 	}
 	return rows.Err()
-}
-
-func prepareSQLiteDSN(path string) (string, error) {
-	if path == "" {
-		return ":memory:", nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("failed to create cache directory: %w", err)
-	}
-	return path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)", nil
 }
 
 func execBatchUpsert(ctx context.Context, tx *sql.Tx, entries []CacheEntry, nowUnix int64) error {

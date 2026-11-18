@@ -11,6 +11,8 @@ You MUST adhere to the following rules for all code comments.
 - **Focus on Intent:** Explain _why_ a piece of code exists or why a specific approach was taken, especially for complex or non-obvious logic. Do not simply restate what the code is doing in English.
 - **Avoid Redundancy:** Do not repeat information that is obvious from the code itself (e.g., do not say "Increment i" for `i++`).
 - **Self-Documenting Code First:** Strive for clear naming and structure that reduces the need for implementation comments. Use comments only when the code's logic isn't obvious.
+- **Strict Alignment with Logic:** Every comment must accurately match the actual implementation behavior, data structures, synchronization primitives, boundary conditions, and error/fallback handling. When refactoring code (for example, changing a map implementation, lock strategy, or error contract), update or remove affected comments in the same change so stale claims never remain.
+- **Test Case Explanations:** Place a concise comment immediately before each test case explaining the scenario/preconditions and expected behavior, and ensure the test setup, invocation, and assertions genuinely verify that described scenario.
 
 ### 2. English Style and Grammar
 
