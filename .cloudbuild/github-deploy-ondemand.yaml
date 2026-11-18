@@ -44,9 +44,14 @@ steps:
     args:
       - "-c"
       - |
-        docker buildx create --driver docker-container --name container --use
-        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile --target=default ${_DOCKER_TAGS} --push .
-        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile --target=slim ${_DOCKER_SLIM_TAGS} --push .
+        set -euo pipefail
+        DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 --file=./Dockerfile --target=default ${_DOCKER_TAGS} .
+        DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 --file=./Dockerfile --target=slim ${_DOCKER_SLIM_TAGS} .
+        for arg in ${_DOCKER_TAGS} ${_DOCKER_SLIM_TAGS}; do
+          if [[ "$$arg" != "-t" ]]; then
+            docker push "$$arg"
+          fi
+        done
     id: build_container
     waitFor:
       - build_app
