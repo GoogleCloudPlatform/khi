@@ -48,6 +48,9 @@ func emitOutputs(_ context.Context, req emitRequest) error {
 		report.WriteCommentEnvelope(req.env.stdout, body)
 	}
 	if req.flags.summaryFile != "" {
+		if req.flags.decisionsOnly && len(req.reports) == 0 {
+			return nil
+		}
 		return writeSummaryFile(req.flags.summaryFile, req.baseLabel, req.reports)
 	}
 	return nil
@@ -68,7 +71,11 @@ func hasAnyBlockingReport(flags cliFlags, reports []*rule.Report) bool {
 func emitTextOutputs(req emitRequest) {
 	style := gotestutil.TermStyle{Enabled: gotestutil.ResolveColorEnabled(req.colorMode, req.env.stdout, req.env.getenv)}
 	if len(req.reports) == 0 {
-		fmt.Fprintf(req.env.stdout, "%s\n", style.Dim(fmt.Sprintf("Code Quality Report (base: %s): no Go or TypeScript files changed.", req.baseLabel)))
+		msg := fmt.Sprintf("Code Quality Report (base: %s): no Go or TypeScript files changed.", req.baseLabel)
+		if req.flags.decisionsOnly {
+			msg = fmt.Sprintf("Decision Rules Report (base: %s): no matching targets changed.", req.baseLabel)
+		}
+		fmt.Fprintf(req.env.stdout, "%s\n", style.Dim(msg))
 		return
 	}
 	for i, rep := range req.reports {

@@ -29,6 +29,7 @@ readonly CHECK_RUN_ID="${CHECK_RUN_ID:?CHECK_RUN_ID is required}"
 readonly HEAD_SHA="${HEAD_SHA:?HEAD_SHA is required}"
 readonly CONCLUSION="${CONCLUSION:-unknown}"
 readonly DETAILS_URL="${DETAILS_URL:-}"
+readonly DECISIONS_SUMMARY_FILE="${DECISIONS_SUMMARY_FILE:-}"
 
 find_open_pr_numbers_for_head() {
   gh api "repos/${GITHUB_REPO}/commits/${HEAD_SHA}/pulls" \
@@ -118,6 +119,29 @@ upsert_sticky_comment() {
   fi
 }
 
+append_decisions_summary() {
+  local body_file="$1"
+  local dec_file="$2"
+  if [[ -z "${dec_file}" || ! -s "${dec_file}" ]]; then
+    return
+  fi
+  node - "${body_file}" "${dec_file}" <<'EOF'
+const fs = require('fs');
+const [bodyPath, decPath] = process.argv.slice(2);
+const body = fs.readFileSync(bodyPath, 'utf8');
+const dec = fs.readFileSync(decPath, 'utf8').trim();
+if (!dec) {
+  process.exit(0);
+}
+const footerMarker = '\n---\n_Commit:';
+const idx = body.lastIndexOf(footerMarker);
+const merged = idx >= 0
+  ? body.slice(0, idx).trimEnd() + '\n\n' + dec + '\n' + body.slice(idx)
+  : body.trimEnd() + '\n\n' + dec + '\n';
+fs.writeFileSync(bodyPath, merged, 'utf8');
+EOF
+}
+
 TMP_DIR=""
 trap '[[ -n "${TMP_DIR}" ]] && rm -rf "${TMP_DIR}"' EXIT
 
@@ -140,6 +164,7 @@ main() {
     echo "No embedded report envelope found in Check Run #${CHECK_RUN_ID}; using fallback summary."
     write_fallback_body "${body_file}"
   fi
+  append_decisions_summary "${body_file}" "${DECISIONS_SUMMARY_FILE}"
 
   local pr_num
   while IFS= read -r pr_num; do

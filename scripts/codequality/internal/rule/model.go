@@ -222,6 +222,8 @@ type Report struct {
 	Mutation MutationSummary
 	// Similarity holds non-blocking semantic function similarity advisory results.
 	Similarity SimilaritySummary
+	// Decisions holds declarative YAML Gemini Decisions evaluation metadata and findings.
+	Decisions DecisionSummary
 	// Findings lists all rule findings in deterministic order.
 	Findings []Finding
 	// Suppressed lists all findings suppressed via CODEQUALITY_ALLOW.
@@ -281,12 +283,12 @@ func (r *Report) CodeFence() string {
 	return "go"
 }
 
-// HasIssues reports whether the report contains any findings or directive errors.
+// HasIssues reports whether the report contains any findings, directive errors, or blocking decision violations.
 func (r *Report) HasIssues() bool {
-	return len(r.Findings) > 0 || len(r.DirectiveErrors) > 0
+	return len(r.Findings) > 0 || len(r.DirectiveErrors) > 0 || r.Decisions.HasBlockingFindings()
 }
 
-// HasBlockingIssues reports whether the report contains blocking rule violations or directive errors.
+// HasBlockingIssues reports whether the report contains blocking rule violations, directive errors, or blocking decision violations.
 func (r *Report) HasBlockingIssues() bool {
 	return !r.Advisory && r.HasIssues()
 }

@@ -19,7 +19,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
@@ -51,18 +50,11 @@ type simLangRequest struct {
 }
 
 func parseSimilarityEnv(getenv func(string) string) bool {
-	if getenv == nil {
-		return false
-	}
-	val := strings.ToLower(strings.TrimSpace(getenv("CODEQUALITY_SIMILARITY")))
-	return val == "true" || val == "1"
+	return parseBoolEnv(getenv, "CODEQUALITY_SIMILARITY")
 }
 
 func parseSimilarityProjectEnv(getenv func(string) string) string {
-	if getenv == nil {
-		return ""
-	}
-	return strings.TrimSpace(getenv("CODEQUALITY_SIMILARITY_PROJECT"))
+	return parseTrimmedEnv(getenv, "CODEQUALITY_SIMILARITY_PROJECT")
 }
 
 func newSimilaritySession(ctx context.Context, flags cliFlags, factory embedderFactory, getenv func(string) string) *similaritySession {
@@ -87,17 +79,9 @@ func newSimilaritySession(ctx context.Context, flags cliFlags, factory embedderF
 }
 
 func (s *similaritySession) Close() error {
-	if s == nil {
-		return nil
-	}
-	s.mu.Lock()
-	c := s.closer
-	s.closer = nil
-	s.mu.Unlock()
-	if c != nil {
-		return c.Close()
-	}
-	return nil
+	return closeGuarded(s, func(sess *similaritySession) (*sync.Mutex, *io.Closer) {
+		return &sess.mu, &sess.closer
+	})
 }
 
 func (s *similaritySession) evaluateGo(ctx context.Context, repoRoot string, diffRes gotestutil.DiffResult) (rule.SimilaritySummary, error) {

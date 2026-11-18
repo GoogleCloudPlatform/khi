@@ -61,6 +61,10 @@ type DiffResult struct {
 	DeletedGoFiles []string
 	// OtherChangedGoFiles lists modified Go files outside primary analysis targets.
 	OtherChangedGoFiles []string
+	// ChangedFiles lists all added or modified relative file paths in deterministic order.
+	ChangedFiles []string
+	// DeletedFiles lists all deleted relative file paths in deterministic order.
+	DeletedFiles []string
 }
 
 // UnifiedDiffDetails holds parsed line maps and deleted/non-target Go files extracted from a unified diff stream.
@@ -77,6 +81,10 @@ type UnifiedDiffDetails struct {
 	DeletedGoFiles []string
 	// OtherChangedGoFiles lists modified Go files outside primary analysis targets.
 	OtherChangedGoFiles []string
+	// ChangedFiles lists all added or modified relative file paths in deterministic order.
+	ChangedFiles []string
+	// DeletedFiles lists all deleted relative file paths in deterministic order.
+	DeletedFiles []string
 }
 
 type diffScanState struct {
@@ -86,6 +94,8 @@ type diffScanState struct {
 	tsTestLines         map[string]map[int]struct{}
 	deletedGoFiles      []string
 	otherChangedGoFiles []string
+	changedFiles        map[string]struct{}
+	deletedFiles        map[string]struct{}
 	oldFile             string
 	currentFile         string
 	targetMap           map[string]map[int]struct{}
@@ -154,10 +164,12 @@ func IsTargetTSTestFile(relPath string) bool {
 // ParseUnifiedDiffDetails extracts changed line numbers for Go, *_test.go, TypeScript, and *.spec.ts files plus deleted Go file paths.
 func ParseUnifiedDiffDetails(r io.Reader) (UnifiedDiffDetails, error) {
 	state := &diffScanState{
-		prodLines:   make(map[string]map[int]struct{}),
-		testLines:   make(map[string]map[int]struct{}),
-		tsLines:     make(map[string]map[int]struct{}),
-		tsTestLines: make(map[string]map[int]struct{}),
+		prodLines:    make(map[string]map[int]struct{}),
+		testLines:    make(map[string]map[int]struct{}),
+		tsLines:      make(map[string]map[int]struct{}),
+		tsTestLines:  make(map[string]map[int]struct{}),
+		changedFiles: make(map[string]struct{}),
+		deletedFiles: make(map[string]struct{}),
 	}
 	scanner := bufio.NewScanner(r)
 	// Allow up to 16 MiB per line so diffs containing large generated JSON/lockfiles never fail scanning.
@@ -178,6 +190,8 @@ func ParseUnifiedDiffDetails(r io.Reader) (UnifiedDiffDetails, error) {
 		TSTestLines:         state.tsTestLines,
 		DeletedGoFiles:      state.deletedGoFiles,
 		OtherChangedGoFiles: state.otherChangedGoFiles,
+		ChangedFiles:        sortedSetKeys(state.changedFiles),
+		DeletedFiles:        sortedSetKeys(state.deletedFiles),
 	}, nil
 }
 
@@ -293,10 +307,16 @@ func (s *diffScanState) handleNewHeader(line string) {
 		return
 	}
 	clean := strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(rawPath, "b/")), "./")
+	if clean != "" {
+		s.changedFiles[clean] = struct{}{}
+	}
 	s.selectTargetMap(clean)
 }
 
 func (s *diffScanState) recordDeletedFile() {
+	if s.oldFile != "" {
+		s.deletedFiles[s.oldFile] = struct{}{}
+	}
 	if !strings.HasSuffix(s.oldFile, ".go") {
 		return
 	}
@@ -423,17 +443,7 @@ func collectJJDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Diff
 	if err != nil {
 		return DiffResult{}, err
 	}
-	return DiffResult{
-		VCS:                 "jj",
-		BaseLabel:           base,
-		ResolvedBaseRev:     resolvedRev,
-		ChangedLines:        details.ProdLines,
-		ChangedTestLines:    details.TestLines,
-		TSChangedLines:      details.TSLines,
-		TSChangedTestLines:  details.TSTestLines,
-		DeletedGoFiles:      details.DeletedGoFiles,
-		OtherChangedGoFiles: details.OtherChangedGoFiles,
-	}, nil
+	return buildDiffResult("jj", base, resolvedRev, details), nil
 }
 
 func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (DiffResult, error) {
@@ -470,9 +480,13 @@ func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Dif
 	if err != nil {
 		return DiffResult{}, err
 	}
+	return buildDiffResult("git", base, resolvedRev, details), nil
+}
+
+func buildDiffResult(vcs string, baseLabel string, resolvedRev string, details UnifiedDiffDetails) DiffResult {
 	return DiffResult{
-		VCS:                 "git",
-		BaseLabel:           base,
+		VCS:                 vcs,
+		BaseLabel:           baseLabel,
 		ResolvedBaseRev:     resolvedRev,
 		ChangedLines:        details.ProdLines,
 		ChangedTestLines:    details.TestLines,
@@ -480,7 +494,9 @@ func collectGitDiff(ctx context.Context, repoRoot string, opts DiffOptions) (Dif
 		TSChangedTestLines:  details.TSTestLines,
 		DeletedGoFiles:      details.DeletedGoFiles,
 		OtherChangedGoFiles: details.OtherChangedGoFiles,
-	}, nil
+		ChangedFiles:        details.ChangedFiles,
+		DeletedFiles:        details.DeletedFiles,
+	}
 }
 
 func readJJBaseFile(ctx context.Context, repoRoot string, rev string, cleanPath string) ([]byte, bool, error) {

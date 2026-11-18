@@ -71,9 +71,14 @@ CODEQUALITY_TIMEOUT ?= 3m
 -include $(HOME)/.config/khi/codequality.mk
 CODEQUALITY_SIMILARITY ?= false
 CODEQUALITY_SIMILARITY_PROJECT ?=
+CODEQUALITY_DECISIONS ?= false
+CODEQUALITY_DECISIONS_PROJECT ?=
+CODEQUALITY_DECISIONS_RULES ?=
+CODEQUALITY_DECISIONS_FAIL_ON_VIOLATIONS ?= false
 CODEQUALITY_COLOR ?= $(COLOR)
 
-CODEQUALITY_FLAGS := --color=$(CODEQUALITY_COLOR) --similarity=$(CODEQUALITY_SIMILARITY) $(if $(CODEQUALITY_SIMILARITY_PROJECT),--similarity-project="$(CODEQUALITY_SIMILARITY_PROJECT)",) --workers=$(CODEQUALITY_WORKERS) --max-mutants=$(CODEQUALITY_MAX) --timeout=$(CODEQUALITY_TIMEOUT) $(if $(CODEQUALITY_VCS),--vcs="$(CODEQUALITY_VCS)",) $(if $(CODEQUALITY_BASE),--base="$(CODEQUALITY_BASE)",) $(if $(CODEQUALITY_TARGET),--target="$(CODEQUALITY_TARGET)",) $(if $(filter true 1,$(CODEQUALITY_FULL)),--full,)
+CODEQUALITY_DECISIONS_FLAGS := --decisions=$(CODEQUALITY_DECISIONS) $(if $(CODEQUALITY_DECISIONS_PROJECT),--decisions-project="$(CODEQUALITY_DECISIONS_PROJECT)",) $(if $(CODEQUALITY_DECISIONS_RULES),--decisions-rules="$(CODEQUALITY_DECISIONS_RULES)",) --decisions-fail-on-violations=$(CODEQUALITY_DECISIONS_FAIL_ON_VIOLATIONS)
+CODEQUALITY_FLAGS := --color=$(CODEQUALITY_COLOR) --similarity=$(CODEQUALITY_SIMILARITY) $(if $(CODEQUALITY_SIMILARITY_PROJECT),--similarity-project="$(CODEQUALITY_SIMILARITY_PROJECT)",) $(CODEQUALITY_DECISIONS_FLAGS) --workers=$(CODEQUALITY_WORKERS) --max-mutants=$(CODEQUALITY_MAX) --timeout=$(CODEQUALITY_TIMEOUT) $(if $(CODEQUALITY_VCS),--vcs="$(CODEQUALITY_VCS)",) $(if $(CODEQUALITY_BASE),--base="$(CODEQUALITY_BASE)",) $(if $(CODEQUALITY_TARGET),--target="$(CODEQUALITY_TARGET)",) $(if $(filter true 1,$(CODEQUALITY_FULL)),--full,)
 
 .PHONY: coverage-go
 coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY)## Run backend tests and generate coverage report
@@ -82,7 +87,11 @@ coverage-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_
 
 .PHONY: codequality-fast
 codequality-fast: ## Run fast Go AST structural complexity, size, naming, ratchet, and function similarity checks on changed files
-	go run ./scripts/codequality --lang=go --fast --similarity=$(CODEQUALITY_SIMILARITY) $(if $(CODEQUALITY_SIMILARITY_PROJECT),--similarity-project="$(CODEQUALITY_SIMILARITY_PROJECT)",) --color=$(CODEQUALITY_COLOR) $(if $(CODEQUALITY_VCS),--vcs="$(CODEQUALITY_VCS)",) $(if $(CODEQUALITY_BASE),--base="$(CODEQUALITY_BASE)",) $(if $(CODEQUALITY_TARGET),--target="$(CODEQUALITY_TARGET)",)
+	go run ./scripts/codequality --lang=go --fast --similarity=$(CODEQUALITY_SIMILARITY) $(if $(CODEQUALITY_SIMILARITY_PROJECT),--similarity-project="$(CODEQUALITY_SIMILARITY_PROJECT)",) $(CODEQUALITY_DECISIONS_FLAGS) --color=$(CODEQUALITY_COLOR) $(if $(CODEQUALITY_VCS),--vcs="$(CODEQUALITY_VCS)",) $(if $(CODEQUALITY_BASE),--base="$(CODEQUALITY_BASE)",) $(if $(CODEQUALITY_TARGET),--target="$(CODEQUALITY_TARGET)",) $(if $(filter true 1,$(CODEQUALITY_FULL)),--full,)
+
+.PHONY: codequality-decisions
+codequality-decisions: ## Run declarative YAML Gemini Decisions semantic rules on changed files
+	go run ./scripts/codequality --decisions-only $(if $(CODEQUALITY_DECISIONS_PROJECT),--decisions-project="$(CODEQUALITY_DECISIONS_PROJECT)",) $(if $(CODEQUALITY_DECISIONS_RULES),--decisions-rules="$(CODEQUALITY_DECISIONS_RULES)",) --decisions-fail-on-violations=$(CODEQUALITY_DECISIONS_FAIL_ON_VIOLATIONS) --color=$(CODEQUALITY_COLOR) $(if $(CODEQUALITY_VCS),--vcs="$(CODEQUALITY_VCS)",) $(if $(CODEQUALITY_BASE),--base="$(CODEQUALITY_BASE)",) $(if $(CODEQUALITY_TARGET),--target="$(CODEQUALITY_TARGET)",) $(if $(filter true 1,$(CODEQUALITY_FULL)),--full,)
 
 .PHONY: codequality-ci
 codequality-ci: ## Run unified differential code quality checks for Cloud Build CI

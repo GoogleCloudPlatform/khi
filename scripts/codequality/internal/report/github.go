@@ -32,6 +32,10 @@ type annotationSpec struct {
 
 // RenderGitHubAnnotations emits GitHub Actions ::error or ::warning workflow commands up to maxAnnotations.
 func RenderGitHubAnnotations(w io.Writer, rep *rule.Report, maxAnnotations int) {
+	if rep.Language == "Decisions" {
+		renderDecisionsAnnotations(w, rep, maxAnnotations)
+		return
+	}
 	level := "error"
 	if rep.Advisory {
 		level = "warning"
@@ -62,6 +66,10 @@ func RenderGitHubAnnotations(w io.Writer, rep *rule.Report, maxAnnotations int) 
 
 // RenderGitHubSummary writes a Markdown summary suitable for GITHUB_STEP_SUMMARY.
 func RenderGitHubSummary(w io.Writer, rep *rule.Report) {
+	if rep.Language == "Decisions" {
+		renderDecisionsGitHubSummary(w, rep)
+		return
+	}
 	verdict := "✅ PASS"
 	if rep.HasIssues() {
 		if rep.Advisory {
