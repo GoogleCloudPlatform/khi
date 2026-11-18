@@ -15,7 +15,8 @@ All the following `make` commands must be run from the root folder:
 * `make test-go`, `make test-web`: Runs the backend and frontend tests respectively.
 * `make lint-go`, `make lint-web`: Runs the backend and frontend linters respectively.
 * `make format-go`, `make format-web`: Runs the backend and frontend formatters respectively.
-* Run `make pre-commit` before finalizing a task. It runs formatter for every file.
+* Run `make pre-commit` before finalizing a task. It auto-formats and runs fast static checks on modified files.
+* Run `make pre-push` before pushing commits or opening a PR. It runs full CI-parity verification on changed branch files.
 
 ## Technical stack
 

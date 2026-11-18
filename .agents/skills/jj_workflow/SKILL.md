@@ -60,12 +60,14 @@ jj describe -m "feat(scope): detailed message"
 
 ### Testing and Formatting
 
-Before finalizing any commit or boundary, execute KHI test and verification commands:
+Before freezing `@` with `jj new` or pushing to a remote, run the diff-scoped pre-commit and CI-parity pre-push gates (see the `pr-quality-ci` skill for full details):
 
 ```bash
+# 1. Auto-format and run fast static checks while @ holds modified files:
 make pre-commit
-make lint-go && make lint-web
-make test-go && make test-web
+
+# 2. Run full CI-parity verification across the branch diff (add BASE=<parent-bookmark> for stacked PRs):
+make pre-push
 ```
 
 ### Freezing the Change
@@ -132,11 +134,11 @@ When review comments require code changes:
    Modify the source files to address the reviewer feedback.
 
 3. **Verify and Format**:
-   Run formatters and tests to ensure no regressions:
+   Run pre-commit auto-formatting and full CI-parity pre-push checks while `@` holds your changes (see the `pr-quality-ci` skill for PR comment reply procedures):
 
    ```bash
-   make format-go && make format-web
-   make test-go && make test-web
+   make pre-commit
+   make pre-push
    ```
 
 4. **Set a Descriptive Commit Message**:
@@ -286,8 +288,9 @@ In Jujutsu, merge and rebase conflicts do not abort operations. Instead, conflic
 Before finalizing any task or pushing to a remote repository:
 
 - [ ] Worked strictly within the assigned workspace and made no cross-workspace modifications.
-- [ ] Executed `make pre-commit` to format all code and documentation files.
-- [ ] Passed all linters and tests (`make lint-go`, `make lint-web`, `make test-go`, `make test-web`).
+- [ ] Executed `make pre-commit` before `jj new` (while `@` still holds modified files) to auto-format and lint touched files.
+- [ ] Passed `make pre-push` (with `BASE=<parent-bookmark>` for stacked PRs) before pushing to verify full CI parity.
+- [ ] For PRs: monitored CI checks, sticky `codequality` reports, and review comments per `pr-quality-ci`.
 - [ ] For PR reviews: created a new incremental commit with `jj new` without squashing.
 - [ ] For PR reviews: advanced or moved the PR bookmark with `jj bookmark advance` or `jj bookmark move`.
 - [ ] For stacked PR reviews: cascade-rebased downstream stack commits with `jj rebase -s <next-pr-root> -d <pr-bookmark>`.
