@@ -147,10 +147,22 @@ const START_TIME_NS = BigInt(Date.parse('2025-12-31T23:30:00Z')) * 1_000_000n;
 const DURATION_NS = 60n * 60n * 24n * 1_000_000_000n; // 24 hour
 const VIEWPORT_WIDTH = window.innerWidth;
 
+function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function generateMockLogs(
   count: number,
   severityRatio: { [severity in MockSeverity]?: number },
+  seed = 1,
 ): Log[] {
+  const random = createSeededRandom(seed);
   const internPool = InternPoolStore.create();
 
   const culmativeRatios: number[] = [];
@@ -168,9 +180,9 @@ function generateMockLogs(
 
   const logDataList = [];
   for (let i = 0; i < count; i++) {
-    const offsetNs = BigInt(Math.floor(Math.random() * Number(DURATION_NS)));
+    const offsetNs = BigInt(Math.floor(random() * Number(DURATION_NS)));
     const timeNs = START_TIME_NS + offsetNs;
-    const rand = Math.random();
+    const rand = random();
     let severity: MockSeverity = MockSeverity.Info;
     for (let j = 0; j < culmativeRatios.length; j++) {
       if (
@@ -233,14 +245,16 @@ function generateViewModel(
 function filterLogs(
   logs: Log[],
   rate: number,
+  seed = 42,
 ): {
   allLogs: Log[];
   filteredLogIds: IdBitset;
 } {
+  const random = createSeededRandom(seed);
   const allLogs = logs;
   const filteredIds = logs
     .filter(() => {
-      return Math.random() < rate;
+      return random() < rate;
     })
     .map((l) => l.id);
   return { allLogs, filteredLogIds: IdBitset.fromAll(filteredIds) };

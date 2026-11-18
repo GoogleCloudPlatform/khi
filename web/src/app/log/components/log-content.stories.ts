@@ -45,7 +45,7 @@ export const Default: Story = {
 kind: Pod
 metadata:
   name: test-pod`,
-          referencedTimelineIds: [],
+          resourceRefs: [],
         },
         timezoneShift: 0,
       },
@@ -75,7 +75,7 @@ export const Loading: Story = {
         vm: {
           logEntry,
           logBody: '',
-          referencedTimelineIds: [],
+          resourceRefs: [],
         },
         timezoneShift: 0,
       },
