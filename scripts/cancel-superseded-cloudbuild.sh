@@ -53,7 +53,7 @@ cancel_self_and_exit() {
 }
 
 check_git_pr_head() {
-  if [[ -z "${COMMIT_SHA}" ]]; then
+  if [[ -z "${COMMIT_SHA}" ]] || ! command -v git >/dev/null 2>&1; then
     return
   fi
   local ls_out
@@ -100,13 +100,20 @@ reconcile_ongoing_builds() {
     return
   fi
 
-  local trigger_id
-  local current_create_time
-  read -r trigger_id current_create_time < <(python3 -c '
+  local trigger_id=""
+  local current_create_time=""
+  if ! read -r trigger_id current_create_time < <(python3 -c '
 import json, sys
-data = json.load(sys.stdin)
-print(data.get("buildTriggerId", ""), data.get("createTime", ""))
-' <<< "${current_json}")
+try:
+    data = json.load(sys.stdin)
+    if isinstance(data, dict):
+        print(data.get("buildTriggerId", ""), data.get("createTime", ""))
+except Exception:
+    pass
+' <<< "${current_json}" 2>/dev/null); then
+    echo "cancel-superseded: unable to parse build details; continuing."
+    return
+  fi
 
   if [[ -z "${trigger_id}" || -z "${current_create_time}" ]]; then
     return
@@ -126,43 +133,74 @@ print(data.get("buildTriggerId", ""), data.get("createTime", ""))
   TMP_FILE="$(mktemp)"
   printf '%s\n' "${ongoing_json}" > "${TMP_FILE}"
 
-  local plan
-  plan="$(python3 - "${BUILD_ID}" "${current_create_time}" "${TMP_FILE}" <<'EOF'
+  local plan=""
+  if ! plan="$(python3 - "${BUILD_ID}" "${current_create_time}" "${TMP_FILE}" <<'EOF'
 import datetime
 import json
+import re
 import sys
 
-cur_id = sys.argv[1]
-cur_ts_raw = sys.argv[2]
-ongoing_path = sys.argv[3]
+RFC3339_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$"
+)
 
 def parse_ts(raw):
-    return datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
-
-cur_key = (parse_ts(cur_ts_raw), cur_id)
-with open(ongoing_path, encoding="utf-8") as fh:
-    builds = json.load(fh) or []
-
-newer = []
-older = []
-for b in builds:
-    bid = b.get("id", "")
-    ts_raw = b.get("createTime", "")
-    if not bid or bid == cur_id or not ts_raw:
-        continue
-    key = (parse_ts(ts_raw), bid)
-    if key > cur_key:
-        newer.append(bid)
+    m = RFC3339_RE.match(raw)
+    if not m:
+        raise ValueError(f"unsupported timestamp: {raw!r}")
+    base, frac, tz = m.groups()
+    if tz == "Z":
+        tz = "+00:00"
+    if frac:
+        # Preserve nanosecond ordering while staying compatible with Python < 3.11
+        # datetime.fromisoformat, which accepts at most 6 fractional digits.
+        micro = (frac + "000000")[:6]
+        nano_rem = int((frac + "000000000")[6:9])
+        dt = datetime.datetime.fromisoformat(f"{base}.{micro}{tz}")
     else:
-        older.append(bid)
+        nano_rem = 0
+        dt = datetime.datetime.fromisoformat(f"{base}{tz}")
+    return (dt, nano_rem)
 
-if newer:
-    print("SELF_STALE " + newer[0])
-else:
-    for bid in older:
-        print("CANCEL_OLD " + bid)
+try:
+    cur_id = sys.argv[1]
+    cur_ts_raw = sys.argv[2]
+    ongoing_path = sys.argv[3]
+
+    cur_key = (parse_ts(cur_ts_raw), cur_id)
+    with open(ongoing_path, encoding="utf-8") as fh:
+        builds = json.load(fh) or []
+
+    newer = []
+    older = []
+    for b in builds:
+        if not isinstance(b, dict):
+            continue
+        bid = b.get("id", "")
+        ts_raw = b.get("createTime", "")
+        if not bid or bid == cur_id or not ts_raw:
+            continue
+        try:
+            key = (parse_ts(ts_raw), bid)
+        except ValueError:
+            continue
+        if key > cur_key:
+            newer.append(bid)
+        else:
+            older.append(bid)
+
+    if newer:
+        print("SELF_STALE " + newer[0])
+    else:
+        for bid in older:
+            print("CANCEL_OLD " + bid)
+except Exception as err:
+    print(f"cancel-superseded: unable to reconcile ongoing builds: {err}", file=sys.stderr)
 EOF
-)"
+)"; then
+    echo "cancel-superseded: failed to compute cancellation plan; continuing."
+    return
+  fi
 
   if [[ -z "${plan}" ]]; then
     return

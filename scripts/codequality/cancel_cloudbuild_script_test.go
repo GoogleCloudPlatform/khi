@@ -43,6 +43,8 @@ type cancelScriptCase struct {
 	prAPIFail       bool
 	currentBuild    fakeCloudBuild
 	ongoingBuilds   []fakeCloudBuild
+	rawDescribe     string
+	rawList         string
 	wantErr         bool
 	wantCancelledID []string
 }
@@ -118,6 +120,51 @@ func TestCancelSupersededCloudBuildScript(t *testing.T) {
 			wantErr:         false,
 			wantCancelledID: []string{"build-1", "build-2"},
 		},
+		{
+			name:          "handles nanosecond precision timestamps and timezone offsets",
+			prNumber:      "1291",
+			commitSHA:     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			remoteHeadSHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			prAPIState:    "open",
+			currentBuild: fakeCloudBuild{
+				ID:             "build-cur",
+				BuildTriggerID: "trig-1",
+				CreateTime:     "2026-11-18T13:00:00.123456500+09:00",
+			},
+			ongoingBuilds: []fakeCloudBuild{
+				{ID: "build-older-nano", BuildTriggerID: "trig-1", CreateTime: "2026-11-18T04:00:00.123456100Z"},
+				{ID: "build-cur", BuildTriggerID: "trig-1", CreateTime: "2026-11-18T04:00:00.123456500Z"},
+				{ID: "build-bad-ts", BuildTriggerID: "trig-1", CreateTime: "not-a-timestamp"},
+			},
+			wantErr:         false,
+			wantCancelledID: []string{"build-older-nano"},
+		},
+		{
+			name:            "fails open when gcloud describe returns malformed JSON",
+			prNumber:        "1291",
+			commitSHA:       "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			remoteHeadSHA:   "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			prAPIState:      "open",
+			currentBuild:    fakeCloudBuild{ID: "build-cur"},
+			rawDescribe:     "{malformed",
+			wantErr:         false,
+			wantCancelledID: nil,
+		},
+		{
+			name:          "fails open when gcloud list returns malformed JSON",
+			prNumber:      "1291",
+			commitSHA:     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			remoteHeadSHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			prAPIState:    "open",
+			currentBuild: fakeCloudBuild{
+				ID:             "build-cur",
+				BuildTriggerID: "trig-1",
+				CreateTime:     "2026-11-18T04:00:00.123456789Z",
+			},
+			rawList:         "{malformed",
+			wantErr:         false,
+			wantCancelledID: nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -140,8 +187,8 @@ func executeCancelScriptCase(t *testing.T, scriptPath string, tc cancelScriptCas
 	describePath := filepath.Join(binDir, "describe.json")
 	listPath := filepath.Join(binDir, "list.json")
 
-	writeJSONFixture(t, describePath, tc.currentBuild)
-	writeJSONFixture(t, listPath, tc.ongoingBuilds)
+	writeFixtureOrRaw(t, describePath, tc.rawDescribe, tc.currentBuild)
+	writeFixtureOrRaw(t, listPath, tc.rawList, tc.ongoingBuilds)
 	writeFakeCancelToolchain(t, binDir, cancelLog, describePath, listPath, tc)
 
 	buildID := tc.currentBuild.ID
@@ -161,8 +208,14 @@ func executeCancelScriptCase(t *testing.T, scriptPath string, tc cancelScriptCas
 	return readCancelLines(t, cancelLog), string(outBytes), runErr
 }
 
-func writeJSONFixture(t *testing.T, path string, v any) {
+func writeFixtureOrRaw(t *testing.T, path string, raw string, v any) {
 	t.Helper()
+	if raw != "" {
+		if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+			t.Fatalf("WriteFile(%s) error: %v", path, err)
+		}
+		return
+	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		t.Fatalf("json.Marshal() error: %v", err)
