@@ -16,7 +16,7 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,9 +29,9 @@ import (
 )
 
 type fakeCloudBuild struct {
-	ID             string `json:"id"`
-	BuildTriggerID string `json:"buildTriggerId"`
-	CreateTime     string `json:"createTime"`
+	ID             string
+	BuildTriggerID string
+	CreateTime     string
 }
 
 type cancelScriptCase struct {
@@ -121,7 +121,7 @@ func TestCancelSupersededCloudBuildScript(t *testing.T) {
 			wantCancelledID: []string{"build-1", "build-2"},
 		},
 		{
-			name:          "handles nanosecond precision timestamps and timezone offsets",
+			name:          "handles nanosecond precision and +00:00 UTC timestamps without Python",
 			prNumber:      "1291",
 			commitSHA:     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 			remoteHeadSHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -129,29 +129,30 @@ func TestCancelSupersededCloudBuildScript(t *testing.T) {
 			currentBuild: fakeCloudBuild{
 				ID:             "build-cur",
 				BuildTriggerID: "trig-1",
-				CreateTime:     "2026-11-18T13:00:00.123456500+09:00",
+				CreateTime:     "2026-11-18T04:00:00.123456500+00:00",
 			},
 			ongoingBuilds: []fakeCloudBuild{
 				{ID: "build-older-nano", BuildTriggerID: "trig-1", CreateTime: "2026-11-18T04:00:00.123456100Z"},
+				{ID: "build-older-sec", BuildTriggerID: "trig-1", CreateTime: "2026-11-18T04:00:00+00:00"},
 				{ID: "build-cur", BuildTriggerID: "trig-1", CreateTime: "2026-11-18T04:00:00.123456500Z"},
 				{ID: "build-bad-ts", BuildTriggerID: "trig-1", CreateTime: "not-a-timestamp"},
 			},
 			wantErr:         false,
-			wantCancelledID: []string{"build-older-nano"},
+			wantCancelledID: []string{"build-older-nano", "build-older-sec"},
 		},
 		{
-			name:            "fails open when gcloud describe returns malformed JSON",
+			name:            "fails open when gcloud describe returns malformed output",
 			prNumber:        "1291",
 			commitSHA:       "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 			remoteHeadSHA:   "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 			prAPIState:      "open",
 			currentBuild:    fakeCloudBuild{ID: "build-cur"},
-			rawDescribe:     "{malformed",
+			rawDescribe:     "trig-1|not-a-timestamp\n",
 			wantErr:         false,
 			wantCancelledID: nil,
 		},
 		{
-			name:          "fails open when gcloud list returns malformed JSON",
+			name:          "fails open when gcloud list returns malformed rows",
 			prNumber:      "1291",
 			commitSHA:     "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 			remoteHeadSHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -161,7 +162,7 @@ func TestCancelSupersededCloudBuildScript(t *testing.T) {
 				BuildTriggerID: "trig-1",
 				CreateTime:     "2026-11-18T04:00:00.123456789Z",
 			},
-			rawList:         "{malformed",
+			rawList:         "malformed-line-without-separator\nnot-a-timestamp|build-x\n",
 			wantErr:         false,
 			wantCancelledID: nil,
 		},
@@ -184,11 +185,11 @@ func executeCancelScriptCase(t *testing.T, scriptPath string, tc cancelScriptCas
 	t.Helper()
 	binDir := t.TempDir()
 	cancelLog := filepath.Join(binDir, "cancelled.txt")
-	describePath := filepath.Join(binDir, "describe.json")
-	listPath := filepath.Join(binDir, "list.json")
+	describePath := filepath.Join(binDir, "describe.txt")
+	listPath := filepath.Join(binDir, "list.txt")
 
-	writeFixtureOrRaw(t, describePath, tc.rawDescribe, tc.currentBuild)
-	writeFixtureOrRaw(t, listPath, tc.rawList, tc.ongoingBuilds)
+	writeDescribeFixture(t, describePath, tc)
+	writeListFixture(t, listPath, tc)
 	writeFakeCancelToolchain(t, binDir, cancelLog, describePath, listPath, tc)
 
 	buildID := tc.currentBuild.ID
@@ -208,19 +209,28 @@ func executeCancelScriptCase(t *testing.T, scriptPath string, tc cancelScriptCas
 	return readCancelLines(t, cancelLog), string(outBytes), runErr
 }
 
-func writeFixtureOrRaw(t *testing.T, path string, raw string, v any) {
+func writeDescribeFixture(t *testing.T, path string, tc cancelScriptCase) {
 	t.Helper()
-	if raw != "" {
-		if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
-			t.Fatalf("WriteFile(%s) error: %v", path, err)
+	content := tc.rawDescribe
+	if content == "" && (tc.currentBuild.BuildTriggerID != "" || tc.currentBuild.CreateTime != "") {
+		content = fmt.Sprintf("%s|%s\n", tc.currentBuild.BuildTriggerID, tc.currentBuild.CreateTime)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("WriteFile(%s) error: %v", path, err)
+	}
+}
+
+func writeListFixture(t *testing.T, path string, tc cancelScriptCase) {
+	t.Helper()
+	content := tc.rawList
+	if content == "" {
+		var sb strings.Builder
+		for _, b := range tc.ongoingBuilds {
+			fmt.Fprintf(&sb, "%s|%s\n", b.CreateTime, b.ID)
 		}
-		return
+		content = sb.String()
 	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		t.Fatalf("json.Marshal() error: %v", err)
-	}
-	if err := os.WriteFile(path, b, 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("WriteFile(%s) error: %v", path, err)
 	}
 }
@@ -233,7 +243,7 @@ if [[ "${1:-}" == "ls-remote" && -n "` + tc.remoteHeadSHA + `" ]]; then
   printf '%s\trefs/pull/%s/head\n' "` + tc.remoteHeadSHA + `" "` + tc.prNumber + `"
 fi
 `
-	curlBody := `printf '{"state":"%s"}\n' "` + tc.prAPIState + `"`
+	curlBody := `printf '{"number":%s,"state":"%s","title":"test"}\n' "` + tc.prNumber + `" "` + tc.prAPIState + `"`
 	if tc.prAPIFail {
 		curlBody = `exit 22`
 	}
@@ -256,9 +266,16 @@ case "${sub}" in
     ;;
 esac
 `
+	// Guard against accidentally re-introducing a Python dependency.
+	fakePython := `#!/bin/bash
+echo "unexpected python invocation" >&2
+exit 99
+`
 	writeExecFile(t, filepath.Join(binDir, "git"), fakeGit)
 	writeExecFile(t, filepath.Join(binDir, "curl"), fakeCurl)
 	writeExecFile(t, filepath.Join(binDir, "gcloud"), fakeGcloud)
+	writeExecFile(t, filepath.Join(binDir, "python3"), fakePython)
+	writeExecFile(t, filepath.Join(binDir, "python"), fakePython)
 }
 
 func writeExecFile(t *testing.T, path string, content string) {

@@ -50,6 +50,22 @@ func TestPostCodequalityPRCommentScript(t *testing.T) {
 		})
 	})
 
+	t.Run("extracts envelope from Cloud Build step-prefixed logs", func(t *testing.T) {
+		runPostCommentScriptScenario(t, scriptPath, postScriptScenario{
+			mode:       "create_with_step_prefixed_envelope",
+			conclusion: "success",
+			wantSubstr: []string{"POST repos/GoogleCloudPlatform/khi/issues/1273/comments", report.PRCommentMarker, "Go Quality Report"},
+		})
+	})
+
+	t.Run("falls back cleanly when envelope payload is corrupted", func(t *testing.T) {
+		runPostCommentScriptScenario(t, scriptPath, postScriptScenario{
+			mode:       "corrupted_envelope",
+			conclusion: "success",
+			wantSubstr: []string{"POST repos/GoogleCloudPlatform/khi/issues/1273/comments", report.PRCommentMarker, "Cloud Build completed without an embedded report envelope."},
+		})
+	})
+
 	t.Run("updates existing sticky comment with fallback body when envelope absent", func(t *testing.T) {
 		runPostCommentScriptScenario(t, scriptPath, postScriptScenario{
 			mode:       "update_fallback",
@@ -74,12 +90,24 @@ func runPostCommentScriptScenario(t *testing.T, scriptPath string, sc postScript
 	checkLogFile := filepath.Join(tmpDir, "check_log.txt")
 
 	var logBuf bytes.Buffer
-	if sc.mode == "create_with_envelope" {
+	switch sc.mode {
+	case "create_with_envelope":
 		body := report.FormatPRCommentBody("origin/main", []*rule.Report{
 			{Language: "Go", BaseLabel: "origin/main", ProdFilesChanged: 1},
 		}, report.PRCommentMeta{CommitSHA: "abcdef123456"})
 		report.WriteCommentEnvelope(&logBuf, body)
-	} else {
+	case "create_with_step_prefixed_envelope":
+		var raw bytes.Buffer
+		body := report.FormatPRCommentBody("origin/main", []*rule.Report{
+			{Language: "Go", BaseLabel: "origin/main", ProdFilesChanged: 1},
+		}, report.PRCommentMeta{CommitSHA: "abcdef123456"})
+		report.WriteCommentEnvelope(&raw, body)
+		for _, line := range strings.Split(strings.TrimSuffix(raw.String(), "\n"), "\n") {
+			logBuf.WriteString(`Step #1 - "codequality": ` + line + "\n")
+		}
+	case "corrupted_envelope":
+		logBuf.WriteString("KHI_CODEQUALITY_B64_BEGIN\nnot!valid!base64\nKHI_CODEQUALITY_B64_END\n")
+	default:
 		logBuf.WriteString("Step #0: compilation failed\n")
 	}
 	if err := os.WriteFile(checkLogFile, logBuf.Bytes(), 0o600); err != nil {
