@@ -331,11 +331,30 @@ function calculateIndexPaneWidthPx(
   );
 }
 
+const EXCERPT_KIND_LABELS: Readonly<Record<TimelineExcerptKind, string>> = {
+  [TimelineExcerptKind.DIFF]: 'DIFF',
+  [TimelineExcerptKind.MANIFEST]: 'MANIFEST',
+  [TimelineExcerptKind.LOG]: 'LOG',
+};
+
+const EXCERPT_ACTION_LABELS: Readonly<Record<TimelineExcerptKind, string>> = {
+  [TimelineExcerptKind.DIFF]: 'Open Diff',
+  [TimelineExcerptKind.MANIFEST]: 'Open Manifest',
+  [TimelineExcerptKind.LOG]: 'Open Log',
+};
+
 /**
- * Returns the interactive jump button label for a diff or log evidence deck card.
+ * Returns the uppercase kind pill text for an evidence deck card.
+ */
+export function getExcerptKindLabel(kind: TimelineExcerptKind): string {
+  return EXCERPT_KIND_LABELS[kind];
+}
+
+/**
+ * Returns the interactive jump button label for a diff, manifest, or log evidence deck card.
  */
 export function getExcerptActionLabel(kind: TimelineExcerptKind): string {
-  return kind === TimelineExcerptKind.DIFF ? 'Open Diff' : 'Open Log';
+  return EXCERPT_ACTION_LABELS[kind];
 }
 
 /**
@@ -346,7 +365,7 @@ function measureExcerptCardUnclampedWidthPx(
   measureText: TextWidthMeasurer,
 ): number {
   const isDiff = card.kind === TimelineExcerptKind.DIFF;
-  const kindTag = isDiff ? 'DIFF' : 'LOG';
+  const kindTag = getExcerptKindLabel(card.kind);
   const actionLabel = getExcerptActionLabel(card.kind);
 
   const headerTopRowWidthPx =

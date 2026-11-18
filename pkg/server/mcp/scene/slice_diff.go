@@ -26,11 +26,11 @@ import (
 
 const maxSlicePreviewLines = 6
 
-// DiffSliceOptions configures multi-window slicing of a resource revision diff.
+// DiffSliceOptions configures JSONPath slicing of a resource revision diff.
 type DiffSliceOptions struct {
-	// Windows specifies search spots and context line counts to retain in the diff.
-	Windows []SliceWindow
-	// MaxLines caps the total number of diff lines returned across all windows.
+	// Paths specifies non-empty JSONPath selectors evaluated against both old and new revisions.
+	Paths []string
+	// MaxLines caps the total number of diff lines returned across all selected paths.
 	MaxLines int
 }
 
@@ -65,6 +65,16 @@ type diffHunkRange struct {
 	opEnd   int
 }
 
+type diffSlicer struct {
+	ops           []workbench.DiffOp
+	hunks         []diffHunkRange
+	oldDoc        *indexedYAMLDocument
+	newDoc        *indexedYAMLDocument
+	selectedOp    []bool
+	oldHighlights map[int][]byteSpan
+	newHighlights map[int][]byteSpan
+}
+
 // SliceResourceDiff fetches the managedFields-stripped revision pair from wb and slices its unified diff according to opts.
 func SliceResourceDiff(wb *workbench.Workbench, timelineID uint32, revisionIndex int, opts DiffSliceOptions) (*ResourceDiffSlice, error) {
 	pair, err := wb.GetRevisionPair(timelineID, revisionIndex, false)
@@ -85,86 +95,123 @@ func SliceResourceDiff(wb *workbench.Workbench, timelineID uint32, revisionIndex
 	}, nil
 }
 
-// SliceUnifiedDiff slices changed hunks between oldText and newText using multi-window search and context folding.
+// SliceUnifiedDiff slices JSONPath-selected fields (both changed and unchanged) between oldText and newText with context folding.
 func SliceUnifiedDiff(oldText, newText string, isInitialRevision bool, opts DiffSliceOptions) (*DiffSliceResult, error) {
 	if isInitialRevision {
 		oldText = ""
 	}
 	maxLines := normalizeMaxLines(opts.MaxLines)
-	preservePair := true
-	windows, err := compileSliceWindows(opts.Windows)
+	compiledPaths, err := compileJSONPaths(opts.Paths)
+	if err != nil {
+		return nil, err
+	}
+	oldDoc, err := parseIndexedYAMLDocument(oldText)
+	if err != nil {
+		return nil, err
+	}
+	newDoc, err := parseIndexedYAMLDocument(newText)
 	if err != nil {
 		return nil, err
 	}
 
-	ops := workbench.DiffLines(workbench.SplitLines(oldText), workbench.SplitLines(newText))
+	ops := workbench.DiffLines(oldDoc.lines, newDoc.lines)
+	if len(ops) == 0 {
+		return nil, &SliceQueryNotFoundError{
+			WindowIndex: compiledPaths[0].index,
+			Path:        compiledPaths[0].raw,
+			Preview:     "(empty resource diff)",
+		}
+	}
+
 	changes := workbench.CountDiffOps(ops)
 	hunks := collectDiffHunks(ops)
-	totalDiffLines := 0
-	for _, h := range hunks {
-		totalDiffLines += h.opEnd - h.opStart
+	slicer := &diffSlicer{
+		ops:           ops,
+		hunks:         hunks,
+		oldDoc:        oldDoc,
+		newDoc:        newDoc,
+		selectedOp:    make([]bool, len(ops)),
+		oldHighlights: make(map[int][]byteSpan),
+		newHighlights: make(map[int][]byteSpan),
+	}
+	if err := slicer.selectPaths(compiledPaths, newText); err != nil {
+		return nil, err
 	}
 
-	if len(windows) == 0 {
-		if len(hunks) == 0 {
-			return &DiffSliceResult{Changes: changes}, nil
-		}
-		kept := selectLeadingDiffIntervals(hunks, maxLines)
-		return &DiffSliceResult{
-			Changes:        changes,
-			TotalDiffLines: totalDiffLines,
-			Lines:          renderDiffIntervals(ops, hunks, kept, nil),
-		}, nil
-	}
-
-	if len(hunks) == 0 {
-		return nil, &SliceQueryNotFoundError{
-			WindowIndex:  windows[0].index,
-			Query:        windows[0].query,
-			TopLevelKeys: extractTopLevelYAMLKeys(newText),
-			Preview:      "(no manifest changes outside metadata.managedFields)",
-		}
-	}
-
-	pairs := collectReplacementPairs(ops, hunks)
-	matchSpansByOp := make(map[int][]byteSpan)
-	var rawIntervals []lineInterval
-
-	for _, w := range windows {
-		matchedCount := 0
-		for _, h := range hunks {
-			for opIdx := h.opStart; opIdx < h.opEnd; opIdx++ {
-				spans := findQuerySpans(ops[opIdx].Line, w)
-				if len(spans) == 0 {
-					continue
-				}
-				matchSpansByOp[opIdx] = append(matchSpansByOp[opIdx], spans...)
-				rawIntervals = append(rawIntervals, expandDiffMatchInterval(opIdx, h, pairs, w.before, w.after, preservePair, maxLines))
-				matchedCount++
-				if matchedCount >= w.maxMatches {
-					break
-				}
-			}
-			if matchedCount >= w.maxMatches {
-				break
-			}
-		}
-		if matchedCount == 0 {
-			return nil, &SliceQueryNotFoundError{
-				WindowIndex:  w.index,
-				Query:        w.query,
-				TopLevelKeys: extractChangedTopLevelYAMLKeys(ops),
-				Preview:      buildDiffPreview(ops, hunks),
-			}
-		}
-	}
-
+	orderedOps, orderedSelected := groupSelectedReplacementPairs(ops, slicer.selectedOp)
+	rawIntervals := collectSelectedRuns(orderedSelected, 0, len(orderedSelected))
+	matchSpansByOp := slicer.collectSelectedMatchSpans(orderedOps, orderedSelected)
 	merged := capIntervals(mergeIntervals(rawIntervals), maxLines)
 	return &DiffSliceResult{
 		Changes:        changes,
-		TotalDiffLines: totalDiffLines,
-		Lines:          renderDiffIntervals(ops, hunks, merged, matchSpansByOp),
+		TotalDiffLines: countTotalHunkLines(hunks),
+		Lines:          renderDiffIntervals(orderedOps, hunks, merged, matchSpansByOp),
 	}, nil
+}
+
+func (s *diffSlicer) selectPaths(paths []compiledJSONPath, newText string) error {
+	for _, p := range paths {
+		oldSels := evalCompiledJSONPath(s.oldDoc, p)
+		newSels := evalCompiledJSONPath(s.newDoc, p)
+		if len(oldSels) == 0 && len(newSels) == 0 {
+			return s.unmatchedPathError(p, newText)
+		}
+		oldLineSet := buildSelectedLineBitmap(len(s.oldDoc.lines), oldSels, s.oldHighlights)
+		newLineSet := buildSelectedLineBitmap(len(s.newDoc.lines), newSels, s.newHighlights)
+		markMatchingDiffOps(s.ops, oldLineSet, newLineSet, s.selectedOp)
+	}
+	return nil
+}
+
+func (s *diffSlicer) unmatchedPathError(p compiledJSONPath, newText string) error {
+	matchedPrefix, availableKeys := diagnoseUnmatchedJSONPath(p, s.newDoc, s.oldDoc)
+	topKeys := extractChangedTopLevelYAMLKeys(s.ops)
+	if len(topKeys) == 0 {
+		topKeys = extractTopLevelYAMLKeys(newText)
+	}
+	preview := buildDiffPreview(s.ops, s.hunks)
+	if preview == "" {
+		preview = "(no manifest changes outside metadata.managedFields)"
+	}
+	return &SliceQueryNotFoundError{
+		WindowIndex:   p.index,
+		Path:          p.raw,
+		MatchedPrefix: matchedPrefix,
+		AvailableKeys: availableKeys,
+		TopLevelKeys:  topKeys,
+		Preview:       preview,
+	}
+}
+
+func (s *diffSlicer) collectSelectedMatchSpans(orderedOps []workbench.DiffOp, orderedSelected []bool) map[int][]byteSpan {
+	matchSpansByOp := make(map[int][]byteSpan)
+	for i, sel := range orderedSelected {
+		if !sel {
+			continue
+		}
+		op := orderedOps[i]
+		switch op.Kind {
+		case workbench.DiffOpDelete:
+			matchSpansByOp[i] = append(matchSpansByOp[i], s.oldHighlights[op.OldPos]...)
+		case workbench.DiffOpInsert:
+			matchSpansByOp[i] = append(matchSpansByOp[i], s.newHighlights[op.NewPos]...)
+		default:
+			spans := s.newHighlights[op.NewPos]
+			if len(spans) == 0 {
+				spans = s.oldHighlights[op.OldPos]
+			}
+			matchSpansByOp[i] = append(matchSpansByOp[i], spans...)
+		}
+	}
+	return matchSpansByOp
+}
+
+func countTotalHunkLines(hunks []diffHunkRange) int {
+	total := 0
+	for _, h := range hunks {
+		total += h.opEnd - h.opStart
+	}
+	return total
 }
 
 func collectDiffHunks(ops []workbench.DiffOp) []diffHunkRange {
@@ -192,93 +239,6 @@ func collectDiffHunks(ops []workbench.DiffOp) []diffHunkRange {
 		i = end
 	}
 	return hunks
-}
-
-func collectReplacementPairs(ops []workbench.DiffOp, hunks []diffHunkRange) []lineInterval {
-	var pairs []lineInterval
-	for _, h := range hunks {
-		i := h.opStart
-		for i < h.opEnd {
-			if ops[i].Kind != workbench.DiffOpDelete {
-				i++
-				continue
-			}
-			delStart := i
-			for i < h.opEnd && ops[i].Kind == workbench.DiffOpDelete {
-				i++
-			}
-			insStart := i
-			for i < h.opEnd && ops[i].Kind == workbench.DiffOpInsert {
-				i++
-			}
-			if i > insStart {
-				pairs = append(pairs, lineInterval{start: delStart, end: i})
-			}
-		}
-	}
-	return pairs
-}
-
-func findReplacementPair(pairs []lineInterval, opIdx int) (lineInterval, bool) {
-	for _, p := range pairs {
-		if opIdx >= p.start && opIdx < p.end {
-			return p, true
-		}
-	}
-	return lineInterval{}, false
-}
-
-func expandDiffMatchInterval(
-	opIdx int,
-	hunk diffHunkRange,
-	pairs []lineInterval,
-	before, after int,
-	preservePair bool,
-	maxLines int,
-) lineInterval {
-	coreStart := opIdx
-	coreEnd := opIdx + 1
-	if preservePair {
-		if pair, ok := findReplacementPair(pairs, opIdx); ok && pair.end-pair.start <= maxLines {
-			coreStart = pair.start
-			coreEnd = pair.end
-		}
-	}
-
-	segStart := max(hunk.opStart, coreStart-before)
-	segEnd := min(hunk.opEnd, coreEnd+after)
-
-	if preservePair {
-		if pair, ok := findReplacementPair(pairs, segStart); ok {
-			candStart := min(segStart, pair.start)
-			if segEnd-candStart <= maxLines {
-				segStart = max(hunk.opStart, candStart)
-			}
-		}
-		if segEnd > segStart {
-			if pair, ok := findReplacementPair(pairs, segEnd-1); ok {
-				candEnd := max(segEnd, pair.end)
-				if candEnd-segStart <= maxLines {
-					segEnd = min(hunk.opEnd, candEnd)
-				}
-			}
-		}
-	}
-	return lineInterval{start: segStart, end: segEnd}
-}
-
-func selectLeadingDiffIntervals(hunks []diffHunkRange, maxLines int) []lineInterval {
-	remaining := maxLines
-	var out []lineInterval
-	for _, h := range hunks {
-		if remaining <= 0 {
-			break
-		}
-		take := min(h.opEnd-h.opStart, remaining)
-		out = append(out, lineInterval{start: h.opStart, end: h.opStart + take})
-		remaining -= take
-	}
-	return out
 }
 
 func renderDiffIntervals(
@@ -340,15 +300,16 @@ func gapHasChanges(ops []workbench.DiffOp, start, end int) bool {
 	return false
 }
 
+func changedHunkOverlap(ops []workbench.DiffOp, h diffHunkRange, start, end int) (int, int, bool) {
+	lo := max(h.opStart, start)
+	hi := min(h.opEnd, end)
+	return lo, hi, gapHasChanges(ops, lo, hi)
+}
+
 func countSkippedDiffLines(ops []workbench.DiffOp, hunks []diffHunkRange, gapStart, gapEnd int) int {
 	total := 0
 	for _, h := range hunks {
-		lo := max(h.opStart, gapStart)
-		hi := min(h.opEnd, gapEnd)
-		if lo >= hi {
-			continue
-		}
-		if gapHasChanges(ops, lo, hi) {
+		if lo, hi, ok := changedHunkOverlap(ops, h, gapStart, gapEnd); ok {
 			total += hi - lo
 		}
 	}
@@ -359,15 +320,7 @@ func renderGap(ops []workbench.DiffOp, hunks []diffHunkRange, gapStart, gapEnd i
 	var out []ExcerptLine
 	cursor := gapStart
 	for _, h := range hunks {
-		if h.opEnd <= cursor {
-			continue
-		}
-		if h.opStart >= gapEnd {
-			break
-		}
-		lo := max(h.opStart, cursor)
-		hi := min(h.opEnd, gapEnd)
-		if gapHasChanges(ops, lo, hi) {
+		if lo, hi, ok := changedHunkOverlap(ops, h, cursor, gapEnd); ok {
 			if lo > cursor {
 				out = append(out, makeDiffOmittedLine(lo-cursor, false))
 			}

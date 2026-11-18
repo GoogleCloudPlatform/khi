@@ -72,8 +72,13 @@
           >
             <div class="header-top-row">
               <span class="card-badge">{{ card.badge }}</span>
-              <span class="card-kind-tag">
-                {{ card.kind === TimelineExcerptKind.DIFF ? "DIFF" : "LOG" }}
+              <span
+                class="card-kind-tag"
+                [class.kind-manifest]="
+                  card.kind === TimelineExcerptKind.MANIFEST
+                "
+              >
+                {{ card.kindLabel }}
               </span>
               <span class="card-resource">{{ card.resourcePath }}</span>
               <span class="card-time">{{ card.timeLabel }}</span>
@@ -130,9 +135,9 @@
                 <div
                   class="excerpt-line"
                   [class]="
-                    card.kind === TimelineExcerptKind.LOG
-                      ? 'line-log'
-                      : 'line-' + line.kind
+                    card.kind === TimelineExcerptKind.DIFF
+                      ? 'line-' + line.kind
+                      : 'line-' + card.kind
                   "
                 >
                   @if (card.kind === TimelineExcerptKind.DIFF) {

@@ -270,6 +270,8 @@ func applyClearLayers(out *Annotations, layers []AnnotationLayer) *mcpsdk.CallTo
 			out.RowHighlights = nil
 		case AnnotationLayerDiffExcerpts:
 			out.DiffExcerpts = nil
+		case AnnotationLayerManifestExcerpts:
+			out.ManifestExcerpts = nil
 		case AnnotationLayerLogExcerpts:
 			out.LogExcerpts = nil
 		case AnnotationLayerConnectors:
@@ -280,7 +282,7 @@ func applyClearLayers(out *Annotations, layers []AnnotationLayer) *mcpsdk.CallTo
 			res, _, _ := mdtemplate.ErrorResult(
 				"INVALID_ARGUMENT",
 				fmt.Sprintf("Unknown annotation layer `%s` in `annotations.clearLayers`.", layer),
-				"Supported layers: `palette`, `markers`, `spans`, `rowHighlights`, `diffExcerpts`, `logExcerpts`, `connectors`, `callouts`, `all`.",
+				"Supported layers: `palette`, `markers`, `spans`, `rowHighlights`, `diffExcerpts`, `manifestExcerpts`, `logExcerpts`, `connectors`, `callouts`, `all`.",
 			)
 			return res
 		}
@@ -330,40 +332,57 @@ func mergeAnnotations(base, patch *Annotations) (*Annotations, *mcpsdk.CallToolR
 	if errRes := applyClearLayers(&out, patch.ClearLayers); errRes != nil {
 		return nil, errRes
 	}
+	removeAnnotationsByID(&out, patch.RemoveIDs)
+	appendMergedAnnotations(&out, patch)
+	out.ClearLayers = nil
+	out.RemoveIDs = nil
 
-	if len(patch.RemoveIDs) > 0 {
-		removeSet := make(map[string]bool, len(patch.RemoveIDs))
-		for _, id := range patch.RemoveIDs {
-			if trimmed := strings.TrimSpace(id); trimmed != "" {
-				removeSet[trimmed] = true
-			}
-		}
-		out.Palette = deleteNilIfEmpty(out.Palette, func(pe PaletteEntry) bool {
-			return removeSet[strings.TrimSpace(pe.ID)]
-		})
-		out.Markers = deleteNilIfEmpty(out.Markers, func(m MarkerAnnotation) bool {
-			return removeSet[m.Badge] || removeSet[m.Label]
-		})
-		out.Spans = deleteNilIfEmpty(out.Spans, func(sp SpanAnnotation) bool {
-			return removeSet[sp.Label]
-		})
-		out.RowHighlights = deleteNilIfEmpty(out.RowHighlights, func(rh RowHighlight) bool {
-			return removeSet[rh.RoleLabel]
-		})
-		out.DiffExcerpts = deleteNilIfEmpty(out.DiffExcerpts, func(de DiffExcerpt) bool {
-			return removeSet[de.Badge]
-		})
-		out.LogExcerpts = deleteNilIfEmpty(out.LogExcerpts, func(le LogExcerpt) bool {
-			return removeSet[le.Badge]
-		})
-		out.Connectors = deleteNilIfEmpty(out.Connectors, func(c ConnectorAnnotation) bool {
-			return removeSet[c.Badge] || removeSet[c.Label]
-		})
-		out.Callouts = deleteNilIfEmpty(out.Callouts, func(ca CalloutAnnotation) bool {
-			return removeSet[ca.Label]
-		})
+	if isAnnotationsEmpty(&out) {
+		return nil, nil
 	}
+	return &out, nil
+}
 
+func removeAnnotationsByID(out *Annotations, removeIDs []string) {
+	if len(removeIDs) == 0 {
+		return
+	}
+	removeSet := make(map[string]bool, len(removeIDs))
+	for _, id := range removeIDs {
+		if trimmed := strings.TrimSpace(id); trimmed != "" {
+			removeSet[trimmed] = true
+		}
+	}
+	out.Palette = deleteNilIfEmpty(out.Palette, func(pe PaletteEntry) bool {
+		return removeSet[strings.TrimSpace(pe.ID)]
+	})
+	out.Markers = deleteNilIfEmpty(out.Markers, func(m MarkerAnnotation) bool {
+		return removeSet[m.Badge] || removeSet[m.Label]
+	})
+	out.Spans = deleteNilIfEmpty(out.Spans, func(sp SpanAnnotation) bool {
+		return removeSet[sp.Label]
+	})
+	out.RowHighlights = deleteNilIfEmpty(out.RowHighlights, func(rh RowHighlight) bool {
+		return removeSet[rh.RoleLabel]
+	})
+	out.DiffExcerpts = deleteNilIfEmpty(out.DiffExcerpts, func(de DiffExcerpt) bool {
+		return removeSet[de.Badge]
+	})
+	out.ManifestExcerpts = deleteNilIfEmpty(out.ManifestExcerpts, func(me ManifestExcerpt) bool {
+		return removeSet[me.Badge]
+	})
+	out.LogExcerpts = deleteNilIfEmpty(out.LogExcerpts, func(le LogExcerpt) bool {
+		return removeSet[le.Badge]
+	})
+	out.Connectors = deleteNilIfEmpty(out.Connectors, func(c ConnectorAnnotation) bool {
+		return removeSet[c.Badge] || removeSet[c.Label]
+	})
+	out.Callouts = deleteNilIfEmpty(out.Callouts, func(ca CalloutAnnotation) bool {
+		return removeSet[ca.Label]
+	})
+}
+
+func appendMergedAnnotations(out, patch *Annotations) {
 	if patch.DimUnlistedRows != nil {
 		v := *patch.DimUnlistedRows
 		out.DimUnlistedRows = &v
@@ -384,14 +403,8 @@ func mergeAnnotations(base, patch *Annotations) (*Annotations, *mcpsdk.CallToolR
 	out.Spans = append(out.Spans, patchCopy.Spans...)
 	out.RowHighlights = append(out.RowHighlights, patchCopy.RowHighlights...)
 	out.DiffExcerpts = append(out.DiffExcerpts, patchCopy.DiffExcerpts...)
+	out.ManifestExcerpts = append(out.ManifestExcerpts, patchCopy.ManifestExcerpts...)
 	out.LogExcerpts = append(out.LogExcerpts, patchCopy.LogExcerpts...)
 	out.Connectors = append(out.Connectors, patchCopy.Connectors...)
 	out.Callouts = append(out.Callouts, patchCopy.Callouts...)
-	out.ClearLayers = nil
-	out.RemoveIDs = nil
-
-	if isAnnotationsEmpty(&out) {
-		return nil, nil
-	}
-	return &out, nil
 }

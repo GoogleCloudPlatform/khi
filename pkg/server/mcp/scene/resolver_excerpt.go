@@ -15,266 +15,339 @@
 package scene
 
 import (
-	"cmp"
-	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
 
-	"github.com/RoaringBitmap/roaring/v2"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/md"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
 type pendingExcerpt struct {
-	isLog     bool
-	itemIndex int
-	card      ResolvedExcerptCard
+	kind          ExcerptKind
+	itemIndex     int
+	fieldPath     string
+	explicitBadge bool
+	card          ResolvedExcerptCard
 }
 
-func resolveExcerpts(
-	wb *workbench.Workbench,
-	inspectionID string,
-	spec *Spec,
-	applied workbench.AppliedFilter,
-	paletteReg *paletteRegistry,
-	autoInclude *roaring.Bitmap,
-	overlay *Overlay,
-) (*mcpsdk.CallToolResult, error) {
-	ann := spec.Annotations
+func (rc *sceneContext) resolveExcerpts(pendingMarkers []pendingMarker) (*mcpsdk.CallToolResult, error) {
+	ann := rc.spec.Annotations
 	var pending []pendingExcerpt
-	usedBadges := make(map[string]bool, len(ann.DiffExcerpts)+len(ann.LogExcerpts))
-	for _, de := range ann.DiffExcerpts {
-		if de.Badge != "" {
-			usedBadges[de.Badge] = true
+
+	for i, de := range ann.DiffExcerpts {
+		item, errRes, err := rc.resolveDiffExcerpt(i, de)
+		if err != nil || errRes != nil {
+			return errRes, err
 		}
+		pending = append(pending, item)
 	}
-	for _, le := range ann.LogExcerpts {
-		if le.Badge != "" {
-			usedBadges[le.Badge] = true
+	for i, me := range ann.ManifestExcerpts {
+		item, errRes, err := rc.resolveManifestExcerpt(i, me)
+		if err != nil || errRes != nil {
+			return errRes, err
 		}
+		pending = append(pending, item)
 	}
-
-	for i := range ann.DiffExcerpts {
-		de := &ann.DiffExcerpts[i]
-		fieldPath := fmt.Sprintf("annotations.diffExcerpts[%d]", i)
-		if utf8.RuneCountInString(de.Note) > maxAnnotationRunes {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.note` exceeds maximum length of %d characters.", fieldPath, maxAnnotationRunes))
-			return res, nil
+	for i, le := range ann.LogExcerpts {
+		item, errRes, err := rc.resolveLogExcerpt(i, le)
+		if err != nil || errRes != nil {
+			return errRes, err
 		}
-		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, de.PaletteID)
-		if errRes != nil {
-			return errRes, nil
-		}
-		if de.Revision.TimelineID == 0 {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.revision.timelineId` is required.", fieldPath))
-			return res, nil
-		}
-
-		sliced, err := SliceResourceDiff(wb, de.Revision.TimelineID, de.Revision.RevisionIndex, DiffSliceOptions{
-			Windows: de.Windows,
-		})
-		if err != nil {
-			if errRes, handled := sliceErrorResult(err, inspectionID, de.Revision.TimelineID, 0, fieldPath); handled {
-				return errRes, nil
-			}
-			return nil, fmt.Errorf("failed to slice resource diff for %s: %w", fieldPath, err)
-		}
-		if errRes := checkViewportRange(sliced.Revision.Time, applied, spec.Filter, fieldPath+".revision"); errRes != nil {
-			return errRes, nil
-		}
-
-		autoInclude.Add(de.Revision.TimelineID)
-		revIdx := de.Revision.RevisionIndex
-		title := formatRevisionExcerptTitle(sliced.Revision.Verb, sliced.Revision.State)
-		subtitle := fmt.Sprintf("+%d / -%d · %d diff lines", sliced.Slice.Changes.Added, sliced.Slice.Changes.Deleted, sliced.Slice.TotalDiffLines)
-		logTimestamp, insertID := resolveCloudLoggingMetadata(wb, sliced.Revision.LogID, sliced.Revision.Time)
-		pending = append(pending, pendingExcerpt{
-			isLog:     false,
-			itemIndex: i,
-			card: ResolvedExcerptCard{
-				Kind:          ExcerptKindDiff,
-				Badge:         de.Badge,
-				PaletteID:     paletteID,
-				TimeMs:        sliced.Revision.Time.UnixMilli(),
-				TimeLabel:     formatShiftedClock(sliced.Revision.Time, spec.TimezoneShiftHours),
-				TimelineID:    de.Revision.TimelineID,
-				ResourcePath:  compactResourcePath(sliced.Segments),
-				Title:         title,
-				Subtitle:      subtitle,
-				Lines:         sliced.Slice.Lines,
-				Note:          de.Note,
-				LogTimestamp:  logTimestamp,
-				InsertID:      insertID,
-				LogID:         sliced.Revision.LogID,
-				RevisionIndex: &revIdx,
-			},
-		})
+		pending = append(pending, item)
 	}
 
-	idx := wb.SearchIndex()
-	for i := range ann.LogExcerpts {
-		le := &ann.LogExcerpts[i]
-		fieldPath := fmt.Sprintf("annotations.logExcerpts[%d]", i)
-		if utf8.RuneCountInString(le.Note) > maxAnnotationRunes {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.note` exceeds maximum length of %d characters.", fieldPath, maxAnnotationRunes))
-			return res, nil
-		}
-		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, le.PaletteID)
-		if errRes != nil {
-			return errRes, nil
-		}
-		if le.LogID == 0 {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.logId` is required.", fieldPath))
-			return res, nil
-		}
-
-		sliced, err := SliceLogDetail(wb, le.LogID, LogSliceOptions{
-			Windows: le.Windows,
-		})
-		if err != nil {
-			if errRes, handled := sliceErrorResult(err, inspectionID, 0, le.LogID, fieldPath); handled {
-				return errRes, nil
-			}
-			return nil, fmt.Errorf("failed to slice log detail for %s: %w", fieldPath, err)
-		}
-		if errRes := checkViewportRange(sliced.Time, applied, spec.Filter, fieldPath+".logId"); errRes != nil {
-			return errRes, nil
-		}
-
-		var tid uint32
-		if le.TimelineID != 0 {
-			if idx == nil || idx.TimelineMap[le.TimelineID] == nil {
-				res, _, _ := timelineNotFoundResult(inspectionID, le.TimelineID)
-				return res, nil
-			}
-			tid = le.TimelineID
-		} else if idx != nil {
-			tid = selectPrimaryTimelineForLog(idx, le.LogID)
-		}
-		if tid != 0 {
-			autoInclude.Add(tid)
-		}
-
-		severityLabel := "INFO"
-		if sliced.Severity != nil && sliced.Severity.GetLabel() != "" {
-			severityLabel = sliced.Severity.GetLabel()
-		}
-
-		var segments []workbench.TimelineSegment
-		if tid != 0 && idx != nil {
-			segments, _ = idx.TimelineSegments(tid)
-		}
-		title := fmt.Sprintf("%s · %s", defaultString(sliced.LogType, "log"), severityLabel)
-		subtitle := formatLineCountSubtitle(sliced.Slice.TotalLines)
-		logTimestamp, insertID := resolveCloudLoggingMetadata(wb, le.LogID, sliced.Time)
-		pending = append(pending, pendingExcerpt{
-			isLog:     true,
-			itemIndex: i,
-			card: ResolvedExcerptCard{
-				Kind:         ExcerptKindLog,
-				Badge:        le.Badge,
-				PaletteID:    paletteID,
-				TimeMs:       sliced.Time.UnixMilli(),
-				TimeLabel:    formatShiftedClock(sliced.Time, spec.TimezoneShiftHours),
-				TimelineID:   tid,
-				ResourcePath: compactResourcePath(segments),
-				Title:        title,
-				Subtitle:     subtitle,
-				Lines:        sliced.Slice.Lines,
-				Note:         le.Note,
-				LogTimestamp: logTimestamp,
-				InsertID:     insertID,
-				LogID:        le.LogID,
-			},
-		})
-	}
-
-	slices.SortFunc(pending, func(a, b pendingExcerpt) int {
-		if c := cmp.Compare(a.card.TimeMs, b.card.TimeMs); c != 0 {
-			return c
-		}
-		if a.isLog != b.isLog {
-			if !a.isLog {
-				return -1
-			}
-			return 1
-		}
-		return cmp.Compare(a.itemIndex, b.itemIndex)
-	})
-
-	nextSeq := 1
-	for idx := range pending {
-		item := &pending[idx]
-		badge := item.card.Badge
-		if badge == "" {
-			for usedBadges[fmt.Sprintf("E%d", nextSeq)] {
-				nextSeq++
-			}
-			badge = fmt.Sprintf("E%d", nextSeq)
-			usedBadges[badge] = true
-			item.card.Badge = badge
-			if item.isLog {
-				ann.LogExcerpts[item.itemIndex].Badge = badge
-			} else {
-				ann.DiffExcerpts[item.itemIndex].Badge = badge
-			}
-		}
-		item.card.ID = fmt.Sprintf("excerpt-%d", idx+1)
-		overlay.Excerpts = append(overlay.Excerpts, item.card)
+	sortPendingExcerpts(pending)
+	if errRes := validateAndSyncExcerptBadges(ann, pending, pendingMarkers, rc.overlay); errRes != nil {
+		return errRes, nil
 	}
 	return nil, nil
 }
 
-func sliceErrorResult(err error, inspectionID string, timelineID, logID uint32, fieldPath string) (*mcpsdk.CallToolResult, bool) {
-	if timelineID != 0 {
-		if res, ok := revisionLookupErrorResult(err, inspectionID, timelineID); ok {
-			return res, true
-		}
+func (rc *sceneContext) resolveDiffExcerpt(index int, de DiffExcerpt) (pendingExcerpt, *mcpsdk.CallToolResult, error) {
+	fieldPath := fmt.Sprintf("annotations.diffExcerpts[%d]", index)
+	if errRes := validateOptionalAnnotationText(de.Note, fieldPath, "note", maxAnnotationRunes); errRes != nil {
+		return pendingExcerpt{}, errRes, nil
 	}
-	if logID != 0 && errors.Is(err, workbench.ErrLogNotFound) {
-		res, _, _ := mdtemplate.ErrorResult(
-			"LOG_NOT_FOUND",
-			fmt.Sprintf("No log with ID %d exists in inspection %s.", logID, md.Code(inspectionID)),
-			"Use a log ID from `search_logs` or `get_timeline_logs`.",
-		)
-		return res, true
+	paletteID, errRes := validateExplicitPaletteID(rc.paletteReg, fieldPath, de.PaletteID)
+	if errRes != nil {
+		return pendingExcerpt{}, errRes, nil
 	}
-
-	var winErr *InvalidSliceWindowError
-	if errors.As(err, &winErr) {
-		res, _, _ := mdtemplate.ErrorResult(
-			"INVALID_ARGUMENT",
-			fmt.Sprintf("Invalid `%s.windows[%d]`: %s.", fieldPath, winErr.WindowIndex, winErr.Reason),
-		)
-		return res, true
+	if de.Revision.TimelineID == 0 {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.revision.timelineId` is required.", fieldPath))
+		return pendingExcerpt{}, res, nil
+	}
+	if len(de.Paths) == 0 {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.paths` is required and must contain at least one JSONPath selector.", fieldPath))
+		return pendingExcerpt{}, res, nil
 	}
 
-	var notFoundErr *SliceQueryNotFoundError
-	if errors.As(err, &notFoundErr) {
-		bullets := []string{
-			fmt.Sprintf("Query %s in `%s.windows[%d]` matched 0 lines.", md.Code(notFoundErr.Query), fieldPath, notFoundErr.WindowIndex),
+	sliced, err := SliceResourceDiff(rc.wb, de.Revision.TimelineID, de.Revision.RevisionIndex, DiffSliceOptions{
+		Paths: de.Paths,
+	})
+	if err != nil {
+		if errRes, handled := sliceErrorResult(err, rc.inspectionID, de.Revision.TimelineID, 0, fieldPath); handled {
+			return pendingExcerpt{}, errRes, nil
 		}
-		if len(notFoundErr.TopLevelKeys) > 0 {
-			bullets = append(bullets, fmt.Sprintf("Available top-level keys: `%s`.", strings.Join(notFoundErr.TopLevelKeys, "`, `")))
-		}
-		if notFoundErr.Summary != "" {
-			bullets = append(bullets, fmt.Sprintf("Log summary: %s.", md.Code(notFoundErr.Summary)))
-		}
-		if notFoundErr.Preview != "" {
-			bullets = append(bullets, fmt.Sprintf("Changed hunk preview:\n%s", md.Fence("diff", notFoundErr.Preview)))
-		}
-		bullets = append(bullets, "Inspect the full content with `get_resource_diff` / `get_log` or omit `windows` to use the default excerpt.")
-		res, _, _ := mdtemplate.ErrorResult("SLICE_QUERY_NOT_FOUND", bullets...)
-		return res, true
+		return pendingExcerpt{}, nil, fmt.Errorf("failed to slice resource diff for %s: %w", fieldPath, err)
+	}
+	if errRes := checkViewportRange(sliced.Revision.Time, rc.applied, rc.spec.Filter, fieldPath+".revision"); errRes != nil {
+		return pendingExcerpt{}, errRes, nil
 	}
 
-	return nil, false
+	rc.autoInclude.Add(de.Revision.TimelineID)
+	revIdx := de.Revision.RevisionIndex
+	subtitle := fmt.Sprintf("+%d / -%d · %d diff lines", sliced.Slice.Changes.Added, sliced.Slice.Changes.Deleted, sliced.Slice.TotalDiffLines)
+	logTimestamp, insertID := resolveCloudLoggingMetadata(rc.wb, sliced.Revision.LogID, sliced.Revision.Time)
+	return pendingExcerpt{
+		kind:          ExcerptKindDiff,
+		itemIndex:     index,
+		fieldPath:     fieldPath,
+		explicitBadge: de.Badge != "",
+		card: ResolvedExcerptCard{
+			Kind:          ExcerptKindDiff,
+			Badge:         de.Badge,
+			PaletteID:     paletteID,
+			TimeMs:        sliced.Revision.Time.UnixMilli(),
+			TimeLabel:     formatShiftedClock(sliced.Revision.Time, rc.spec.TimezoneShiftHours),
+			TimelineID:    de.Revision.TimelineID,
+			ResourcePath:  compactResourcePath(sliced.Segments),
+			Title:         formatRevisionExcerptTitle(sliced.Revision.Verb, sliced.Revision.State),
+			Subtitle:      subtitle,
+			Lines:         sliced.Slice.Lines,
+			Note:          de.Note,
+			LogTimestamp:  logTimestamp,
+			InsertID:      insertID,
+			LogID:         sliced.Revision.LogID,
+			RevisionIndex: &revIdx,
+		},
+	}, nil, nil
+}
+
+func (rc *sceneContext) resolveManifestExcerpt(index int, me ManifestExcerpt) (pendingExcerpt, *mcpsdk.CallToolResult, error) {
+	fieldPath := fmt.Sprintf("annotations.manifestExcerpts[%d]", index)
+	paletteID, selector, errRes := rc.validateManifestExcerpt(me, fieldPath)
+	if errRes != nil {
+		return pendingExcerpt{}, errRes, nil
+	}
+
+	sliced, err := SliceResourceManifest(rc.wb, me.TimelineID, selector, ManifestSliceOptions{
+		Paths: me.Paths,
+	})
+	if err != nil {
+		if errRes, handled := sliceErrorResult(err, rc.inspectionID, me.TimelineID, 0, fieldPath); handled {
+			return pendingExcerpt{}, errRes, nil
+		}
+		return pendingExcerpt{}, nil, fmt.Errorf("failed to slice resource manifest for %s: %w", fieldPath, err)
+	}
+
+	pinTime, errRes := rc.resolveManifestPinTime(me, sliced, fieldPath)
+	if errRes != nil {
+		return pendingExcerpt{}, errRes, nil
+	}
+
+	rc.autoInclude.Add(me.TimelineID)
+	revIdx := sliced.Revision.Index
+	logTimestamp, insertID := resolveCloudLoggingMetadata(rc.wb, sliced.Revision.LogID, sliced.Revision.Time)
+	return pendingExcerpt{
+		kind:          ExcerptKindManifest,
+		itemIndex:     index,
+		fieldPath:     fieldPath,
+		explicitBadge: me.Badge != "",
+		card: ResolvedExcerptCard{
+			Kind:          ExcerptKindManifest,
+			Badge:         me.Badge,
+			PaletteID:     paletteID,
+			TimeMs:        pinTime.UnixMilli(),
+			TimeLabel:     formatShiftedClock(pinTime, rc.spec.TimezoneShiftHours),
+			TimelineID:    me.TimelineID,
+			ResourcePath:  compactResourcePath(sliced.Segments),
+			Title:         formatManifestExcerptTitle(sliced.Revision.State),
+			Subtitle:      formatLineCountSubtitle(sliced.Slice.TotalLines),
+			Lines:         sliced.Slice.Lines,
+			Note:          me.Note,
+			LogTimestamp:  logTimestamp,
+			InsertID:      insertID,
+			LogID:         sliced.Revision.LogID,
+			RevisionIndex: &revIdx,
+		},
+	}, nil, nil
+}
+
+func (rc *sceneContext) validateManifestExcerpt(me ManifestExcerpt, fieldPath string) (string, workbench.RevisionSelector, *mcpsdk.CallToolResult) {
+	if errRes := validateOptionalAnnotationText(me.Note, fieldPath, "note", maxAnnotationRunes); errRes != nil {
+		return "", workbench.RevisionSelector{}, errRes
+	}
+	paletteID, errRes := validateExplicitPaletteID(rc.paletteReg, fieldPath, me.PaletteID)
+	if errRes != nil {
+		return "", workbench.RevisionSelector{}, errRes
+	}
+	if me.TimelineID == 0 {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.timelineId` is required.", fieldPath))
+		return "", workbench.RevisionSelector{}, res
+	}
+	if len(me.Paths) == 0 {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.paths` is required and must contain at least one JSONPath selector.", fieldPath))
+		return "", workbench.RevisionSelector{}, res
+	}
+	selector, errRes := rc.buildManifestSelector(me, fieldPath)
+	if errRes != nil {
+		return "", workbench.RevisionSelector{}, errRes
+	}
+	return paletteID, selector, nil
+}
+
+func (rc *sceneContext) buildManifestSelector(me ManifestExcerpt, fieldPath string) (workbench.RevisionSelector, *mcpsdk.CallToolResult) {
+	hasRev := me.RevisionIndex != nil
+	hasTime := me.Time != nil && !me.Time.IsZero()
+	if (hasRev && me.Time != nil) || (!hasRev && !hasTime) {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Specify exactly one of `revisionIndex` or `time` in `%s`.", fieldPath))
+		return workbench.RevisionSelector{}, res
+	}
+	if !hasTime {
+		return workbench.RevisionAtIndex(*me.RevisionIndex), nil
+	}
+	idx := rc.wb.SearchIndex()
+	if idx.TimelineMap[me.TimelineID] == nil {
+		res, _, _ := timelineNotFoundResult(rc.inspectionID, me.TimelineID)
+		return workbench.RevisionSelector{}, res
+	}
+	queryTime := me.Time.UTC()
+	if errRes := checkViewportRange(queryTime, rc.applied, rc.spec.Filter, fieldPath+".time"); errRes != nil {
+		return workbench.RevisionSelector{}, errRes
+	}
+	return workbench.RevisionAtTime(queryTime), nil
+}
+
+func (rc *sceneContext) resolveManifestPinTime(
+	me ManifestExcerpt,
+	sliced *ResourceManifestSlice,
+	fieldPath string,
+) (time.Time, *mcpsdk.CallToolResult) {
+	if me.Time != nil {
+		return me.Time.UTC(), nil
+	}
+	return resolveManifestRevisionViewportPinTime(
+		sliced.Revision.Time,
+		sliced.NextRevisionTime,
+		rc.applied,
+		rc.spec.Filter,
+		fieldPath+".revisionIndex",
+	)
+}
+
+func (rc *sceneContext) resolveLogExcerpt(index int, le LogExcerpt) (pendingExcerpt, *mcpsdk.CallToolResult, error) {
+	fieldPath := fmt.Sprintf("annotations.logExcerpts[%d]", index)
+	if errRes := validateOptionalAnnotationText(le.Note, fieldPath, "note", maxAnnotationRunes); errRes != nil {
+		return pendingExcerpt{}, errRes, nil
+	}
+	paletteID, errRes := validateExplicitPaletteID(rc.paletteReg, fieldPath, le.PaletteID)
+	if errRes != nil {
+		return pendingExcerpt{}, errRes, nil
+	}
+	if le.LogID == 0 {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.logId` is required.", fieldPath))
+		return pendingExcerpt{}, res, nil
+	}
+
+	sliced, err := SliceLogDetail(rc.wb, le.LogID, LogSliceOptions{
+		Windows: le.Windows,
+	})
+	if err != nil {
+		if errRes, handled := sliceErrorResult(err, rc.inspectionID, 0, le.LogID, fieldPath); handled {
+			return pendingExcerpt{}, errRes, nil
+		}
+		return pendingExcerpt{}, nil, fmt.Errorf("failed to slice log detail for %s: %w", fieldPath, err)
+	}
+	if errRes := checkViewportRange(sliced.Time, rc.applied, rc.spec.Filter, fieldPath+".logId"); errRes != nil {
+		return pendingExcerpt{}, errRes, nil
+	}
+
+	idx := rc.wb.SearchIndex()
+	tid, errRes := rc.resolveLogExcerptTimeline(idx, le)
+	if errRes != nil {
+		return pendingExcerpt{}, errRes, nil
+	}
+
+	var segments []workbench.TimelineSegment
+	if tid != 0 {
+		rc.autoInclude.Add(tid)
+		segments, _ = idx.TimelineSegments(tid)
+	}
+	logTimestamp, insertID := resolveCloudLoggingMetadata(rc.wb, le.LogID, sliced.Time)
+	return pendingExcerpt{
+		kind:          ExcerptKindLog,
+		itemIndex:     index,
+		fieldPath:     fieldPath,
+		explicitBadge: le.Badge != "",
+		card: ResolvedExcerptCard{
+			Kind:         ExcerptKindLog,
+			Badge:        le.Badge,
+			PaletteID:    paletteID,
+			TimeMs:       sliced.Time.UnixMilli(),
+			TimeLabel:    formatShiftedClock(sliced.Time, rc.spec.TimezoneShiftHours),
+			TimelineID:   tid,
+			ResourcePath: compactResourcePath(segments),
+			Title:        formatLogExcerptTitle(sliced.LogType, sliced.Severity),
+			Subtitle:     formatLineCountSubtitle(sliced.Slice.TotalLines),
+			Lines:        sliced.Slice.Lines,
+			Note:         le.Note,
+			LogTimestamp: logTimestamp,
+			InsertID:     insertID,
+			LogID:        le.LogID,
+		},
+	}, nil, nil
+}
+
+func (rc *sceneContext) resolveLogExcerptTimeline(idx *workbench.SearchIndex, le LogExcerpt) (uint32, *mcpsdk.CallToolResult) {
+	if le.TimelineID != 0 {
+		if idx.TimelineMap[le.TimelineID] == nil {
+			res, _, _ := timelineNotFoundResult(rc.inspectionID, le.TimelineID)
+			return 0, res
+		}
+		return le.TimelineID, nil
+	}
+	return selectPrimaryTimelineForLog(idx, le.LogID), nil
+}
+
+func resolveManifestRevisionViewportPinTime(
+	revTime time.Time,
+	nextRevTime *time.Time,
+	applied workbench.AppliedFilter,
+	rawFilter workbench.Filter,
+	fieldPath string,
+) (time.Time, *mcpsdk.CallToolResult) {
+	if revTime.IsZero() {
+		return revTime, nil
+	}
+	minBound, maxBound := excerptViewportBounds(applied, rawFilter)
+	if !maxBound.IsZero() && revTime.After(maxBound) {
+		return time.Time{}, checkViewportRange(revTime, applied, rawFilter, fieldPath)
+	}
+	if !minBound.IsZero() && revTime.Before(minBound) && nextRevTime != nil && !nextRevTime.After(minBound) {
+		return time.Time{}, checkViewportRange(revTime, applied, rawFilter, fieldPath)
+	}
+
+	pinTime := revTime
+	if !applied.StartTime.IsZero() && pinTime.Before(applied.StartTime) {
+		pinTime = applied.StartTime
+	}
+	return pinTime, nil
+}
+
+func excerptViewportBounds(applied workbench.AppliedFilter, rawFilter workbench.Filter) (time.Time, time.Time) {
+	minBound := applied.StartTime
+	if !minBound.IsZero() && rawFilter.StartTime == nil {
+		minBound = minBound.Add(-defaultHeaderSlack)
+	}
+	maxBound := applied.EndTime
+	if !maxBound.IsZero() && rawFilter.EndTime == nil {
+		maxBound = maxBound.Add(defaultHeaderSlack)
+	}
+	return minBound, maxBound
 }
 
 func compactResourcePath(segments []workbench.TimelineSegment) string {
@@ -322,6 +395,22 @@ func formatRevisionExcerptTitle(verb, state string) string {
 	default:
 		return "Resource diff"
 	}
+}
+
+func formatManifestExcerptTitle(state string) string {
+	s := strings.TrimSpace(state)
+	if s != "" {
+		return fmt.Sprintf("Manifest · %s", s)
+	}
+	return "Manifest"
+}
+
+func formatLogExcerptTitle(logType string, severity *khifilev6.Severity) string {
+	label := severity.GetLabel()
+	if label == "" {
+		label = "INFO"
+	}
+	return fmt.Sprintf("%s · %s", defaultString(logType, "log"), label)
 }
 
 func formatLineCountSubtitle(totalLines int) string {

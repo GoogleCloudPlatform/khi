@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -40,10 +39,19 @@ const (
 )
 
 var (
-	validMarkerStyles    = []MarkerStyle{MarkerStylePin, MarkerStyleReference}
 	validConnectorStyles = []ConnectorStyle{ConnectorStyleCurve, ConnectorStyleStep, ConnectorStyleCaliper}
 	validCalloutSides    = []CalloutPlacement{CalloutPlacementAuto, CalloutPlacementLeft, CalloutPlacementRight, CalloutPlacementAbove, CalloutPlacementBelow}
 )
+
+type sceneContext struct {
+	wb           *workbench.Workbench
+	inspectionID string
+	spec         *Spec
+	applied      workbench.AppliedFilter
+	paletteReg   *paletteRegistry
+	autoInclude  *roaring.Bitmap
+	overlay      *Overlay
+}
 
 // Resolve validates and resolves all annotations in spec against wb and applied, returning the frontend overlay payload.
 // Auto-assigned badges for markers and excerpt cards are back-filled on spec.Annotations.
@@ -70,11 +78,7 @@ func Resolve(
 	overlay := &Overlay{
 		DimUnlistedRows: ann.DimUnlistedRows != nil && *ann.DimUnlistedRows,
 	}
-
-	if errRes, err := resolveMarkers(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
-		return nil, errRes, err
-	}
-	spanCfg := spanResolveContext{
+	rc := &sceneContext{
 		wb:           wb,
 		inspectionID: inspectionID,
 		spec:         spec,
@@ -83,19 +87,25 @@ func Resolve(
 		autoInclude:  autoInclude,
 		overlay:      overlay,
 	}
-	if errRes, err := resolveSpans(ctx, spanCfg); err != nil || errRes != nil {
+
+	pendingMarkers, errRes, err := rc.resolveMarkerAnchors()
+	if err != nil || errRes != nil {
+		return nil, errRes, err
+	}
+	if errRes, err := rc.resolveSpans(ctx); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
 	if errRes, err := resolveRowHighlights(ctx, wb, inspectionID, spec, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
-	if errRes, err := resolveExcerpts(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
+	if errRes, err := rc.resolveExcerpts(pendingMarkers); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
-	if errRes, err := resolveConnectors(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
+	finalizeMarkers(ann, pendingMarkers, overlay)
+	if errRes, err := resolveConnectors(rc.wb, rc.inspectionID, rc.spec, rc.applied, rc.paletteReg, rc.autoInclude, rc.overlay); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
-	if errRes, err := resolveCallouts(wb, inspectionID, spec, applied, paletteReg, autoInclude, overlay); err != nil || errRes != nil {
+	if errRes, err := resolveCallouts(rc.wb, rc.inspectionID, rc.spec, rc.applied, rc.paletteReg, rc.autoInclude, rc.overlay); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
 
@@ -107,78 +117,12 @@ func Resolve(
 	return overlay, nil, nil
 }
 
-func resolveMarkers(
-	wb *workbench.Workbench,
-	inspectionID string,
-	spec *Spec,
-	applied workbench.AppliedFilter,
-	paletteReg *paletteRegistry,
-	autoInclude *roaring.Bitmap,
-	overlay *Overlay,
-) (*mcpsdk.CallToolResult, error) {
-	ann := spec.Annotations
-	usedBadges := make(map[string]bool, len(ann.Markers))
-	for _, m := range ann.Markers {
-		if m.Badge != "" {
-			usedBadges[m.Badge] = true
-		}
+func validateOptionalAnnotationText(text, fieldPath, fieldName string, maxRunes int) *mcpsdk.CallToolResult {
+	if utf8.RuneCountInString(text) > maxRunes {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.%s` exceeds maximum length of %d characters.", fieldPath, fieldName, maxRunes))
+		return res
 	}
-	nextSeq := 1
-	for i := range ann.Markers {
-		m := &ann.Markers[i]
-		fieldPath := fmt.Sprintf("annotations.markers[%d]", i)
-		if strings.TrimSpace(m.Label) == "" {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.label` is required.", fieldPath))
-			return res, nil
-		}
-		if utf8.RuneCountInString(m.Label) > maxAnnotationRunes {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.label` exceeds maximum length of %d characters.", fieldPath, maxAnnotationRunes))
-			return res, nil
-		}
-		style := m.Style
-		if style == "" {
-			style = MarkerStylePin
-		}
-		if !slices.Contains(validMarkerStyles, style) {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Unsupported `%s.style` `%s` (use `pin` or `reference`).", fieldPath, style))
-			return res, nil
-		}
-		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, m.PaletteID)
-		if errRes != nil {
-			return errRes, nil
-		}
-
-		pt, errRes, err := resolveAnchor(wb, inspectionID, applied, spec.Filter, fieldPath+".anchor", m.Anchor)
-		if err != nil || errRes != nil {
-			return errRes, err
-		}
-		if pt.timelineID != 0 {
-			autoInclude.Add(pt.timelineID)
-		}
-		badge := m.Badge
-		if badge == "" {
-			for usedBadges[strconv.Itoa(nextSeq)] {
-				nextSeq++
-			}
-			badge = strconv.Itoa(nextSeq)
-			usedBadges[badge] = true
-			m.Badge = badge
-		}
-		timeLabel := formatShiftedClock(pt.time, spec.TimezoneShiftHours)
-		overlay.Markers = append(overlay.Markers, ResolvedMarker{
-			ID:            fmt.Sprintf("marker-%d", i+1),
-			Badge:         badge,
-			Label:         m.Label,
-			Style:         style,
-			PaletteID:     paletteID,
-			TimeMs:        pt.time.UnixMilli(),
-			TimeLabel:     timeLabel,
-			TimelineID:    pt.timelineID,
-			LogID:         pt.logID,
-			RevisionIndex: pt.revisionIndex,
-		})
-	}
-	return nil, nil
+	return nil
 }
 
 func resolveRowHighlights(
@@ -199,9 +143,8 @@ func resolveRowHighlights(
 			return res, nil
 		}
 		roleLabel := strings.TrimSpace(rh.RoleLabel)
-		if utf8.RuneCountInString(roleLabel) > maxRoleLabelRunes {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.roleLabel` exceeds maximum length of %d characters.", fieldPath, maxRoleLabelRunes))
-			return res, nil
+		if errRes := validateOptionalAnnotationText(roleLabel, fieldPath, "roleLabel", maxRoleLabelRunes); errRes != nil {
+			return errRes, nil
 		}
 		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, rh.PaletteID)
 		if errRes != nil {
@@ -354,8 +297,8 @@ func validateAnnotationCounts(ann *Annotations) *mcpsdk.CallToolResult {
 		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`annotations.spans` exceeds maximum of %d items (got %d).", maxSceneSpans, len(ann.Spans)))
 		return res
 	}
-	if totalExcerpts := len(ann.DiffExcerpts) + len(ann.LogExcerpts); totalExcerpts > maxSceneExcerpts {
-		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Total `diffExcerpts` + `logExcerpts` exceeds maximum of %d cards (got %d).", maxSceneExcerpts, totalExcerpts))
+	if totalExcerpts := len(ann.DiffExcerpts) + len(ann.ManifestExcerpts) + len(ann.LogExcerpts); totalExcerpts > maxSceneExcerpts {
+		res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("Total `diffExcerpts` + `manifestExcerpts` + `logExcerpts` exceeds maximum of %d cards (got %d).", maxSceneExcerpts, totalExcerpts))
 		return res
 	}
 	if len(ann.Connectors) > maxSceneConnectors {
