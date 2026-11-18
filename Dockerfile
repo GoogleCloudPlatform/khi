@@ -12,17 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.27 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27 AS builder
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
 ENV ROOT=/go/src/app
 RUN mkdir /built
 WORKDIR ${ROOT}
-RUN apt update
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . ${ROOT}
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(cat ./VERSION)" -o /built/khi cmd/kubernetes-history-inspector/*.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(cat ./VERSION)" -o /built/khi cmd/kubernetes-history-inspector/*.go
 RUN mkdir /built/data
 RUN mkdir -m 1777 /app.tmp
 
