@@ -143,9 +143,8 @@ func resolveRowHighlights(
 			return res, nil
 		}
 		roleLabel := strings.TrimSpace(rh.RoleLabel)
-		if utf8.RuneCountInString(roleLabel) > maxRoleLabelRunes {
-			res, _, _ := mdtemplate.ErrorResult("INVALID_ARGUMENT", fmt.Sprintf("`%s.roleLabel` exceeds maximum length of %d characters.", fieldPath, maxRoleLabelRunes))
-			return res, nil
+		if errRes := validateOptionalAnnotationText(roleLabel, fieldPath, "roleLabel", maxRoleLabelRunes); errRes != nil {
+			return errRes, nil
 		}
 		paletteID, errRes := validateExplicitPaletteID(paletteReg, fieldPath, rh.PaletteID)
 		if errRes != nil {
