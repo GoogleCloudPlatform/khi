@@ -45,6 +45,15 @@ func TestHookScripts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveRepoRoot() error: %v", err)
 	}
+	// Poison inherited Make/CLI variables to verify hook script tests stay isolated
+	// when invoked under `make pre-push BASE=<parent-bookmark>`.
+	t.Setenv("TARGET", "leaked-target")
+	t.Setenv("GIT_INDEX_FILE", "/leaked/git/index")
+	t.Setenv("CODEQUALITY_VCS", "git")
+	t.Setenv("CODEQUALITY_BASE", "leaked-parent-bookmark")
+	t.Setenv("CODEQUALITY_TARGET", "leaked-target")
+	t.Setenv("CODEQUALITY_MAX", "42")
+	t.Setenv("CODEQUALITY_TIMEOUT", "1m")
 
 	testCases := []hookScriptCase{
 		{
@@ -179,6 +188,13 @@ func executeHookScriptCase(t *testing.T, realRepoRoot string, tc hookScriptCase)
 		"MAKE_BIN="+filepath.Join(binDir, "make"),
 		"VCS="+tc.vcs,
 		"BASE="+tc.baseEnv,
+		"TARGET=",
+		"GIT_INDEX_FILE=",
+		"CODEQUALITY_VCS=",
+		"CODEQUALITY_BASE=",
+		"CODEQUALITY_TARGET=",
+		"CODEQUALITY_MAX=",
+		"CODEQUALITY_TIMEOUT=",
 	)
 	outBytes, runErr := cmd.CombinedOutput()
 	return readRecordedLines(t, callsFile), string(outBytes), runErr
