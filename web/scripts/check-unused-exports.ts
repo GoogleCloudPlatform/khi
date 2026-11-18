@@ -145,8 +145,8 @@ interface ReferenceCounts {
  */
 interface FileExportCheckContext {
   readonly ls: ts.LanguageService;
+  readonly checker: ts.TypeChecker;
   readonly sf: ts.SourceFile;
-  readonly compilerOptions: ts.CompilerOptions;
   readonly fileName: string;
   readonly resolvedFile: string;
   readonly relFile: string;
@@ -159,7 +159,7 @@ interface FileExportCheckContext {
 interface ViolationCollector {
   readonly ls: ts.LanguageService;
   readonly program: ts.Program;
-  readonly compilerOptions: ts.CompilerOptions;
+  readonly checker: ts.TypeChecker;
   readonly paths: ProjectPaths;
   readonly importedFiles: ReadonlySet<string>;
   readonly orphanFiles: OrphanFileViolation[];
@@ -462,31 +462,34 @@ function collectImportedFileSet(
 }
 
 /**
- * Resolves the upstream module path when `declNode` is a re-export specifier with `from '...'`.
+ * Collects all upstream file paths along the alias chain of a re-exported specifier.
  */
-function resolveReExportUpstreamFile(
+function collectReExportUpstreamFiles(
   declNode: ts.Node,
-  sf: ts.SourceFile,
-  compilerOptions: ts.CompilerOptions,
-): string | undefined {
+  nameNode: ts.Identifier,
+  checker: ts.TypeChecker,
+  currentResolvedFile: string,
+): ReadonlySet<string> {
+  const upstreamFiles = new Set<string>();
   if (!ts.isExportSpecifier(declNode)) {
-    return undefined;
+    return upstreamFiles;
   }
-  const exportDecl = declNode.parent.parent;
-  if (
-    !exportDecl.moduleSpecifier ||
-    !ts.isStringLiteral(exportDecl.moduleSpecifier)
-  ) {
-    return undefined;
+  const seenSymbols = new Set<ts.Symbol>();
+  let currentSymbol = checker.getSymbolAtLocation(nameNode);
+  while (currentSymbol && !seenSymbols.has(currentSymbol)) {
+    seenSymbols.add(currentSymbol);
+    for (const decl of currentSymbol.declarations ?? []) {
+      const declFile = normalizePath(decl.getSourceFile().fileName);
+      if (declFile !== currentResolvedFile) {
+        upstreamFiles.add(declFile);
+      }
+    }
+    if ((currentSymbol.flags & ts.SymbolFlags.Alias) === 0) {
+      break;
+    }
+    currentSymbol = checker.getImmediateAliasedSymbol(currentSymbol);
   }
-  const resolved = ts.resolveModuleName(
-    exportDecl.moduleSpecifier.text,
-    sf.fileName,
-    compilerOptions,
-    ts.sys,
-  );
-  const target = resolved.resolvedModule?.resolvedFileName;
-  return target ? normalizePath(target) : undefined;
+  return upstreamFiles;
 }
 
 /**
@@ -495,7 +498,7 @@ function resolveReExportUpstreamFile(
 function countIdentifierReferences(
   ctx: FileExportCheckContext,
   pos: number,
-  upstreamReExportFile: string | undefined,
+  upstreamReExportFiles: ReadonlySet<string>,
 ): ReferenceCounts {
   const refs = ctx.ls.findReferences(ctx.fileName, pos) ?? [];
   let externalRefs = 0;
@@ -507,7 +510,7 @@ function countIdentifierReferences(
         (ref.isDefinition &&
           refFile === ctx.resolvedFile &&
           ref.textSpan.start === pos) ||
-        refFile === upstreamReExportFile
+        upstreamReExportFiles.has(refFile)
       ) {
         continue;
       }
@@ -534,12 +537,13 @@ function checkExportedIdentifier(
   }
   const pos = nameNode.getStart(ctx.sf);
   const { line, character } = ctx.sf.getLineAndCharacterOfPosition(pos);
-  const upstreamFile = resolveReExportUpstreamFile(
+  const upstreamFiles = collectReExportUpstreamFiles(
     declNode,
-    ctx.sf,
-    ctx.compilerOptions,
+    nameNode,
+    ctx.checker,
+    ctx.resolvedFile,
   );
-  const counts = countIdentifierReferences(ctx, pos, upstreamFile);
+  const counts = countIdentifierReferences(ctx, pos, upstreamFiles);
   if (counts.externalRefs > 0) {
     return;
   }
@@ -628,8 +632,8 @@ function scanSingleCandidateFile(
   }
   collectFileExportViolations({
     ls: collector.ls,
+    checker: collector.checker,
     sf,
-    compilerOptions: collector.compilerOptions,
     fileName,
     resolvedFile,
     relFile,
@@ -660,7 +664,7 @@ export function analyzeUnusedExports(paths: ProjectPaths): UnusedExportsReport {
   const collector: ViolationCollector = {
     ls,
     program,
-    compilerOptions,
+    checker: program.getTypeChecker(),
     paths,
     importedFiles: collectImportedFileSet(program, paths, compilerOptions),
     orphanFiles: [],

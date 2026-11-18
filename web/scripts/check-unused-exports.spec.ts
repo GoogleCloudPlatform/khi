@@ -94,8 +94,10 @@ describe('check-unused-exports', () => {
           'const checkDyn: DynamicType = { ok: true };',
           'console.log(UsedFn(), usedConst, usedTupleItem, reExportedVal, instance, check, lazy, checkDyn);',
         ].join('\n'),
-        'web/src/app/re-export-source.ts':
+        'web/src/app/re-export-origin.ts':
           'export const reExportedVal = 10;\nexport const unusedReExportVal = 20;\n',
+        'web/src/app/re-export-source.ts':
+          "export { reExportedVal, unusedReExportVal } from './re-export-origin';\n",
         'web/src/app/feature.ts': [
           "export { reExportedVal, unusedReExportVal } from './re-export-source';",
           'export class UsedClass {}',
