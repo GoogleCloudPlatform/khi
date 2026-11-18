@@ -22,9 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 )
 
@@ -332,22 +329,6 @@ func ReadReflect[T any](r *NodeReader, path FieldPath, target T) error {
 	err = json.Unmarshal(rawJSON, &target)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-// ReadReflectK8sRuntimeObject unmarshals the structured data into a type implementing runtime.Object.
-func ReadReflectK8sRuntimeObject[T runtime.Object](r *NodeReader, path FieldPath, target T) error {
-	rawJSON, err := r.Serialize(path, &JSONNodeSerializer{})
-	if err != nil {
-		return err
-	}
-	scheme := runtime.NewScheme()
-	codecFactory := serializer.NewCodecFactory(scheme)
-	deserializer := codecFactory.UniversalDeserializer()
-	_, _, err = deserializer.Decode(rawJSON, nil, target)
-	if err != nil {
-		return fmt.Errorf("failed to decode JSON as runtime.Object: \n source: %s\nerror:%s", string(rawJSON), err.Error())
 	}
 	return nil
 }

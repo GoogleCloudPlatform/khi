@@ -29,8 +29,3 @@ func Subset[T any](taskSet *TaskSet, mapFilter filter.TypedMapFilter[T]) *TaskSe
 	result, _ := NewTaskSet(filteredTasks)
 	return result
 }
-
-// NewEqualFilter creates a new filter that matches exact label values.
-func NewEqualFilter[T comparable](labelKey TaskLabelKey[T], value T, includeUndefined bool) filter.TypedMapFilter[T] {
-	return filter.NewEqualFilter(labelKey, value, includeUndefined)
-}

@@ -155,11 +155,6 @@ func (r *CodecRegistry) DeserializeForType(data []byte, t reflect.Type) (any, er
 	return valPtr.Elem().Interface(), nil
 }
 
-// RegisterCodec registers a custom codec for type T in DefaultCodecRegistry.
-func RegisterCodec[T any](codec TaskResultCodec) {
-	DefaultCodecRegistry.Register(reflect.TypeOf((*T)(nil)).Elem(), codec)
-}
-
 // GetCodec returns the codec for type t from DefaultCodecRegistry.
 func GetCodec(t reflect.Type) TaskResultCodec {
 	return DefaultCodecRegistry.GetCodec(t)

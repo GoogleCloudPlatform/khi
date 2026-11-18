@@ -36,14 +36,6 @@ type ErrorMessageSetMetadata struct {
 	ErrorMessages []*ErrorMessage `json:"errorMessages"`
 }
 
-// NewUnauthorizedErrorMessage creates an ErrorMessage indicating an unauthorized access token.
-func NewUnauthorizedErrorMessage() *ErrorMessage {
-	return &ErrorMessage{
-		ErrorId: 2,
-		Message: "Access token is not authorized. (Token expired?)",
-	}
-}
-
 // NewErrorMessageSetMetadata creates an empty ErrorMessageSetMetadata instance.
 func NewErrorMessageSetMetadata() *ErrorMessageSetMetadata {
 	return &ErrorMessageSetMetadata{
