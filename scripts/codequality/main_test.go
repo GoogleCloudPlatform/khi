@@ -205,6 +205,33 @@ type BadType struct {
 	}
 }
 
+func TestRunCLIUnusedExportsMode(t *testing.T) {
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{
+		"go.mod": "module example.com/unusedmod\n\ngo 1.24\n",
+		"pkg/unused/unused.go": `package unused
+
+const Dead = 2
+`,
+	})
+
+	var stdout, stderr bytes.Buffer
+	code, err := runCLI(context.Background(), cliEnv{
+		args:   []string{"--repo-root=" + dir, "--lang=go", "--unused-exports", "--pkgs=./pkg/unused"},
+		stdout: &stdout,
+		stderr: &stderr,
+		getenv: func(string) string { return "" },
+	})
+	assertCLIOutcome(t, cliOutcomeCheck{
+		code:       code,
+		wantCode:   1,
+		err:        err,
+		stdout:     stdout.String(),
+		stderr:     stderr.String(),
+		wantStdout: "pkg/unused/unused.go:3:7: exported const Dead has no references in the repository (unused-exported-decl)",
+	})
+}
+
 func TestRunCLIReturnsExitCodeOneOnViolation(t *testing.T) {
 	repoDir := initTempGitRepoWithViolation(t)
 	summaryPath := filepath.Join(t.TempDir(), "viol_summary.md")

@@ -30,10 +30,6 @@ const (
 	TASKINSTANCE_RUNNING Tistate = "running"
 	// TASKINSTANCE_SUCCESS indicates the task instance finished successfully.
 	TASKINSTANCE_SUCCESS Tistate = "success"
-	// TASKINSTANCE_SHUTDOWN indicates the task instance was shut down.
-	TASKINSTANCE_SHUTDOWN Tistate = "shutdown"
-	// TASKINSTANCE_RESTARTING indicates the task instance is restarting.
-	TASKINSTANCE_RESTARTING Tistate = "restarting"
 	// TASKINSTANCE_FAILED indicates the task instance failed.
 	TASKINSTANCE_FAILED Tistate = "failed"
 	// TASKINSTANCE_SKIPPED indicates the task instance was skipped.

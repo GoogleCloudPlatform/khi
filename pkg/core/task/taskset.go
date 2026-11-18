@@ -24,9 +24,6 @@ import (
 
 var _ core_contract.TaskGraphMetadata = (*TaskSet)(nil)
 
-// LabelPredicate defines a predicate function used to filter task label values.
-type LabelPredicate[T any] = func(v T) bool
-
 // TaskSet is a collection of tasks and resolved dependency edges.
 // It implements core_contract.TaskGraphMetadata and provides querying for execution order and edges.
 type TaskSet struct {

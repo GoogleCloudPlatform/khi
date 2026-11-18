@@ -32,6 +32,7 @@ type cliFlags struct {
 	lang               string
 	fast               bool
 	conventions        bool
+	unusedExports      bool
 	pkgs               string
 	vcs                string
 	base               string
@@ -84,7 +85,8 @@ func registerScopeAndExecutionFlags(fs *flag.FlagSet, f *cliFlags) {
 	fs.StringVar(&f.lang, "lang", "all", "target language(s): all, go, or ts")
 	fs.BoolVar(&f.fast, "fast", false, "run fast Stage-1 Go AST structural and naming rules only")
 	fs.BoolVar(&f.conventions, "conventions", false, "check Go declaration visibility ordering and exported struct/interface member GoDoc conventions")
-	fs.StringVar(&f.pkgs, "pkgs", "./...", "comma-separated Go package patterns for --conventions, e.g. ./pkg/api/...,./pkg/common")
+	fs.BoolVar(&f.unusedExports, "unused-exports", false, "check Go exported declarations in pkg/ and impl task registrations for unused symbols")
+	fs.StringVar(&f.pkgs, "pkgs", "./...", "comma-separated Go package patterns for --conventions and --unused-exports, e.g. ./pkg/api/...,./pkg/common")
 	fs.StringVar(&f.vcs, "vcs", "auto", "version control system: auto, jj, or git")
 	fs.StringVar(&f.base, "base", "", "base revision for differential checks")
 	fs.StringVar(&f.target, "target", "", "target revision for differential checks")

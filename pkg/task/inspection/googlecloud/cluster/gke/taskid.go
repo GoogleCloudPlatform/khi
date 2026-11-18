@@ -16,12 +16,8 @@ package gkecluster
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/gcpcommon"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
-
-// ClusterGKETaskCommonPrefix is the task id prefix originally defined in googlecloudclustergke.
-var ClusterGKETaskCommonPrefix = gcpcommon.GoogleCloudCommonTaskIDPrefix + "cluster/gke/"
 
 // ClusterNamePrefixTaskIDForGKE is the task ID for the GKE cluster name prefix(it's "" for GKE).
 var ClusterNamePrefixTaskIDForGKE = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gke")

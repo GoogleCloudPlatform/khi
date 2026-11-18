@@ -44,12 +44,6 @@ var defaultTimelineTypeDescriptions = sync.OnceValue(func() map[string]string {
 
 var _ cel.StyleResolver = (*styleMaps)(nil)
 
-// IndexedTimeline is an alias for cel.TimelineData.
-type IndexedTimeline = cel.TimelineData
-
-// IndexedLog is an alias for cel.LogData.
-type IndexedLog = cel.LogData
-
 // SearchIndex encapsulates the indexed timelines and logs of a Workbench session.
 type SearchIndex struct {
 	// Timelines holds all indexed timelines in the workbench.

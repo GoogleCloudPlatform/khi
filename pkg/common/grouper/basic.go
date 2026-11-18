@@ -14,7 +14,7 @@
 
 package grouper
 
-// BasicGrouper implements Grouper.
+// BasicGrouper partitions input elements into groups using GroupingFunc.
 type BasicGrouper[T any, K comparable] struct {
 	// GroupingFunc extracts the grouping key from each input element.
 	GroupingFunc func(input T) K

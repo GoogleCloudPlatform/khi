@@ -25,8 +25,6 @@ var (
 	FromActiveFeatures = taskid.ScopeActiveFeatures
 	// FromActiveGraph configures the dependency scope to ScopeActiveGraph.
 	FromActiveGraph = taskid.ScopeActiveGraph
-	// FromAll configures the dependency scope to ScopeAll.
-	FromAll = taskid.ScopeAll
 )
 
 var (

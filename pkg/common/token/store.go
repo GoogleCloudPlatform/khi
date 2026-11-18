@@ -16,15 +16,11 @@ package token
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 )
-
-// ErrNoNewTokenResolved is returned when a resolver cannot obtain a new token.
-var ErrNoNewTokenResolved = errors.New("no new token resolved")
 
 var _ TokenStore = &BasicTokenStore{}
 

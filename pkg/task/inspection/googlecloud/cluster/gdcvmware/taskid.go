@@ -19,8 +19,5 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-// ClusterGDCVMWareCommonTaskPrefix is the common task id prefix for GDC Vmware cluster related tasks.
-var ClusterGDCVMWareCommonTaskPrefix = k8scommon.GoogleCloudCommonK8STaskIDPrefix + "gdc-vmware"
-
 // ClusterNamePrefixTaskIDForGDCVForVMWare is the task ID for the GDCV for VMWare cluster name prefix.
 var ClusterNamePrefixTaskIDForGDCVForVMWare = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gdcv-for-vmware")
