@@ -64,4 +64,8 @@ $(MSDF_SETUP_DUMMY):
 add-licenses: ## Add license headers to all files
 	go tool addlicense  -c "Google LLC" -l apache .
 
+.PHONY: check-licenses
+check-licenses: ## Verify Apache-2.0 license headers on all source files
+	go tool addlicense  -c "Google LLC" -l apache -check .
+
 

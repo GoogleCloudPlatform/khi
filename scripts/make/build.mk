@@ -35,6 +35,10 @@ $(FRONTEND_ARTIFACT_FILES_DUMMY): $(GENERATE_FRONTEND_DUMMY) $(FRONTEND_SOURCE_F
 .PHONY: build-web
 build-web: $(FRONTEND_ARTIFACT_FILES_DUMMY) ## Build frontend for production
 
+.PHONY: build-web-dev
+build-web-dev: $(GENERATE_FRONTEND_DUMMY) ## Build frontend with dev configuration
+	cd web && npx ng build --configuration dev
+
 .PHONY: watch-storybook
 watch-storybook: $(GENERATE_FRONTEND_DUMMY) ## Run storybook development server
 	cd web && npm run storybook -- --host $(STORYBOOK_HOST) --port $(STORYBOOK_PORT)
