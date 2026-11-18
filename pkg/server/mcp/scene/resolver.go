@@ -92,16 +92,7 @@ func Resolve(
 	if err != nil || errRes != nil {
 		return nil, errRes, err
 	}
-	spanCfg := spanResolveContext{
-		wb:           wb,
-		inspectionID: inspectionID,
-		spec:         spec,
-		applied:      applied,
-		paletteReg:   paletteReg,
-		autoInclude:  autoInclude,
-		overlay:      overlay,
-	}
-	if errRes, err := resolveSpans(ctx, spanCfg); err != nil || errRes != nil {
+	if errRes, err := rc.resolveSpans(ctx); err != nil || errRes != nil {
 		return nil, errRes, err
 	}
 	if errRes, err := resolveRowHighlights(ctx, wb, inspectionID, spec, paletteReg, autoInclude, overlay); err != nil || errRes != nil {

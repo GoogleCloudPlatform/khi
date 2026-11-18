@@ -21,27 +21,15 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/RoaringBitmap/roaring/v2"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/mdtemplate"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
 
 var (
 	validSpanPatterns        = []SpanPattern{SpanPatternSolid, SpanPatternHatched, SpanPatternOutline}
 	validSpanLabelPlacements = []SpanLabelPlacement{SpanLabelPlacementAuto, SpanLabelPlacementAbove, SpanLabelPlacementInside}
 )
-
-type spanResolveContext struct {
-	wb           *workbench.Workbench
-	inspectionID string
-	spec         *Spec
-	applied      workbench.AppliedFilter
-	paletteReg   *paletteRegistry
-	autoInclude  *roaring.Bitmap
-	overlay      *Overlay
-}
 
 type validatedSpanStyle struct {
 	pattern        SpanPattern
@@ -54,33 +42,32 @@ type spanBounds struct {
 	end   resolvedAnchorPoint
 }
 
-// resolveSpans validates and resolves all span annotations into env.overlay.Spans.
-func resolveSpans(ctx context.Context, env spanResolveContext) (*mcpsdk.CallToolResult, error) {
-	for i := range env.spec.Annotations.Spans {
-		s := &env.spec.Annotations.Spans[i]
-		resolved, errRes, err := resolveSingleSpan(ctx, env, i, s)
+// resolveSpans validates and resolves all span annotations into rc.overlay.Spans.
+func (rc *sceneContext) resolveSpans(ctx context.Context) (*mcpsdk.CallToolResult, error) {
+	for i := range rc.spec.Annotations.Spans {
+		s := &rc.spec.Annotations.Spans[i]
+		resolved, errRes, err := rc.resolveSingleSpan(ctx, i, s)
 		if err != nil || errRes != nil {
 			return errRes, err
 		}
-		env.overlay.Spans = append(env.overlay.Spans, resolved)
+		rc.overlay.Spans = append(rc.overlay.Spans, resolved)
 	}
 	return nil, nil
 }
 
 // resolveSingleSpan validates and resolves one SpanAnnotation at index into a ResolvedSpan.
-func resolveSingleSpan(
+func (rc *sceneContext) resolveSingleSpan(
 	ctx context.Context,
-	env spanResolveContext,
 	index int,
 	s *SpanAnnotation,
 ) (ResolvedSpan, *mcpsdk.CallToolResult, error) {
 	fieldPath := fmt.Sprintf("annotations.spans[%d]", index)
-	style, errRes := validateSpanStyle(env.paletteReg, fieldPath, s)
+	style, errRes := validateSpanStyle(rc.paletteReg, fieldPath, s)
 	if errRes != nil {
 		return ResolvedSpan{}, errRes, nil
 	}
 
-	bounds, errRes, err := resolveSpanBounds(env, fieldPath, s)
+	bounds, errRes, err := rc.resolveSpanBounds(fieldPath, s)
 	if err != nil || errRes != nil {
 		return ResolvedSpan{}, errRes, err
 	}
@@ -88,7 +75,7 @@ func resolveSingleSpan(
 	var scopedIDs []uint32
 	if s.TimelineQuery != "" || len(s.TimelineIDs) > 0 {
 		includeSubtree := s.IncludeSubtree == nil || *s.IncludeSubtree
-		scopedIDs, errRes, err = resolveScopedTimelineIDs(ctx, env.wb, env.inspectionID, fieldPath, s.TimelineQuery, s.TimelineIDs, includeSubtree, env.autoInclude)
+		scopedIDs, errRes, err = resolveScopedTimelineIDs(ctx, rc.wb, rc.inspectionID, fieldPath, s.TimelineQuery, s.TimelineIDs, includeSubtree, rc.autoInclude)
 		if err != nil || errRes != nil {
 			return ResolvedSpan{}, errRes, err
 		}
@@ -150,16 +137,15 @@ func validateSpanStyle(reg *paletteRegistry, fieldPath string, s *SpanAnnotation
 }
 
 // resolveSpanBounds resolves start and end anchors, enforces chronological order, and registers auto-included timelines.
-func resolveSpanBounds(
-	env spanResolveContext,
+func (rc *sceneContext) resolveSpanBounds(
 	fieldPath string,
 	s *SpanAnnotation,
 ) (spanBounds, *mcpsdk.CallToolResult, error) {
-	startPt, errRes, err := resolveAnchor(env.wb, env.inspectionID, env.applied, env.spec.Filter, fieldPath+".start", s.Start)
+	startPt, errRes, err := resolveAnchor(rc.wb, rc.inspectionID, rc.applied, rc.spec.Filter, fieldPath+".start", s.Start)
 	if err != nil || errRes != nil {
 		return spanBounds{}, errRes, err
 	}
-	endPt, errRes, err := resolveAnchor(env.wb, env.inspectionID, env.applied, env.spec.Filter, fieldPath+".end", s.End)
+	endPt, errRes, err := resolveAnchor(rc.wb, rc.inspectionID, rc.applied, rc.spec.Filter, fieldPath+".end", s.End)
 	if err != nil || errRes != nil {
 		return spanBounds{}, errRes, err
 	}
@@ -171,10 +157,10 @@ func resolveSpanBounds(
 		return spanBounds{}, res, nil
 	}
 	if startPt.timelineID != 0 {
-		env.autoInclude.Add(startPt.timelineID)
+		rc.autoInclude.Add(startPt.timelineID)
 	}
 	if endPt.timelineID != 0 {
-		env.autoInclude.Add(endPt.timelineID)
+		rc.autoInclude.Add(endPt.timelineID)
 	}
 	return spanBounds{start: startPt, end: endPt}, nil, nil
 }
