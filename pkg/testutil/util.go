@@ -26,14 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
-// GlobResultToChildTestName converts a globbed file path relative to basePath into a test name.
-// KHI has many tests using configurations read by glob, which can contain non-meaningful relative paths and slashes.
-func GlobResultToChildTestName(filePath string, basePath string) string {
-	result := strings.TrimPrefix(filePath, basePath)
-	result = strings.ReplaceAll(result, "/", "_")
-	return result
-}
-
 // CompareStructuredNode returns a cmp.Option that compares two structured.Node instances by their serialized YAML representation.
 func CompareStructuredNode() cmp.Option {
 	return cmp.Transformer("StructuredNodeToYAML", func(n structured.Node) string {

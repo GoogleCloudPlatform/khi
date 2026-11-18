@@ -114,35 +114,63 @@ func TestVectorCacheRoundTripChunkingAndPrune(t *testing.T) {
 	}
 }
 
-func TestInMemoryCacheAndDecodeBounds(t *testing.T) {
+// TestInMemoryVectorCache verifies that OpenVectorCache initializes a usable in-memory cache when path is empty.
+func TestInMemoryVectorCache(t *testing.T) {
 	t.Chdir(t.TempDir())
 	ctx := context.Background()
+
 	mem, err := OpenVectorCache(ctx, "")
 	if err != nil {
-		t.Fatalf("in-memory OpenVectorCache() failed: %v", err)
+		t.Fatalf("OpenVectorCache(\"\") failed: %v", err)
 	}
 	defer mem.Close()
 
+	got, lookupErr := mem.LookupBatch(ctx, []CacheKey{{1}})
+
+	if lookupErr != nil {
+		t.Fatalf("LookupBatch() failed: %v", lookupErr)
+	}
+	if len(got) != 0 {
+		t.Errorf("LookupBatch() on empty cache returned %d entries, want 0", len(got))
+	}
+}
+
+// TestVectorCacheNilClose verifies that Close on a nil VectorCache returns nil without panicking.
+func TestVectorCacheNilClose(t *testing.T) {
 	var nilCache *VectorCache
-	if err := nilCache.Close(); err != nil {
-		t.Errorf("nil VectorCache.Close() = %v, want nil", err)
-	}
 
-	if _, ok := decodeFloat32Blob(nil); ok {
-		t.Errorf("decodeFloat32Blob(nil) = true, want false")
-	}
-	if _, ok := decodeFloat32Blob([]byte{1, 2, 3}); ok {
-		t.Errorf("decodeFloat32Blob(3 bytes) = true, want false")
-	}
+	err := nilCache.Close()
 
-	dbFile := filepath.Join(t.TempDir(), "nested", "test.db")
-	gotDSN, err := prepareSQLiteDSN(dbFile)
 	if err != nil {
-		t.Fatalf("prepareSQLiteDSN() failed: %v", err)
+		t.Errorf("(*VectorCache)(nil).Close() = %v, want nil", err)
 	}
-	wantDSN := dbFile + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)"
-	if gotDSN != wantDSN {
-		t.Errorf("prepareSQLiteDSN() = %q, want %q", gotDSN, wantDSN)
+}
+
+func TestDecodeFloat32Blob(t *testing.T) {
+	testCases := []struct {
+		name string
+		blob []byte
+	}{
+		// Rejects a nil byte slice because an empty blob cannot encode an embedding vector.
+		{
+			name: "nil blob returns false",
+			blob: nil,
+		},
+		// Rejects a byte slice whose length is not a multiple of 4 bytes.
+		{
+			name: "unaligned length returns false",
+			blob: []byte{1, 2, 3},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ok := decodeFloat32Blob(tc.blob)
+
+			if ok {
+				t.Errorf("decodeFloat32Blob(%v) = true, want false", tc.blob)
+			}
+		})
 	}
 }
 

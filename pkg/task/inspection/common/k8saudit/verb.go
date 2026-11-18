@@ -41,8 +41,6 @@ var (
 	VerbNonReady = style.MustRegisterVerb("NonReady", style.MustForceConvertSRGBHex("#FF7700"), style.ColorWhite, true)
 	// VerbTerminating is the verb style for a terminating state. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbTerminating = style.MustRegisterVerb("Terminating", style.MustForceConvertSRGBHex("#FFAA00"), style.ColorWhite, true)
-	// VerbStatusUnknown is the verb style for an unknown condition status. TODO: This will be removed when the history pane starts showing states as well as verbs.
-	VerbStatusUnknown = style.MustRegisterVerb("Condition(Unknown)", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, true)
 	// VerbStatusTrue is the verb style for a True condition status. TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbStatusTrue = style.MustRegisterVerb("Condition(True)", style.MustForceConvertSRGBHex("#22CC22"), style.ColorWhite, true)
 	// VerbStatusFalse is the verb style for a False condition status. TODO: This will be removed when the history pane starts showing states as well as verbs.

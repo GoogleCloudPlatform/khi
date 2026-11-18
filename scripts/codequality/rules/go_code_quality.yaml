@@ -1,0 +1,104 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id: go_code_quality
+name: Go Comment-Logic Alignment & Identifier Naming
+description: Verifies that Go comments match actual implementation logic and that function, parameter, and variable names clearly and accurately reflect their role and usage.
+enabled: true
+enforcement: advisory
+
+target:
+  kind: changed_file
+  include:
+    - "pkg/**/*.go"
+    - "cmd/**/*.go"
+    - "internal/**/*.go"
+    - "scripts/**/*.go"
+  exclude:
+    - "**/*_test.go"
+    - "pkg/generated/**"
+    - "**/zzz_*.go"
+    - "**/testdata/**"
+
+context:
+  line_numbers: true
+  include_go_ast_summary: true
+
+questions:
+  - id: comment_logic_alignment
+    for_each: changed_go_decls
+    type: choice
+    instructions: >-
+      Verify whether all GoDoc and inline comments on or inside {{.Kind}} "{{.Name}}"
+      ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) accurately match its actual Go implementation
+      (cross-referencing struct field types in the Go AST Structural Index when needed).
+    options:
+      aligned:
+        description: >-
+          Either the declaration is an unexported self-explanatory symbol without comments,
+          or every GoDoc and inline comment accurately matches the implementation's behavior,
+          boundary conditions, data structures, synchronization primitives, and error/fallback contracts.
+      stale_symbol_or_structure:
+        description: >-
+          A GoDoc or inline comment references a stale data structure, synchronization type
+          (for example claiming sync.Map when a custom map or slice is used), parameter, or helper
+          that no longer matches the code.
+        fix_hint: >-
+          Update or remove stale type, data-structure, or symbol references in the comments of
+          "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) to match the current implementation.
+      behavior_or_invariant_mismatch:
+        description: >-
+          A GoDoc or inline comment claims a fallback behavior, error precedence, boundary condition,
+          defensive-copy guarantee, ordering rule, or concurrency/atomicity invariant that is violated by the code.
+        fix_hint: >-
+          Reconcile "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) so either the implementation
+          upholds every guarantee stated in its comments or the inaccurate comment is corrected.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: identifier_naming
+    for_each: changed_go_funcs
+    type: choice
+    instructions: >-
+      Evaluate whether the function/method name, parameter names, and local variable names in
+      {{.Kind}} "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) clearly communicate their role
+      and accurately match how they are used. Standard narrow-scope Go idioms (such as ctx, err,
+      brief receiver names, r/w for io.Reader/io.Writer, and i/j in short loops) are valid.
+    options:
+      aligned:
+        description: >-
+          Function, parameter, and local variable names clearly express their domain role and
+          accurately reflect their units, polarity, mutability, and side effects.
+      cryptic_or_too_short:
+        description: >-
+          Uses opaque single-letter, overly abbreviated, or generic placeholder names
+          (such as d, m, x, tmp, val, data, res, proc, doWork, or handle) across non-trivial scope
+          where the domain role is unclear.
+        fix_hint: >-
+          Rename cryptic or overly generic identifiers in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          to descriptive names that express their domain role.
+      misleading_for_actual_usage:
+        description: >-
+          A function, parameter, or variable name contradicts its actual unit, boolean polarity,
+          filtering/normalization stage, mutability, or side effects (for example timeoutSec storing milliseconds,
+          rawLogs holding filtered items, or a check/validate function mutating state).
+        fix_hint: >-
+          Rename misleading identifiers in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          so their names accurately match their actual units, side effects, and runtime behavior.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55

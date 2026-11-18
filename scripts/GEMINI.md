@@ -10,7 +10,7 @@ The `scripts/` directory contains shell scripts and other automation tools used 
 
 - **`generate-angular-json.sh`**: Generates or updates the `angular.json` file based on project templates. This should be run when frontend dependencies or configurations change.
 - **`generate-version.sh`**: Creates the `VERSION` file, which is used to tag builds and releases.
-- **`pre-commit`**: This is the git pre-commit hook script. It runs linters and formatters before a commit is made to ensure code quality. It is set up via `make setup-hooks`.
+- **`pre-commit.sh`** / **`pre-push.sh`**: Diff-scoped verification scripts invoked by `make pre-commit` (fast auto-formatting and static lint on working-copy changes; configured as a git hook via `make setup-hooks`) and `make pre-push` (full GitHub Actions and Cloud Build CI-parity checks across the branch diff).
 - **`frontend-codegen/`**: Contains scripts related to frontend code generation.
 - **`make/`**: Contains scripts that are primarily invoked by the root `Makefile`.
 - **`backend-codegen/`**: Contains scripts related to backend code generation.

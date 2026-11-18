@@ -28,12 +28,3 @@ func StringField(fieldPath string, value string) TestLogOpt {
 		return structured.WithScalarField(original, fieldPathInArray, value)
 	}
 }
-
-// IntField returns a TestLogOpt modifying the field at the specified fieldPath to the value.
-// It creates ancestor maps when they don't exist.
-func IntField(fieldPath string, value int) TestLogOpt {
-	return func(original structured.Node) (structured.Node, error) {
-		fieldPathInArray := strings.Split(fieldPath, ".")
-		return structured.WithScalarField(original, fieldPathInArray, value)
-	}
-}

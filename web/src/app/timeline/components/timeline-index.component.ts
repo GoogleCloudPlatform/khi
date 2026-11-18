@@ -28,7 +28,7 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
-export interface TreeGuideViewModel {
+interface TreeGuideViewModel {
   readonly level: number;
   readonly isParent: boolean;
   readonly isLastChild: boolean;

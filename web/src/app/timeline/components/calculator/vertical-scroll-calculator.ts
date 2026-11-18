@@ -25,18 +25,6 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model';
 
 /**
- * Enum for layer of a timeline.
- * Timelines are hierarchical structure, it has k8s specific names on each depths.
- */
-export enum TimelineLayer {
-  APIVersion = 0,
-  Kind = 1,
-  Namespace = 2,
-  Name = 3,
-  Subresource = 4,
-}
-
-/**
  * VerticalScrollCalculator calculates vertical virtual scrolling for timelines.
  * It handles cases where each timeline has a different height (e.g., depending on its style)
  * and efficiently calculates the index or offset of timelines corresponding to a specified scroll position.

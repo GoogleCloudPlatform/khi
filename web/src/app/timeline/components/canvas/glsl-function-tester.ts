@@ -42,7 +42,7 @@ export enum GLSLDataType {
 /**
  * Sampler type for GLSL textures.
  */
-export enum GLSLSamplerType {
+enum GLSLSamplerType {
   Usampler2D = 'usampler2D',
   Sampler2D = 'sampler2D',
   Isampler2D = 'isampler2D',
@@ -51,7 +51,7 @@ export enum GLSLSamplerType {
 /**
  * Texture binding configuration for a GLSL test run.
  */
-export interface GLSLTextureBinding {
+interface GLSLTextureBinding {
   /** The uniform name for the sampler in the shader. */
   readonly uniformName: string;
   /** The WebGL texture unit index to bind (e.g. 0, 1, 2). */
@@ -65,7 +65,7 @@ export interface GLSLTextureBinding {
 /**
  * Uniform setter configuration for custom uniform values.
  */
-export interface GLSLUniformBinding {
+interface GLSLUniformBinding {
   /** The name of the uniform in the shader. */
   readonly name: string;
   /** Callback to set the uniform value on the WebGL context. */
@@ -78,7 +78,7 @@ export interface GLSLUniformBinding {
 /**
  * Uniform Buffer Object binding configuration for a GLSL test run.
  */
-export interface GLSLUBOBinding {
+interface GLSLUBOBinding {
   /** The name of the uniform block in the shader. */
   readonly blockName: string;
   /** The binding point index to assign to the block. */
@@ -90,7 +90,7 @@ export interface GLSLUBOBinding {
 /**
  * Options for evaluating a single GLSL expression or function call.
  */
-export interface GLSLExpressionOptions {
+interface GLSLExpressionOptions {
   /** The GLSL expression to evaluate (e.g. `checkBitset(u_bitset, u_id)`). */
   readonly expression: string;
   /** The expected return data type of the expression. */
@@ -110,7 +110,7 @@ export interface GLSLExpressionOptions {
 /**
  * Options for executing a custom vertex shader source with transform feedback.
  */
-export interface GLSLShaderOptions {
+interface GLSLShaderOptions {
   /** Full vertex shader source code. */
   readonly vertexShaderSource: string;
   /** The name of the output varying capturing the result. */

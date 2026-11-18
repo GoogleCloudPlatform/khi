@@ -16,7 +16,6 @@ package workbench
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -37,11 +36,6 @@ const (
 	IndexStateReady
 	// IndexStateFailed indicates that search index construction failed.
 	IndexStateFailed
-)
-
-var (
-	// ErrIndexFailed indicates that search index construction encountered a terminal error.
-	ErrIndexFailed = errors.New("search index construction failed")
 )
 
 // IndexState represents the lifecycle phase of the search index construction.

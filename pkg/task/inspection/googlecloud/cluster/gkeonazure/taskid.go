@@ -19,8 +19,5 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-// ClusterGKEOnAzureTaskCommonPrefix is the task id prefix defined in googlecloudclustergkeonazure.
-var ClusterGKEOnAzureTaskCommonPrefix = k8scommon.GoogleCloudCommonK8STaskIDPrefix + "cluster/gke-on-azure/"
-
 // ClusterNamePrefixTaskID is the task ID for the GKE on Azure cluster name prefix.
 var ClusterNamePrefixTaskID = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gke-on-azure")

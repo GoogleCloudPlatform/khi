@@ -37,7 +37,7 @@ export interface SettingsStorage {
  * Automatically catches storage access errors in restricted environments.
  */
 @Injectable({ providedIn: 'root' })
-export class LocalStorageSettingsStorage implements SettingsStorage {
+class LocalStorageSettingsStorage implements SettingsStorage {
   getItem(key: string): string | null {
     try {
       return localStorage.getItem(key);

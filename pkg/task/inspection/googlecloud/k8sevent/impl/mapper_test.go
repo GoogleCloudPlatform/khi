@@ -463,7 +463,7 @@ func TestProcessK8sEventLog(t *testing.T) {
 				}
 			}
 
-			cs, err := processK8sEventLog(t.Context(), tc.input, finder)
+			cs, err := processK8sEventLog(tc.input, finder)
 			if err != nil {
 				t.Fatalf("processK8sEventLog() returned unexpected error: %v", err)
 			}

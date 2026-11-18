@@ -79,9 +79,6 @@ type ManifestLogToTimelineMapper[T any] interface {
 	ProcessLog(ctx context.Context, event MultiGroupLogEvent, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// ManifestSinglePassMapperBase provides a base implementation for mappers that require only a single pass.
-type ManifestSinglePassMapperBase[T any] struct{}
-
 // ManifestStatelessMapperBase provides a base implementation for mappers that are both stateless and require a single pass.
 type ManifestStatelessMapperBase struct{}
 
@@ -224,16 +221,6 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 		return group.Logs[idx-1], true
 	}
 	return nil, false
-}
-
-// PassCount returns 0 as no pre-processing pass is required.
-func (ManifestSinglePassMapperBase[T]) PassCount() int {
-	return 0
-}
-
-// PreProcessLog is a no-op pre-processor that returns the state as-is.
-func (ManifestSinglePassMapperBase[T]) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData T) (T, error) {
-	return prevGroupData, nil
 }
 
 // PassCount returns 0 as no pre-processing pass is required.

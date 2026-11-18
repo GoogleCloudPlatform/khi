@@ -36,7 +36,7 @@ export const FILE_UPLOADER = new InjectionToken<FileUploader>('FILE_UPLOADER');
 /**
  * FileUploader provides functionality of uploading file to the given UploadToken.
  */
-export interface FileUploader {
+interface FileUploader {
   /**
    * Upload a file tied with the UploadToken.
    */

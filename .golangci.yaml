@@ -32,11 +32,13 @@ linters:
     - godoclint
     - godot
     - govet
+    - iface
     - ineffassign
     - noctx
     - nolintlint
     - revive
     - staticcheck
+    - unparam
     - unused
   settings:
     decorder:
@@ -187,10 +189,10 @@ linters:
           - funcorder
           - godoclint
           - godot
-          - govet
           - noctx
           - revive
           - staticcheck
+          - unparam
         path: _test\.go
       - linters:
           - forbidigo

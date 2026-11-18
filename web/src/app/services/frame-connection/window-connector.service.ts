@@ -49,7 +49,7 @@ export interface WindowConnectionProvider {
 /**
  * Represents a page meta information joinning a session.
  */
-export interface KHISessionPage {
+interface KHISessionPage {
   frameId: string;
   pageType: KHIPageType;
 }

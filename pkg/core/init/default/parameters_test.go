@@ -22,12 +22,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 )
 
-type dummyParameterStore struct {
-	prepared bool
-}
+type dummyParameterStore struct{}
 
 func (d *dummyParameterStore) Prepare() error {
-	d.prepared = true
 	return nil
 }
 

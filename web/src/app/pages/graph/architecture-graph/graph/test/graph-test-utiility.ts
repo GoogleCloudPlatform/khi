@@ -17,7 +17,7 @@
 import { GraphRoot } from '../graph-root';
 import { GraphRenderer } from '../renderer';
 
-export type SvgTestCallback<T> = (r: T) => void;
+type SvgTestCallback<T> = (r: T) => void;
 
 /**
  * Create a new graph root element for this spec

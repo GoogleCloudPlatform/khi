@@ -23,7 +23,7 @@ import {
 /**
  * Options supplied to resolve the effective transport binary format setting.
  */
-export interface ResolveTransportConfigOptions {
+interface ResolveTransportConfigOptions {
   /** Optional URL search query string (defaults to window.location.search when available). */
   readonly searchString?: string;
   /** Optional explicit boolean override or environment value. */

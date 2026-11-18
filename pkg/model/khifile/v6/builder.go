@@ -26,7 +26,6 @@ import (
 
 // Builder orchestrates the accumulators, pools, and final file generation for KHI v6 format.
 type Builder struct {
-	idGenerator      *id.Generator
 	writer           *Writer
 	internPool       *InternPool
 	serverInternPool *InternPool
@@ -45,7 +44,6 @@ func NewBuilder(gen *id.Generator, writer *Writer) *Builder {
 	logAcc := NewLogAccumulator(internPool, serverPool, gen, writer)
 
 	return &Builder{
-		idGenerator:         gen,
 		writer:              writer,
 		internPool:          internPool,
 		serverInternPool:    serverPool,

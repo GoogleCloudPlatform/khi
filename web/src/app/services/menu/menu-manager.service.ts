@@ -52,22 +52,6 @@ export interface MenuItem {
   priority: number;
 }
 
-/**
- * Represents a menu group configuration.
- */
-export interface MenuGroup {
-  /** Identifier for the group. */
-  id: string;
-  /** Label for the group. */
-  label: string;
-  /** Icon for the group. */
-  icon?: string;
-  /** Priority for display order. */
-  priority: number;
-  /** Items belonging to this group. */
-  items: MenuItem[];
-}
-
 // ViewModel for components like HeaderV2.
 
 /**
@@ -102,7 +86,7 @@ export interface MenuGroupViewModel {
  * @param item The source menu item.
  * @returns The constructed view model.
  */
-export function createMenuItemViewModel(item: MenuItem): MenuItemViewModel {
+function createMenuItemViewModel(item: MenuItem): MenuItemViewModel {
   return {
     id: item.id,
     label: item.label || '',

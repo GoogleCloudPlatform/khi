@@ -29,6 +29,7 @@ readonly CHECK_RUN_ID="${CHECK_RUN_ID:?CHECK_RUN_ID is required}"
 readonly HEAD_SHA="${HEAD_SHA:?HEAD_SHA is required}"
 readonly CONCLUSION="${CONCLUSION:-unknown}"
 readonly DETAILS_URL="${DETAILS_URL:-}"
+readonly DECISIONS_SUMMARY_FILE="${DECISIONS_SUMMARY_FILE:-}"
 
 find_open_pr_numbers_for_head() {
   gh api "repos/${GITHUB_REPO}/commits/${HEAD_SHA}/pulls" \
@@ -38,9 +39,9 @@ find_open_pr_numbers_for_head() {
 extract_envelope_from_log() {
   local log_file="$1"
   local out_file="$2"
-  node - "${log_file}" "${out_file}" "${ENVELOPE_BEGIN}" "${ENVELOPE_END}" <<'EOF'
+  node - "${log_file}" "${out_file}" "${ENVELOPE_BEGIN}" "${ENVELOPE_END}" "${COMMENT_MARKER}" <<'EOF'
 const fs = require('fs');
-const [logPath, outPath, beginTag, endTag] = process.argv.slice(2);
+const [logPath, outPath, beginTag, endTag, marker] = process.argv.slice(2);
 const text = fs.readFileSync(logPath, 'utf8');
 const beginIdx = text.lastIndexOf(beginTag);
 if (beginIdx < 0) {
@@ -51,9 +52,19 @@ const endIdx = rest.indexOf(endTag);
 if (endIdx < 0) {
   process.exit(1);
 }
-const b64 = rest.slice(0, endIdx).replace(/\s+/g, '');
+// Cloud Build prefixes multi-step or named-step log lines with
+// `Step #N: ` or `Step #N - "<id>": `; strip those prefixes before decoding.
+const b64 = rest
+  .slice(0, endIdx)
+  .split(/\r?\n/)
+  .map((line) => line.replace(/^\s*Step #\d+(?:\s*-\s*"[^"]*")?:\s*/, ''))
+  .join('')
+  .replace(/\s+/g, '');
+if (!b64 || b64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) {
+  process.exit(1);
+}
 const decoded = Buffer.from(b64, 'base64').toString('utf8');
-if (!decoded.trim()) {
+if (!decoded.trim() || !decoded.includes(marker)) {
   process.exit(1);
 }
 fs.writeFileSync(outPath, decoded, 'utf8');
@@ -108,6 +119,29 @@ upsert_sticky_comment() {
   fi
 }
 
+append_decisions_summary() {
+  local body_file="$1"
+  local dec_file="$2"
+  if [[ -z "${dec_file}" || ! -s "${dec_file}" ]]; then
+    return
+  fi
+  node - "${body_file}" "${dec_file}" <<'EOF'
+const fs = require('fs');
+const [bodyPath, decPath] = process.argv.slice(2);
+const body = fs.readFileSync(bodyPath, 'utf8');
+const dec = fs.readFileSync(decPath, 'utf8').trim();
+if (!dec) {
+  process.exit(0);
+}
+const footerMarker = '\n---\n_Commit:';
+const idx = body.lastIndexOf(footerMarker);
+const merged = idx >= 0
+  ? body.slice(0, idx).trimEnd() + '\n\n' + dec + '\n' + body.slice(idx)
+  : body.trimEnd() + '\n\n' + dec + '\n';
+fs.writeFileSync(bodyPath, merged, 'utf8');
+EOF
+}
+
 TMP_DIR=""
 trap '[[ -n "${TMP_DIR}" ]] && rm -rf "${TMP_DIR}"' EXIT
 
@@ -130,6 +164,7 @@ main() {
     echo "No embedded report envelope found in Check Run #${CHECK_RUN_ID}; using fallback summary."
     write_fallback_body "${body_file}"
   fi
+  append_decisions_summary "${body_file}" "${DECISIONS_SUMMARY_FILE}"
 
   local pr_num
   while IFS= read -r pr_num; do

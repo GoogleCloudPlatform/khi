@@ -39,7 +39,7 @@ export interface InspectionListItemViewModel {
 /**
  * Represents the progress bar state.
  */
-export interface ProgressBarViewModel {
+interface ProgressBarViewModel {
   /** Unique identifier for the task. */
   id: string;
   /** Label for the task. */
@@ -57,7 +57,7 @@ export interface ProgressBarViewModel {
 /**
  * Represents an error associated with an inspection.
  */
-export interface ErrorViewModel {
+interface ErrorViewModel {
   /** The error message. */
   message: string;
   /** Optional link for more details or action. */

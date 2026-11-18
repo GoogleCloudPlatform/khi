@@ -65,6 +65,19 @@ func TestCoverageAndMutationSummaries(t *testing.T) {
 			wantLang:    "TypeScript",
 			wantFence:   "ts",
 		},
+		// Marks HasBlockingIssues true when a non-advisory Decisions report contains at least one blocking finding.
+		{
+			name:        "blocking decision finding triggers HasBlockingIssues on non-advisory report",
+			cov:         CoverageSummary{},
+			mut:         MutationSummary{},
+			rep:         Report{Language: "Decisions", Decisions: DecisionSummary{Findings: []DecisionItemFinding{{RuleID: "r1", Blocking: true}}}},
+			wantPatch:   100.0,
+			wantOverall: 0.0,
+			wantScore:   100.0,
+			wantBlock:   true,
+			wantLang:    "Decisions",
+			wantFence:   "go",
+		},
 	}
 
 	for _, tc := range testCases {

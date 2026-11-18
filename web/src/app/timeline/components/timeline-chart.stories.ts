@@ -207,10 +207,21 @@ type Story = StoryObj<TimelineChartStoriesComponent>;
 
 export const Default: Story = {
   args: {},
+  parameters: {
+    vrt: {
+      readySelector: 'khi-timeline-chart canvas.gl-canvas',
+      waitForHiddenSelector: 'khi-timeline-chart .overlay',
+    },
+  },
 };
 
 export const NotReady: Story = {
   args: {
     forceNotReadyToRender: true,
+  },
+  parameters: {
+    vrt: {
+      readySelector: 'khi-timeline-chart .overlay',
+    },
   },
 };

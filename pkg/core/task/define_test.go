@@ -68,7 +68,7 @@ func TestDefine_RejectsMisuseInRunFunction(t *testing.T) {
 	}{
 		{
 			name:      "declaring an input after bind returned panics",
-			run:       func(ctx context.Context, b *Binder) { Use(b, lateRef) },
+			run:       func(ctx context.Context, b *Binder) { _ = Use(b, lateRef) },
 			wantPanic: "declares input ref:define-test.late after its bind function returned",
 		},
 	}

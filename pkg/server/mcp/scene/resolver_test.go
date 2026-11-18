@@ -16,7 +16,6 @@ package scene
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -50,6 +49,24 @@ type resolverFixture struct {
 	appTimelineID  uint32
 	allPodTreeIDs  []uint32
 	oomEventLogID  uint32
+	unlinkedLogID  uint32
+}
+
+type allLayersResolveResult struct {
+	Overlay    *Overlay
+	DiffBadges []string
+	LogBadges  []string
+}
+
+type fixtureRevisionSpec struct {
+	offset       time.Duration
+	path         *khifilev6.TimelinePath
+	logYAML      string
+	resourceYAML string
+	summary      string
+	state        *pb.RevisionState
+	verb         *pb.Verb
+	severity     *pb.Severity
 }
 
 func setupResolverFixture(t *testing.T) resolverFixture {
@@ -64,146 +81,7 @@ func setupResolverFixture(t *testing.T) resolverFixture {
 				if taskMode == inspectioncore.TaskModeDryRun {
 					return struct{}{}, nil
 				}
-				metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
-				if header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey); found && header != nil {
-					header.StartTimeUnixSeconds = baseTime.Unix()
-					header.EndTimeUnixSeconds = baseTime.Add(1 * time.Hour).Unix()
-				}
-
-				idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
-				builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
-				tlAcc := builder.TimelineAccumulator
-
-				k8sPath := func(apiVersion, kind, namespace, name string) *khifilev6.TimelinePath {
-					return tlAcc.GetPath(nil,
-						khifilev6.PathSegment{Name: apiVersion, Type: inspectioncore.TimelineTypeAPIVersion},
-						khifilev6.PathSegment{Name: kind, Type: inspectioncore.TimelineTypeKind},
-						khifilev6.PathSegment{Name: namespace, Type: inspectioncore.TimelineTypeNamespace},
-						khifilev6.PathSegment{Name: name, Type: inspectioncore.TimelineTypeResource},
-					)
-				}
-
-				nodePath := k8sPath("core/v1", "node", "cluster-scope", "gke-node-1")
-				podPath := k8sPath("core/v1", "pod", "default", "web-1")
-				appPath := tlAcc.GetPath(podPath, khifilev6.PathSegment{Name: "app", Type: k8saudit.TimelineTypeContainer})
-
-				recordRev := func(offset time.Duration, path *khifilev6.TimelinePath, logYAML, resourceYAML, summary string, state *pb.RevisionState, verb *pb.Verb, sev *pb.Severity) error {
-					ts := baseTime.Add(offset)
-					logBodyNode, err := structured.FromYAML(logYAML)
-					if err != nil {
-						return err
-					}
-					resourceBodyNode, err := structured.FromYAML(resourceYAML)
-					if err != nil {
-						return err
-					}
-					l := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(logBodyNode), ts)
-					logCS, err := khifilev6.NewLogChangeSet(l)
-					if err != nil {
-						return err
-					}
-					logCS.SetTimestamp(ts)
-					logCS.SetSeverity(sev)
-					logCS.SetLogType(k8saudit.LogTypeAudit)
-					logCS.SetSummary(summary)
-					if err := logCS.Flush(builder.LogAccumulator); err != nil {
-						return err
-					}
-
-					tlCS := khifilev6.NewTimelineChangeSet(l)
-					defer tlCS.Release()
-					tlCS.AddRevision(path, &khifilev6.StagingRevision{
-						ChangedTime:  ts,
-						ResourceBody: resourceBodyNode,
-						Principal:    "kubelet",
-						VerbType:     verb,
-						StateType:    state,
-					})
-					return tlCS.Flush(tlAcc, builder.LogAccumulator)
-				}
-
-				const nodeRev0 = `apiVersion: v1
-kind: Node
-metadata:
-  managedFields:
-  - manager: kubelet
-    operation: Update
-  name: gke-node-1
-status:
-  ready: "True"
-  reason: KubeletReady
-`
-				const nodeRev1 = `apiVersion: v1
-kind: Node
-metadata:
-  managedFields:
-  - manager: kubelet
-    operation: Apply
-  name: gke-node-1
-status:
-  ready: "False"
-  reason: KubeletNotReady
-`
-				const nodeRev2 = `apiVersion: v1
-kind: Node
-metadata:
-  name: gke-node-1
-status:
-  ready: "True"
-  reason: KubeletReady
-`
-				const podAudit0 = `insertId: audit-pod-web-1
-protoPayload:
-  methodName: io.k8s.core.v1.pods.create
-`
-				const podRev0 = `apiVersion: v1
-kind: Pod
-metadata:
-  name: web-1
-status:
-  phase: Running
-`
-
-				if err := recordRev(10*time.Minute, nodePath, nodeRev0, nodeRev0, "Node Ready=True", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbCreate, inspectioncore.SeverityInfo); err != nil {
-					return struct{}{}, err
-				}
-				if err := recordRev(24*time.Minute, nodePath, nodeRev1, nodeRev1, "Node Ready=False", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbPatch, inspectioncore.SeverityWarning); err != nil {
-					return struct{}{}, err
-				}
-				if err := recordRev(34*time.Minute, nodePath, nodeRev2, nodeRev2, "Node recovered", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbPatch, inspectioncore.SeverityInfo); err != nil {
-					return struct{}{}, err
-				}
-				if err := recordRev(12*time.Minute, podPath, podAudit0, podRev0, "Pod web-1 running", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbCreate, inspectioncore.SeverityInfo); err != nil {
-					return struct{}{}, err
-				}
-
-				oomTime := baseTime.Add(25 * time.Minute)
-				logNode, err := structured.FromYAML(`insertId: evt-oom
-message: "OOMKilled container app\nexitCode: 137"
-`)
-				if err != nil {
-					return struct{}{}, err
-				}
-				l := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(logNode), oomTime)
-				logCS, err := khifilev6.NewLogChangeSet(l)
-				if err != nil {
-					return struct{}{}, err
-				}
-				logCS.SetTimestamp(oomTime)
-				logCS.SetSeverity(inspectioncore.SeverityError)
-				logCS.SetLogType(k8saudit.LogTypeEvent)
-				logCS.SetSummary("Container app OOMKilled")
-				if err := logCS.Flush(builder.LogAccumulator); err != nil {
-					return struct{}{}, err
-				}
-				tlCS := khifilev6.NewTimelineChangeSet(l)
-				defer tlCS.Release()
-				tlCS.AddEvent(podPath)
-				tlCS.AddEvent(appPath)
-				if err := tlCS.Flush(tlAcc, builder.LogAccumulator); err != nil {
-					return struct{}{}, err
-				}
-				return struct{}{}, nil
+				return struct{}{}, populateResolverFixtureData(ctx, baseTime)
 			}
 		},
 		coretask.ProvidesTag(inspectiontaskbase.TagTimelineMapper),
@@ -233,6 +111,179 @@ message: "OOMKilled container app\nexitCode: 137"
 		t.Fatalf("wb.AwaitIndex() unexpected error = %v", err)
 	}
 
+	return buildResolverFixture(t, wb, inspectionID, baseTime)
+}
+
+func populateResolverFixtureData(ctx context.Context, baseTime time.Time) error {
+	metadataSet := khictx.MustGetValue(ctx, inspectionmetadata.MapContextKey)
+	if header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey); found && header != nil {
+		header.StartTimeUnixSeconds = baseTime.Unix()
+		header.EndTimeUnixSeconds = baseTime.Add(1 * time.Hour).Unix()
+	}
+
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+	tlAcc := builder.TimelineAccumulator
+	k8sPath := func(apiVersion, kind, namespace, name string) *khifilev6.TimelinePath {
+		return tlAcc.GetPath(nil,
+			khifilev6.PathSegment{Name: apiVersion, Type: inspectioncore.TimelineTypeAPIVersion},
+			khifilev6.PathSegment{Name: kind, Type: inspectioncore.TimelineTypeKind},
+			khifilev6.PathSegment{Name: namespace, Type: inspectioncore.TimelineTypeNamespace},
+			khifilev6.PathSegment{Name: name, Type: inspectioncore.TimelineTypeResource},
+		)
+	}
+
+	nodePath := k8sPath("core/v1", "node", "cluster-scope", "gke-node-1")
+	podPath := k8sPath("core/v1", "pod", "default", "web-1")
+	appPath := tlAcc.GetPath(podPath, khifilev6.PathSegment{Name: "app", Type: k8saudit.TimelineTypeContainer})
+
+	const nodeRev0 = `apiVersion: v1
+kind: Node
+metadata:
+  managedFields:
+  - manager: kubelet
+    operation: Update
+  name: gke-node-1
+status:
+  ready: "True"
+  reason: KubeletReady
+`
+	const nodeRev1 = `apiVersion: v1
+kind: Node
+metadata:
+  managedFields:
+  - manager: kubelet
+    operation: Apply
+  name: gke-node-1
+status:
+  ready: "False"
+  reason: KubeletNotReady
+`
+	const nodeRev2 = `apiVersion: v1
+kind: Node
+metadata:
+  name: gke-node-1
+status:
+  ready: "True"
+  reason: KubeletReady
+`
+	const podAudit0 = `insertId: audit-pod-web-1
+protoPayload:
+  methodName: io.k8s.core.v1.pods.create
+`
+	const podRev0 = `apiVersion: v1
+kind: Pod
+metadata:
+  name: web-1
+status:
+  phase: Running
+`
+
+	revs := []fixtureRevisionSpec{
+		{10 * time.Minute, nodePath, nodeRev0, nodeRev0, "Node Ready=True", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbCreate, inspectioncore.SeverityInfo},
+		{24 * time.Minute, nodePath, nodeRev1, nodeRev1, "Node Ready=False", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbPatch, inspectioncore.SeverityWarning},
+		{34 * time.Minute, nodePath, nodeRev2, nodeRev2, "Node recovered", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbPatch, inspectioncore.SeverityInfo},
+		{12 * time.Minute, podPath, podAudit0, podRev0, "Pod web-1 running", k8saudit.RevisionStateK8sResourceExisting, k8saudit.VerbCreate, inspectioncore.SeverityInfo},
+	}
+	for _, r := range revs {
+		if err := recordFixtureRevision(ctx, baseTime.Add(r.offset), r); err != nil {
+			return err
+		}
+	}
+	if err := recordFixtureEventLog(ctx, baseTime.Add(25*time.Minute), podPath, appPath); err != nil {
+		return err
+	}
+	return recordFixtureUnlinkedLog(ctx, baseTime.Add(26*time.Minute))
+}
+
+func recordFixtureRevision(ctx context.Context, ts time.Time, r fixtureRevisionSpec) error {
+	idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+	logBodyNode, err := structured.FromYAML(r.logYAML)
+	if err != nil {
+		return err
+	}
+	resourceBodyNode, err := structured.FromYAML(r.resourceYAML)
+	if err != nil {
+		return err
+	}
+	l := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(logBodyNode), ts)
+	logCS, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return err
+	}
+	logCS.SetTimestamp(ts)
+	logCS.SetSeverity(r.severity)
+	logCS.SetLogType(k8saudit.LogTypeAudit)
+	logCS.SetSummary(r.summary)
+	if err := logCS.Flush(builder.LogAccumulator); err != nil {
+		return err
+	}
+
+	tlCS := khifilev6.NewTimelineChangeSet(l)
+	defer tlCS.Release()
+	tlCS.AddRevision(r.path, &khifilev6.StagingRevision{
+		ChangedTime:  ts,
+		ResourceBody: resourceBodyNode,
+		Principal:    "kubelet",
+		VerbType:     r.verb,
+		StateType:    r.state,
+	})
+	return tlCS.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
+}
+
+func recordFixtureEventLog(ctx context.Context, oomTime time.Time, podPath, appPath *khifilev6.TimelinePath) error {
+	idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+	logNode, err := structured.FromYAML(`insertId: evt-oom
+message: "OOMKilled container app\nexitCode: 137"
+`)
+	if err != nil {
+		return err
+	}
+	l := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(logNode), oomTime)
+	logCS, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return err
+	}
+	logCS.SetTimestamp(oomTime)
+	logCS.SetSeverity(inspectioncore.SeverityError)
+	logCS.SetLogType(k8saudit.LogTypeEvent)
+	logCS.SetSummary("Container app OOMKilled")
+	if err := logCS.Flush(builder.LogAccumulator); err != nil {
+		return err
+	}
+	tlCS := khifilev6.NewTimelineChangeSet(l)
+	defer tlCS.Release()
+	tlCS.AddEvent(podPath)
+	tlCS.AddEvent(appPath)
+	return tlCS.Flush(builder.TimelineAccumulator, builder.LogAccumulator)
+}
+
+func recordFixtureUnlinkedLog(ctx context.Context, unlinkedTime time.Time) error {
+	idGen := khictx.MustGetValue(ctx, inspectioncore.IDGenerator)
+	builder := khictx.MustGetValue(ctx, inspectioncore.Builder)
+
+	unlinkedNode, err := structured.FromYAML(`message: unlinked diagnostic`)
+	if err != nil {
+		return err
+	}
+	ul := log.NewLogWithTimestamp(idGen, structured.NewNodeReader(unlinkedNode), unlinkedTime)
+	ulCS, err := khifilev6.NewLogChangeSet(ul)
+	if err != nil {
+		return err
+	}
+	ulCS.SetTimestamp(unlinkedTime)
+	ulCS.SetSeverity(inspectioncore.SeverityInfo)
+	ulCS.SetLogType(k8saudit.LogTypeEvent)
+	ulCS.SetSummary("Unlinked log entry")
+	return ulCS.Flush(builder.LogAccumulator)
+}
+
+func buildResolverFixture(t *testing.T, wb *workbench.Workbench, inspectionID string, baseTime time.Time) resolverFixture {
+	t.Helper()
+
 	idx := wb.SearchIndex()
 	var nodeID, podID, appID uint32
 	for _, tl := range idx.Timelines {
@@ -245,15 +296,17 @@ message: "OOMKilled container app\nexitCode: 137"
 			appID = tl.ID
 		}
 	}
-	var oomLogID uint32
+	var oomLogID, unlinkedLogID uint32
 	for i := range idx.Logs {
-		if idx.InternPool.ResolveStringFromID(idx.Logs[i].SummaryStringID) == "Container app OOMKilled" {
+		switch idx.InternPool.ResolveStringFromID(idx.Logs[i].SummaryStringID) {
+		case "Container app OOMKilled":
 			oomLogID = idx.Logs[i].ID
-			break
+		case "Unlinked log entry":
+			unlinkedLogID = idx.Logs[i].ID
 		}
 	}
-	if nodeID == 0 || podID == 0 || appID == 0 || oomLogID == 0 {
-		t.Fatalf("missing fixture IDs: node=%d pod=%d app=%d oomLog=%d", nodeID, podID, appID, oomLogID)
+	if nodeID == 0 || podID == 0 || appID == 0 || oomLogID == 0 || unlinkedLogID == 0 {
+		t.Fatalf("missing fixture IDs: node=%d pod=%d app=%d oomLog=%d unlinked=%d", nodeID, podID, appID, oomLogID, unlinkedLogID)
 	}
 
 	return resolverFixture{
@@ -265,25 +318,8 @@ message: "OOMKilled container app\nexitCode: 137"
 		appTimelineID:  appID,
 		allPodTreeIDs:  []uint32{podID, appID},
 		oomEventLogID:  oomLogID,
+		unlinkedLogID:  unlinkedLogID,
 	}
-}
-
-func TestSliceWorkbenchIntegration(t *testing.T) {
-	fx := setupResolverFixture(t)
-
-	t.Run("SliceResourceDiff returns ErrTimelineNotFound for unknown timeline", func(t *testing.T) {
-		_, err := SliceResourceDiff(fx.wb, 999999, 0, DiffSliceOptions{})
-		if !errors.Is(err, workbench.ErrTimelineNotFound) {
-			t.Fatalf("SliceResourceDiff() error = %v, want %v", err, workbench.ErrTimelineNotFound)
-		}
-	})
-
-	t.Run("SliceLogDetail returns ErrLogNotFound for unknown log", func(t *testing.T) {
-		_, err := SliceLogDetail(fx.wb, 999999, LogSliceOptions{})
-		if !errors.Is(err, workbench.ErrLogNotFound) {
-			t.Fatalf("SliceLogDetail() error = %v, want %v", err, workbench.ErrLogNotFound)
-		}
-	})
 }
 
 func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
@@ -335,7 +371,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			DiffExcerpts: []DiffExcerpt{
 				{
 					Revision:  RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
-					Windows:   []SliceWindow{{Query: "KubeletNotReady", BeforeLines: 0, AfterLines: 0}},
+					Paths:     []string{"$.status.reason"},
 					Note:      "Node transitioned to KubeletNotReady",
 					PaletteID: "trigger",
 				},
@@ -371,36 +407,12 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 	}
 	nodeRev1LogID := nodeBounds.Revision.LogID
 
-	podBounds, err := fx.wb.ResolveRevisionBounds(fx.podTimelineID, 0)
-	if err != nil {
-		t.Fatalf("ResolveRevisionBounds(pod, 0) error = %v", err)
-	}
-	podRev0LogID := podBounds.Revision.LogID
-
 	fullOverlay := &Overlay{
 		AutoIncludeTimelineIDs: []uint32{fx.nodeTimelineID, fx.podTimelineID, fx.appTimelineID},
 		Palette: []ResolvedPaletteColors{
-			{
-				ID:      "trigger",
-				Main:    "#b45309",
-				OnMain:  "#fafafa",
-				Soft:    "rgba(180, 83, 9, 0.13)",
-				Surface: "#f8eee6",
-			},
-			{
-				ID:      "victim",
-				Main:    "#d32f2f",
-				OnMain:  "#fafafa",
-				Soft:    "rgba(211, 47, 47, 0.13)",
-				Surface: "#fbeaea",
-			},
-			{
-				ID:      "default-reference",
-				Main:    "#5e35b1",
-				OnMain:  "#fafafa",
-				Soft:    "rgba(94, 53, 177, 0.13)",
-				Surface: "#efebf7",
-			},
+			{ID: "trigger", Main: "#b45309", OnMain: "#fafafa", Soft: "rgba(180, 83, 9, 0.13)", Surface: "#f8eee6"},
+			{ID: "victim", Main: "#d32f2f", OnMain: "#fafafa", Soft: "rgba(211, 47, 47, 0.13)", Surface: "#fbeaea"},
+			{ID: "default-reference", Main: "#5e35b1", OnMain: "#fafafa", Soft: "rgba(94, 53, 177, 0.13)", Surface: "#efebf7"},
 		},
 		DimUnlistedRows: true,
 		Markers: []ResolvedMarker{
@@ -415,7 +427,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			},
 			{
 				ID:         "marker-2",
-				Badge:      "1",
+				Badge:      "E2",
 				Label:      "Container OOMKilled",
 				Style:      MarkerStylePin,
 				PaletteID:  "victim",
@@ -458,16 +470,23 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Title:        "Patch · Resource exists",
 				Subtitle:     "+2 / -2 · 7 diff lines",
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindDeleted, OldLineNum: 6, Text: `  ready: "True"`},
-					{Kind: ExcerptLineKindDeleted, OldLineNum: 7, Text: "  reason: KubeletReady"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: `  ready: "False"`},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 diff lines omitted"},
+					{
+						Kind:       ExcerptLineKindDeleted,
+						OldLineNum: 7,
+						Text:       "  reason: KubeletReady",
+						Parts: []LinePart{
+							{Text: "  "},
+							{Text: "reason: KubeletReady", Matched: true},
+						},
+					},
 					{
 						Kind:       ExcerptLineKindAdded,
 						NewLineNum: 7,
 						Text:       "  reason: KubeletNotReady",
 						Parts: []LinePart{
-							{Text: "  reason: "},
-							{Text: "KubeletNotReady", Matched: true},
+							{Text: "  "},
+							{Text: "reason: KubeletNotReady", Matched: true},
 						},
 					},
 				},
@@ -533,86 +552,65 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 		},
 	}
 
-	revZero := 0
-	auditDiffOverlay := &Overlay{
-		AutoIncludeTimelineIDs: []uint32{fx.podTimelineID},
-		Palette: []ResolvedPaletteColors{
-			{
-				ID:      "default",
-				Main:    "#1976d2",
-				OnMain:  "#fafafa",
-				Soft:    "rgba(25, 118, 210, 0.13)",
-				Surface: "#e8f1fb",
-			},
-		},
-		Excerpts: []ResolvedExcerptCard{
-			{
-				ID:           "excerpt-1",
-				Kind:         ExcerptKindDiff,
-				Badge:        "E1",
-				PaletteID:    "default",
-				TimeMs:       fx.baseTime.Add(12 * time.Minute).UnixMilli(),
-				TimeLabel:    "09:12:00Z",
-				TimelineID:   fx.podTimelineID,
-				ResourcePath: "pod · default/web-1",
-				Title:        "Create · Resource exists",
-				Subtitle:     "+6 / -0 · 6 diff lines",
-				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindAdded, NewLineNum: 1, Text: "apiVersion: v1"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 2, Text: "kind: Pod"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 3, Text: "metadata:"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 4, Text: "  name: web-1"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 5, Text: "status:"},
-					{Kind: ExcerptLineKindAdded, NewLineNum: 6, Text: "  phase: Running"},
-				},
-				LogTimestamp:  "2026-10-01T09:12:00Z",
-				InsertID:      "audit-pod-web-1",
-				LogID:         podRev0LogID,
-				RevisionIndex: &revZero,
-			},
-		},
-	}
-
-	type resolveResult struct {
-		Overlay    *Overlay
-		DiffBadges []string
-		LogBadges  []string
-	}
-
 	testCases := []struct {
 		name string
 		spec Spec
-		want resolveResult
+		want allLayersResolveResult
 	}{
 		{
 			name: "empty annotations returns nil overlay",
 			spec: Spec{InspectionID: fx.inspectionID},
-			want: resolveResult{},
+			want: allLayersResolveResult{},
 		},
 		{
 			name: "resolves all layers and auto-includes timelines",
 			spec: spec,
-			want: resolveResult{
+			want: allLayersResolveResult{
 				Overlay:    fullOverlay,
 				DiffBadges: []string{"E1"},
 				LogBadges:  []string{"E2"},
 			},
 		},
 		{
-			name: "diff excerpt resolves audit log insertId and timestamp without internal rev prefixes",
+			name: "accepts exact maxAnnotationRunes marker label",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
-					DiffExcerpts: []DiffExcerpt{
+					Markers: []MarkerAnnotation{
 						{
-							Revision: RevisionRef{TimelineID: fx.podTimelineID, RevisionIndex: 0},
+							Anchor: Anchor{LogID: fx.oomEventLogID},
+							Label:  strings.Repeat("x", maxAnnotationRunes),
+							Badge:  "MAX",
 						},
 					},
 				},
 			},
-			want: resolveResult{
-				Overlay:    auditDiffOverlay,
-				DiffBadges: []string{"E1"},
+			want: allLayersResolveResult{
+				Overlay: &Overlay{
+					AutoIncludeTimelineIDs: []uint32{fx.appTimelineID},
+					Palette: []ResolvedPaletteColors{
+						{
+							ID:      "default",
+							Main:    "#1976d2",
+							OnMain:  "#fafafa",
+							Soft:    "rgba(25, 118, 210, 0.13)",
+							Surface: "#e8f1fb",
+						},
+					},
+					Markers: []ResolvedMarker{
+						{
+							ID:         "marker-1",
+							Badge:      "MAX",
+							Label:      strings.Repeat("x", maxAnnotationRunes),
+							Style:      MarkerStylePin,
+							PaletteID:  "default",
+							TimeMs:     fx.baseTime.Add(25 * time.Minute).UnixMilli(),
+							TimeLabel:  "09:25:00Z",
+							TimelineID: fx.appTimelineID,
+							LogID:      fx.oomEventLogID,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -628,22 +626,26 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 			if errRes != nil {
 				t.Fatalf("Resolve() unexpected tool error = %+v", errRes)
 			}
-			got := resolveResult{
-				Overlay: gotOverlay,
-			}
-			if specCopy.Annotations != nil {
-				for _, d := range specCopy.Annotations.DiffExcerpts {
-					got.DiffBadges = append(got.DiffBadges, d.Badge)
-				}
-				for _, l := range specCopy.Annotations.LogExcerpts {
-					got.LogBadges = append(got.LogBadges, l.Badge)
-				}
-			}
+			got := collectAllLayersResult(gotOverlay, specCopy.Annotations)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("Resolve() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
+}
+
+func collectAllLayersResult(gotOverlay *Overlay, ann *Annotations) allLayersResolveResult {
+	out := allLayersResolveResult{Overlay: gotOverlay}
+	if ann == nil {
+		return out
+	}
+	for _, d := range ann.DiffExcerpts {
+		out.DiffBadges = append(out.DiffBadges, d.Badge)
+	}
+	for _, l := range ann.LogExcerpts {
+		out.LogBadges = append(out.LogBadges, l.Badge)
+	}
+	return out
 }
 
 func TestResolve_Errors(t *testing.T) {
@@ -654,20 +656,11 @@ func TestResolve_Errors(t *testing.T) {
 	narrowEnd := fx.baseTime.Add(40 * time.Minute)
 
 	testCases := []struct {
-		name     string
-		spec     Spec
-		wantCode string
+		name       string
+		spec       Spec
+		wantCode   string
+		wantSubstr string
 	}{
-		{
-			name: "anchor with neither logId nor revision nor time returns INVALID_ANCHOR",
-			spec: Spec{
-				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					Markers: []MarkerAnnotation{{Label: "bad"}},
-				},
-			},
-			wantCode: "INVALID_ANCHOR",
-		},
 		{
 			name: "anchor outside filter.startTime..endTime returns ANCHOR_OUT_OF_VIEWPORT",
 			spec: Spec{
@@ -697,71 +690,18 @@ func TestResolve_Errors(t *testing.T) {
 			wantCode: "INVALID_CEL",
 		},
 		{
-			name: "unmatched diff slice query returns SLICE_QUERY_NOT_FOUND with guidance",
+			name: "duplicate paletteId returns INVALID_ARGUMENT",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					DiffExcerpts: []DiffExcerpt{
-						{
-							Revision: RevisionRef{TimelineID: fx.nodeTimelineID, RevisionIndex: 1},
-							Windows:  []SliceWindow{{Query: "NoSuchCondition"}},
-						},
-					},
-				},
-			},
-			wantCode: "SLICE_QUERY_NOT_FOUND",
-		},
-		{
-			name: "unmatched log slice query returns SLICE_QUERY_NOT_FOUND with summary",
-			spec: Spec{
-				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					LogExcerpts: []LogExcerpt{
-						{
-							LogID:   fx.oomEventLogID,
-							Windows: []SliceWindow{{Query: "NoSuchField"}},
-						},
-					},
-				},
-			},
-			wantCode: "SLICE_QUERY_NOT_FOUND",
-		},
-		{
-			name: "empty slice window query returns INVALID_ARGUMENT",
-			spec: Spec{
-				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					LogExcerpts: []LogExcerpt{
-						{
-							LogID:   fx.oomEventLogID,
-							Windows: []SliceWindow{{Query: ""}},
-						},
-					},
-				},
+				Annotations:  &Annotations{Palette: []PaletteEntry{{ID: "dup", Color: "red"}, {ID: "dup", Color: "blue"}}},
 			},
 			wantCode: "INVALID_ARGUMENT",
 		},
 		{
-			name: "unknown logId in logExcerpt returns LOG_NOT_FOUND",
+			name: "markers exceeding cap returns INVALID_ARGUMENT",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					LogExcerpts: []LogExcerpt{
-						{
-							LogID: 999999,
-						},
-					},
-				},
-			},
-			wantCode: "LOG_NOT_FOUND",
-		},
-		{
-			name: "exceeding total excerpt card cap returns INVALID_ARGUMENT",
-			spec: Spec{
-				InspectionID: fx.inspectionID,
-				Annotations: &Annotations{
-					LogExcerpts: make([]LogExcerpt, 7),
-				},
+				Annotations:  &Annotations{Markers: make([]MarkerAnnotation, maxSceneMarkers+1)},
 			},
 			wantCode: "INVALID_ARGUMENT",
 		},
@@ -770,20 +710,18 @@ func TestResolve_Errors(t *testing.T) {
 			spec: Spec{
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
-					Palette: []PaletteEntry{{ID: "victim", Color: "red"}},
-					Markers: []MarkerAnnotation{
-						{Label: "OOM", Anchor: Anchor{LogID: fx.oomEventLogID}, PaletteID: "missing-id"},
-					},
+					Palette:    []PaletteEntry{{ID: "victim", Color: "red"}},
+					Connectors: []ConnectorAnnotation{{From: Anchor{LogID: fx.oomEventLogID}, To: Anchor{LogID: fx.oomEventLogID}, PaletteID: "missing-id"}},
 				},
 			},
 			wantCode: "UNKNOWN_PALETTE_ID",
 		},
 		{
-			name: "exceeding max markers returns INVALID_ARGUMENT",
+			name: "unsupported callout placement returns INVALID_ARGUMENT",
 			spec: Spec{
 				InspectionID: fx.inspectionID,
 				Annotations: &Annotations{
-					Markers: make([]MarkerAnnotation, 13),
+					Callouts: []CalloutAnnotation{{Label: "bad", Placement: "bottom", Anchor: Anchor{LogID: fx.oomEventLogID}}},
 				},
 			},
 			wantCode: "INVALID_ARGUMENT",
@@ -807,22 +745,114 @@ func TestResolve_Errors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			specCopy := tc.spec.Clone()
-			applied := fx.wb.ResolveFilter(specCopy.Filter)
-			_, errRes, err := Resolve(ctx, fx.wb, fx.inspectionID, &specCopy, applied)
-			if err != nil {
-				t.Fatalf("Resolve() unexpected error = %v", err)
+			assertResolveError(t, ctx, fx, tc.spec, tc.wantCode, tc.wantSubstr)
+		})
+	}
+}
+
+func assertResolveError(t *testing.T, ctx context.Context, fx resolverFixture, spec Spec, wantCode, wantSubstr string) {
+	t.Helper()
+	specCopy := spec.Clone()
+	applied := fx.wb.ResolveFilter(specCopy.Filter)
+	_, errRes, err := Resolve(ctx, fx.wb, fx.inspectionID, &specCopy, applied)
+	if err != nil {
+		t.Fatalf("Resolve() unexpected error = %v", err)
+	}
+	if errRes == nil || !errRes.IsError || len(errRes.Content) == 0 {
+		t.Fatalf("Resolve() errRes = %+v, want error result with code %s", errRes, wantCode)
+	}
+	textContent, ok := errRes.Content[0].(*mcpsdk.TextContent)
+	if !ok {
+		t.Fatalf("errRes.Content[0] = %T, want *mcpsdk.TextContent", errRes.Content[0])
+	}
+	wantHeader := "Error: " + wantCode
+	if !strings.HasPrefix(textContent.Text, wantHeader) {
+		t.Errorf("error text = %q, want prefix %q", textContent.Text, wantHeader)
+	}
+	if wantSubstr != "" && !strings.Contains(textContent.Text, wantSubstr) {
+		t.Errorf("error text = %q, want substring %q", textContent.Text, wantSubstr)
+	}
+}
+
+func TestValidateAnnotationCounts(t *testing.T) {
+	testCases := []struct {
+		name    string
+		ann     *Annotations
+		wantErr string
+	}{
+		{
+			name: "accepts exact maximum counts across all annotation layers",
+			ann: &Annotations{
+				Markers:          make([]MarkerAnnotation, maxSceneMarkers),
+				Spans:            make([]SpanAnnotation, maxSceneSpans),
+				DiffExcerpts:     make([]DiffExcerpt, 2),
+				ManifestExcerpts: make([]ManifestExcerpt, 2),
+				LogExcerpts:      make([]LogExcerpt, 2),
+				Connectors:       make([]ConnectorAnnotation, maxSceneConnectors),
+				Callouts:         make([]CalloutAnnotation, maxSceneCallouts),
+			},
+		},
+		{
+			name:    "rejects markers over cap",
+			ann:     &Annotations{Markers: make([]MarkerAnnotation, maxSceneMarkers+1)},
+			wantErr: "`annotations.markers` exceeds maximum of 12 items (got 13).",
+		},
+		{
+			name:    "rejects spans over cap",
+			ann:     &Annotations{Spans: make([]SpanAnnotation, maxSceneSpans+1)},
+			wantErr: "`annotations.spans` exceeds maximum of 6 items (got 7).",
+		},
+		{
+			name: "rejects combined excerpts over cap",
+			ann: &Annotations{
+				DiffExcerpts:     make([]DiffExcerpt, 2),
+				ManifestExcerpts: make([]ManifestExcerpt, 3),
+				LogExcerpts:      make([]LogExcerpt, 2),
+			},
+			wantErr: "Total `diffExcerpts` + `manifestExcerpts` + `logExcerpts` exceeds maximum of 6 cards (got 7).",
+		},
+		{
+			name:    "rejects diffExcerpts alone over cap",
+			ann:     &Annotations{DiffExcerpts: make([]DiffExcerpt, maxSceneExcerpts+1)},
+			wantErr: "Total `diffExcerpts` + `manifestExcerpts` + `logExcerpts` exceeds maximum of 6 cards (got 7).",
+		},
+		{
+			name:    "rejects manifestExcerpts alone over cap",
+			ann:     &Annotations{ManifestExcerpts: make([]ManifestExcerpt, maxSceneExcerpts+1)},
+			wantErr: "Total `diffExcerpts` + `manifestExcerpts` + `logExcerpts` exceeds maximum of 6 cards (got 7).",
+		},
+		{
+			name:    "rejects logExcerpts alone over cap",
+			ann:     &Annotations{LogExcerpts: make([]LogExcerpt, maxSceneExcerpts+1)},
+			wantErr: "Total `diffExcerpts` + `manifestExcerpts` + `logExcerpts` exceeds maximum of 6 cards (got 7).",
+		},
+		{
+			name:    "rejects connectors over cap",
+			ann:     &Annotations{Connectors: make([]ConnectorAnnotation, maxSceneConnectors+1)},
+			wantErr: "`annotations.connectors` exceeds maximum of 8 items (got 9).",
+		},
+		{
+			name:    "rejects callouts over cap",
+			ann:     &Annotations{Callouts: make([]CalloutAnnotation, maxSceneCallouts+1)},
+			wantErr: "`annotations.callouts` exceeds maximum of 8 items (got 9).",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			errRes := validateAnnotationCounts(tc.ann)
+			if tc.wantErr == "" {
+				if errRes != nil {
+					t.Fatalf("validateAnnotationCounts() unexpected error = %+v", errRes)
+				}
+				return
 			}
-			if errRes == nil || !errRes.IsError || len(errRes.Content) == 0 {
-				t.Fatalf("Resolve() errRes = %+v, want error result with code %s", errRes, tc.wantCode)
+			if errRes == nil || len(errRes.Content) == 0 {
+				t.Fatalf("validateAnnotationCounts() = %+v, want error", errRes)
 			}
-			textContent, ok := errRes.Content[0].(*mcpsdk.TextContent)
-			if !ok {
-				t.Fatalf("errRes.Content[0] = %T, want *mcpsdk.TextContent", errRes.Content[0])
-			}
-			wantHeader := "Error: " + tc.wantCode
-			if !strings.HasPrefix(textContent.Text, wantHeader) {
-				t.Errorf("error text = %q, want prefix %q", textContent.Text, wantHeader)
+			gotText := errRes.Content[0].(*mcpsdk.TextContent).Text
+			if !strings.Contains(gotText, tc.wantErr) {
+				t.Errorf("error text = %q, want substring %q", gotText, tc.wantErr)
 			}
 		})
 	}

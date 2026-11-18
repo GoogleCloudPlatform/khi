@@ -18,7 +18,7 @@
  * RGB color in HDR color space.
  * All elements must be in [0, 1].
  */
-export type HDRColor3 = [number, number, number];
+type HDRColor3 = [number, number, number];
 
 /**
  * RGBA color in HDR color space.

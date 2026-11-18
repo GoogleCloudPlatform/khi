@@ -133,7 +133,7 @@ func TestProcessOSSK8sEventLog(t *testing.T) {
 				}
 			}
 
-			cs, err := processOSSK8sEventLog(t.Context(), tc.input, finder)
+			cs, err := processOSSK8sEventLog(tc.input, finder)
 			if err != nil {
 				t.Fatalf("processOSSK8sEventLog() returned unexpected error: %v", err)
 			}

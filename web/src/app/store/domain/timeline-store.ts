@@ -52,14 +52,14 @@ export interface TimelineDTO {
   readonly eventIds: readonly number[];
 }
 
-export interface MutatingWebhookAnnotationDTO {
+interface MutatingWebhookAnnotationDTO {
   readonly configurationStringId: number;
   readonly webhookStringId: number;
   readonly round: number;
   readonly index: number;
 }
 
-export interface FieldAnnotationDTO {
+interface FieldAnnotationDTO {
   readonly fieldPathStringId: number;
   readonly mutatingWebhook?: MutatingWebhookAnnotationDTO;
 }

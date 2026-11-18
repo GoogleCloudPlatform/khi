@@ -76,14 +76,6 @@ var (
 		style.MustForceConvertSRGBHex("#fed700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
-	// RevisionStateComposerTiRestarting indicates that the Airflow task instance is restarting.
-	RevisionStateComposerTiRestarting = style.MustRegisterRevisionState(
-		"Task instance is restarting",
-		"restart_alt",
-		"The Airflow task instance is being restarted.",
-		style.MustForceConvertSRGBHex("#ee82ef"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
-	)
 	// RevisionStateComposerTiRemoved indicates that the Airflow task instance was removed from the DAG run.
 	RevisionStateComposerTiRemoved = style.MustRegisterRevisionState(
 		"Task instance is removed",

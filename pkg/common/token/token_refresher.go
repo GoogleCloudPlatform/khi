@@ -20,10 +20,7 @@ import (
 	"log/slog"
 )
 
-var (
-	_ TokenRefresher = (*NopTokenRefresher)(nil)
-	_ TokenRefresher = (*MultiTokenStoreRefresher)(nil)
-)
+var _ TokenRefresher = (*MultiTokenStoreRefresher)(nil)
 
 // TokenRefresher refreshes expired or invalid authentication tokens.
 type TokenRefresher interface {
@@ -31,20 +28,11 @@ type TokenRefresher interface {
 	Refresh(ctx context.Context) error
 }
 
-// NopTokenRefresher is a no-op TokenRefresher implementation.
-type NopTokenRefresher struct {
-}
-
 // MultiTokenStoreRefresher implements the TokenRefresher to refresh tokens in multiple stores.
 // This rotate the next token store to be refreshed but it will ignore if the token is assured to be alive from the expiry time.
 type MultiTokenStoreRefresher struct {
 	tokenStores             []TokenStore
 	nextStoreIndexToRefresh int
-}
-
-// Refresh implements TokenRefresher.
-func (n *NopTokenRefresher) Refresh(ctx context.Context) error {
-	return nil
 }
 
 // NewMultiTokenStoreRefresher creates a MultiTokenStoreRefresher rotating across tokenStores.

@@ -26,6 +26,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/covcheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/decisioncheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/mutcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/overlay"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/report"
@@ -56,11 +57,12 @@ type dynamicStageInput struct {
 
 func main() {
 	code, err := runCLI(context.Background(), cliEnv{
-		args:         os.Args[1:],
-		stdout:       os.Stdout,
-		stderr:       os.Stderr,
-		getenv:       os.Getenv,
-		embedFactory: simcheck.TryNewDefaultEmbedder,
+		args:           os.Args[1:],
+		stdout:         os.Stdout,
+		stderr:         os.Stderr,
+		getenv:         os.Getenv,
+		embedFactory:   simcheck.TryNewDefaultEmbedder,
+		deciderFactory: decisioncheck.TryNewDefaultDecider,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "codequality: %v\n", err)
@@ -83,7 +85,10 @@ func runCLI(ctx context.Context, env cliEnv) (int, error) {
 		return 2, err
 	}
 	if flags.conventions {
-		return runConventionsMode(repoRoot, flags.pkgs, env.stdout)
+		return runASTCheckMode(astcheck.CheckConventions, repoRoot, flags.pkgs, env.stdout)
+	}
+	if flags.unusedExports {
+		return runASTCheckMode(astcheck.CheckUnusedExports, repoRoot, flags.pkgs, env.stdout)
 	}
 
 	reports, baseLabel, err := executePipeline(ctx, flags, repoRoot, env)
@@ -105,8 +110,13 @@ func runCLI(ctx context.Context, env cliEnv) (int, error) {
 	return 0, nil
 }
 
-func runConventionsMode(repoRoot string, pkgs string, stdout io.Writer) (int, error) {
-	violations, err := astcheck.CheckConventions(repoRoot, pkgs)
+func runASTCheckMode(
+	check func(repoRoot string, pkgs string) ([]astcheck.ConventionViolation, error),
+	repoRoot string,
+	pkgs string,
+	stdout io.Writer,
+) (int, error) {
+	violations, err := check(repoRoot, pkgs)
 	if err != nil {
 		return 2, err
 	}
@@ -144,6 +154,8 @@ func executePipeline(ctx context.Context, flags cliFlags, repoRoot string, env c
 
 	simSession := newSimilaritySession(ctx, flags, env.embedFactory, env.getenv)
 	defer simSession.Close()
+	decSession := newDecisionsSession(ctx, flags, env.deciderFactory, env.getenv)
+	defer decSession.Close()
 
 	penv := pipelineEnv{
 		flags:      flags,
@@ -168,30 +180,40 @@ func executePipeline(ctx context.Context, flags cliFlags, repoRoot string, env c
 		}
 		reports = append(reports, tsRep)
 	}
+	decRep, err := decSession.evaluate(ctx, repoRoot, diffRes)
+	if err != nil {
+		return nil, "", err
+	}
+	if decRep != nil {
+		reports = append(reports, decRep)
+	}
 	return reports, diffRes.BaseLabel, nil
 }
 
-func shouldRunGo(f cliFlags, d gotestutil.DiffResult) bool {
-	if f.lang == "go" {
-		return true
-	}
-	if f.lang != "all" {
+func shouldRunGo(flags cliFlags, diffRes gotestutil.DiffResult) bool {
+	if flags.decisionsOnly {
 		return false
 	}
-	return f.fast || len(d.ChangedLines) > 0 || len(d.ChangedTestLines) > 0 || f.coverprofile != "" || f.full
+	if flags.lang == "go" {
+		return true
+	}
+	if flags.lang != "all" {
+		return false
+	}
+	return flags.fast || len(diffRes.ChangedLines) > 0 || len(diffRes.ChangedTestLines) > 0 || flags.coverprofile != "" || flags.full
 }
 
-func shouldRunTS(f cliFlags, d gotestutil.DiffResult) bool {
-	if f.fast {
+func shouldRunTS(flags cliFlags, diffRes gotestutil.DiffResult) bool {
+	if flags.fast || flags.decisionsOnly {
 		return false
 	}
-	if f.lang == "ts" {
+	if flags.lang == "ts" {
 		return true
 	}
-	if f.lang != "all" {
+	if flags.lang != "all" {
 		return false
 	}
-	return len(d.TSChangedLines) > 0 || len(d.TSChangedTestLines) > 0 || f.tsCoverage != "" || f.full
+	return len(diffRes.TSChangedLines) > 0 || len(diffRes.TSChangedTestLines) > 0 || flags.tsCoverage != "" || flags.full
 }
 
 func executeGoPipeline(ctx context.Context, penv pipelineEnv) (*rule.Report, error) {

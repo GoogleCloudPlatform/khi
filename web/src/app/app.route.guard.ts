@@ -98,8 +98,8 @@ export const SessionHostGuard = (route: ActivatedRouteSnapshot) => {
  */
 export const SessionDeactivateGuard = (
   _: Component,
-  currentRoute: ActivatedRouteSnapshot,
-  currentState: RouterStateSnapshot,
+  _currentRoute: ActivatedRouteSnapshot,
+  _currentState: RouterStateSnapshot,
   nextState: RouterStateSnapshot,
 ) => {
   const connector = inject(WindowConnectorService);

@@ -15,11 +15,8 @@
 package logestimator
 
 import (
-	"context"
 	"fmt"
 	"strings"
-
-	"cloud.google.com/go/logging/apiv2/loggingpb"
 )
 
 const (
@@ -52,12 +49,6 @@ type StructuredLogQuery struct {
 	// Preset specifies a predefined rough estimation tier (e.g. EstimatedCountPresetFew)
 	// that bypasses Cloud Monitoring and probe queries.
 	Preset EstimatedCountPreset
-}
-
-// LogProbeClient is an interface for probing Cloud Logging.
-type LogProbeClient interface {
-	// FetchProbe retrieves up to pageSize log entries matching the given filter.
-	FetchProbe(ctx context.Context, filter string, pageSize int32) ([]*loggingpb.LogEntry, error)
 }
 
 // EstimateResult represents the volume estimate.

@@ -214,7 +214,7 @@ func TestConditionWalker(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			walker := newConditionWalker(conditionPath, "Ready")
+			walker := newConditionWalker(conditionPath)
 			for _, tt := range scenario.steps {
 				t.Run(tt.name, func(t *testing.T) {
 					l := testlog.NewMockLog(baseTime)
@@ -401,7 +401,7 @@ status:
 		initialState := &conditionLogToTimelineMapperTaskState{
 			AvailableTypes: map[string]struct{}{"Ready": {}},
 			ConditionWalkers: map[string]*conditionWalker{
-				"Ready": newConditionWalker(conditionPath, "Ready"),
+				"Ready": newConditionWalker(conditionPath),
 			},
 			uidToCreationTimestampMap: map[string]time.Time{
 				"uid-1": time.Date(2023, 12, 31, 23, 59, 0, 0, time.UTC),
@@ -587,7 +587,7 @@ status:
 		initialState := &conditionLogToTimelineMapperTaskState{
 			AvailableTypes: map[string]struct{}{"Ready": {}},
 			ConditionWalkers: map[string]*conditionWalker{
-				"Ready": newConditionWalker(conditionPath, "Ready"),
+				"Ready": newConditionWalker(conditionPath),
 			},
 		}
 
@@ -665,7 +665,7 @@ status:
 		initialState := &conditionLogToTimelineMapperTaskState{
 			AvailableTypes: map[string]struct{}{"Ready": {}},
 			ConditionWalkers: map[string]*conditionWalker{
-				"Ready": newConditionWalker(conditionPath, "Ready"),
+				"Ready": newConditionWalker(conditionPath),
 			},
 		}
 

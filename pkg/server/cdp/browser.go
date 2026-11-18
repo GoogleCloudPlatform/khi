@@ -33,15 +33,43 @@ import (
 // DefaultStartTimeout is the default timeout for launching the headless Chrome process.
 const DefaultStartTimeout = 30 * time.Second
 
+const (
+	defaultWindowWidth  = 1600
+	defaultWindowHeight = 900
+)
+
 var devToolsWSRegex = regexp.MustCompile(`DevTools listening on (ws://[^\s]+)`)
+
+// BrowserOptions configures headless Chrome launch parameters.
+type BrowserOptions struct {
+	// WindowWidth sets the initial browser window width in pixels (defaults to 1600).
+	WindowWidth int
+	// WindowHeight sets the initial browser window height in pixels (defaults to 900).
+	WindowHeight int
+	// ExtraArgs appends additional Chromium command-line flags.
+	ExtraArgs []string
+}
+
+// BrowserVersion holds version metadata reported by the Chrome DevTools /json/version endpoint.
+type BrowserVersion struct {
+	// Browser is the Chrome product and version string (e.g., "HeadlessChrome/136.0.7103.92").
+	Browser string `json:"Browser"`
+	// ProtocolVersion is the Chrome DevTools Protocol version string.
+	ProtocolVersion string `json:"Protocol-Version"`
+	// UserAgent is the browser User-Agent string.
+	UserAgent string `json:"User-Agent"`
+	// V8Version is the embedded V8 engine version string.
+	V8Version string `json:"V8-Version"`
+}
 
 // Browser manages a headless Chrome process and its Chrome DevTools Protocol page endpoint.
 type Browser struct {
-	mu            sync.Mutex
-	pageWSURL     string
-	cmd           *exec.Cmd
-	browserCancel context.CancelFunc
-	userDataDir   string
+	mu               sync.Mutex
+	pageWSURL        string
+	devToolsHostPort string
+	cmd              *exec.Cmd
+	browserCancel    context.CancelFunc
+	userDataDir      string
 }
 
 type targetInfo struct {
@@ -55,7 +83,7 @@ func FindChromeBinary() (string, error) {
 		if path, err := exec.LookPath(envBin); err == nil {
 			return path, nil
 		}
-		return "", fmt.Errorf("Chrome binary specified in CHROME_BIN (%q) was not found: %w", envBin, exec.ErrNotFound)
+		return "", fmt.Errorf("chrome binary specified in CHROME_BIN (%q) was not found: %w", envBin, exec.ErrNotFound)
 	}
 	candidates := []string{
 		"google-chrome",
@@ -71,10 +99,10 @@ func FindChromeBinary() (string, error) {
 	return "", errors.New("no Chrome or Chromium binary found in PATH or CHROME_BIN")
 }
 
-// StartBrowser launches a headless Chrome process immediately and resolves its initial page WebSocket URL.
-func StartBrowser(ctx context.Context) (*Browser, error) {
+// StartBrowser launches a headless Chrome process with opts and resolves its initial page WebSocket URL.
+func StartBrowser(ctx context.Context, opts BrowserOptions) (*Browser, error) {
 	b := &Browser{}
-	if err := b.start(ctx); err != nil {
+	if err := b.start(ctx, opts); err != nil {
 		return nil, err
 	}
 	return b, nil
@@ -82,8 +110,10 @@ func StartBrowser(ctx context.Context) (*Browser, error) {
 
 // NewBrowserFromPageWSURL creates a Browser targeting an existing CDP page WebSocket endpoint without managing a process.
 func NewBrowserFromPageWSURL(pageWSURL string) *Browser {
+	hostPort, _ := extractWebSocketHostPort(pageWSURL)
 	return &Browser{
-		pageWSURL: pageWSURL,
+		pageWSURL:        pageWSURL,
+		devToolsHostPort: hostPort,
 	}
 }
 
@@ -99,6 +129,18 @@ func (b *Browser) DialPage(ctx context.Context) (*Client, error) {
 	return Dial(ctx, wsURL)
 }
 
+// Version queries the DevTools /json/version endpoint for browser version metadata.
+func (b *Browser) Version(ctx context.Context) (BrowserVersion, error) {
+	b.mu.Lock()
+	hostPort := b.devToolsHostPort
+	b.mu.Unlock()
+
+	if hostPort == "" {
+		return BrowserVersion{}, errors.New("headless Chrome browser has no active DevTools host")
+	}
+	return fetchBrowserVersion(ctx, hostPort)
+}
+
 // Close terminates the headless Chrome process and removes its temporary profile directory.
 func (b *Browser) Close() error {
 	b.mu.Lock()
@@ -106,7 +148,7 @@ func (b *Browser) Close() error {
 	return b.closeLocked()
 }
 
-func (b *Browser) start(ctx context.Context) error {
+func (b *Browser) start(ctx context.Context, opts BrowserOptions) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -124,28 +166,8 @@ func (b *Browser) start(ctx context.Context) error {
 	browserCtx, browserCancel := context.WithCancel(context.Background())
 	b.browserCancel = browserCancel
 
-	cmd := exec.CommandContext(
-		browserCtx,
-		chromeBin,
-		"--headless",
-		"--no-sandbox",
-		"--use-gl=angle",
-		"--use-angle=swiftshader",
-		"--ignore-gpu-blocklist",
-		"--disable-dev-shm-usage",
-		"--disable-extensions",
-		"--password-store=basic",
-		"--no-proxy-server",
-		"--disable-background-networking",
-		"--enable-webgl",
-		"--enable-unsafe-swiftshader",
-		"--hide-scrollbars",
-		"--window-size=1600,900",
-		"--remote-debugging-port=0",
-		"--remote-allow-origins=http://127.0.0.1",
-		"--user-data-dir="+userDataDir,
-		"about:blank",
-	)
+	args := buildChromeArgs(userDataDir, opts)
+	cmd := exec.CommandContext(browserCtx, chromeBin, args...)
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
@@ -164,17 +186,24 @@ func (b *Browser) start(ctx context.Context) error {
 		return err
 	}
 
+	hostPort, err := extractWebSocketHostPort(browserWSURL)
+	if err != nil {
+		_ = b.closeLocked()
+		return err
+	}
 	pageWSURL, err := resolvePageWebSocketURL(ctx, browserWSURL)
 	if err != nil {
 		_ = b.closeLocked()
 		return err
 	}
+	b.devToolsHostPort = hostPort
 	b.pageWSURL = pageWSURL
 	return nil
 }
 
 func (b *Browser) closeLocked() error {
 	b.pageWSURL = ""
+	b.devToolsHostPort = ""
 	var errs []error
 	if b.browserCancel != nil {
 		b.browserCancel()
@@ -192,6 +221,70 @@ func (b *Browser) closeLocked() error {
 		b.userDataDir = ""
 	}
 	return errors.Join(errs...)
+}
+
+func buildChromeArgs(userDataDir string, opts BrowserOptions) []string {
+	width := opts.WindowWidth
+	if width <= 0 {
+		width = defaultWindowWidth
+	}
+	height := opts.WindowHeight
+	if height <= 0 {
+		height = defaultWindowHeight
+	}
+	args := []string{
+		"--headless",
+		"--no-sandbox",
+		"--use-gl=angle",
+		"--use-angle=swiftshader",
+		"--ignore-gpu-blocklist",
+		"--disable-dev-shm-usage",
+		"--disable-extensions",
+		"--password-store=basic",
+		"--no-proxy-server",
+		"--disable-background-networking",
+		"--enable-webgl",
+		"--enable-unsafe-swiftshader",
+		"--hide-scrollbars",
+		fmt.Sprintf("--window-size=%d,%d", width, height),
+		"--remote-debugging-port=0",
+		"--remote-allow-origins=http://127.0.0.1",
+		"--user-data-dir=" + userDataDir,
+	}
+	args = append(args, opts.ExtraArgs...)
+	args = append(args, "about:blank")
+	return args
+}
+
+func extractWebSocketHostPort(wsURL string) (string, error) {
+	trimmed, ok := strings.CutPrefix(wsURL, "ws://")
+	if !ok {
+		return "", fmt.Errorf("invalid browser DevTools URL: %s", wsURL)
+	}
+	hostPort, _, _ := strings.Cut(trimmed, "/")
+	if hostPort == "" {
+		return "", fmt.Errorf("invalid browser DevTools URL: %s", wsURL)
+	}
+	return hostPort, nil
+}
+
+func fetchBrowserVersion(ctx context.Context, hostPort string) (BrowserVersion, error) {
+	versionURL := fmt.Sprintf("http://%s/json/version", hostPort)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, versionURL, nil)
+	if err != nil {
+		return BrowserVersion{}, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return BrowserVersion{}, fmt.Errorf("failed to query %s: %w", versionURL, err)
+	}
+	defer resp.Body.Close()
+
+	var version BrowserVersion
+	if err := json.NewDecoder(resp.Body).Decode(&version); err != nil {
+		return BrowserVersion{}, fmt.Errorf("failed to decode CDP version metadata: %w", err)
+	}
+	return version, nil
 }
 
 func waitForDevToolsURL(ctx context.Context, stderr io.Reader) (string, error) {

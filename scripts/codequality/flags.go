@@ -28,39 +28,49 @@ const (
 )
 
 type cliFlags struct {
-	repoRoot           string
-	lang               string
-	fast               bool
-	conventions        bool
-	pkgs               string
-	vcs                string
-	base               string
-	target             string
-	coverprofile       string
-	tsCoverage         string
-	full               bool
-	workers            int
-	maxMutants         int
-	timeout            time.Duration
-	format             string
-	color              string
-	summaryFile        string
-	maxAnnotations     int
-	similarity         bool
-	similarityProject  string
-	failOnViolations   bool
-	tsFailOnViolations bool
-	commentEnvelope    bool
-	commitSHA          string
-	buildURL           string
+	repoRoot                  string
+	trustedRoot               string
+	lang                      string
+	fast                      bool
+	conventions               bool
+	unusedExports             bool
+	pkgs                      string
+	vcs                       string
+	base                      string
+	target                    string
+	coverprofile              string
+	tsCoverage                string
+	full                      bool
+	workers                   int
+	maxMutants                int
+	timeout                   time.Duration
+	format                    string
+	color                     string
+	summaryFile               string
+	maxAnnotations            int
+	similarity                bool
+	similarityProject         string
+	decisions                 bool
+	decisionsOnly             bool
+	decisionsProject          string
+	decisionsRules            string
+	decisionsRulesDir         string
+	decisionsMaxTargets       int
+	decisionsFailOnViolations bool
+	failOnViolations          bool
+	tsFailOnViolations        bool
+	commentEnvelope           bool
+	commitSHA                 string
+	buildURL                  string
 }
 
 type cliEnv struct {
-	args         []string
-	stdout       io.Writer
-	stderr       io.Writer
-	getenv       func(string) string
-	embedFactory embedderFactory
+	args           []string
+	stdout         io.Writer
+	stderr         io.Writer
+	getenv         func(string) string
+	embedFactory   embedderFactory
+	deciderFactory deciderFactory
 }
 
 func parseFlags(args []string, errOut io.Writer, getenv func(string) string) (cliFlags, error) {
@@ -81,10 +91,12 @@ func parseFlags(args []string, errOut io.Writer, getenv func(string) string) (cl
 
 func registerScopeAndExecutionFlags(fs *flag.FlagSet, f *cliFlags) {
 	fs.StringVar(&f.repoRoot, "repo-root", "", "repository root path (auto-detected by default)")
+	fs.StringVar(&f.trustedRoot, "trusted-root", "", "trusted repository root for loading decision rules and reference_files (defaults to --repo-root)")
 	fs.StringVar(&f.lang, "lang", "all", "target language(s): all, go, or ts")
 	fs.BoolVar(&f.fast, "fast", false, "run fast Stage-1 Go AST structural and naming rules only")
 	fs.BoolVar(&f.conventions, "conventions", false, "check Go declaration visibility ordering and exported struct/interface member GoDoc conventions")
-	fs.StringVar(&f.pkgs, "pkgs", "./...", "comma-separated Go package patterns for --conventions, e.g. ./pkg/api/...,./pkg/common")
+	fs.BoolVar(&f.unusedExports, "unused-exports", false, "check Go exported declarations in pkg/ and impl task registrations for unused symbols")
+	fs.StringVar(&f.pkgs, "pkgs", "./...", "comma-separated Go package patterns for --conventions and --unused-exports, e.g. ./pkg/api/...,./pkg/common")
 	fs.StringVar(&f.vcs, "vcs", "auto", "version control system: auto, jj, or git")
 	fs.StringVar(&f.base, "base", "", "base revision for differential checks")
 	fs.StringVar(&f.target, "target", "", "target revision for differential checks")
@@ -103,6 +115,13 @@ func registerOutputFlags(fs *flag.FlagSet, f *cliFlags, getenv func(string) stri
 	fs.IntVar(&f.maxAnnotations, "max-annotations", defaultMaxAnnotations, "maximum GitHub workflow annotations per language")
 	fs.BoolVar(&f.similarity, "similarity", parseSimilarityEnv(getenv), "evaluate AST-normalized function similarity advisories via Vertex AI (opt-in; also enabled via CODEQUALITY_SIMILARITY=true)")
 	fs.StringVar(&f.similarityProject, "similarity-project", parseSimilarityProjectEnv(getenv), "GCP project ID for Vertex AI similarity embeddings (also set via CODEQUALITY_SIMILARITY_PROJECT)")
+	fs.BoolVar(&f.decisions, "decisions", parseDecisionsEnv(getenv), "evaluate declarative YAML semantic rules via the Gemini Decisions API (also enabled via CODEQUALITY_DECISIONS=true)")
+	fs.BoolVar(&f.decisionsOnly, "decisions-only", false, "run only declarative YAML Gemini Decisions rules without executing Go or TypeScript build/test stages")
+	fs.StringVar(&f.decisionsProject, "decisions-project", parseDecisionsProjectEnv(getenv), "optional GCP project ID for scoped OAuth Gemini Decisions requests (also set via CODEQUALITY_DECISIONS_PROJECT)")
+	fs.StringVar(&f.decisionsRules, "decisions-rules", "", "optional comma-separated decision rule IDs to evaluate (default: all enabled YAML rules)")
+	fs.StringVar(&f.decisionsRulesDir, "decisions-rules-dir", "", "optional directory containing decision rule YAML files (defaults to <trusted-root>/scripts/codequality/rules)")
+	fs.IntVar(&f.decisionsMaxTargets, "decisions-max-targets", defaultDecisionMaxTargets, "maximum target bundles evaluated per decision rule (0 = unlimited)")
+	fs.BoolVar(&f.decisionsFailOnViolations, "decisions-fail-on-violations", parseDecisionsFailEnv(getenv), "promote advisory decision rule findings to blocking violations (also enabled via CODEQUALITY_DECISIONS_FAIL_ON_VIOLATIONS=true)")
 	fs.BoolVar(&f.failOnViolations, "fail-on-violations", true, "exit with code 1 when blocking violations are found")
 	fs.BoolVar(&f.tsFailOnViolations, "ts-fail-on-violations", false, "treat TypeScript findings as blocking errors instead of advisory warnings")
 	fs.BoolVar(&f.commentEnvelope, "comment-envelope", false, "emit Base64 sticky PR comment envelope to stdout for Check Run consumers")

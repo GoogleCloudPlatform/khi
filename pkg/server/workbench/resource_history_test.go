@@ -16,6 +16,7 @@ package workbench
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -734,6 +735,116 @@ func TestResolveRevisionBounds(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ResolveRevisionBounds() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetRawResourceManifest(t *testing.T) {
+	pool := khifilev6model.NewTestInternPool(id.NewGenerator())
+	principalA := pool.InternString(testRevisionPrincipalA).ID()
+	longDataVal := strings.Repeat("x", bodyByteLimit+2048)
+	rev0YAML := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  managedFields:
+  - manager: kubectl
+    operation: Apply
+  name: big-cfg
+data:
+  payload: ` + longDataVal + `
+`
+	const rev1YAML = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: big-cfg
+data:
+  payload: short
+`
+	wantStrippedRev0 := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: big-cfg
+data:
+  payload: ` + longDataVal + `
+`
+	body0 := internTestYAML(t, pool, rev0YAML)
+	body1 := internTestYAML(t, pool, rev1YAML)
+
+	wb := newTestIndexedWorkbench(nil, []*cel.TimelineData{
+		{
+			ID: testPodTimelineID, Name: "big-cfg", TimelineType: "ConfigMap",
+			Revisions: []cel.RevisionInfo{
+				{LogID: 1, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Resource exists", ResourceBodyStructID: body0},
+				{LogID: 2, ChangedTime: testRevision1Time.UnixNano(), PrincipalStringID: principalA, Verb: "PATCH", State: "Resource exists", ResourceBodyStructID: body1},
+			},
+		},
+		{
+			ID: 11, Name: "zero-next-cfg", TimelineType: "ConfigMap",
+			Revisions: []cel.RevisionInfo{
+				{LogID: 3, ChangedTime: testRevision0Time.UnixNano(), PrincipalStringID: principalA, Verb: "CREATE", State: "Resource exists", ResourceBodyStructID: body1},
+				{LogID: 4, ChangedTime: 0, PrincipalStringID: principalA, Verb: "DELETE", State: "Deleted"},
+			},
+		},
+	}, nil)
+	ingestTestPool(wb, pool)
+
+	wantSegments := []TimelineSegment{{Type: "ConfigMap", Name: "big-cfg"}}
+	wantRev0 := ResourceRevision{Index: 0, Time: testRevision0Time, Verb: "CREATE", State: "Resource exists", Principal: testRevisionPrincipalA, LogID: 1, HasBody: true}
+	wantRev1 := ResourceRevision{Index: 1, Time: testRevision1Time, Verb: "PATCH", State: "Resource exists", Principal: testRevisionPrincipalA, LogID: 2, HasBody: true}
+
+	testCases := []struct {
+		name          string
+		timelineID    uint32
+		selector      RevisionSelector
+		want          *RawResourceManifest
+		wantErrTarget error
+	}{
+		{
+			name:       "returns full untruncated manifest larger than bodyByteLimit with managedFields stripped and next revision time",
+			timelineID: testPodTimelineID,
+			selector:   RevisionAtIndex(0),
+			want:       &RawResourceManifest{TimelineID: testPodTimelineID, Segments: wantSegments, Revision: wantRev0, NextRevisionTime: &testRevision1Time, YAMLBody: wantStrippedRev0},
+		},
+		{
+			name:       "selects effective revision at point in time and omits NextRevisionTime on latest revision",
+			timelineID: testPodTimelineID,
+			selector:   RevisionAtTime(testRevision1Time.Add(30 * time.Second)),
+			want:       &RawResourceManifest{TimelineID: testPodTimelineID, Segments: wantSegments, Revision: wantRev1, YAMLBody: rev1YAML},
+		},
+		{
+			name:       "omits NextRevisionTime when following revision has zero ChangedTime",
+			timelineID: 11,
+			selector:   RevisionAtIndex(0),
+			want: &RawResourceManifest{
+				TimelineID: 11,
+				Segments:   []TimelineSegment{{Type: "ConfigMap", Name: "zero-next-cfg"}},
+				Revision:   ResourceRevision{Index: 0, Time: testRevision0Time, Verb: "CREATE", State: "Resource exists", Principal: testRevisionPrincipalA, LogID: 3, HasBody: true},
+				YAMLBody:   rev1YAML,
+			},
+		},
+		{
+			name:          "returns ErrRevisionNotFound before first revision",
+			timelineID:    testPodTimelineID,
+			selector:      RevisionAtTime(testRevision0Time.Add(-time.Second)),
+			wantErrTarget: ErrRevisionNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := wb.GetRawResourceManifest(tc.timelineID, tc.selector)
+			if tc.wantErrTarget != nil {
+				if !errors.Is(err, tc.wantErrTarget) {
+					t.Fatalf("GetRawResourceManifest() err = %v, want %v", err, tc.wantErrTarget)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("GetRawResourceManifest() unexpected error = %v", err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetRawResourceManifest() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

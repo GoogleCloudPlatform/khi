@@ -29,7 +29,7 @@ function floorDiv(a: bigint, b: bigint): bigint {
  * midnight boundary between March 11 and March 12, `labelLeft` will be 'YYYY/MM/11'
  * and `labelRight` will be 'YYYY/MM/12'.
  */
-export interface DateLabel {
+interface DateLabel {
   /** The horizontal offset from the left edge of the timeline in pixels representing the boundary time. */
   offsetX: number;
   /** The date string (YYYY/MM/DD) representing the day immediately before the boundary. */

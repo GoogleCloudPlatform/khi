@@ -17,7 +17,7 @@
 /**
  * Options for resolving a parameter value from query parameter, candidate overrides, and a default value.
  */
-export interface ResolveParamOptions<T> {
+interface ResolveParamOptions<T> {
   /** Optional URL query parameter name to inspect (e.g. 'downloadChunkSize'). */
   readonly paramName?: string;
   /** Function to parse raw query parameter string into T, returning undefined if invalid. */

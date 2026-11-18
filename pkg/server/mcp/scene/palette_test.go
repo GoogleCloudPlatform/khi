@@ -280,8 +280,10 @@ func TestValidateExplicitPaletteID(t *testing.T) {
 
 func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 	start := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
 	excludeNoLogs := true
 	dim := true
+	includeSubtree := true
 	revIdx := 2
 	orig := Spec{
 		InspectionID: "insp-1",
@@ -292,6 +294,8 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 		},
 		TimelineIDs: []uint32{10, 20},
 		Annotations: &Annotations{
+			ClearLayers:     []AnnotationLayer{AnnotationLayerMarkers},
+			RemoveIDs:       []string{"M1"},
 			Palette:         []PaletteEntry{{ID: "victim", Color: "red"}},
 			DimUnlistedRows: &dim,
 			Markers: []MarkerAnnotation{
@@ -300,10 +304,130 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 					Label:  "Revision transition",
 				},
 			},
+			Spans: []SpanAnnotation{
+				{
+					Start:          Anchor{TimelineID: 10, Time: &start},
+					End:            Anchor{TimelineID: 10, Time: &end},
+					Label:          "Outage",
+					TimelineIDs:    []uint32{10, 20},
+					IncludeSubtree: &includeSubtree,
+				},
+			},
+			RowHighlights: []RowHighlight{
+				{
+					RoleLabel:      "VICTIM",
+					TimelineIDs:    []uint32{10},
+					IncludeSubtree: &includeSubtree,
+				},
+			},
 			DiffExcerpts: []DiffExcerpt{
 				{
 					Revision: RevisionRef{TimelineID: 10, RevisionIndex: 2},
-					Windows:  []SliceWindow{{Query: "image:", BeforeLines: 1, AfterLines: 2}},
+					Paths:    []string{"$.spec.containers[0].image"},
+				},
+			},
+			ManifestExcerpts: []ManifestExcerpt{
+				{
+					TimelineID:    10,
+					RevisionIndex: &revIdx,
+					Time:          &start,
+					Paths:         []string{"$.spec.replicas"},
+				},
+			},
+			LogExcerpts: []LogExcerpt{
+				{
+					LogID:   42,
+					Windows: []SliceWindow{{Query: "OOM"}},
+				},
+			},
+			Connectors: []ConnectorAnnotation{
+				{
+					From:  Anchor{TimelineID: 10, Time: &start},
+					To:    Anchor{TimelineID: 20, Time: &end},
+					Label: "Caused",
+				},
+			},
+			Callouts: []CalloutAnnotation{
+				{
+					Anchor: Anchor{TimelineID: 10, Time: &start},
+					Label:  "Note",
+				},
+			},
+		},
+	}
+
+	wantStart := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	wantEnd := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
+	wantExclude := true
+	wantDim := true
+	wantSubtree := true
+	wantRevIdx := 2
+	wantOrig := Spec{
+		InspectionID: "insp-1",
+		Filter: workbench.Filter{
+			TimelineQuery:               "kind == 'pod'",
+			StartTime:                   &wantStart,
+			ExcludeTimelinesWithoutLogs: &wantExclude,
+		},
+		TimelineIDs: []uint32{10, 20},
+		Annotations: &Annotations{
+			ClearLayers:     []AnnotationLayer{AnnotationLayerMarkers},
+			RemoveIDs:       []string{"M1"},
+			Palette:         []PaletteEntry{{ID: "victim", Color: "red"}},
+			DimUnlistedRows: &wantDim,
+			Markers: []MarkerAnnotation{
+				{
+					Anchor: Anchor{TimelineID: 10, RevisionIndex: &wantRevIdx, RevisionEdge: RevisionEdgeStart},
+					Label:  "Revision transition",
+				},
+			},
+			Spans: []SpanAnnotation{
+				{
+					Start:          Anchor{TimelineID: 10, Time: &wantStart},
+					End:            Anchor{TimelineID: 10, Time: &wantEnd},
+					Label:          "Outage",
+					TimelineIDs:    []uint32{10, 20},
+					IncludeSubtree: &wantSubtree,
+				},
+			},
+			RowHighlights: []RowHighlight{
+				{
+					RoleLabel:      "VICTIM",
+					TimelineIDs:    []uint32{10},
+					IncludeSubtree: &wantSubtree,
+				},
+			},
+			DiffExcerpts: []DiffExcerpt{
+				{
+					Revision: RevisionRef{TimelineID: 10, RevisionIndex: 2},
+					Paths:    []string{"$.spec.containers[0].image"},
+				},
+			},
+			ManifestExcerpts: []ManifestExcerpt{
+				{
+					TimelineID:    10,
+					RevisionIndex: &wantRevIdx,
+					Time:          &wantStart,
+					Paths:         []string{"$.spec.replicas"},
+				},
+			},
+			LogExcerpts: []LogExcerpt{
+				{
+					LogID:   42,
+					Windows: []SliceWindow{{Query: "OOM"}},
+				},
+			},
+			Connectors: []ConnectorAnnotation{
+				{
+					From:  Anchor{TimelineID: 10, Time: &wantStart},
+					To:    Anchor{TimelineID: 20, Time: &wantEnd},
+					Label: "Caused",
+				},
+			},
+			Callouts: []CalloutAnnotation{
+				{
+					Anchor: Anchor{TimelineID: 10, Time: &wantStart},
+					Label:  "Note",
 				},
 			},
 		},
@@ -312,27 +436,27 @@ func TestSpec_Clone_DeepCopiesMutableFields(t *testing.T) {
 	cloned := orig.Clone()
 	cloned.TimelineIDs[0] = 99
 	*cloned.Filter.ExcludeTimelinesWithoutLogs = false
+	cloned.Annotations.ClearLayers[0] = AnnotationLayerAll
+	cloned.Annotations.RemoveIDs[0] = "MUTATED"
 	cloned.Annotations.Palette[0].Color = "blue"
 	*cloned.Annotations.DimUnlistedRows = false
 	*cloned.Annotations.Markers[0].Anchor.RevisionIndex = 99
-	cloned.Annotations.DiffExcerpts[0].Windows[0].BeforeLines = 5
+	*cloned.Annotations.Spans[0].Start.Time = wantStart.Add(time.Minute)
+	*cloned.Annotations.Spans[0].End.Time = wantEnd.Add(time.Minute)
+	cloned.Annotations.Spans[0].TimelineIDs[0] = 99
+	*cloned.Annotations.Spans[0].IncludeSubtree = false
+	cloned.Annotations.RowHighlights[0].TimelineIDs[0] = 99
+	*cloned.Annotations.RowHighlights[0].IncludeSubtree = false
+	cloned.Annotations.DiffExcerpts[0].Paths[0] = "$.mutated"
+	*cloned.Annotations.ManifestExcerpts[0].RevisionIndex = 77
+	*cloned.Annotations.ManifestExcerpts[0].Time = wantStart.Add(5 * time.Minute)
+	cloned.Annotations.ManifestExcerpts[0].Paths[0] = "$.mutated"
+	cloned.Annotations.LogExcerpts[0].Windows[0].Query = "MUTATED"
+	*cloned.Annotations.Connectors[0].From.Time = wantStart.Add(2 * time.Minute)
+	*cloned.Annotations.Connectors[0].To.Time = wantEnd.Add(2 * time.Minute)
+	*cloned.Annotations.Callouts[0].Anchor.Time = wantStart.Add(3 * time.Minute)
 
-	if orig.TimelineIDs[0] != 10 {
-		t.Errorf("orig.TimelineIDs[0] mutated to %d, want 10", orig.TimelineIDs[0])
-	}
-	if !*orig.Filter.ExcludeTimelinesWithoutLogs {
-		t.Error("orig.Filter.ExcludeTimelinesWithoutLogs mutated to false, want true")
-	}
-	if orig.Annotations.Palette[0].Color != "red" {
-		t.Errorf("orig.Annotations.Palette[0].Color mutated to %q, want \"red\"", orig.Annotations.Palette[0].Color)
-	}
-	if !*orig.Annotations.DimUnlistedRows {
-		t.Error("orig.Annotations.DimUnlistedRows mutated to false, want true")
-	}
-	if *orig.Annotations.Markers[0].Anchor.RevisionIndex != 2 {
-		t.Errorf("orig.Annotations.Markers[0].Anchor.RevisionIndex mutated to %d, want 2", *orig.Annotations.Markers[0].Anchor.RevisionIndex)
-	}
-	if orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines != 1 {
-		t.Errorf("orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines mutated to %d, want 1", orig.Annotations.DiffExcerpts[0].Windows[0].BeforeLines)
+	if diff := cmp.Diff(wantOrig, orig); diff != "" {
+		t.Errorf("orig mutated after Clone() edits (-want +got):\n%s", diff)
 	}
 }

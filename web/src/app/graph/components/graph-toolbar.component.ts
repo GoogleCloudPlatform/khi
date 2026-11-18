@@ -37,7 +37,7 @@ export const MAX_DELETION_THRESHOLD_SECONDS = 3600;
 /**
  * Defines the step interval in seconds for the toolbar slider.
  */
-export const STEP_DELETION_THRESHOLD_SECONDS = 10;
+const STEP_DELETION_THRESHOLD_SECONDS = 10;
 
 /**
  * Renders the toolbar controls for the architecture graph view.

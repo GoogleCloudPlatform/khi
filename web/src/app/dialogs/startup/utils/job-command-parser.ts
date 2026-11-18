@@ -41,7 +41,7 @@ export interface ParsedJobCommand {
  * @param command The raw command line string.
  * @returns Map of flag names to their parsed string values.
  */
-export function extractFlagsFromCommand(command: string): Map<string, string> {
+function extractFlagsFromCommand(command: string): Map<string, string> {
   const flags = new Map<string, string>();
   // Remove backslash line continuations
   const normalized = command.replace(/\\\r?\n/g, ' ');

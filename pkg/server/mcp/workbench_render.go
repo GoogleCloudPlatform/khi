@@ -51,7 +51,7 @@ type RenderTimelinesInput struct {
 	// TimezoneShiftHours specifies the UTC offset in hours for the timeline ruler.
 	TimezoneShiftHours float64 `json:"timezoneShiftHours,omitempty" jsonschema:"Timezone offset in hours from UTC for the timeline ruler (default 0)."`
 	// Annotations specifies visual overlays, evidence deck cards, and patch directives for the scene.
-	Annotations *scene.Annotations `json:"annotations,omitempty" jsonschema:"Optional named palette, visual overlays (markers, spans, rowHighlights, connectors, callouts), and bottom-deck evidence cards (diffExcerpts, logExcerpts), plus clearLayers and removeIds patch directives."`
+	Annotations *scene.Annotations `json:"annotations,omitempty" jsonschema:"Optional named palette, visual overlays (markers, spans, rowHighlights, connectors, callouts), and bottom-deck evidence cards (diffExcerpts, manifestExcerpts, logExcerpts), plus clearLayers and removeIds patch directives."`
 }
 
 type renderTimelinesTemplateData struct {

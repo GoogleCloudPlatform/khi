@@ -157,7 +157,7 @@ func addPodContainerAndResourceEvents(
 }
 
 // checkStartingAndTerminationLog checks if the log message matches a predefined starting or termination log for a component and adds a corresponding revision to the TimelineChangeSet.
-func checkStartingAndTerminationLog(ctx context.Context, cs *khifilev6.TimelineChangeSet, l *log.Log, startingLog string, terminationLog string, targetPath *khifilev6.TimelinePath) {
+func checkStartingAndTerminationLog(cs *khifilev6.TimelineChangeSet, l *log.Log, startingLog string, terminationLog string, targetPath *khifilev6.TimelinePath) {
 	nodeLogFieldSet, err := k8snode.ExtractK8sNodeLogCommon(l.NodeReader, nil)
 	if err != nil || nodeLogFieldSet.Message == nil {
 		return

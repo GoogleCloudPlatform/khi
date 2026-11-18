@@ -57,7 +57,7 @@ export const DEFAULT_RETRYABLE_METHODS: ReadonlySet<string> = new Set([
 /**
  * Configuration options for the Connect-RPC retry interceptor.
  */
-export interface RetryInterceptorOptions {
+interface RetryInterceptorOptions {
   /** Maximum number of retry attempts before giving up. Defaults to 3. */
   readonly maxRetries?: number;
 

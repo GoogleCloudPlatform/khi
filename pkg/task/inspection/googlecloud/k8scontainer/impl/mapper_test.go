@@ -303,10 +303,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore.Builder, builder)
 
-			cs, err := mapContainerLog(ctx, tc.inputLog, tc.cluster.ClusterName)
-			if err != nil {
-				t.Fatalf("mapContainerLog() returned unexpected error: %v", err)
-			}
+			cs := mapContainerLog(ctx, tc.inputLog, tc.cluster.ClusterName)
 			tc.assert(t, ctx, cs)
 		})
 	}

@@ -33,6 +33,20 @@ type TransportError struct {
 	Err error
 }
 
+// EmulatedMediaFeature represents a CSS media feature override for Emulation.setEmulatedMedia.
+type EmulatedMediaFeature struct {
+	// Name is the CSS media feature name (e.g., "prefers-reduced-motion").
+	Name string `json:"name"`
+	// Value is the CSS media feature value (e.g., "reduce").
+	Value string `json:"value"`
+}
+
+// ScreenshotOptions configures PNG screenshot capture behavior.
+type ScreenshotOptions struct {
+	// FullPage captures the full scrollable page beyond the current viewport when true.
+	FullPage bool
+}
+
 // Client manages a single Chrome DevTools Protocol WebSocket connection.
 type Client struct {
 	mu     sync.Mutex
@@ -145,14 +159,54 @@ func (c *Client) SetViewportSize(ctx context.Context, width, height int, deviceS
 	}, nil)
 }
 
+// SetEmulatedMedia overrides the CSS media type and media features on the page.
+func (c *Client) SetEmulatedMedia(ctx context.Context, media string, features []EmulatedMediaFeature) error {
+	params := map[string]any{}
+	if media != "" {
+		params["media"] = media
+	}
+	if len(features) > 0 {
+		params["features"] = features
+	}
+	return c.call(ctx, "Emulation.setEmulatedMedia", params, nil)
+}
+
+// SetTimezoneOverride overrides the browser timezone (e.g., "UTC") for deterministic date formatting.
+func (c *Client) SetTimezoneOverride(ctx context.Context, timezoneID string) error {
+	return c.call(ctx, "Emulation.setTimezoneOverride", map[string]any{
+		"timezoneId": timezoneID,
+	}, nil)
+}
+
+// SetLocaleOverride overrides the browser ICU locale (e.g., "en-US") for deterministic Intl formatting.
+func (c *Client) SetLocaleOverride(ctx context.Context, locale string) error {
+	return c.call(ctx, "Emulation.setLocaleOverride", map[string]any{
+		"locale": locale,
+	}, nil)
+}
+
+// AddScriptToEvaluateOnNewDocument registers a JavaScript snippet executed before page scripts on every navigation.
+func (c *Client) AddScriptToEvaluateOnNewDocument(ctx context.Context, source string) error {
+	if err := c.call(ctx, "Page.enable", nil, nil); err != nil {
+		return err
+	}
+	return c.call(ctx, "Page.addScriptToEvaluateOnNewDocument", map[string]any{
+		"source": source,
+	}, nil)
+}
+
 // CapturePNGScreenshot captures a PNG screenshot of the current page and returns the decoded PNG bytes.
-func (c *Client) CapturePNGScreenshot(ctx context.Context) ([]byte, error) {
+func (c *Client) CapturePNGScreenshot(ctx context.Context, opts ScreenshotOptions) ([]byte, error) {
+	params := map[string]any{
+		"format": "png",
+	}
+	if opts.FullPage {
+		params["captureBeyondViewport"] = true
+	}
 	var screenshotRes struct {
 		Data string `json:"data"`
 	}
-	if err := c.call(ctx, "Page.captureScreenshot", map[string]any{
-		"format": "png",
-	}, &screenshotRes); err != nil {
+	if err := c.call(ctx, "Page.captureScreenshot", params, &screenshotRes); err != nil {
 		return nil, err
 	}
 	pngBytes, err := base64.StdEncoding.DecodeString(screenshotRes.Data)

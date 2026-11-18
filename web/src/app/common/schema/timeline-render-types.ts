@@ -99,7 +99,11 @@ export enum TimelineCalloutPlacement {
  * Evidence source type rendered in the bottom timeline deck.
  */
 export enum TimelineExcerptKind {
+  /** Unified manifest diff between adjacent revisions. */
   DIFF = 'diff',
+  /** Full resource manifest snapshot excerpt. */
+  MANIFEST = 'manifest',
+  /** Structured or raw log entry excerpt. */
   LOG = 'log',
 }
 
@@ -301,7 +305,7 @@ export interface KhiTimelineRendererBridge {
 /**
  * Container for Chrome DevTools Protocol automation bridges exposed on window.__khiCDPBridge.
  */
-export interface KhiCDPBridge {
+interface KhiCDPBridge {
   timelineRenderer?: KhiTimelineRendererBridge;
 }
 

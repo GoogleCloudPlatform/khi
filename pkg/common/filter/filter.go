@@ -30,20 +30,6 @@ type TypedMapFilter[T any] interface {
 	ShouldInclude(found bool, value T) bool
 }
 
-// EqualFilter matches items with values exactly equal to the specified value.
-type EqualFilter[T comparable] struct {
-	key              typedmap.TypedKey[T]
-	expectedValue    T
-	includeUndefined bool
-}
-
-// ContainsElementFilter checks if a string array contains a specific element.
-type ContainsElementFilter struct {
-	key              typedmap.TypedKey[[]string]
-	element          string
-	includeUndefined bool
-}
-
 // EnabledFilter checks if a boolean value is true.
 type EnabledFilter struct {
 	key              typedmap.TypedKey[bool]
@@ -71,56 +57,6 @@ func FilterTypedMapCollection[TItem any, TValue any](
 	}
 
 	return result
-}
-
-// NewEqualFilter creates a new filter that matches exact values.
-func NewEqualFilter[T comparable](key typedmap.TypedKey[T], value T, includeUndefined bool) TypedMapFilter[T] {
-	return &EqualFilter[T]{
-		key:              key,
-		expectedValue:    value,
-		includeUndefined: includeUndefined,
-	}
-}
-
-// KeyToFilter implements TypedMapFilter interface.
-func (f *EqualFilter[T]) KeyToFilter() typedmap.TypedKey[T] {
-	return f.key
-}
-
-// ShouldInclude implements TypedMapFilter interface.
-func (f *EqualFilter[T]) ShouldInclude(found bool, value T) bool {
-	if found {
-		return value == f.expectedValue
-	}
-	return f.includeUndefined
-}
-
-// NewContainsElementFilter creates a filter that checks if an array contains an element.
-func NewContainsElementFilter(key typedmap.TypedKey[[]string], element string, includeUndefined bool) TypedMapFilter[[]string] {
-	return &ContainsElementFilter{
-		key:              key,
-		element:          element,
-		includeUndefined: includeUndefined,
-	}
-}
-
-// KeyToFilter implements TypedMapFilter interface.
-func (f *ContainsElementFilter) KeyToFilter() typedmap.TypedKey[[]string] {
-	return f.key
-}
-
-// ShouldInclude implements TypedMapFilter interface.
-func (f *ContainsElementFilter) ShouldInclude(found bool, values []string) bool {
-	if !found {
-		return f.includeUndefined
-	}
-
-	for _, v := range values {
-		if v == f.element {
-			return true
-		}
-	}
-	return false
 }
 
 // NewEnabledFilter creates a filter that checks if a boolean value is true.

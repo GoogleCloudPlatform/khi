@@ -33,7 +33,7 @@ import { SparseBitset } from 'src/app/generated/api/v1/sparse_bitset_pb';
 /**
  * Holds the progress information of a specific filter step.
  */
-export interface FilteringProgressInfo {
+interface FilteringProgressInfo {
   /** The name of the filter class currently being executed. */
   filterName: string;
   /** The number of evaluated items in the current step. */

@@ -40,7 +40,7 @@ var logIngesterTask = inspectiontaskbase.DefineLogIngesterTask(
 		containerIDPatternFinder := coretask.Use(b, k8saudit.ContainerIDPatternFinderTaskID.Ref())
 		resourceUIDPatternFinder := coretask.Use(b, k8saudit.ResourceUIDPatternFinderTaskID.Ref())
 		return func(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-			return processK8sNodeLog(ctx, l, podSandboxIDFinder.Get(ctx), containerIDPatternFinder.Get(ctx), resourceUIDPatternFinder.Get(ctx))
+			return processK8sNodeLog(l, podSandboxIDFinder.Get(ctx), containerIDPatternFinder.Get(ctx), resourceUIDPatternFinder.Get(ctx))
 		}
 	},
 )
@@ -70,7 +70,7 @@ type summaryReference struct {
 // processK8sNodeLog sets the log type, timestamp, severity and summary of a Kubernetes node log.
 // The summary shows the pods, containers and resources that the finders resolve from the IDs in the log message.
 // The summary of a cilium-cni plugin log also shows the subsystem and the Pod written in the log, and shows the Pod only once.
-func processK8sNodeLog(ctx context.Context, l *log.Log, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
+func processK8sNodeLog(l *log.Log, podSandboxIDFinder patternfinder.PatternFinder[*k8snode.PodSandboxIDInfo], containerIDPatternFinder patternfinder.PatternFinder[*k8saudit.ContainerIdentity], resourceUIDPatternFinder patternfinder.PatternFinder[*k8saudit.ResourceIdentity]) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err

@@ -29,10 +29,12 @@ import (
 )
 
 type postScriptScenario struct {
-	mode       string
-	conclusion string
-	wantSubstr []string
-	wantStdout string
+	name             string
+	mode             string
+	conclusion       string
+	decisionsSummary string
+	wantSubstr       []string
+	wantStdout       string
 }
 
 func TestPostCodequalityPRCommentScript(t *testing.T) {
@@ -42,51 +44,59 @@ func TestPostCodequalityPRCommentScript(t *testing.T) {
 	}
 	scriptPath := filepath.Join(repoRoot, "scripts", "post-codequality-pr-comment.sh")
 
-	t.Run("extracts envelope and creates sticky comment when none exists", func(t *testing.T) {
-		runPostCommentScriptScenario(t, scriptPath, postScriptScenario{
-			mode:       "create_with_envelope",
+	testCases := []postScriptScenario{
+		// Decodes the Base64 envelope, splices DECISIONS_SUMMARY_FILE before the footer, and creates a new sticky comment.
+		{
+			name:             "extracts envelope and creates sticky comment when none exists",
+			mode:             "create_with_envelope",
+			conclusion:       "success",
+			decisionsSummary: "## Decision Rules Report (`origin/main`) — ⚠️ ADVISORY (1 finding(s))\n",
+			wantSubstr:       []string{"POST repos/GoogleCloudPlatform/khi/issues/1273/comments", report.PRCommentMarker, "Go Quality Report", "Decision Rules Report", "Commit: `abcdef123456`"},
+		},
+		// Strips Cloud Build step prefixes from each envelope line before decoding and creating the sticky comment.
+		{
+			name:       "extracts envelope from Cloud Build step-prefixed logs",
+			mode:       "create_with_step_prefixed_envelope",
 			conclusion: "success",
 			wantSubstr: []string{"POST repos/GoogleCloudPlatform/khi/issues/1273/comments", report.PRCommentMarker, "Go Quality Report"},
-		})
-	})
-
-	t.Run("updates existing sticky comment with fallback body when envelope absent", func(t *testing.T) {
-		runPostCommentScriptScenario(t, scriptPath, postScriptScenario{
+		},
+		// Falls back to the missing-envelope summary when the Base64 payload inside the envelope markers is corrupted.
+		{
+			name:       "falls back cleanly when envelope payload is corrupted",
+			mode:       "corrupted_envelope",
+			conclusion: "success",
+			wantSubstr: []string{"POST repos/GoogleCloudPlatform/khi/issues/1273/comments", report.PRCommentMarker, "Cloud Build completed without an embedded report envelope."},
+		},
+		// Updates an existing sticky comment with a Cloud Build failure fallback message when no envelope is present.
+		{
+			name:       "updates existing sticky comment with fallback body when envelope absent",
 			mode:       "update_fallback",
 			conclusion: "failure",
 			wantSubstr: []string{"PATCH repos/GoogleCloudPlatform/khi/issues/comments/4242", "Cloud Build `failure`", "https://example.com/cb/1"},
-		})
-	})
-
-	t.Run("skips cleanly when no open PR matches HEAD_SHA", func(t *testing.T) {
-		runPostCommentScriptScenario(t, scriptPath, postScriptScenario{
+		},
+		// Exits cleanly without posting a comment when no open pull request matches HEAD_SHA.
+		{
+			name:       "skips cleanly when no open PR matches HEAD_SHA",
 			mode:       "no_open_pr",
 			conclusion: "success",
 			wantStdout: "No open pull request currently points at HEAD",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			runPostCommentScriptScenario(t, scriptPath, tc)
 		})
-	})
+	}
 }
 
 func runPostCommentScriptScenario(t *testing.T, scriptPath string, sc postScriptScenario) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	recFile := filepath.Join(tmpDir, "gh_calls.txt")
-	checkLogFile := filepath.Join(tmpDir, "check_log.txt")
-
-	var logBuf bytes.Buffer
-	if sc.mode == "create_with_envelope" {
-		body := report.FormatPRCommentBody("origin/main", []*rule.Report{
-			{Language: "Go", BaseLabel: "origin/main", ProdFilesChanged: 1},
-		}, report.PRCommentMeta{CommitSHA: "abcdef123456"})
-		report.WriteCommentEnvelope(&logBuf, body)
-	} else {
-		logBuf.WriteString("Step #0: compilation failed\n")
-	}
-	if err := os.WriteFile(checkLogFile, logBuf.Bytes(), 0o600); err != nil {
-		t.Fatalf("WriteFile(checkLogFile) error: %v", err)
-	}
-
+	checkLogFile := writeCheckRunLogFixture(t, tmpDir, sc.mode)
 	writeFakeGHCLI(t, tmpDir, recFile, checkLogFile, sc.mode)
+	decFile := writeOptionalDecisionsSummary(t, tmpDir, sc.decisionsSummary)
 
 	cmd := exec.CommandContext(context.Background(), "/bin/bash", scriptPath)
 	cmd.Env = append(os.Environ(),
@@ -96,23 +106,73 @@ func runPostCommentScriptScenario(t *testing.T, scriptPath string, sc postScript
 		"HEAD_SHA=abcdef1234567890",
 		"CONCLUSION="+sc.conclusion,
 		"DETAILS_URL=https://example.com/cb/1",
+		"DECISIONS_SUMMARY_FILE="+decFile,
 	)
 	outBytes, err := cmd.CombinedOutput()
+
 	if err != nil {
 		t.Fatalf("post-codequality-pr-comment.sh failed: %v\n%s", err, string(outBytes))
 	}
-	if sc.wantStdout != "" && !strings.Contains(string(outBytes), sc.wantStdout) {
-		t.Errorf("stdout = %q, want substring %q", string(outBytes), sc.wantStdout)
-	}
-	if len(sc.wantSubstr) > 0 {
-		recorded, readErr := os.ReadFile(recFile)
-		if readErr != nil {
-			t.Fatalf("ReadFile(recFile) error: %v", readErr)
+	assertPostCommentScriptResult(t, string(outBytes), recFile, sc)
+}
+
+func writeCheckRunLogFixture(t *testing.T, tmpDir string, mode string) string {
+	t.Helper()
+	checkLogFile := filepath.Join(tmpDir, "check_log.txt")
+	var logBuf bytes.Buffer
+	switch mode {
+	case "create_with_envelope":
+		body := report.FormatPRCommentBody("origin/main", []*rule.Report{
+			{Language: "Go", BaseLabel: "origin/main", ProdFilesChanged: 1},
+		}, report.PRCommentMeta{CommitSHA: "abcdef123456"})
+		report.WriteCommentEnvelope(&logBuf, body)
+	case "create_with_step_prefixed_envelope":
+		var raw bytes.Buffer
+		body := report.FormatPRCommentBody("origin/main", []*rule.Report{
+			{Language: "Go", BaseLabel: "origin/main", ProdFilesChanged: 1},
+		}, report.PRCommentMeta{CommitSHA: "abcdef123456"})
+		report.WriteCommentEnvelope(&raw, body)
+		for _, line := range strings.Split(strings.TrimSuffix(raw.String(), "\n"), "\n") {
+			logBuf.WriteString(`Step #1 - "codequality": ` + line + "\n")
 		}
-		for _, sub := range sc.wantSubstr {
-			if !strings.Contains(string(recorded), sub) {
-				t.Errorf("recorded gh call missing %q:\n%s", sub, string(recorded))
-			}
+	case "corrupted_envelope":
+		logBuf.WriteString("KHI_CODEQUALITY_B64_BEGIN\nnot!valid!base64\nKHI_CODEQUALITY_B64_END\n")
+	default:
+		logBuf.WriteString("Step #0: compilation failed\n")
+	}
+	if err := os.WriteFile(checkLogFile, logBuf.Bytes(), 0o600); err != nil {
+		t.Fatalf("WriteFile(checkLogFile) error: %v", err)
+	}
+	return checkLogFile
+}
+
+func writeOptionalDecisionsSummary(t *testing.T, tmpDir string, summary string) string {
+	t.Helper()
+	if summary == "" {
+		return ""
+	}
+	decFile := filepath.Join(tmpDir, "decisions.md")
+	if err := os.WriteFile(decFile, []byte(summary), 0o600); err != nil {
+		t.Fatalf("WriteFile(decFile) error: %v", err)
+	}
+	return decFile
+}
+
+func assertPostCommentScriptResult(t *testing.T, stdout string, recFile string, sc postScriptScenario) {
+	t.Helper()
+	if sc.wantStdout != "" && !strings.Contains(stdout, sc.wantStdout) {
+		t.Errorf("stdout = %q, want substring %q", stdout, sc.wantStdout)
+	}
+	if len(sc.wantSubstr) == 0 {
+		return
+	}
+	recorded, err := os.ReadFile(recFile)
+	if err != nil {
+		t.Fatalf("ReadFile(recFile) error: %v", err)
+	}
+	for _, sub := range sc.wantSubstr {
+		if !strings.Contains(string(recorded), sub) {
+			t.Errorf("recorded gh call missing %q:\n%s", sub, string(recorded))
 		}
 	}
 }

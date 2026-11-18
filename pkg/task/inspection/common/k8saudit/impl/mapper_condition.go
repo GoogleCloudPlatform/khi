@@ -78,8 +78,6 @@ type conditionLogToTimelineMapperTaskSetting struct {
 type conditionWalker struct {
 	// conditionPath is the timeline path of the condition.
 	conditionPath *khifilev6.TimelinePath
-	// conditionType is the `type` field of the condition.
-	conditionType string
 	// lastStatus is the last status of the condition.
 	lastStatus string
 	// lastTransitionTime is the last transition time of the condition.
@@ -182,7 +180,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 			walker := state.ConditionWalkers[conditionType]
 			if walker == nil {
 				conditionPath := MustK8sConditionTimeline(ctx, ownerPath, conditionType)
-				walker = newConditionWalker(conditionPath, conditionType)
+				walker = newConditionWalker(conditionPath)
 				state.ConditionWalkers[conditionType] = walker
 			}
 			var condition model.K8sResourceStatusCondition
@@ -258,7 +256,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 				walker := state.ConditionWalkers[key]
 				if walker == nil {
 					conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
-					walker = newConditionWalker(conditionPath, key)
+					walker = newConditionWalker(conditionPath)
 					state.ConditionWalkers[key] = walker
 				}
 				clampedCreationTime := walker.advanceMinChangeTime(creationTime)
@@ -280,7 +278,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 		walker := state.ConditionWalkers[key]
 		if walker == nil {
 			conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
-			walker = newConditionWalker(conditionPath, key)
+			walker = newConditionWalker(conditionPath)
 			state.ConditionWalkers[key] = walker
 		}
 		walker.CheckAndRecord(ctx, event.Log.Timestamp, k8sFieldSet, currentConditions[key], cs)
@@ -291,7 +289,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 			walker := state.ConditionWalkers[key]
 			if walker == nil {
 				conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
-				walker = newConditionWalker(conditionPath, key)
+				walker = newConditionWalker(conditionPath)
 				state.ConditionWalkers[key] = walker
 			}
 			walker.RecordDeletion(event.Log.Timestamp.Add(time.Nanosecond))
@@ -318,10 +316,9 @@ func (c *conditionLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeri
 }
 
 // newConditionWalker creates a new conditionWalker for a specific condition type.
-func newConditionWalker(conditionPath *khifilev6.TimelinePath, conditionType string) *conditionWalker {
+func newConditionWalker(conditionPath *khifilev6.TimelinePath) *conditionWalker {
 	return &conditionWalker{
 		conditionPath:            conditionPath,
-		conditionType:            conditionType,
 		lastStatus:               "",
 		lastTransitionTime:       "",
 		lastProbeLikeTime:        "",

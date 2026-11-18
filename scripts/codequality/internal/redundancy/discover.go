@@ -25,10 +25,10 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 var outcomeDurationRe = regexp.MustCompile(`\s+\([^)]*\)$`)
@@ -106,7 +106,7 @@ func DiscoverChangedTestFuncs(filePath string, src []byte, changedLines map[int]
 	var out []ChangedTestFunc
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil || !isUnitTestFuncDecl(fn) {
+		if !ok || fn.Body == nil || !gotestutil.IsGoUnitTestFunc(fn) {
 			continue
 		}
 		startLine := fset.Position(fn.Pos()).Line
@@ -198,7 +198,7 @@ func (e *subtestExtractor) visitRunCalls(n ast.Node) bool {
 		return true
 	}
 	subOnlyErr := bodyHasOnlyErrorNilChecks(fnLit.Body)
-	nameLit, isLit := stringLiteralValue(call.Args[0])
+	nameLit, isLit := gotestutil.StringLiteralValue(call.Args[0])
 	if !isLit {
 		e.loopOnlyErrNil = subOnlyErr
 		return true
@@ -260,7 +260,7 @@ func extractTableRowName(row *ast.CompositeLit) (string, bool) {
 	}
 	if len(row.Elts) > 0 {
 		if _, isKV := row.Elts[0].(*ast.KeyValueExpr); !isKV {
-			if val, _ := stringLiteralValue(row.Elts[0]); val != "" {
+			if val, _ := gotestutil.StringLiteralValue(row.Elts[0]); val != "" {
 				return val, true
 			}
 		}
@@ -279,23 +279,11 @@ func extractKeyedRowName(elt ast.Expr) (string, bool) {
 	}
 	switch strings.ToLower(keyIdent.Name) {
 	case "name", "desc", "testname":
-		val, _ := stringLiteralValue(kv.Value)
+		val, _ := gotestutil.StringLiteralValue(kv.Value)
 		return val, val != ""
 	default:
 		return "", false
 	}
-}
-
-func stringLiteralValue(expr ast.Expr) (string, bool) {
-	lit, ok := ast.Unparen(expr).(*ast.BasicLit)
-	if !ok || lit.Kind != token.STRING {
-		return "", false
-	}
-	unquoted, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		return "", false
-	}
-	return unquoted, true
 }
 
 func normalizeGoSubtestName(raw string) string {
@@ -313,21 +301,6 @@ func normalizeGoSubtestName(raw string) string {
 		}
 	}
 	return sb.String()
-}
-
-func isUnitTestFuncDecl(fn *ast.FuncDecl) bool {
-	if fn.Recv != nil {
-		return false
-	}
-	name := fn.Name.Name
-	if !strings.HasPrefix(name, "Test") || name == "TestMain" {
-		return false
-	}
-	r, _ := utf8.DecodeRuneInString(name[len("Test"):])
-	if unicode.IsLower(r) {
-		return false
-	}
-	return len(fn.Type.Params.List) == 1
 }
 
 func bodyHasOnlyErrorNilChecks(block *ast.BlockStmt) bool {

@@ -15,7 +15,6 @@
  */
 
 import {
-  GraphData,
   GraphPodOwnerBase,
   PodOwnerKinds,
   PodOwnerOwnerKinds,
@@ -67,10 +66,9 @@ const POD_OWNER_METADATA_PARSERS: {
   deployment: defaultMetadataParsers,
 };
 
-export function generatePodOwnerRow(
-  data: GraphData,
-  owners: { [kind: string]: GraphPodOwnerBase[] },
-): GraphObject {
+export function generatePodOwnerRow(owners: {
+  [kind: string]: GraphPodOwnerBase[];
+}): GraphObject {
   return $empty().withChildren([
     $alignedGroup(Direction.Horizontal)
       .withAnchor(AnchorPoints.CENTER)

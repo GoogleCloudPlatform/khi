@@ -24,6 +24,7 @@ LINT_PKG_ARGS = $(subst $(COMMA), ,$(LINT_PKGS))
 lint-web: $(GENERATE_FRONTEND_DUMMY)## Run frontend linter
 	cd web && NODE_OPTIONS="--max-old-space-size=$(NODE_MAX_OLD_SPACE_SIZE)" npx ng lint
 	cd web && npm run lint:style
+	cd web && npm run lint:unused
 
 .PHONY: lint-go
 lint-go: ## Run backend linter
@@ -40,6 +41,14 @@ else
 	$(GOLANGCILINT_CMD) run --config=.golangci.yaml $(LINT_PKG_ARGS)
 endif
 	go run ./scripts/codequality --lang=go --conventions --pkgs=$(LINT_PKGS)
+	go run ./scripts/codequality --lang=go --unused-exports --pkgs=$(LINT_PKGS)
+ifeq ($(LINT_PKGS),./...)
+	bash ./scripts/check-go-deadcode.sh
+endif
+
+.PHONY: lint-deadcode
+lint-deadcode: ## Run Go whole-program deadcode check
+	bash ./scripts/check-go-deadcode.sh
 
 .PHONY: format-go
 format-go: ## Format backend source code
@@ -63,12 +72,12 @@ check-format-web: $(GENERATE_FRONTEND_DUMMY) ## Check frontend source code forma
 	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(ts|json|html|scss|mjs)"
 
 .PHONY: format-misc
-format-misc: ## Format misc config files (.cloudbuild, .github, .vscode)
-	npx prettier --write "{.cloudbuild,.github,.vscode}/**/*.{yaml,yml,json}"
+format-misc: ## Format misc config files (.cloudbuild, .github, .vscode, scripts/codequality/rules)
+	npx prettier --write "{.cloudbuild,.github,.vscode,scripts/codequality/rules}/**/*.{yaml,yml,json}"
 
 .PHONY: check-format-misc
 check-format-misc: ## Check misc config file format
-	npx prettier --check "{.cloudbuild,.github,.vscode}/**/*.{yaml,yml,json}"
+	npx prettier --check "{.cloudbuild,.github,.vscode,scripts/codequality/rules}/**/*.{yaml,yml,json}"
 
 .PHONY: lint-md
 lint-md: ## Run markdown linter

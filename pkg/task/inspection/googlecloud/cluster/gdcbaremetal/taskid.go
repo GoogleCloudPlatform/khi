@@ -19,8 +19,5 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloud/k8scommon"
 )
 
-// ClusterGDCBaremetalCommonTaskPrefix is the common task id prefix for GDC Baremetal clusters.
-var ClusterGDCBaremetalCommonTaskPrefix = k8scommon.GoogleCloudCommonK8STaskIDPrefix + "gdc-baremetal"
-
 // ClusterNamePrefixTaskIDForGDCVForBaremetal is the task ID for the GDCV for Baremetal cluster name prefix.
 var ClusterNamePrefixTaskIDForGDCVForBaremetal = taskid.NewImplementationID(k8scommon.ClusterNamePrefixTaskRef, "gdcv-for-baremetal")

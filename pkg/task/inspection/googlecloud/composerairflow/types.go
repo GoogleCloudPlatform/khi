@@ -30,10 +30,6 @@ const (
 	TASKINSTANCE_RUNNING Tistate = "running"
 	// TASKINSTANCE_SUCCESS indicates the task instance finished successfully.
 	TASKINSTANCE_SUCCESS Tistate = "success"
-	// TASKINSTANCE_SHUTDOWN indicates the task instance was shut down.
-	TASKINSTANCE_SHUTDOWN Tistate = "shutdown"
-	// TASKINSTANCE_RESTARTING indicates the task instance is restarting.
-	TASKINSTANCE_RESTARTING Tistate = "restarting"
 	// TASKINSTANCE_FAILED indicates the task instance failed.
 	TASKINSTANCE_FAILED Tistate = "failed"
 	// TASKINSTANCE_SKIPPED indicates the task instance was skipped.
@@ -64,11 +60,6 @@ type AirflowTaskInstance struct {
 	mapIndex string // primary key
 	host     string
 	status   Tistate
-}
-
-// AirflowWorker represents an Airflow worker host parsed from Composer logs.
-type AirflowWorker struct {
-	host string
 }
 
 // NewAirflowTaskInstance creates a new AirflowTaskInstance.
@@ -115,27 +106,6 @@ func (a *AirflowTaskInstance) Status() Tistate {
 
 // ToYaml serializes the task instance to a YAML string.
 func (a *AirflowTaskInstance) ToYaml() string {
-	b, err := yaml.Marshal(a)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
-// NewAirflowWorker creates a new AirflowWorker for the given host.
-func NewAirflowWorker(host string) *AirflowWorker {
-	return &AirflowWorker{
-		host: host,
-	}
-}
-
-// Host returns the worker host name.
-func (a *AirflowWorker) Host() string {
-	return a.host
-}
-
-// ToYaml serializes the worker to a YAML string.
-func (a *AirflowWorker) ToYaml() string {
 	b, err := yaml.Marshal(a)
 	if err != nil {
 		return ""

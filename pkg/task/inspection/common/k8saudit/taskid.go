@@ -52,9 +52,6 @@ var SuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskI
 // NonSuccessLogFilterTaskID is the task ID for the task to filter non-success logs.
 var NonSuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "non-success-log-filter")
 
-// LogSummaryGrouperTaskID is the task ID for the task to group logs for summary generation.
-var LogSummaryGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-summary-grouper")
-
 // NonSuccessLogGrouperTaskID is the task ID for the task to group non-success logs.
 var NonSuccessLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "non-success-log-grouper")
 
@@ -72,9 +69,6 @@ var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.K8sMan
 
 // ResourceLifetimeTrackerTaskID is the task ID for the task to track resource lifetime.
 var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceManifestLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")
-
-// LogSummaryLogToTimelineMapperTaskID is the task ID for the task to generate log summary from given k8s audit log.
-var LogSummaryLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-summary-timeline-mapper")
 
 // NonSuccessLogLogToTimelineMapperTaskID is the task ID for the task to generate history from non-success logs.
 var NonSuccessLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "non-success-timeline-mapper")

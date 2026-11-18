@@ -70,7 +70,7 @@ export const ROLE_BADGE_RIGHT_INSET_PX = 6;
 /**
  * Minimum width of a single evidence deck card in CSS pixels so badges, paths, and actions remain legible.
  */
-export const MIN_DECK_CARD_WIDTH_PX = 380;
+const MIN_DECK_CARD_WIDTH_PX = 380;
 
 /**
  * Maximum width allocated to a single evidence deck card in CSS pixels so pathological lines wrap instead of stretching the stage.
@@ -120,7 +120,7 @@ export enum ExcerptDeckGridPreset {
 /**
  * Clamped horizontal stage, index pane, gutter boundary, and chart viewport widths in CSS pixels.
  */
-export interface HorizontalStageGeometry {
+interface HorizontalStageGeometry {
   /** Clamped width of the left resource index pane in CSS pixels. */
   readonly indexPaneWidthPx: number;
   /** Left X coordinate where the timeline chart viewport starts in CSS pixels. */
@@ -247,7 +247,7 @@ export function createCanvasTextWidthMeasurer(): TextWidthMeasurer {
 /**
  * Calculates the fitted left index pane width in CSS pixels to hold rendered timeline rows and primary role badges without truncation.
  */
-export function calculateIndexPaneWidthPx(
+function calculateIndexPaneWidthPx(
   timelines: readonly ReadonlyDomainElement<Timeline>[],
   styleStore: StyleStoreLike,
   measureText: TextWidthMeasurer,
@@ -331,22 +331,41 @@ export function calculateIndexPaneWidthPx(
   );
 }
 
+const EXCERPT_KIND_LABELS: Readonly<Record<TimelineExcerptKind, string>> = {
+  [TimelineExcerptKind.DIFF]: 'DIFF',
+  [TimelineExcerptKind.MANIFEST]: 'MANIFEST',
+  [TimelineExcerptKind.LOG]: 'LOG',
+};
+
+const EXCERPT_ACTION_LABELS: Readonly<Record<TimelineExcerptKind, string>> = {
+  [TimelineExcerptKind.DIFF]: 'Open Diff',
+  [TimelineExcerptKind.MANIFEST]: 'Open Manifest',
+  [TimelineExcerptKind.LOG]: 'Open Log',
+};
+
 /**
- * Returns the interactive jump button label for a diff or log evidence deck card.
+ * Returns the uppercase kind pill text for an evidence deck card.
+ */
+export function getExcerptKindLabel(kind: TimelineExcerptKind): string {
+  return EXCERPT_KIND_LABELS[kind];
+}
+
+/**
+ * Returns the interactive jump button label for a diff, manifest, or log evidence deck card.
  */
 export function getExcerptActionLabel(kind: TimelineExcerptKind): string {
-  return kind === TimelineExcerptKind.DIFF ? 'Open Diff' : 'Open Log';
+  return EXCERPT_ACTION_LABELS[kind];
 }
 
 /**
  * Measures the unclamped single-line horizontal width of an evidence excerpt card in CSS pixels.
  */
-export function measureExcerptCardUnclampedWidthPx(
+function measureExcerptCardUnclampedWidthPx(
   card: TimelineResolvedExcerptCard,
   measureText: TextWidthMeasurer,
 ): number {
   const isDiff = card.kind === TimelineExcerptKind.DIFF;
-  const kindTag = isDiff ? 'DIFF' : 'LOG';
+  const kindTag = getExcerptKindLabel(card.kind);
   const actionLabel = getExcerptActionLabel(card.kind);
 
   const headerTopRowWidthPx =
@@ -571,7 +590,7 @@ export function clampTimelineFrameHeightPx(rowsTotalHeightPx: number): number {
 /**
  * Calculates the total timeline frame height in CSS pixels from the ruler header and rendered rows.
  */
-export function calculateTimelineFrameHeightPx(
+function calculateTimelineFrameHeightPx(
   timelines: readonly ReadonlyDomainElement<Timeline>[],
   styleStore: StyleStoreLike,
 ): number {

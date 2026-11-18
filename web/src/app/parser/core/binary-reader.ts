@@ -19,7 +19,7 @@ import { assertNecessaryAPI } from 'src/app/common/misc-util';
 /**
  * Header metadata for a single chunk.
  */
-export interface ChunkHeader {
+interface ChunkHeader {
   readonly size: number;
   readonly typeId: number;
 }
@@ -27,7 +27,7 @@ export interface ChunkHeader {
 /**
  * Data associated with a single chunk in the KHI file.
  */
-export interface ChunkData {
+interface ChunkData {
   readonly size: number;
   readonly typeId: number;
   readonly data: Uint8Array;

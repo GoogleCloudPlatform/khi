@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -116,9 +117,182 @@ func TestResolvePageWebSocketURL(t *testing.T) {
 
 func TestStartBrowser_InvalidChromeBinFailsFast(t *testing.T) {
 	t.Setenv("CHROME_BIN", "/nonexistent/chrome-binary-for-test")
-	_, err := StartBrowser(context.Background())
+	_, err := StartBrowser(context.Background(), BrowserOptions{})
 	if err == nil {
 		t.Fatal("StartBrowser() expected error when CHROME_BIN does not exist, got nil")
+	}
+}
+
+func TestBrowserClose_ClearsStateAndRemovesUserDataDir(t *testing.T) {
+	profileDir, err := os.MkdirTemp("", "cdp-close-test-*")
+	if err != nil {
+		t.Fatalf("os.MkdirTemp() error = %v", err)
+	}
+	b := &Browser{
+		pageWSURL:        "ws://127.0.0.1:9222/devtools/page/1",
+		devToolsHostPort: "127.0.0.1:9222",
+		userDataDir:      profileDir,
+	}
+	if err := b.Close(); err != nil {
+		t.Fatalf("b.Close() unexpected error = %v", err)
+	}
+	if b.pageWSURL != "" || b.devToolsHostPort != "" || b.userDataDir != "" {
+		t.Errorf("b.Close() left non-empty state: pageWSURL=%q host=%q dir=%q", b.pageWSURL, b.devToolsHostPort, b.userDataDir)
+	}
+	if _, statErr := os.Stat(profileDir); !os.IsNotExist(statErr) {
+		t.Errorf("expected profileDir %q to be removed, stat err = %v", profileDir, statErr)
+	}
+	if _, err := b.DialPage(context.Background()); err == nil {
+		t.Error("b.DialPage() after Close() expected error, got nil")
+	}
+	if _, err := b.Version(context.Background()); err == nil {
+		t.Error("b.Version() after Close() expected error, got nil")
+	}
+}
+
+func TestBuildChromeArgs(t *testing.T) {
+	testCases := []struct {
+		name     string
+		opts     BrowserOptions
+		wantSize string
+		wantLast []string
+	}{
+		{
+			name:     "defaults to 1600x900 without extra args",
+			opts:     BrowserOptions{},
+			wantSize: "--window-size=1600,900",
+			wantLast: []string{"--user-data-dir=/tmp/profile", "about:blank"},
+		},
+		{
+			name: "applies custom window size and appends extra args before about:blank",
+			opts: BrowserOptions{
+				WindowWidth:  1280,
+				WindowHeight: 720,
+				ExtraArgs:    []string{"--font-render-hinting=none", "--force-color-profile=srgb"},
+			},
+			wantSize: "--window-size=1280,720",
+			wantLast: []string{
+				"--user-data-dir=/tmp/profile",
+				"--font-render-hinting=none",
+				"--force-color-profile=srgb",
+				"about:blank",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildChromeArgs("/tmp/profile", tc.opts)
+			foundSize := false
+			for _, arg := range got {
+				if arg == tc.wantSize {
+					foundSize = true
+					break
+				}
+			}
+			if !foundSize {
+				t.Errorf("buildChromeArgs() missing %q in %v", tc.wantSize, got)
+			}
+			gotTail := got[len(got)-len(tc.wantLast):]
+			if diff := cmp.Diff(tc.wantLast, gotTail); diff != "" {
+				t.Errorf("buildChromeArgs() tail mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExtractWebSocketHostPort(t *testing.T) {
+	testCases := []struct {
+		name      string
+		wsURL     string
+		want      string
+		wantError bool
+	}{
+		{
+			name:  "extracts host and port from full DevTools path",
+			wsURL: "ws://127.0.0.1:9222/devtools/page/1",
+			want:  "127.0.0.1:9222",
+		},
+		{
+			name:      "rejects non-ws scheme",
+			wsURL:     "http://127.0.0.1:9222/devtools/page/1",
+			wantError: true,
+		},
+		{
+			name:      "rejects empty host",
+			wsURL:     "ws:///devtools/page/1",
+			wantError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := extractWebSocketHostPort(tc.wsURL)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("extractWebSocketHostPort(%q) error = %v, wantError %v", tc.wsURL, err, tc.wantError)
+			}
+			if got != tc.want {
+				t.Errorf("extractWebSocketHostPort(%q) = %q, want %q", tc.wsURL, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBrowserVersion(t *testing.T) {
+	testCases := []struct {
+		name      string
+		body      string
+		wsURL     string
+		want      BrowserVersion
+		wantError bool
+	}{
+		{
+			name: "decodes version metadata from /json/version",
+			body: `{"Browser":"HeadlessChrome/136.0.7103.92","Protocol-Version":"1.3","User-Agent":"Mozilla/5.0","V8-Version":"13.6.0"}`,
+			want: BrowserVersion{
+				Browser:         "HeadlessChrome/136.0.7103.92",
+				ProtocolVersion: "1.3",
+				UserAgent:       "Mozilla/5.0",
+				V8Version:       "13.6.0",
+			},
+		},
+		{
+			name:      "returns error on malformed json",
+			body:      `not-json`,
+			wantError: true,
+		},
+		{
+			name:      "returns error when browser has no DevTools host",
+			wsURL:     "invalid",
+			wantError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/json/version" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(tc.body))
+					return
+				}
+				http.NotFound(w, r)
+			}))
+			defer srv.Close()
+
+			wsURL := tc.wsURL
+			if wsURL == "" {
+				wsURL = "ws" + strings.TrimPrefix(srv.URL, "http") + "/devtools/page/1"
+			}
+			browser := NewBrowserFromPageWSURL(wsURL)
+			got, err := browser.Version(context.Background())
+			if (err != nil) != tc.wantError {
+				t.Fatalf("browser.Version() error = %v, wantError %v", err, tc.wantError)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("browser.Version() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -130,6 +304,7 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 	}
 	var mu sync.Mutex
 	var gotRequests []recordedRequest
+	captureCount := 0
 
 	wsServer := httptest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		for {
@@ -150,7 +325,13 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 
 			var res any
 			switch req.Method {
-			case "Page.enable", "Runtime.enable", "Emulation.setDeviceMetricsOverride":
+			case "Page.enable",
+				"Runtime.enable",
+				"Emulation.setDeviceMetricsOverride",
+				"Emulation.setEmulatedMedia",
+				"Emulation.setTimezoneOverride",
+				"Emulation.setLocaleOverride",
+				"Page.addScriptToEvaluateOnNewDocument":
 				res = map[string]any{}
 			case "Page.navigate":
 				res = map[string]any{"frameId": "f1"}
@@ -161,6 +342,7 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 					},
 				}
 			case "Page.captureScreenshot":
+				captureCount++
 				res = map[string]any{
 					"data": base64.StdEncoding.EncodeToString(wantPNG),
 				}
@@ -171,7 +353,7 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 				"result": res,
 			})
 			_ = websocket.Message.Send(ws, string(respBytes))
-			if req.Method == "Page.captureScreenshot" {
+			if req.Method == "Page.captureScreenshot" && captureCount >= 2 {
 				_ = ws.Close()
 				return
 			}
@@ -197,6 +379,28 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 		t.Fatalf("client.SetViewportSize() unexpected error = %v", err)
 	}
 
+	if err := client.SetEmulatedMedia(context.Background(), "screen", []EmulatedMediaFeature{
+		{Name: "prefers-reduced-motion", Value: "reduce"},
+	}); err != nil {
+		t.Fatalf("client.SetEmulatedMedia(with features) unexpected error = %v", err)
+	}
+
+	if err := client.SetEmulatedMedia(context.Background(), "print", nil); err != nil {
+		t.Fatalf("client.SetEmulatedMedia(without features) unexpected error = %v", err)
+	}
+
+	if err := client.SetTimezoneOverride(context.Background(), "UTC"); err != nil {
+		t.Fatalf("client.SetTimezoneOverride() unexpected error = %v", err)
+	}
+
+	if err := client.SetLocaleOverride(context.Background(), "en-US"); err != nil {
+		t.Fatalf("client.SetLocaleOverride() unexpected error = %v", err)
+	}
+
+	if err := client.AddScriptToEvaluateOnNewDocument(context.Background(), "window.__vrtInit = true;"); err != nil {
+		t.Fatalf("client.AddScriptToEvaluateOnNewDocument() unexpected error = %v", err)
+	}
+
 	var got int
 	if err := client.Evaluate(context.Background(), "21 * 2", false, &got); err != nil {
 		t.Fatalf("client.Evaluate() unexpected error = %v", err)
@@ -205,12 +409,20 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 		t.Errorf("client.Evaluate() = %d, want 42", got)
 	}
 
-	gotPNG, err := client.CapturePNGScreenshot(context.Background())
+	gotPNG, err := client.CapturePNGScreenshot(context.Background(), ScreenshotOptions{})
 	if err != nil {
-		t.Fatalf("client.CapturePNGScreenshot() unexpected error = %v", err)
+		t.Fatalf("client.CapturePNGScreenshot(viewport) unexpected error = %v", err)
 	}
 	if !bytes.Equal(gotPNG, wantPNG) {
-		t.Errorf("client.CapturePNGScreenshot() = %v, want %v", gotPNG, wantPNG)
+		t.Errorf("client.CapturePNGScreenshot(viewport) = %v, want %v", gotPNG, wantPNG)
+	}
+
+	gotFullPNG, err := client.CapturePNGScreenshot(context.Background(), ScreenshotOptions{FullPage: true})
+	if err != nil {
+		t.Fatalf("client.CapturePNGScreenshot(fullPage) unexpected error = %v", err)
+	}
+	if !bytes.Equal(gotFullPNG, wantPNG) {
+		t.Errorf("client.CapturePNGScreenshot(fullPage) = %v, want %v", gotFullPNG, wantPNG)
 	}
 
 	wantRequests := []recordedRequest{
@@ -230,6 +442,37 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 			},
 		},
 		{
+			Method: "Emulation.setEmulatedMedia",
+			Params: map[string]any{
+				"media": "screen",
+				"features": []any{
+					map[string]any{
+						"name":  "prefers-reduced-motion",
+						"value": "reduce",
+					},
+				},
+			},
+		},
+		{
+			Method: "Emulation.setEmulatedMedia",
+			Params: map[string]any{
+				"media": "print",
+			},
+		},
+		{
+			Method: "Emulation.setTimezoneOverride",
+			Params: map[string]any{"timezoneId": "UTC"},
+		},
+		{
+			Method: "Emulation.setLocaleOverride",
+			Params: map[string]any{"locale": "en-US"},
+		},
+		{Method: "Page.enable"},
+		{
+			Method: "Page.addScriptToEvaluateOnNewDocument",
+			Params: map[string]any{"source": "window.__vrtInit = true;"},
+		},
+		{
 			Method: "Runtime.evaluate",
 			Params: map[string]any{
 				"expression":    "21 * 2",
@@ -240,6 +483,13 @@ func TestClient_HighLevelMethodsAndTransportError(t *testing.T) {
 		{
 			Method: "Page.captureScreenshot",
 			Params: map[string]any{"format": "png"},
+		},
+		{
+			Method: "Page.captureScreenshot",
+			Params: map[string]any{
+				"format":                "png",
+				"captureBeyondViewport": true,
+			},
 		},
 	}
 	mu.Lock()

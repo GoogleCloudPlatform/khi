@@ -25,8 +25,20 @@ import (
 
 const maxRenderedHotspots = 5
 
+type verdictStatus struct {
+	hasIssues       bool
+	blocking        bool
+	passMessage     string
+	advisoryMessage string
+	failMessage     string
+}
+
 // RenderText writes the human- and agent-readable terminal Go Quality report to w.
 func RenderText(w io.Writer, rep *rule.Report, style gotestutil.TermStyle) {
+	if rep.Language == "Decisions" {
+		renderDecisionsReportText(w, rep, style)
+		return
+	}
 	renderDashboardHeader(w, rep, style)
 	if len(rep.DirectiveErrors) > 0 {
 		renderDirectiveErrors(w, rep.DirectiveErrors, style)
@@ -96,17 +108,25 @@ func renderMutationLine(w io.Writer, mut rule.MutationSummary, style gotestutil.
 }
 
 func renderVerdictLine(w io.Writer, rep *rule.Report, style gotestutil.TermStyle) {
-	if !rep.HasIssues() {
-		fmt.Fprintf(w, "  Verdict:    %s\n", style.BoldGreen("PASS (0 violations)"))
+	renderVerdictStatusLine(w, verdictStatus{
+		hasIssues:       rep.HasIssues(),
+		blocking:        !rep.Advisory,
+		passMessage:     "PASS (0 violations)",
+		advisoryMessage: fmt.Sprintf("ADVISORY (%d finding(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors)),
+		failMessage:     fmt.Sprintf("FAIL (%d violation(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors)),
+	}, style)
+}
+
+func renderVerdictStatusLine(w io.Writer, status verdictStatus, style gotestutil.TermStyle) {
+	if !status.hasIssues {
+		fmt.Fprintf(w, "  Verdict:    %s\n", style.BoldGreen(status.passMessage))
 		return
 	}
-	if rep.Advisory {
-		msg := fmt.Sprintf("ADVISORY (%d finding(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors))
-		fmt.Fprintf(w, "  Verdict:    %s\n", style.Yellow(msg))
+	if status.blocking {
+		fmt.Fprintf(w, "  Verdict:    %s\n", style.BoldRed(status.failMessage))
 		return
 	}
-	msg := fmt.Sprintf("FAIL (%d violation(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors))
-	fmt.Fprintf(w, "  Verdict:    %s\n", style.BoldRed(msg))
+	fmt.Fprintf(w, "  Verdict:    %s\n", style.Yellow(status.advisoryMessage))
 }
 
 func renderDirectiveErrors(w io.Writer, errs []rule.DirectiveError, style gotestutil.TermStyle) {

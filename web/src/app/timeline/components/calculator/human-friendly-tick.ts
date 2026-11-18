@@ -55,7 +55,7 @@ interface HumanFriendlyStep {
  * Definition of a step in the ruler.
  * Describes how to divide the timeline and format labels for a specific zoom level.
  */
-export interface RulerStepDefinition {
+interface RulerStepDefinition {
   /** The time interval (in ns) for the smallest tick. */
   low: bigint;
   /** The multiplier to get the next level of ticks (middle importance). */
@@ -149,7 +149,7 @@ const HUMAN_FRIENDLY_STEPS: HumanFriendlyStep[] = [
  * A list of ruler steps derived from human-friendly intervals.
  * Used to determine the appropriate tick interval for the current zoom level.
  */
-export const RULER_STEPS_NS: RulerStepDefinition[] = [];
+const RULER_STEPS_NS: RulerStepDefinition[] = [];
 
 for (let i = 0; i < HUMAN_FRIENDLY_STEPS.length - 2; i++) {
   const low = HUMAN_FRIENDLY_STEPS[i];

@@ -57,11 +57,10 @@ type nonSuccessLogLogToTimelineMapperTaskSetting struct {
 // ProcessLogByGroup implements inspectiontaskbase.TimelineMapper.
 func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	extractor := e.extractor.Get(ctx)
-	cs, err := e.mapLog(ctx, l, extractor)
-	return cs, struct{}{}, err
+	return e.mapLog(ctx, l, extractor), struct{}{}, nil
 }
 
-func (e *nonSuccessLogLogToTimelineMapperTaskSetting) mapLog(ctx context.Context, l *log.Log, extractor k8saudit.K8sAuditLogExtractor) (*khifilev6.TimelineChangeSet, error) {
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) mapLog(ctx context.Context, l *log.Log, extractor k8saudit.K8sAuditLogExtractor) *khifilev6.TimelineChangeSet {
 	fieldSet, _ := k8saudit.ExtractK8sAuditLog(l.NodeReader, extractor)
 
 	subresource := fieldSet.SubresourceName
@@ -89,5 +88,5 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSetting) mapLog(ctx context.Context
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(resPath)
 
-	return cs, nil
+	return cs
 }

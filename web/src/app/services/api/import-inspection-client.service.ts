@@ -29,7 +29,7 @@ import { resolveUploadConfig } from 'src/app/services/api/upload-config-resolver
 /**
  * Callback function type for reporting file upload progress.
  */
-export type ImportProgressCallback = ChunkUploadProgressCallback;
+type ImportProgressCallback = ChunkUploadProgressCallback;
 
 /**
  * Options for importing a .khi inspection file.
@@ -46,7 +46,7 @@ export interface ImportFileOptions {
 /**
  * Result returned upon successful inspection file import and registration.
  */
-export interface ImportInspectionResult {
+interface ImportInspectionResult {
   /** The unique ID assigned to the imported inspection. */
   readonly inspectionId: string;
   /** The display name of the inspection extracted from metadata. */

@@ -65,7 +65,7 @@ export interface TimelineRulerViewModel {
 /**
  * The time label placed on the ruler.
  */
-export interface RulerTimeLabelViewModel {
+interface RulerTimeLabelViewModel {
   offsetLeftInPx: number;
   label: string;
 }
@@ -73,14 +73,14 @@ export interface RulerTimeLabelViewModel {
 /**
  * containing information for each scale marks on the ruler.
  */
-export interface RulerTickViewModel {
+interface RulerTickViewModel {
   leftEdgeTimeImportance: TickImportance;
 }
 
 /**
  * A histogram bucket containing the ratio of log counts for each severity.
  */
-export interface HistogramBucketViewModel {
+interface HistogramBucketViewModel {
   /**
    * [0-1] ratio of the log count in the bucket for each severity.
    */

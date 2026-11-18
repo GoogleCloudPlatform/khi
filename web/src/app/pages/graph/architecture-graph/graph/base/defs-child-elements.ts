@@ -19,7 +19,7 @@ import { GraphObjectWithElementType } from './base-containers';
 /**
  * Graph wrapper that can be placed just under <defs>
  */
-export class GraphDefsChildItem<
+class GraphDefsChildItem<
   T extends SVGElement,
 > extends GraphObjectWithElementType<T> {}
 
@@ -29,7 +29,7 @@ export class GraphDefsChildItem<
 export class GraphPattern extends GraphDefsChildItem<SVGPatternElement> {
   constructor(width: number, height: number) {
     super(document.createElementNS('http://www.w3.org/2000/svg', 'pattern'));
-    this.transform.onSvgElementUpdate = (pos, size) => {
+    this.transform.onSvgElementUpdate = (_pos, size) => {
       this.withMinSize(size.width, size.height);
       return;
     };

@@ -31,7 +31,7 @@ interface CalculatedPath {
   definition: PathDefinition;
 }
 
-export type EdgeShape = 'arrow' | 'circle';
+type EdgeShape = 'arrow' | 'circle';
 
 interface PathDefinition {
   route: string;

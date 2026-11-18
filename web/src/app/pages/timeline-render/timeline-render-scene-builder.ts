@@ -79,6 +79,7 @@ import {
   createCanvasTextWidthMeasurer,
   estimateExcerptCardHeightPx,
   getExcerptActionLabel,
+  getExcerptKindLabel,
   planExcerptDeckLayout,
   resolveHorizontalStageGeometry,
   resolveTimelineRowHeightPx,
@@ -392,7 +393,7 @@ export function collectMarkerVerticalStems(
 /**
  * Collects non-zero vertical drop stem segments from excerpt pin ViewModels for span chip obstacle avoidance.
  */
-export function collectExcerptPinVerticalStems(
+function collectExcerptPinVerticalStems(
   pins: readonly ExcerptPinViewModel[],
 ): VerticalStemSegment[] {
   const stems: VerticalStemSegment[] = [];
@@ -1053,7 +1054,7 @@ export function buildTimelineSceneViewModel(
 /**
  * Builds positioned focal subtree highlight bands and dimmed background row masks.
  */
-export function buildRowHighlightViewModels(
+function buildRowHighlightViewModels(
   rowHighlights: readonly TimelineResolvedRowHighlight[],
   dimUnlistedRows: boolean,
   indexPaneWidthPx: number,
@@ -1324,7 +1325,7 @@ export function buildConnectorViewModels(
 /**
  * Builds positioned inline callout cards and leader lines for pinned events.
  */
-export function buildCalloutViewModels(
+function buildCalloutViewModels(
   callouts: readonly TimelineResolvedCallout[],
   chartLeftPx: number,
   stageWidthPx: number,
@@ -1474,7 +1475,7 @@ export function buildExcerptTetherSvgPath(
 /**
  * Builds synchronized bottom evidence deck cards, S-curve tethers, and timeline drop pins.
  */
-export function buildExcerptPinsAndDeck(
+function buildExcerptPinsAndDeck(
   excerpts: readonly TimelineResolvedExcerptCard[],
   deckPlan: ExcerptDeckLayoutPlan,
   stageWidthPx: number,
@@ -1561,6 +1562,7 @@ export function buildExcerptPinsAndDeck(
       gridArea: `card-${i}`,
       badge: excerpt.badge,
       kind: excerpt.kind,
+      kindLabel: getExcerptKindLabel(excerpt.kind),
       paletteId: excerpt.paletteId,
       colors,
       timeLabel: excerpt.timeLabel,

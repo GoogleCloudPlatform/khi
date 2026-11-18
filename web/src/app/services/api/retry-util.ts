@@ -166,7 +166,7 @@ export function delayWithSignal(
 /**
  * Function signature for executing an HTTP fetch request in {@link fetchWithRetry}.
  */
-export type FetchFn = (
+type FetchFn = (
   input: RequestInfo | URL,
   init?: RequestInit,
 ) => Promise<Response>;

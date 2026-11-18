@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 func TestRunCLIEndToEndModes(t *testing.T) {
@@ -205,6 +207,33 @@ type BadType struct {
 	}
 }
 
+func TestRunCLIUnusedExportsMode(t *testing.T) {
+	dir := t.TempDir()
+	writeFiles(t, dir, map[string]string{
+		"go.mod": "module example.com/unusedmod\n\ngo 1.24\n",
+		"pkg/unused/unused.go": `package unused
+
+const Dead = 2
+`,
+	})
+
+	var stdout, stderr bytes.Buffer
+	code, err := runCLI(context.Background(), cliEnv{
+		args:   []string{"--repo-root=" + dir, "--lang=go", "--unused-exports", "--pkgs=./pkg/unused"},
+		stdout: &stdout,
+		stderr: &stderr,
+		getenv: func(string) string { return "" },
+	})
+	assertCLIOutcome(t, cliOutcomeCheck{
+		code:       code,
+		wantCode:   1,
+		err:        err,
+		stdout:     stdout.String(),
+		stderr:     stderr.String(),
+		wantStdout: "pkg/unused/unused.go:3:7: exported const Dead has no references in the repository (unused-exported-decl)",
+	})
+}
+
 func TestRunCLIReturnsExitCodeOneOnViolation(t *testing.T) {
 	repoDir := initTempGitRepoWithViolation(t)
 	summaryPath := filepath.Join(t.TempDir(), "viol_summary.md")
@@ -241,6 +270,75 @@ func TestRunCLIReturnsExitCodeOneOnViolation(t *testing.T) {
 			}
 			if code != tc.wantCode {
 				t.Errorf("code = %d, want %d (stdout=%s)", code, tc.wantCode, stdout.String())
+			}
+		})
+	}
+}
+
+// TestRunCLIDecisionsEvaluationError verifies that runCLI returns exit code 2 and propagates errors when decision rule loading fails.
+func TestRunCLIDecisionsEvaluationError(t *testing.T) {
+	repoDir := initTempGitRepo(t)
+	var stdout, stderr bytes.Buffer
+
+	code, err := runCLI(context.Background(), cliEnv{
+		args: []string{
+			"--repo-root=" + repoDir,
+			"--vcs=git",
+			"--base=HEAD~1",
+			"--decisions-only",
+			"--decisions-rules-dir=" + filepath.Join(repoDir, "nonexistent-rules"),
+		},
+		stdout: &stdout,
+		stderr: &stderr,
+		getenv: func(string) string { return "" },
+	})
+
+	if code != 2 {
+		t.Errorf("runCLI() code = %d, want 2", code)
+	}
+	if err == nil {
+		t.Errorf("runCLI() error = nil, want non-nil error for nonexistent rules directory")
+	}
+}
+
+func TestShouldRunGo(t *testing.T) {
+	testCases := []struct {
+		name    string
+		flags   cliFlags
+		diffRes gotestutil.DiffResult
+		want    bool
+	}{
+		// Returns false in decisions-only mode even when --lang=go, --fast, --full, and changed Go lines are present.
+		{
+			name:  "decisions-only disables Go pipeline",
+			flags: cliFlags{decisionsOnly: true, lang: "go", fast: true, full: true},
+			diffRes: gotestutil.DiffResult{
+				ChangedLines: map[string]map[int]struct{}{"pkg/a/a.go": {1: {}}},
+			},
+			want: false,
+		},
+		// Returns false when --lang=all has no fast/full/coverprofile flags and no Go files changed.
+		{
+			name:    "lang all with empty diff and no flags skips Go pipeline",
+			flags:   cliFlags{lang: "all"},
+			diffRes: gotestutil.DiffResult{},
+			want:    false,
+		},
+		// Returns true when --lang=all and --fast is enabled without changed Go files.
+		{
+			name:    "lang all with fast flag runs Go pipeline on empty diff",
+			flags:   cliFlags{lang: "all", fast: true},
+			diffRes: gotestutil.DiffResult{},
+			want:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := shouldRunGo(tc.flags, tc.diffRes)
+
+			if got != tc.want {
+				t.Errorf("shouldRunGo() = %v, want %v", got, tc.want)
 			}
 		})
 	}

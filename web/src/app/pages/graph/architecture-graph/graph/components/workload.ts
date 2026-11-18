@@ -91,7 +91,7 @@ export function generateNodeBox(nodeData: GraphNode): GraphObject {
     ]);
 }
 
-export function generateNodeMetadataBox(node: GraphNode): GraphObject {
+function generateNodeMetadataBox(node: GraphNode): GraphObject {
   const generateTaintItems = () => {
     if (node.taints.length == 0) {
       return [$label('No taints').withStyle(NODE_METADATA_LABEL_NORMAL)];
@@ -173,7 +173,7 @@ export function generateNodeMetadataBox(node: GraphNode): GraphObject {
     ]);
 }
 
-export function generatePodElements(node: GraphNode): GraphObject {
+function generatePodElements(node: GraphNode): GraphObject {
   const generatePodBoxStyle: (p: PodGraphData) => ElementStyle = (
     p: PodGraphData,
   ) => {
@@ -252,7 +252,7 @@ export function generatePodElements(node: GraphNode): GraphObject {
     ]);
 }
 
-export function generatePodMetadataBox(pod: PodGraphData): GraphObject {
+function generatePodMetadataBox(pod: PodGraphData): GraphObject {
   const generateConditionItems = () => {
     return [
       $label('conditions:').withStyle(POD_METADATA_LABEL_NORMAL),
@@ -335,7 +335,7 @@ export function generatePodMetadataBox(pod: PodGraphData): GraphObject {
   ]);
 }
 
-export function generateContainerElements(podData: PodGraphData): GraphObject {
+function generateContainerElements(podData: PodGraphData): GraphObject {
   const generateInitContainerLabel = (c: ContainerGraphData) =>
     !c.isInitContainer
       ? []
@@ -416,7 +416,7 @@ export function generateContainerElements(podData: PodGraphData): GraphObject {
     ]);
 }
 
-export function generateContainerStatusBox(
+function generateContainerStatusBox(
   container: ContainerGraphData,
 ): GraphObject {
   if (!container.statusReadFromManifest) {

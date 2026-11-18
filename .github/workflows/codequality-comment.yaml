@@ -29,10 +29,101 @@ jobs:
       checks: read
       pull-requests: write
     steps:
-      - name: Check out comment script
+      - name: Check out trusted codequality scripts and rules
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: scripts
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            .agents
+            web
+
+      - name: Resolve open PR and check Gemini Decisions configuration
+        id: pr_meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.check_run.head_sha }}
+          HAS_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
+        run: |
+          base_ref="$(
+            gh api "repos/${GITHUB_REPO}/commits/${HEAD_SHA}/pulls" \
+              --jq "[.[] | select(.state == \"open\" and .head.sha == \"${HEAD_SHA}\")][0].base.ref // \"\""
+          )"
+          echo "base_ref=${base_ref}" >> "${GITHUB_OUTPUT}"
+          if [[ -n "${base_ref}" && "${HAS_GEMINI_KEY}" == "true" ]]; then
+            echo "run_decisions=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "run_decisions=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Set up Go for trusted Decisions runner
+        if: steps.pr_meta.outputs.run_decisions == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: "./go.mod"
+          cache: true
+          cache-dependency-path: "go.sum"
+
+      - name: Build trusted codequality binary and fetch passive PR tree
+        id: pr_tree
+        if: steps.pr_meta.outputs.run_decisions == 'true'
+        env:
+          BASE_REF: ${{ steps.pr_meta.outputs.base_ref }}
+          HEAD_SHA: ${{ github.event.check_run.head_sha }}
+        run: |
+          go build -o "${RUNNER_TEMP}/khi-codequality" ./scripts/codequality
+          pr_dir="${RUNNER_TEMP}/pr-repo"
+          git init "${pr_dir}"
+          git -C "${pr_dir}" config core.hooksPath /dev/null
+          git -C "${pr_dir}" config core.fsmonitor false
+          git -C "${pr_dir}" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C "${pr_dir}" -c protocol.file.allow=never fetch --no-tags --depth=200 origin \
+            "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}" \
+            "${HEAD_SHA}"
+          if ! git -C "${pr_dir}" merge-base "origin/${BASE_REF}" "${HEAD_SHA}" >/dev/null 2>&1; then
+            git -C "${pr_dir}" -c protocol.file.allow=never fetch --no-tags --unshallow origin || true
+          fi
+          git -C "${pr_dir}" checkout --detach "${HEAD_SHA}"
+          changed_files="$(git -C "${pr_dir}" diff --name-only "origin/${BASE_REF}" "${HEAD_SHA}")"
+          if grep -qE '\.ts$' <<< "${changed_files}"; then
+            echo "has_ts_changes=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_ts_changes=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Set up Node.js for trusted TypeScript AST extractor
+        if: steps.pr_meta.outputs.run_decisions == 'true' && steps.pr_tree.outputs.has_ts_changes == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: "./.node-version"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
+
+      - name: Install trusted web dependencies for TypeScript AST extraction
+        if: steps.pr_meta.outputs.run_decisions == 'true' && steps.pr_tree.outputs.has_ts_changes == 'true'
+        run: |
+          cd "${GITHUB_WORKSPACE}"
+          npm --prefix web ci --ignore-scripts --no-audit --no-fund
+
+      - name: Evaluate declarative Gemini Decisions rules (isolated secret scope)
+        if: steps.pr_meta.outputs.run_decisions == 'true'
+        continue-on-error: true
+        env:
+          CODEQUALITY_DECISIONS_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BASE_REF: ${{ steps.pr_meta.outputs.base_ref }}
+          HEAD_SHA: ${{ github.event.check_run.head_sha }}
+        run: |
+          "${RUNNER_TEMP}/khi-codequality" \
+            --decisions-only \
+            --vcs=git \
+            --repo-root="${RUNNER_TEMP}/pr-repo" \
+            --trusted-root="${GITHUB_WORKSPACE}" \
+            --base="origin/${BASE_REF}" \
+            --target="${HEAD_SHA}" \
+            --decisions-max-targets=20 \
+            --summary-file="${RUNNER_TEMP}/decisions_summary.md" \
+            --color=never
 
       - name: Post or update sticky PR comment
         env:
@@ -42,4 +133,5 @@ jobs:
           HEAD_SHA: ${{ github.event.check_run.head_sha }}
           CONCLUSION: ${{ github.event.check_run.conclusion }}
           DETAILS_URL: ${{ github.event.check_run.details_url }}
+          DECISIONS_SUMMARY_FILE: ${{ runner.temp }}/decisions_summary.md
         run: /bin/bash ./scripts/post-codequality-pr-comment.sh

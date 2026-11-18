@@ -1,0 +1,204 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id: ts_test_quality
+name: TypeScript Unit Testing Standards
+description: Verifies Jasmine spec explanation comments and logic alignment, Arrange-Act-Assert structure, callback and subscription testing practices, and clear test identifier naming.
+enabled: true
+enforcement: advisory
+
+target:
+  kind: changed_file
+  include:
+    - "web/src/**/*.spec.ts"
+  exclude:
+    - "**/generated/**"
+    - "**/testdata/**"
+
+context:
+  include_companion_ts: true
+  line_numbers: true
+
+questions:
+  - id: spec_explanation
+    for_each: changed_ts_specs
+    type: choice
+    instructions: >-
+      Evaluate {{.Kind}} {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}}).
+      Extracted preceding comment: {{if .Doc}}"{{.Doc}}"{{else}}(NONE){{end}}.
+      Verify that (1) a preceding // comment is present explaining the scenario/preconditions and expected outcome,
+      and (2) the spec's setup inputs, Act trigger, and expect(...) assertions genuinely verify that described scenario
+      without coincidental passes.
+    options:
+      aligned:
+        description: >-
+          A preceding // comment clearly states the scenario and expected behavior, and the spec inputs,
+          trigger, and expect(...) assertions accurately verify that exact behavior.
+      missing_explanation_comment:
+        description: >-
+          No preceding // comment is present ((NONE)), or the comment merely repeats the it(...) title
+          without explaining what scenario and expected outcome are tested.
+        fix_hint: >-
+          Add a concise // comment (ending with a period) immediately above {{.Name}} at {{.File}}:L{{.Line}}
+          explaining the input scenario/preconditions and expected behavior.
+      logic_or_setup_mismatch:
+        description: >-
+          The preceding // comment claims a scenario, boundary condition, or expected outcome that contradicts
+          the actual spec setup, inputs, or expect(...) assertions, or the setup allows a coincidental pass without exercising the claimed behavior.
+        fix_hint: >-
+          Align the setup, trigger, and expect(...) assertions of {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          with its explanation comment (or fix the inaccurate comment).
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: test_structure_aaa
+    for_each: changed_ts_specs
+    type: choice
+    instructions: |
+      Evaluate whether Jasmine spec {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) follows a clean,
+      linear Arrange -> Act -> Assert structure inside its it(...) body.
+      Note that an initial fixture.detectChanges() in Arrange to mount the component before triggering
+      the action under test is valid setup, not a behavioral Act phase.
+
+      Example GOOD (single linear Arrange -> Act -> Assert):
+        const store = new EntryStore();
+        store.add('k', 'v');
+
+        store.clear();
+
+        expect(store.size()).toBe(0);
+
+      Example BAD (interleaved_multiple_behaviors — chained Act -> expect -> Act -> expect):
+        store.add('k', 'v');
+        expect(store.size()).toBe(1);
+        store.clear();
+        expect(store.size()).toBe(0);
+
+      Example BAD (blurred_phases_or_test_logic — computing expected value dynamically with if/for):
+        for (const mode of [true, false]) {
+          const wantEnabled = !mode;
+          expect(resolveMode(mode)).toBe(wantEnabled);
+        }
+    options:
+      aligned:
+        description: >-
+          The spec body follows a single linear Arrange -> Act -> Assert sequence with clear separation,
+          minimal setup, and literal expect(...) assertions without computing expected values dynamically.
+      interleaved_multiple_behaviors:
+        description: >-
+          Chains multiple sequential Act -> expect -> Act -> expect cycles testing independent behaviors
+          inside a single it(...) block instead of splitting them into separate specs.
+        fix_hint: >-
+          Split interleaved Act -> expect sequences in {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          into separate it(...) specs so each spec tests one behavior.
+      blurred_phases_or_test_logic:
+        description: >-
+          Mixes behavioral expect(...) assertions into Arrange before Act, obscures the Act trigger,
+          or computes expected values dynamically using if/else branching or for loops inside the spec body.
+        fix_hint: >-
+          Restructure {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) into linear Arrange, Act, and Assert phases
+          (separated by blank lines or // Arrange., // Act., // Assert. comments) with literal expected values.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: callback_and_subscription_testing
+    for_each: changed_ts_specs
+    type: choice
+    instructions: |
+      Evaluate callback and subscription testing in {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}}).
+      If the spec passes a callback/closure/event listener to the system under test or subscribes to an
+      Angular output() or RxJS Observable via .subscribe(...)
+      (note: fakeAsync, runInInjectionContext, and expect(() => ...).toThrow() are synchronous test wrappers,
+      NOT async SUT callbacks), verify that the callback or .subscribe(...) handler records calls/values into
+      local test state (an array, variable, or jasmine.createSpy) during Arrange and assertions run outside
+      in Assert rather than inside the handler body.
+
+      Example GOOD (records emissions in Arrange; Assert checks recorded array outside):
+        const emittedRanges: TimeRangeNs[] = [];
+        component.timeRangeSelected.subscribe((range) => emittedRanges.push(range));
+
+        triggerRangeDrag(fixture, 100, 200);
+
+        expect(emittedRanges).toEqual([{ startNs: 100n, endNs: 200n }]);
+
+      Example BAD (assertion_inside_callback — silently passes if timeRangeSelected never emits):
+        component.timeRangeSelected.subscribe((range) => {
+          expect(range).toEqual({ startNs: 100n, endNs: 200n });
+        });
+        triggerRangeDrag(fixture, 100, 200);
+
+      Example BAD (unverified_callback_invocation — callback or spy never asserted outside):
+        const onProgress = jasmine.createSpy('onProgress');
+        runExport(items, onProgress);
+    options:
+      aligned:
+        description: >-
+          Either {{.Name}} does not pass a callback or .subscribe(...) listener to the system under test
+          (or passes a pure stub dependency whose invocation is not the behavior under test), OR the callback/handler
+          records calls/values into local state or a jasmine.createSpy and expect(...) assertions run outside in Assert.
+      assertion_inside_callback:
+        description: >-
+          Embeds expect(...) or fail(...) assertions directly inside a SUT callback, Angular output() .subscribe(...),
+          RxJS .subscribe(...), or event listener handler, risking a silent pass if the callback or Observable never fires.
+        fix_hint: >-
+          Move expect(...) assertions out of the callback/subscription in {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}}):
+          record emitted values or calls into a local array/variable or jasmine.createSpy during Arrange,
+          and assert on the recorded values after Act completes.
+      unverified_callback_invocation:
+        description: >-
+          Tests callback- or subscription-driven behavior by passing a callback, spy, or .subscribe(...) listener,
+          but never asserts outside the callback whether it was invoked or what values it received.
+        fix_hint: >-
+          Record callback/subscription invocations in {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          and assert on the recorded call count, arguments, or emitted values in the Assert phase.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: test_identifier_naming
+    for_each: changed_ts_specs
+    type: choice
+    instructions: >-
+      Evaluate whether the Jasmine spec title, local variable names, fixture/helper names, and
+      jasmine.createSpy names in {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) are clear and
+      match their actual usage. Standard TypeScript/Angular test idioms (such as fixture, component,
+      harness, loader, spy, got, want, err, el, ev, and i/j in short loops) are valid.
+    options:
+      aligned:
+        description: >-
+          Spec title, local variables, test helpers, and spy names have descriptive names that accurately reflect what they hold or verify.
+      vague_or_cryptic_name:
+        description: >-
+          Uses cryptic single-letter or vague placeholder names (beyond standard fixture, component, spy, got, want, el, ev, i/j)
+          or non-descriptive spec titles and spy names (such as it('works') or jasmine.createSpy('fn')) that obscure test intent.
+        fix_hint: >-
+          Rename vague or cryptic identifiers, spec titles, or spy names in {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          so the tested behavior, inputs, and assertions are self-explanatory.
+      misleading_name:
+        description: >-
+          A variable, spec title, spy, or test helper name contradicts its actual value or behavior
+          (for example validJson holding malformed JSON, wantError holding a success payload, timestampMs holding bigint nanoseconds,
+          or a spec title claiming error handling while asserting a success result).
+        fix_hint: >-
+          Rename misleading variables, spec titles, spies, or helpers in {{.Name}} ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          to match their actual test data or behavior.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55

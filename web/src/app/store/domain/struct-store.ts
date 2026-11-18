@@ -62,14 +62,14 @@ export enum StructValueKind {
 /**
  * Null variant of StructValueDTO.
  */
-export interface StructNullValueDTO {
+interface StructNullValueDTO {
   readonly kind: StructValueKind.Null;
 }
 
 /**
  * Int64 variant of StructValueDTO.
  */
-export interface StructInt64ValueDTO {
+interface StructInt64ValueDTO {
   readonly kind: StructValueKind.Int64;
   readonly value: bigint;
 }
@@ -77,7 +77,7 @@ export interface StructInt64ValueDTO {
 /**
  * Double variant of StructValueDTO.
  */
-export interface StructDoubleValueDTO {
+interface StructDoubleValueDTO {
   readonly kind: StructValueKind.Double;
   readonly value: number;
 }
@@ -85,7 +85,7 @@ export interface StructDoubleValueDTO {
 /**
  * String variant of StructValueDTO.
  */
-export interface StructStringValueDTO {
+interface StructStringValueDTO {
   readonly kind: StructValueKind.String;
   readonly stringId: number;
 }
@@ -93,7 +93,7 @@ export interface StructStringValueDTO {
 /**
  * Boolean variant of StructValueDTO.
  */
-export interface StructBoolValueDTO {
+interface StructBoolValueDTO {
   readonly kind: StructValueKind.Bool;
   readonly value: boolean;
 }
@@ -101,7 +101,7 @@ export interface StructBoolValueDTO {
 /**
  * StructId reference variant of StructValueDTO.
  */
-export interface StructStructIdValueDTO {
+interface StructStructIdValueDTO {
   readonly kind: StructValueKind.StructId;
   readonly structId: number;
 }
@@ -109,7 +109,7 @@ export interface StructStructIdValueDTO {
 /**
  * List variant of StructValueDTO.
  */
-export interface StructListValueDTO {
+interface StructListValueDTO {
   readonly kind: StructValueKind.List;
   readonly values: readonly StructValueDTO[];
 }
@@ -117,7 +117,7 @@ export interface StructListValueDTO {
 /**
  * Timestamp variant of StructValueDTO.
  */
-export interface StructTimestampValueDTO {
+interface StructTimestampValueDTO {
   readonly kind: StructValueKind.Timestamp;
   readonly timestampNs: bigint;
 }

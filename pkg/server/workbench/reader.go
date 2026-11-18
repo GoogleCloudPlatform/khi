@@ -34,12 +34,6 @@ import (
 // ProgressCallback receives streaming progress updates during dataset loading.
 type ProgressCallback func(stage apiv1.OpenWorkbenchResponse_Stage, progressPercentage float64, message string) error
 
-// countingReader wraps an io.Reader and tracks the total number of bytes read.
-type countingReader struct {
-	r         io.Reader
-	bytesRead int64
-}
-
 type rawChunkTask struct {
 	seq            int
 	compressedSize int64
@@ -74,8 +68,7 @@ func NewFromReader(
 		}
 	}
 
-	cr := &countingReader{r: reader}
-	khiReader, err := khifilev6model.NewReader(cr)
+	khiReader, err := khifilev6model.NewReader(reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create KHI file reader: %w", err)
 	}
@@ -417,12 +410,6 @@ func (w *Workbench) ingestTimelineChunk(chunk *khifilev6.TimelineChunk) {
 			w.rawTimelineItems[rawItem.id] = rawItem
 		}
 	}
-}
-
-func (c *countingReader) Read(p []byte) (int, error) {
-	n, err := c.r.Read(p)
-	c.bytesRead += int64(n)
-	return n, err
 }
 
 // formatByteSize formats a byte count into a human-readable string with units (B, KB, MB, GB, etc.).

@@ -42,14 +42,14 @@ export interface Vector2 {
   y: number;
 }
 
-export interface MarginLike {
+interface MarginLike {
   left: number;
   right: number;
   top: number;
   bottom: number;
 }
 
-export function ZeroVec2(): Vector2 {
+function ZeroVec2(): Vector2 {
   return { x: 0, y: 0 };
 }
 
@@ -57,7 +57,7 @@ export function ZeroSize2(): Size {
   return { width: 0, height: 0 };
 }
 
-export function SameVector2(v1: Vector2, v2: Vector2): boolean {
+function SameVector2(v1: Vector2, v2: Vector2): boolean {
   return v1.x == v2.x && v1.y == v2.y;
 }
 
@@ -121,7 +121,7 @@ type OnGetChildDomAttachTarget = () => SVGElement | null;
  * Provide and wrap all of the functionality to calculate Svg elements
  *
  */
-export class GraphTransform {
+class GraphTransform {
   public requireChildSizeToLayout = true;
 
   private _parent: GraphTransform | null = null;

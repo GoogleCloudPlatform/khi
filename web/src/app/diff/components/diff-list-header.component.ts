@@ -24,7 +24,7 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 /**
  * View model for a single path node displayed in the diff list header.
  */
-export interface HeaderPathNodeViewModel {
+interface HeaderPathNodeViewModel {
   /** The label key or layer type name (e.g., 'Kind', 'Namespace'). */
   readonly label: string;
   /** The actual resource identifier/name. */
