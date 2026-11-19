@@ -204,11 +204,9 @@ func buildTimelineRenderRequest(
 	applied workbench.AppliedFilter,
 	overlay *scene.Overlay,
 ) TimelineRenderRequest {
-	maxNodes := spec.MaxNodes
-	if maxNodes <= 0 {
-		maxNodes = defaultRenderMaxNodes
-	}
-	maxNodes = min(maxNodes, maxRenderMaxNodes)
+	maxNodes := mdtemplate.NormalizePageSize(
+		spec.MaxNodes, defaultRenderMaxNodes, maxRenderMaxNodes,
+	)
 
 	req := TimelineRenderRequest{
 		ParentSceneID:          parentSceneID,
