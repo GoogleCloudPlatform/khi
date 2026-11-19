@@ -37,6 +37,10 @@ watch-test-web: $(GENERATE_FRONTEND_DUMMY) ## Run frontend tests in watch mode
 test-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY) ## Run backend tests
 	go test ./...
 
+.PHONY: test-go-short
+test-go-short: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY) ## Run backend tests in short mode (scaled-down stress iterations)
+	go test -short ./...
+
 .PHONY: coverage-web
 ifneq ($(filter true 1,$(USE_CONTAINER)),)
 coverage-web: coverage-web-container

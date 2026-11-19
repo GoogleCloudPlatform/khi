@@ -24,8 +24,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// TestJsonlTextParser verifies that concurrent TryParse calls parse a JSONL line consistently.
 func TestJsonlTextParser(t *testing.T) {
 	count := 10000
+	if testing.Short() {
+		count = 50
+	}
 	result := make(chan *ParseStructuredLogResult, count)
 	input := `{"msg":"Main message","fieldWithQuotes":"foo","fieldWithEscape":"bar \"qux\"","fieldWithoutQuotes":3.1415}`
 	want := &ParseStructuredLogResult{

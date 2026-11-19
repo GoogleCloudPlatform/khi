@@ -110,6 +110,9 @@ func S(x int) int { return x + 1 }
 import "testing"
 
 func TestS(t *testing.T) {
+	if !testing.Short() {
+		t.Fatal("expected -short")
+	}
 	if S(1) != 2 {
 		t.Fatal("bad")
 	}

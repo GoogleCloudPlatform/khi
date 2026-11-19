@@ -81,7 +81,7 @@ func PlanPackages(req PlanRequest) []string {
 	return out
 }
 
-// RunCoverProfile runs go test with -coverprofile on req.Packages and returns parsed CoverBlocks per file.
+// RunCoverProfile runs go test with -short and -coverprofile on req.Packages and returns parsed CoverBlocks per file.
 func RunCoverProfile(ctx context.Context, req RunRequest) (map[string][]gotestutil.CoverBlock, error) {
 	if len(req.Packages) == 0 {
 		return map[string][]gotestutil.CoverBlock{}, nil
@@ -90,8 +90,8 @@ func RunCoverProfile(ctx context.Context, req RunRequest) (map[string][]gotestut
 		return nil, fmt.Errorf("failed to create coverage workdir: %w", err)
 	}
 	profilePath := filepath.Join(req.WorkDir, req.ProfileName)
-	args := make([]string, 0, 2+len(req.Packages))
-	args = append(args, "test", "-coverprofile="+profilePath)
+	args := make([]string, 0, 3+len(req.Packages))
+	args = append(args, "test", "-short", "-coverprofile="+profilePath)
 	args = append(args, req.Packages...)
 
 	cmd := exec.CommandContext(ctx, "go", args...)

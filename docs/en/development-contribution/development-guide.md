@@ -100,6 +100,12 @@ When you want to run backend tests without Cloud Logging, run the following code
 KHI_SKIP_CLOUD_LOGGING=true go test ./...
 ```
 
+To run backend tests faster with scaled-down stress-test iterations (Go short mode), run:
+
+```shell
+make test-go-short
+```
+
 To verify unified Go and TypeScript code and test quality rules (Go AST complexity/size/naming/clone budgets, uncovered executable lines, surviving mutants, and redundant tests) on the files you added or modified relative to `main` (`trunk`), run:
 
 ```shell
@@ -111,6 +117,8 @@ During fast Go refactoring, you can run static AST quality and ratchet checks in
 Go quality rules use a unified hard-limit and no-worsening ratchet (`after <= before` on pre-existing legacy units). When a mutant survives or an uncovered branch is flagged in Go or TypeScript, prefer simplifying redundant production branches or strengthening assertions (for example, comparing full structs with `cmp.Diff`, asserting Angular signals/view models in `*.spec.ts`, or adding boundary inputs) instead of writing mock-heavy boilerplate tests. Invariant or unreachable guards must be deleted rather than suppressed. For genuine non-deletable cases, suppress them with a categorized directive (`// CODEQUALITY_ALLOW(<rule_id>, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is `dispatch`, `protocol`, `equivalent`, `perf`, `observability`, or `external` depending on the rule).
 
 `make codequality` also inspects newly added or modified `*_test.go` and `*.spec.ts` cases under `test_redundancy` (`SAME PATH` when a new test runs the exact same branch-polarity path and catches no additional bugs beyond an existing test, or `NO OUTPUT CHECK` when a new test catches 0 bugs and only checks `err != nil` or trivial smoke assertions like `expect(component).toBeTruthy()` on an already-tested path). Remove duplicate equivalence-class cases or strengthen assertions so each case catches a distinct failure mode.
+
+`make codequality` (and `make codequality-go`) automatically passes `-short` (`-test.short`) when running Go coverage and mutation checks so heavy stress tests finish quickly, while `make test-go` and PR CI run all tests at full strength. In Go tests, use `if testing.Short()` only to scale down stress parameters (such as iteration counts, concurrency, or synthetic delays) while preserving branch and assertion coverage. Skipping tests or omitting assertions under `testing.Short()` (for example, `t.Skip`, early `return`, or `if !testing.Short()`) is forbidden and enforced by the `no-short-skip` check in `make lint-go`.
 
 ### Clean up legacy generated test files
 

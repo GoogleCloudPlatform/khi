@@ -201,7 +201,7 @@ func runGoTestCompile(ctx context.Context, repoRoot string, overlayPath string, 
 
 func runBaselineTestBinary(ctx context.Context, req baselineRequest) (time.Duration, []byte, error) {
 	start := time.Now()
-	var args []string
+	args := []string{"-test.short"}
 	if req.verbose {
 		args = append(args, "-test.v")
 	}

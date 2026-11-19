@@ -64,6 +64,9 @@ func UncoveredByProfile(x int) int {
 import "testing"
 
 func TestSvc(t *testing.T) {
+	if !testing.Short() {
+		t.Fatal("expected -test.short")
+	}
 	testCases := []struct {
 		name string
 		x    int
@@ -99,6 +102,9 @@ func LegacyWorsenedWeak(x int, y int) bool {
 import "testing"
 
 func TestSvc(t *testing.T) {
+	if !testing.Short() {
+		t.Fatal("expected -test.short")
+	}
 	if !LegacyUnchangedWeak(20) || !LegacyWorsenedWeak(20, 20) {
 		t.Fatal("expected true")
 	}
@@ -115,7 +121,7 @@ func TestSvc(t *testing.T) {
 		"svc/svc.go":         {4: {}, 8: {}, 12: {}, 16: {}, 20: {}, 24: {}},
 	}
 	changedTest := map[string]map[int]struct{}{
-		"svc/svc_test.go": {12: {}},
+		"svc/svc_test.go": {15: {}},
 	}
 	readBase := func(relPath string) ([]byte, bool, error) {
 		switch relPath {
@@ -174,6 +180,9 @@ func TestSvc(t *testing.T) {
 	})
 	if evalErr != nil {
 		t.Fatalf("mutcheck.Evaluate failed: %v", evalErr)
+	}
+	if mutRes.Summary.BaseOverlayRuns != 2 {
+		t.Errorf("BaseOverlayRuns = %d, want 2", mutRes.Summary.BaseOverlayRuns)
 	}
 
 	assertMutEvalResult(t, mutRes, prog)
@@ -243,9 +252,6 @@ func assertMutEvalResult(t *testing.T, mutRes *Result, prog *spyProgress) {
 	}
 	if diff := cmp.Diff(wantKinds, gotKinds); diff != "" {
 		t.Errorf("Finding kinds mismatch (-want +got):\n%s", diff)
-	}
-	if mutRes.Summary.BaseOverlayRuns != 2 {
-		t.Errorf("BaseOverlayRuns = %d, want 2", mutRes.Summary.BaseOverlayRuns)
 	}
 	if prog.phases.Load() == 0 || prog.pools.Load() == 0 || prog.results.Load() == 0 {
 		t.Errorf("expected progress callbacks, got phases=%d pools=%d results=%d", prog.phases.Load(), prog.pools.Load(), prog.results.Load())

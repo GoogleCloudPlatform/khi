@@ -33,9 +33,11 @@ const (
 	RuleDeclVisibilityOrder = "decl-visibility-order"
 	// RuleExportedMemberDoc enforces GoDoc comments ending with a period on exported struct fields and interface methods.
 	RuleExportedMemberDoc = "exported-member-doc"
+	// RuleNoShortSkip forbids skipping tests or omitting assertions under testing.Short().
+	RuleNoShortSkip = "no-short-skip"
 )
 
-// ConventionViolation describes a single Go declaration ordering or member GoDoc violation.
+// ConventionViolation describes a single Go convention rule violation.
 type ConventionViolation struct {
 	// File is the slash-separated path relative to the repository root.
 	File string
@@ -65,7 +67,7 @@ type convChecker struct {
 	violations     []ConventionViolation
 }
 
-// CheckConventions checks Go declaration visibility ordering and exported member GoDoc conventions under repoRoot.
+// CheckConventions checks Go declaration visibility ordering, exported member GoDoc, and no-short-skip conventions under repoRoot.
 func CheckConventions(repoRoot string, pkgsFlag string) ([]ConventionViolation, error) {
 	patterns := parsePkgPatterns(pkgsFlag)
 	if len(patterns) == 0 {
@@ -161,7 +163,7 @@ func shouldSkipConventionDir(slashRel string) bool {
 }
 
 func isConventionTargetGoFile(slashRel string) bool {
-	if !strings.HasSuffix(slashRel, ".go") || strings.HasSuffix(slashRel, "_test.go") {
+	if !strings.HasSuffix(slashRel, ".go") {
 		return false
 	}
 	return !strings.HasPrefix(path.Base(slashRel), "zzz_")
@@ -191,6 +193,7 @@ func checkDirConventions(repoRoot string, relPaths []string) ([]ConventionViolat
 	byPkg := make(map[string][]parsedConvFile)
 	var pkgOrder []string
 
+	var violations []ConventionViolation
 	for _, relPath := range relPaths {
 		src, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(relPath)))
 		if err != nil {
@@ -203,6 +206,10 @@ func checkDirConventions(repoRoot string, relPaths []string) ([]ConventionViolat
 		if IsGeneratedAST(file) {
 			continue
 		}
+		violations = append(violations, checkNoShortSkip(fset, relPath, file)...)
+		if strings.HasSuffix(relPath, "_test.go") {
+			continue
+		}
 		pkgName := file.Name.Name
 		if _, exists := byPkg[pkgName]; !exists {
 			pkgOrder = append(pkgOrder, pkgName)
@@ -210,7 +217,6 @@ func checkDirConventions(repoRoot string, relPaths []string) ([]ConventionViolat
 		byPkg[pkgName] = append(byPkg[pkgName], parsedConvFile{relPath: relPath, astFile: file})
 	}
 
-	var violations []ConventionViolation
 	for _, pkgName := range pkgOrder {
 		violations = append(violations, checkPackageFiles(fset, byPkg[pkgName])...)
 	}

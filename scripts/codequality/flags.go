@@ -94,7 +94,7 @@ func registerScopeAndExecutionFlags(fs *flag.FlagSet, f *cliFlags) {
 	fs.StringVar(&f.trustedRoot, "trusted-root", "", "trusted repository root for loading decision rules and reference_files (defaults to --repo-root)")
 	fs.StringVar(&f.lang, "lang", "all", "target language(s): all, go, or ts")
 	fs.BoolVar(&f.fast, "fast", false, "run fast Stage-1 Go AST structural and naming rules only")
-	fs.BoolVar(&f.conventions, "conventions", false, "check Go declaration visibility ordering and exported struct/interface member GoDoc conventions")
+	fs.BoolVar(&f.conventions, "conventions", false, "check Go declaration visibility ordering, exported struct/interface member GoDoc, and no-short-skip conventions")
 	fs.BoolVar(&f.unusedExports, "unused-exports", false, "check Go exported declarations in pkg/ and impl task registrations for unused symbols")
 	fs.StringVar(&f.pkgs, "pkgs", "./...", "comma-separated Go package patterns for --conventions and --unused-exports, e.g. ./pkg/api/...,./pkg/common")
 	fs.StringVar(&f.vcs, "vcs", "auto", "version control system: auto, jj, or git")

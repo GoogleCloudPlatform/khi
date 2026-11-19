@@ -174,7 +174,7 @@ func executeLeafPolarityTrace(
 	traceFile := filepath.Join(cfg.pkgWorkDir, fmt.Sprintf("leaf_%d.trace", idx))
 	runCtx, cancel := context.WithTimeout(ctx, cfg.perMutTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(runCtx, cfg.binPath, "-test.run="+redundancy.BuildSingleLeafRunRegex(leaf))
+	cmd := exec.CommandContext(runCtx, cfg.binPath, "-test.short", "-test.run="+redundancy.BuildSingleLeafRunRegex(leaf))
 	cmd.Dir = cfg.pkgAbsDir
 	cmd.Env = buildMutantEnv(baseEnv, 0, traceFile)
 	_ = cmd.Run()
@@ -226,7 +226,7 @@ func evaluateSingleMutant(parentCtx context.Context, baseEnv []string, job mutan
 			return status
 		}
 	}
-	cmd := exec.CommandContext(mutCtx, job.binPath, "-test.failfast")
+	cmd := exec.CommandContext(mutCtx, job.binPath, "-test.short", "-test.failfast")
 	cmd.Dir = job.pkgAbsDir
 	cmd.Env = buildMutantEnv(baseEnv, job.mutant.ID, "")
 	err := cmd.Run()
@@ -239,7 +239,7 @@ func runTrackedMutant(
 	baseEnv []string,
 	job mutantJob,
 ) (rule.MutantStatus, bool) {
-	args := []string{"-test.v"}
+	args := []string{"-test.short", "-test.v"}
 	if job.tracker.targetedRunRegex != "" {
 		args = append(args, "-test.run="+job.tracker.targetedRunRegex)
 	}

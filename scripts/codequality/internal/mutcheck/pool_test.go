@@ -18,10 +18,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/redundancy"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
@@ -148,4 +152,110 @@ func TestTrackerSetupAndTrackedExecution(t *testing.T) {
 	if st, done := runTrackedMutant(canceledParent, context.Background(), nil, job); !done || st != rule.MutantSkippedBudget {
 		t.Errorf("runTrackedMutant(canceled) = (%q, %v), want (%q, true)", st, done, rule.MutantSkippedBudget)
 	}
+}
+
+func TestMutantExecutionPassesShortFlag(t *testing.T) {
+	testCases := []struct {
+		name     string
+		run      func(workDir string, scriptPath string)
+		wantArgs []string
+	}{
+		// Passes -test.short alongside -test.run when tracing a single leaf subtest polarity.
+		{
+			name: "leaf polarity trace",
+			run: func(workDir string, scriptPath string) {
+				executeLeafPolarityTrace(context.Background(), nil, trackerSetup{
+					binPath:       scriptPath,
+					pkgAbsDir:     workDir,
+					pkgWorkDir:    workDir,
+					perMutTimeout: time.Second,
+				}, 0, "TestFocus/case_a")
+			},
+			wantArgs: []string{"-test.short", "-test.run=^TestFocus$/^case_a$"},
+		},
+		// Passes -test.short alongside -test.failfast when evaluating an untracked mutant.
+		{
+			name: "untracked mutant evaluation",
+			run: func(workDir string, scriptPath string) {
+				evaluateSingleMutant(context.Background(), nil, mutantJob{
+					mutant:           &Mutant{ID: 1},
+					binPath:          scriptPath,
+					pkgAbsDir:        workDir,
+					perMutantTimeout: time.Second,
+				})
+			},
+			wantArgs: []string{"-test.short", "-test.failfast"},
+		},
+		// Passes -test.short alongside -test.v when running a tracked mutant without a targeted regex.
+		{
+			name: "tracked mutant without targeted regex",
+			run: func(workDir string, scriptPath string) {
+				runTrackedMutant(context.Background(), context.Background(), nil, mutantJob{
+					mutant:           &Mutant{ID: 2},
+					binPath:          scriptPath,
+					pkgAbsDir:        workDir,
+					perMutantTimeout: time.Second,
+					tracker:          &pkgRedundancyTracker{mutantRuns: make(map[int]redundancy.VerboseTestResult)},
+				})
+			},
+			wantArgs: []string{"-test.short", "-test.v"},
+		},
+		// Passes -test.short, -test.v, and -test.run when running a tracked mutant with a targeted regex.
+		{
+			name: "tracked mutant with targeted regex",
+			run: func(workDir string, scriptPath string) {
+				runTrackedMutant(context.Background(), context.Background(), nil, mutantJob{
+					mutant:           &Mutant{ID: 3},
+					binPath:          scriptPath,
+					pkgAbsDir:        workDir,
+					perMutantTimeout: time.Second,
+					tracker: &pkgRedundancyTracker{
+						targetedRunRegex: "^(TestFocus)$",
+						mutantRuns:       make(map[int]redundancy.VerboseTestResult),
+					},
+				})
+			},
+			wantArgs: []string{"-test.short", "-test.v", "-test.run=^(TestFocus)$"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			workDir := t.TempDir()
+			scriptPath, argsLogPath := writeArgRecorderScript(t, workDir)
+
+			tc.run(workDir, scriptPath)
+
+			gotArgs := readRecordedArgs(t, argsLogPath)
+			if diff := cmp.Diff(tc.wantArgs, gotArgs); diff != "" {
+				t.Errorf("command args mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func writeArgRecorderScript(t *testing.T, dir string) (string, string) {
+	t.Helper()
+	argsLogPath := filepath.Join(dir, "args.log")
+	scriptPath := filepath.Join(dir, "record_args.sh")
+	script := fmt.Sprintf(`#!/bin/sh
+printf '%%s\n' "$@" > %q
+`, argsLogPath)
+	if err := os.WriteFile(scriptPath, []byte(script), 0o700); err != nil {
+		t.Fatalf("WriteFile(%s) failed: %v", scriptPath, err)
+	}
+	return scriptPath, argsLogPath
+}
+
+func readRecordedArgs(t *testing.T, argsLogPath string) []string {
+	t.Helper()
+	raw, err := os.ReadFile(argsLogPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", argsLogPath, err)
+	}
+	trimmed := strings.TrimRight(string(raw), "\n")
+	if trimmed == "" {
+		return nil
+	}
+	return strings.Split(trimmed, "\n")
 }
