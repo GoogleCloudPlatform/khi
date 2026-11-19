@@ -153,6 +153,16 @@ type BadType struct {
 	Missing int
 }
 `,
+		"pkg/badshort/badshort_test.go": `package badshort
+
+import "testing"
+
+func TestSkipShort(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow")
+	}
+}
+`,
 		"pkg/broken/broken.go": "package broken\nfunc (",
 	})
 
@@ -164,17 +174,27 @@ type BadType struct {
 		wantErrSub string
 		wantStdout string
 	}{
+		// Passes with exit code 0 when the package satisfies all conventions.
 		{
 			name:     "clean package passes with exit code 0",
 			args:     []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/clean"},
 			wantCode: 0,
 		},
+		// Exits with code 1 and prints the exported-member-doc violation line.
 		{
 			name:       "violation prints formatted line and exits 1",
 			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/bad"},
 			wantCode:   1,
 			wantStdout: "pkg/bad/bad.go:4:2: exported struct field BadType.Missing must have a GoDoc comment (exported-member-doc)",
 		},
+		// Exits with code 1 and prints the no-short-skip violation line for a test file skipping under testing.Short().
+		{
+			name:       "no-short-skip violation prints formatted line and exits 1",
+			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/badshort"},
+			wantCode:   1,
+			wantStdout: "pkg/badshort/badshort_test.go:7:3: do not call Skip/Skipf/SkipNow inside testing.Short(); scale down iteration counts instead of skipping tests (no-short-skip)",
+		},
+		// Returns exit code 2 and propagates a parse error for syntactically invalid Go files.
 		{
 			name:       "parse error returns exit code 2",
 			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/broken"},

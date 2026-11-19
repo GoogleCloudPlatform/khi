@@ -26,8 +26,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore"
 )
 
+// TestKLogTextParser verifies that concurrent TryParse calls parse a klog line consistently.
 func TestKLogTextParser(t *testing.T) {
 	count := 10000
+	if testing.Short() {
+		count = 50
+	}
 	result := make(chan *ParseStructuredLogResult, count)
 	input := `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
 	want := &ParseStructuredLogResult{

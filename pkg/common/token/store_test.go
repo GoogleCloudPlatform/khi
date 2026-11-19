@@ -57,16 +57,25 @@ func TestBasicTokenStore_GetTokenOnlyCallsResolverOnce(t *testing.T) {
 	}
 }
 
+// TestBasicTokenStore_RefreshTokenCallsResolverOnceInParallel verifies that concurrent RefreshToken calls invoke the resolver only once.
 func TestBasicTokenStore_RefreshTokenCallsResolverOnceInParallel(t *testing.T) {
+	attempts := 1000
+	concurrency := 100
+	delayMs := 1000
+	if testing.Short() {
+		attempts = 5
+		concurrency = 10
+		delayMs = 50
+	}
 	wg := sync.WaitGroup{}
-	for attempt := 0; attempt < 1000; attempt++ {
+	for attempt := 0; attempt < attempts; attempt++ {
 		wg.Add(1)
 		go func() {
-			resolver := NewSpyTokenResolverWithDelay(1000, New("token"))
+			resolver := NewSpyTokenResolverWithDelay(delayMs, New("token"))
 			store := NewBasicTokenStore("foo", resolver)
 
 			refreshWg := sync.WaitGroup{}
-			for i := 0; i < 100; i++ {
+			for i := 0; i < concurrency; i++ {
 				refreshWg.Add(1)
 				go func() {
 					err := store.RefreshToken(context.Background())
@@ -87,16 +96,25 @@ func TestBasicTokenStore_RefreshTokenCallsResolverOnceInParallel(t *testing.T) {
 	wg.Wait()
 }
 
+// TestBasicTokenStore_GetTokenCallsResolverOnceInParallel verifies that concurrent GetToken calls invoke the resolver only once.
 func TestBasicTokenStore_GetTokenCallsResolverOnceInParallel(t *testing.T) {
+	attempts := 1000
+	concurrency := 100
+	delayMs := 1000
+	if testing.Short() {
+		attempts = 5
+		concurrency = 10
+		delayMs = 10
+	}
 	wg := sync.WaitGroup{}
-	for attempt := 0; attempt < 1000; attempt++ {
+	for attempt := 0; attempt < attempts; attempt++ {
 		wg.Add(1)
 		go func() {
-			resolver := NewSpyTokenResolverWithDelay(1000, New("token"))
+			resolver := NewSpyTokenResolverWithDelay(delayMs, New("token"))
 			store := NewBasicTokenStore("foo", resolver)
 
 			refreshWg := sync.WaitGroup{}
-			for i := 0; i < 100; i++ {
+			for i := 0; i < concurrency; i++ {
 				refreshWg.Add(1)
 				go func() {
 					token, err := store.GetToken(context.Background())

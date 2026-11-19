@@ -11,14 +11,14 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 1. **Build Verification**: Before running tests or submitting changes, you must always verify that your code compiles successfully.
    - Run `make build-go` to ensure there are no compilation errors across the backend.
-2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. Run `make codequality-fast` during inner-loop refactoring for fast (<1s) AST complexity/size/naming ratchet feedback, and run `make codequality-go` (or `make codequality`) to verify all Go quality rules and ratchets (AST structural budgets, uncovered lines, surviving mutants, and redundant tests) on changed code. When a mutant survives or a quality rule fails:
+2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first (or `make test-go-short` for fast runs with scaled-down stress iterations). Run `make codequality-fast` during inner-loop refactoring for fast (<1s) AST complexity/size/naming ratchet feedback, and run `make codequality-go` (or `make codequality`) to verify all Go quality rules and ratchets (AST structural budgets, uncovered lines, surviving mutants, and redundant tests) on changed code. Note that `make codequality-go` runs Go coverage (`covcheck`) and mutation testing (`mutcheck`) with `-short` (`-test.short`) so stress tests use scaled-down iterations, whereas `make test-go` and PR CI run all tests at full strength. When a mutant survives or a quality rule fails:
    - First check if the branch is redundant or guarded by an existing invariant — **never** suppress invariant, defensive, or unreachable conditions with `CODEQUALITY_ALLOW`; simplify or delete the redundant branch instead.
    - Strengthen existing assertions (`cmp.Diff` on whole structs, boundary inputs) rather than adding mock-heavy boilerplate tests.
    - Only for genuine non-deletable `HARD_LIMIT` cases, suppress with a required rule ID, category, and explanation (`// CODEQUALITY_ALLOW(<rule_id>, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is one of `dispatch`, `protocol`, `equivalent`, `perf`, `observability`, `external` as allowed by the rule).
-   - Make sure you run `make test-go` before asking the user to verify.
+   - Make sure you run full-strength `make test-go` before asking the user to verify.
 3. **Formatting and Linting**:
    - Run `make format-go` to ensure standard Go formatting.
-   - Run `make lint-go` and ensure zero linting errors (`depguard`, `errorlint`, `forbidigo`, `nolintlint`, `staticcheck`, `govet`, etc.). Naked `//nolint` comments without a specific linter name and explanation are forbidden.
+   - Run `make lint-go` and ensure zero linting errors (`depguard`, `errorlint`, `forbidigo`, `nolintlint`, `staticcheck`, `govet`, Go conventions including `no-short-skip`, etc.). Naked `//nolint` comments without a specific linter name and explanation are forbidden.
 4. If you make any corrections during a verification phase, you MUST restart the verification from the beginning for that phase.
 
 ## Go Quality Rules & Ratchet Budgets
@@ -134,13 +134,21 @@ metadata:
    - **Multiline Strings Exception**: `cmp.Diff` is permitted for a single string variable if and only if the string spans multiple lines (e.g., generated YAML, JSON, or multiline text blocks) where line-by-line diffing is beneficial.
    - **DO NOT USE** the `reflect` package for test assertions (e.g., `reflect.DeepEqual`). Always prefer `cmp.Diff` for complex types.
 5. **Running Tests**:
-   - Executing `make test-go` runs all backend tests.
+   - Executing `make test-go` runs all backend tests at full strength.
+   - Executing `make test-go-short` runs all backend tests in short mode (`go test -short ./...`) with scaled-down stress-test iterations for faster local feedback.
    - For iterating on specific tests, `go test ./pkg/path/to/test -run TestName` is acceptable, provided a full `make test-go` ensures no regressions before finalizing work.
 6. **Test File Naming**: When adding tests for a file `A.go`, the test file **must** be named `A_test.go`. Do not create independent test files that group tests from multiple files.
 7. **Structuring `want` in Table-Driven Tests**:
    - **Never Derive `want` from Inputs in the Test Loop**: Every expected value must be declared explicitly as a literal in the test case table. Never compute expected values from input fields inside the `for _, tc := range testCases` body (e.g., `wantMounted := !tc.jobMode`), as this duplicates production logic in the test.
    - **Whole-Struct `want` for Data Outputs**: When testing a function that returns a struct or multiple data values, do not split fields into separate `wantLen`, `wantStart`, `wantEnd`, or `wantID` fields on the table struct. Define a single `want ReturnType` (or a local outcome struct) and compare it with a single `cmp.Diff(tc.want, got)`.
    - **Multiple Side Effects or Staged Assertions**: When a test verifies multiple independent side effects or uses an early expectation to gate subsequent setup (e.g., checking whether a component was initialized before starting a test server), keep all expected values in the table case definition (either as explicit `want*` fields like `wantMCP` and `wantRenderTool`, or grouped in a nested `want` struct).
+8. **Stress Tests and `testing.Short()`**:
+   - **Canonical Pattern**: For high-iteration or high-concurrency stress tests, declare full-strength parameters first and scale them down inside `if testing.Short() { ... }`. Full-strength values run in `make test-go`, PR CI, and `go test -race`; scaled-down values run in `make test-go-short` and `make codequality-go` (`covcheck` / `mutcheck` automatically pass `-short` / `-test.short`).
+   - **Strict `no-short-skip` Prohibition (Enforced by `make lint-go`)**: `testing.Short()` is **exclusively** for scaling down stress/load parameters (iteration counts, concurrency, synthetic delays). Never skip tests, subtests, or assertions under `testing.Short()`:
+     - Do **NOT** call `t.Skip`, `t.Skipf`, or `t.SkipNow` inside `if testing.Short()`.
+     - Do **NOT** return early from a void test or subtest function inside `if testing.Short()` (returning a scaled value from a value-returning helper function is permitted).
+     - Do **NOT** guard test logic with negated checks (`if !testing.Short() { ... }`, `testing.Short() == false`) or an empty `if testing.Short() {} else { ... }`.
+   - **Choosing Safe Lower Bounds**: Pick short-mode parameter values large enough to exercise every production branch, lock-contention path, shard/pool reuse path, and assertion so `covcheck` statement coverage and `mutcheck` mutant killing power stay 100% intact (for example, never scale a count to `0` or below a threshold needed to hit conditional branches). Do not apply `testing.Short()` to non-stress tests such as real-time timer tests, integration tests, or exhaustive conformance matrices.
 
 > [!IMPORTANT]
 > Typical table-driven and callback tests should follow these patterns:
@@ -283,4 +291,34 @@ metadata:
 >  cache.Clear()
 >  if got := cache.Len(); got != 0 { t.Errorf("got %d, want 0", got) }
 > })
+> ```
+>
+> ### 6. Scaling Stress Tests with `testing.Short()`
+>
+> ```go
+> // GOOD: declare full-strength defaults and scale down parameters under testing.Short().
+> func TestConcurrentStore(t *testing.T) {
+>  attempts := 1000
+>  concurrency := 100
+>  delayMs := 1000
+>  if testing.Short() {
+>   attempts = 5
+>   concurrency = 10
+>   delayMs = 50
+>  }
+>  // Run the exact same logic and assertions with (attempts, concurrency, delayMs).
+> }
+>
+> // BAD (rejected by no-short-skip): skipping tests, returning early, or using !testing.Short().
+> func TestConcurrentStore_Bad(t *testing.T) {
+>  if testing.Short() {
+>   t.Skip("skipping slow test") // Forbidden!
+>  }
+>  if testing.Short() {
+>   return // Forbidden!
+>  }
+>  if !testing.Short() {
+>   runStressAssertions(t) // Forbidden!
+>  }
+> }
 > ```
