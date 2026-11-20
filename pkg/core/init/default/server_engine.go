@@ -15,10 +15,14 @@
 package defaultinit
 
 import (
+	"fmt"
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
+	"github.com/GoogleCloudPlatform/khi/pkg/server"
 )
 
 // InitializerIDGinEngine creates the Gin engine and attaches global middlewares.
@@ -44,6 +48,24 @@ var GinEngineInitializer = &coreinit.Initializer{
 			return nil
 		}
 		debugParams := coreinit.MustGet(ctx, DebugParametersKey)
+		var listenHost string
+		var allowedHosts string
+		if serverParams, ok := coreinit.Get(ctx, ServerParametersKey); ok && serverParams != nil {
+			if serverParams.Host != nil {
+				listenHost = *serverParams.Host
+			}
+			if serverParams.AllowedHosts != nil {
+				allowedHosts = *serverParams.AllowedHosts
+			}
+		}
+
+		allowlist, err := server.NewHostAllowlist(listenHost, allowedHosts)
+		if err != nil {
+			return fmt.Errorf("invalid allowed hosts configuration: %w", err)
+		}
+		if allowlist.AllowAll() {
+			slog.WarnContext(ctx, "Host header validation is disabled because --allowed-hosts includes '*'. Ensure KHI is protected by an authenticating proxy or network boundary.")
+		}
 
 		serverMode := gin.ReleaseMode
 		if *debugParams.Verbose {
@@ -53,6 +75,8 @@ var GinEngineInitializer = &coreinit.Initializer{
 
 		engine := gin.New()
 		engine.Use(gin.Recovery())
+		engine.Use(server.HostValidationMiddleware(allowlist))
+		engine.Use(server.CrossOriginProtectionMiddleware())
 		if *debugParams.Verbose {
 			engine.Use(gin.LoggerWithConfig(gin.LoggerConfig{
 				SkipPaths: []string{"/api/v3/inspection", "/api/v3/popup"},

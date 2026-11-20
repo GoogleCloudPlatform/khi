@@ -50,14 +50,21 @@ func NewServer(handlers ...DomainHandler) *Server {
 		Version: constants.VERSION,
 	}
 	mcpServer := mcpsdk.NewServer(impl, &mcpsdk.ServerOptions{Instructions: serverInstructions})
+	// DisableLocalhostProtection delegates Host validation to KHI's global
+	// HostValidationMiddleware so --allowed-hosts works behind loopback proxies
+	// and rejected requests return KHI's static 403 body without reflecting Host.
 	s := &Server{
 		mcpServer: mcpServer,
 		streamableHandler: mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server {
 			return mcpServer
-		}, nil),
+		}, &mcpsdk.StreamableHTTPOptions{
+			DisableLocalhostProtection: true,
+		}),
 		sseHandler: mcpsdk.NewSSEHandler(func(*http.Request) *mcpsdk.Server {
 			return mcpServer
-		}, nil),
+		}, &mcpsdk.SSEOptions{
+			DisableLocalhostProtection: true,
+		}),
 	}
 	for _, h := range handlers {
 		s.RegisterHandler(h)

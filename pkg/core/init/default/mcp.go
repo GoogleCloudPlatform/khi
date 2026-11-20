@@ -22,6 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
+	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	mcp "github.com/GoogleCloudPlatform/khi/pkg/server/mcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/mcp/scene"
 )
@@ -102,8 +103,9 @@ var MCPServerInitializer = &coreinit.Initializer{
 		)
 		coreinit.Set(ctx, MCPServerKey, srv)
 
-		router.Any("/mcp", gin.WrapH(srv.HTTPHandler()))
-		router.Any("/mcp/sse", gin.WrapH(srv.SSEHandler()))
+		mcpOriginProtection := server.MCPOriginProtectionMiddleware()
+		router.Any("/mcp", mcpOriginProtection, gin.WrapH(srv.HTTPHandler()))
+		router.Any("/mcp/sse", mcpOriginProtection, gin.WrapH(srv.SSEHandler()))
 		return nil
 	},
 }

@@ -31,6 +31,8 @@ type ServerParameters struct {
 	Port *int
 	// Host is the host address where KHI server serves.
 	Host *string
+	// AllowedHosts is a comma-separated list of allowed Host header patterns.
+	AllowedHosts *string
 	// BasePath specifies the base address of API endpoints. This path always ends with `/`.
 	BasePath *string
 	// FrontendResourceBasePath is another base address only for frontend assets. If this value is not set, this uses the BasePath value by default.
@@ -62,6 +64,7 @@ func (s *ServerParameters) PostProcess() error {
 func (s *ServerParameters) Prepare() error {
 	s.Port = flag.Int("port", 8080, "The port number where KHI server listens.", "PORT")
 	s.Host = flag.String("host", "127.0.0.1", "The host address where KHI server serves.", "HOST")
+	s.AllowedHosts = flag.String("allowed-hosts", "", "Comma-separated list of allowed Host header patterns (for example, 'khi.example.com,*.proxy.example.com'). Use '*' to allow all valid hosts.", "KHI_ALLOWED_HOSTS")
 	s.BasePath = flag.String("base-path", "/", "The base address of API endpoints.", "KHI_BASE_PATH")
 	s.FrontendResourceBasePath = flag.String("frontend-resource-base-path", "", "Another base address only for frontend assets. If this value is not set, this uses `--base-path` value by default.", "KHI_FRONTEND_RESOURCE_PATH")
 	s.FrontendAssetFolder = flag.String("frontend-asset-folder", "", "The root folder of the assets used in frontend including index.html. If this value is not set, the assets embedded into the executable are used.", "KHI_FRONTEND_ASSET_FOLDER")

@@ -17,6 +17,7 @@ package defaultinit
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -35,6 +36,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/uploadurl"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/workbench"
 )
+
+type mcpOriginOutcome struct {
+	Forbidden        bool
+	ForbiddenBody    string
+	AllowedReachable bool
+}
 
 func TestMCPServerInitializer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -346,5 +353,192 @@ func TestMCPServerInitializer(t *testing.T) {
 				t.Errorf("MCPServerInitializer.Init() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// TestMCPServerInitializer_OriginProtection verifies that MCPServerInitializer wires MCPOriginProtectionMiddleware onto /mcp and /mcp/sse (including custom base paths).
+func TestMCPServerInitializer_OriginProtection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const wantForbiddenBody = "Forbidden: cross-origin request rejected"
+
+	testCases := []struct {
+		name            string
+		basePath        string
+		requestPath     string
+		secFetchSite    string
+		origin          string
+		useServerOrigin bool
+		want            mcpOriginOutcome
+	}{
+		// Rejects cross-site GET requests to /mcp with a static 403 body without reflecting Origin.
+		{
+			name:         "rejects cross-site GET to /mcp",
+			requestPath:  "/mcp",
+			secFetchSite: "cross-site",
+			origin:       "https://other.example.net",
+			want: mcpOriginOutcome{
+				Forbidden:     true,
+				ForbiddenBody: wantForbiddenBody,
+			},
+		},
+		// Rejects cross-site GET requests to /mcp/sse with a static 403 body without reflecting Origin.
+		{
+			name:         "rejects cross-site GET to /mcp/sse",
+			requestPath:  "/mcp/sse",
+			secFetchSite: "cross-site",
+			origin:       "https://other.example.net",
+			want: mcpOriginOutcome{
+				Forbidden:     true,
+				ForbiddenBody: wantForbiddenBody,
+			},
+		},
+		// Rejects legacy GET requests to /mcp/sse with a foreign Origin header and no Sec-Fetch-Site.
+		{
+			name:        "rejects foreign Origin GET to /mcp/sse",
+			requestPath: "/mcp/sse",
+			origin:      "http://other.example.net",
+			want: mcpOriginOutcome{
+				Forbidden:     true,
+				ForbiddenBody: wantForbiddenBody,
+			},
+		},
+		// Rejects cross-site GET requests to /mcp/sse even when mounted under a custom base path.
+		{
+			name:         "rejects cross-site GET to /mcp/sse under custom base path",
+			basePath:     "/khi",
+			requestPath:  "/khi/mcp/sse",
+			secFetchSite: "cross-site",
+			origin:       "https://other.example.net",
+			want: mcpOriginOutcome{
+				Forbidden:     true,
+				ForbiddenBody: wantForbiddenBody,
+			},
+		},
+		// Allows same-origin browser GET requests to /mcp.
+		{
+			name:         "allows same-origin GET to /mcp",
+			requestPath:  "/mcp",
+			secFetchSite: "same-origin",
+			want:         mcpOriginOutcome{AllowedReachable: true},
+		},
+		// Allows legacy GET requests to /mcp/sse without Sec-Fetch-Site when Origin matches the server Host.
+		{
+			name:            "allows matching Origin GET to /mcp/sse",
+			requestPath:     "/mcp/sse",
+			useServerOrigin: true,
+			want:            mcpOriginOutcome{AllowedReachable: true},
+		},
+		// Allows non-browser MCP client GET requests to /mcp/sse without Sec-Fetch-Site or Origin headers.
+		{
+			name:        "allows non-browser GET to /mcp/sse",
+			requestPath: "/mcp/sse",
+			want:        mcpOriginOutcome{AllowedReachable: true},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ts := startMCPOriginTestServer(t, tc.basePath)
+			origin := tc.origin
+			if tc.useServerOrigin {
+				origin = ts.URL
+			}
+			req, cancel := newMCPOriginGETRequest(t, ts.URL+tc.requestPath, tc.secFetchSite, origin)
+
+			resp, err := ts.Client().Do(req)
+			if err != nil {
+				cancel()
+				t.Fatalf("client.Do() failed: %v", err)
+			}
+			got := readMCPOriginOutcome(t, resp)
+			_ = resp.Body.Close()
+			cancel()
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GET %s outcome mismatch (-want +got):\n%s", tc.requestPath, diff)
+			}
+		})
+	}
+}
+
+// startMCPOriginTestServer initializes an MCP test server mounted at basePath and registers cleanup.
+func startMCPOriginTestServer(t *testing.T, basePath string) *httptest.Server {
+	t.Helper()
+	engine := coreinit.NewEngine(context.Background())
+	t.Cleanup(func() {
+		_ = engine.Terminate()
+	})
+	ctx := engine.Context()
+
+	jobMode := false
+	host := "127.0.0.1"
+	port := 8080
+	coreinit.Set(ctx, JobParametersKey, &parameters.JobParameters{
+		JobMode: &jobMode,
+	})
+	coreinit.Set(ctx, ServerParametersKey, &parameters.ServerParameters{
+		Host: &host,
+		Port: &port,
+	})
+	coreinit.Set(ctx, BasePathKey, basePath)
+
+	taskServer, err := coreinspection.NewServer(nil)
+	if err != nil {
+		t.Fatalf("coreinspection.NewServer() failed: %v", err)
+	}
+	coreinit.Set(ctx, InspectionTaskServerKey, taskServer)
+
+	indexMgr := workbench.NewInspectionIndexManager(taskServer, t.TempDir())
+	workbenchMgr := workbench.NewWorkbenchManager(taskServer, indexMgr, 3)
+	coreinit.Set(ctx, WorkbenchManagerKey, workbenchMgr)
+	coreinit.Set(ctx, UploadURLIssuerKey, uploadurl.NewIssuer("http://127.0.0.1:8080/api/v1/file-upload/", 1024, uploadurl.DefaultTTL))
+
+	ginEngine := gin.New()
+	var router gin.IRouter = ginEngine.Group(basePath)
+	coreinit.Set(ctx, GinRouterKey, router)
+
+	if err := MCPServerInitializer.Init(ctx); err != nil {
+		t.Fatalf("MCPServerInitializer.Init() failed: %v", err)
+	}
+
+	ts := httptest.NewServer(ginEngine)
+	t.Cleanup(ts.Close)
+	return ts
+}
+
+// newMCPOriginGETRequest builds a timed GET request with optional Sec-Fetch-Site and Origin headers.
+func newMCPOriginGETRequest(t *testing.T, targetURL string, secFetchSite string, origin string) (*http.Request, context.CancelFunc) {
+	t.Helper()
+	reqCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, targetURL, nil)
+	if err != nil {
+		cancel()
+		t.Fatalf("http.NewRequestWithContext() failed: %v", err)
+	}
+	if secFetchSite != "" {
+		req.Header.Set("Sec-Fetch-Site", secFetchSite)
+	}
+	if origin != "" {
+		req.Header.Set("Origin", origin)
+	}
+	return req, cancel
+}
+
+// readMCPOriginOutcome maps an HTTP response to mcpOriginOutcome without blocking on open SSE streams.
+func readMCPOriginOutcome(t *testing.T, resp *http.Response) mcpOriginOutcome {
+	t.Helper()
+	if resp.StatusCode == http.StatusForbidden {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("io.ReadAll() failed: %v", err)
+		}
+		return mcpOriginOutcome{
+			Forbidden:     true,
+			ForbiddenBody: string(body),
+		}
+	}
+	return mcpOriginOutcome{
+		AllowedReachable: resp.StatusCode != http.StatusNotFound && resp.StatusCode < http.StatusInternalServerError,
 	}
 }
