@@ -105,3 +105,54 @@ func TestServerTransportsAndDomainHandler(t *testing.T) {
 		})
 	}
 }
+
+// TestServerDelegatesHostValidationToMiddleware verifies that MCP handlers disable SDK localhost protection so HostValidationMiddleware controls non-loopback Host headers behind loopback proxies.
+func TestServerDelegatesHostValidationToMiddleware(t *testing.T) {
+	server := NewServer(&testDomainHandler{toolName: "test_tool"})
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", server.HTTPHandler())
+	mux.Handle("/mcp/sse", server.SSEHandler())
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	testCases := []struct {
+		name string
+		path string
+	}{
+		// Allows non-loopback Host headers on the Streamable HTTP endpoint over a loopback connection.
+		{
+			name: "streamable HTTP handler accepts non-loopback Host over loopback",
+			path: "/mcp",
+		},
+		// Allows non-loopback Host headers on the SSE endpoint over a loopback connection.
+		{
+			name: "SSE handler accepts non-loopback Host over loopback",
+			path: "/mcp/sse",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			reqCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, ts.URL+tc.path, nil)
+			if err != nil {
+				cancel()
+				t.Fatalf("http.NewRequestWithContext() failed: %v", err)
+			}
+			req.Host = "khi.example.com"
+
+			resp, err := ts.Client().Do(req)
+			if err != nil {
+				cancel()
+				t.Fatalf("client.Do() failed: %v", err)
+			}
+			gotStatus := resp.StatusCode
+			_ = resp.Body.Close()
+			cancel()
+
+			if gotStatus == http.StatusForbidden {
+				t.Errorf("GET %s with Host %q returned 403 Forbidden; want SDK localhost protection disabled", tc.path, req.Host)
+			}
+		})
+	}
+}

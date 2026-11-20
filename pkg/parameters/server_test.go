@@ -25,15 +25,29 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 )
 
+// TestServerParameters verifies default values, CLI flag parsing, environment variable fallbacks, and validation for ServerParameters.
 func TestServerParameters(t *testing.T) {
+	prevAllowedHosts, hadAllowedHosts := os.LookupEnv("KHI_ALLOWED_HOSTS")
+	if err := os.Unsetenv("KHI_ALLOWED_HOSTS"); err != nil {
+		t.Fatalf("os.Unsetenv(KHI_ALLOWED_HOSTS) failed: %v", err)
+	}
+	t.Cleanup(func() {
+		if hadAllowedHosts {
+			_ = os.Setenv("KHI_ALLOWED_HOSTS", prevAllowedHosts)
+		} else {
+			_ = os.Unsetenv("KHI_ALLOWED_HOSTS")
+		}
+	})
+
 	testCases := []struct {
 		name            string
 		want            *ServerParameters
 		wantErrContains string
-		before          func()
+		before          func(t *testing.T)
 	}{
+		// Uses default ServerParameters values when no flags or environment variables are set.
 		{
-			before: func() {
+			before: func(t *testing.T) {
 				os.Args = []string{os.Args[0]}
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 			},
@@ -41,6 +55,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				AllowedHosts:             testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -49,8 +64,9 @@ func TestServerParameters(t *testing.T) {
 				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
+		// Sets FrontendResourceBasePath from BasePath and appends a trailing slash when omitted.
 		{
-			before: func() {
+			before: func(t *testing.T) {
 				os.Args = []string{os.Args[0], "--base-path", "/foo/bar"}
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 			},
@@ -58,6 +74,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				AllowedHosts:             testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/bar/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -66,8 +83,9 @@ func TestServerParameters(t *testing.T) {
 				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
+		// Appends a trailing slash to an explicit FrontendResourceBasePath independently of BasePath.
 		{
-			before: func() {
+			before: func(t *testing.T) {
 				os.Args = []string{os.Args[0], "--base-path", "/foo/bar", "--frontend-resource-base-path", "/foo"}
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 			},
@@ -75,6 +93,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				AllowedHosts:             testutil.P(""),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -83,8 +102,9 @@ func TestServerParameters(t *testing.T) {
 				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
+		// Accepts the minimum valid MaxLoadedInspections boundary value of 1.
 		{
-			before: func() {
+			before: func(t *testing.T) {
 				os.Args = []string{os.Args[0], "--max-loaded-inspections", "1"}
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 			},
@@ -92,6 +112,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				AllowedHosts:             testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -100,8 +121,9 @@ func TestServerParameters(t *testing.T) {
 				MCPDisableRenderer:       testutil.P(false),
 			},
 		},
+		// Enables MCPDisableRenderer when --mcp-disable-renderer is passed on the CLI.
 		{
-			before: func() {
+			before: func(t *testing.T) {
 				os.Args = []string{os.Args[0], "--mcp-disable-renderer"}
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 			},
@@ -109,6 +131,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				Port:                     testutil.P(8080),
 				Host:                     testutil.P("127.0.0.1"),
+				AllowedHosts:             testutil.P(""),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -117,8 +140,48 @@ func TestServerParameters(t *testing.T) {
 				MCPDisableRenderer:       testutil.P(true),
 			},
 		},
+		// Parses --allowed-hosts CLI flag into ServerParameters.AllowedHosts.
 		{
-			before: func() {
+			before: func(t *testing.T) {
+				os.Args = []string{os.Args[0], "--allowed-hosts", "khi.example.com,*.proxy.example.com"}
+				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			},
+			name: "AllowedHosts can be configured via flag",
+			want: &ServerParameters{
+				Port:                     testutil.P(8080),
+				Host:                     testutil.P("127.0.0.1"),
+				AllowedHosts:             testutil.P("khi.example.com,*.proxy.example.com"),
+				BasePath:                 testutil.P("/"),
+				FrontendResourceBasePath: testutil.P("/"),
+				FrontendAssetFolder:      testutil.P(""),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
+			},
+		},
+		// Reads KHI_ALLOWED_HOSTS into ServerParameters.AllowedHosts when the --allowed-hosts flag is omitted.
+		{
+			before: func(t *testing.T) {
+				t.Setenv("KHI_ALLOWED_HOSTS", "app.example.com,*-dot-app.example.com")
+				os.Args = []string{os.Args[0]}
+				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			},
+			name: "AllowedHosts falls back to KHI_ALLOWED_HOSTS environment variable",
+			want: &ServerParameters{
+				Port:                     testutil.P(8080),
+				Host:                     testutil.P("127.0.0.1"),
+				AllowedHosts:             testutil.P("app.example.com,*-dot-app.example.com"),
+				BasePath:                 testutil.P("/"),
+				FrontendResourceBasePath: testutil.P("/"),
+				FrontendAssetFolder:      testutil.P(""),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
+				MaxLoadedInspections:     testutil.P(3),
+				MCPDisableRenderer:       testutil.P(false),
+			},
+		},
+		// Rejects MaxLoadedInspections values below 1 with a validation error during PostProcess.
+		{
+			before: func(t *testing.T) {
 				os.Args = []string{os.Args[0], "--max-loaded-inspections", "0"}
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 			},
@@ -131,7 +194,7 @@ func TestServerParameters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			prepareFlagParsingTest(t)
 			store := &ServerParameters{}
-			tc.before()
+			tc.before(t)
 			ResetStore()
 			AddStore(store)
 			err := Parse()
