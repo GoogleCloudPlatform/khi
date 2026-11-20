@@ -29,9 +29,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/redundancy"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 const (

@@ -211,7 +211,6 @@ main() {
 
   if [[ "${has_proto}" == "true" ]]; then
     run_step "${MAKE_BIN}" format-proto
-    run_step "${MAKE_BIN}" lint-proto
     run_step "${MAKE_BIN}" build-proto
   fi
 
@@ -221,13 +220,10 @@ main() {
       lint_pkgs="$(join_unique_csv "${go_pkg_dirs[@]}")"
     fi
     run_step "${MAKE_BIN}" format-go "LINT_PKGS=${lint_pkgs}"
-    run_step "${MAKE_BIN}" lint-go "LINT_PKGS=${lint_pkgs}"
-    run_step "${MAKE_BIN}" codequality-fast
   fi
 
   if [[ "${has_web}" == "true" ]]; then
     run_step "${MAKE_BIN}" format-web
-    run_step "${MAKE_BIN}" lint-web
   fi
 
   if [[ "${has_misc}" == "true" ]]; then
@@ -236,8 +232,9 @@ main() {
 
   if [[ "${has_md}" == "true" ]]; then
     run_step "${MAKE_BIN}" format-md
-    run_step "${MAKE_BIN}" lint-md
   fi
+
+  run_step "${MAKE_BIN}" qa-fast-must
 
   if [[ "${re_stage}" == "true" && ${#existing_files[@]} -gt 0 ]]; then
     git add -- "${existing_files[@]}"

@@ -19,7 +19,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 )
 
 type testCaseExtractionCtx struct {

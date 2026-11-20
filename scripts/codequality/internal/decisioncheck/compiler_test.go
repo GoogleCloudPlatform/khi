@@ -23,8 +23,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 // TestCompileQuestionsAndEvaluateBatchResolvesOutcomeSpecificFixHints verifies template expansion and per-option/per-level fix_hint resolution.

@@ -40,8 +40,8 @@ else
 	fi
 	$(GOLANGCILINT_CMD) run --config=.golangci.yaml $(LINT_PKG_ARGS)
 endif
-	go run ./scripts/codequality --lang=go --conventions --pkgs=$(LINT_PKGS)
-	go run ./scripts/codequality --lang=go --unused-exports --pkgs=$(LINT_PKGS)
+	go run ./scripts/codequality conventions --pkgs=$(LINT_PKGS)
+	go run ./scripts/codequality unused-exports --pkgs=$(LINT_PKGS)
 ifeq ($(LINT_PKGS),./...)
 	bash ./scripts/check-go-deadcode.sh
 endif

@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 // LineState records whether a 1-based source line is executable, covered by tests, or excluded boilerplate.

@@ -21,11 +21,11 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck/langgo"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck/langts"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 type embedderFactory func(ctx context.Context, opts simcheck.EmbedderOptions) (simcheck.Embedder, string, error)
@@ -36,10 +36,11 @@ type resolvedEmbedder struct {
 }
 
 type similaritySession struct {
-	enabled bool
-	resolve func() (resolvedEmbedder, error)
-	mu      sync.Mutex
-	closer  io.Closer
+	enabled           bool
+	explicitlySkipped bool
+	resolve           func() (resolvedEmbedder, error)
+	mu                sync.Mutex
+	closer            io.Closer
 }
 
 type simLangRequest struct {
@@ -49,16 +50,19 @@ type simLangRequest struct {
 	changedLines map[string]map[int]struct{}
 }
 
-func parseSimilarityEnv(getenv func(string) string) bool {
-	return parseBoolEnv(getenv, "CODEQUALITY_SIMILARITY")
-}
-
 func parseSimilarityProjectEnv(getenv func(string) string) string {
 	return parseTrimmedEnv(getenv, "CODEQUALITY_SIMILARITY_PROJECT")
 }
 
 func newSimilaritySession(ctx context.Context, flags cliFlags, factory embedderFactory, getenv func(string) string) *similaritySession {
-	s := &similaritySession{enabled: flags.similarity}
+	speed, _ := rule.ParseSpeed(flags.speed)
+	filter, _ := rule.ParseFilter(flags.filter)
+	skipSources := parseCSVSet(flags.skipSources)
+	_, explicitlySkipped := skipSources["similarity"]
+	s := &similaritySession{
+		enabled:           flags.similarity && speed.IncludesSlow() && filter.IncludesAdvisory(),
+		explicitlySkipped: explicitlySkipped,
+	}
 	s.resolve = sync.OnceValues(func() (resolvedEmbedder, error) {
 		if factory == nil {
 			return resolvedEmbedder{skipReason: "embedding client not configured"}, nil
@@ -105,6 +109,13 @@ func (s *similaritySession) evaluateTS(ctx context.Context, repoRoot string, dif
 func (s *similaritySession) evaluateLanguage(ctx context.Context, req simLangRequest) (rule.SimilaritySummary, error) {
 	if s == nil || !s.enabled || len(req.changedLines) == 0 {
 		return rule.SimilaritySummary{}, nil
+	}
+	if s.explicitlySkipped {
+		return rule.SimilaritySummary{
+			Enabled:    true,
+			Skipped:    true,
+			SkipReason: "explicitly skipped via --skip-sources",
+		}, nil
 	}
 	res, err := simcheck.Evaluate(ctx, simcheck.Options{
 		Analyzer:               req.analyzer,

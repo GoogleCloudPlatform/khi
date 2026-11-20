@@ -22,9 +22,9 @@ import (
 	"slices"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/overlay"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 // Options configures Stage-2 differential coverage and func_uncovered_lines evaluation.

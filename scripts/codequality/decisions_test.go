@@ -26,8 +26,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/decisioncheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 type stubDecider struct {
@@ -81,7 +81,7 @@ func TestDecisionsOnlyCLIMode(t *testing.T) {
 		// Exits with code 1 and serves cached responses when --decisions-fail-on-violations is enabled.
 		{
 			name:       "fail-on-violations exits one using SQLite cache hit",
-			extraArgs:  []string{"--decisions-fail-on-violations"},
+			extraArgs:  []string{"--lang=ts", "--filter=all", "--decisions-fail-on-violations"},
 			factory:    nil,
 			wantCode:   1,
 			wantSubstr: "cache: 1 hit(s), 0 API call(s)",
@@ -92,10 +92,13 @@ func TestDecisionsOnlyCLIMode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdoutBuf, stderrBuf bytes.Buffer
 			args := append([]string{
+				"check",
 				"--repo-root=" + repoDir,
 				"--vcs=git",
 				"--base=HEAD~1",
-				"--decisions-only",
+				"--speed=fast",
+				"--filter=advisory",
+				"--decisions",
 				"--decisions-rules-dir=" + rulesDir,
 				"--color=never",
 			}, tc.extraArgs...)
@@ -146,7 +149,7 @@ func TestDecisionsEnvVarConfiguration(t *testing.T) {
 		}, "", nil
 	}
 	getenv := mapGetenv(map[string]string{
-		"CODEQUALITY_DECISIONS":                    "1",
+		"CODEQUALITY_DECISIONS":                    "true",
 		"CODEQUALITY_DECISIONS_PROJECT":            " env-dec-proj ",
 		"CODEQUALITY_DECISIONS_FAIL_ON_VIOLATIONS": "true",
 		"CODEQUALITY_DECISIONS_CACHE_DIR":          cacheDir,
@@ -155,9 +158,12 @@ func TestDecisionsEnvVarConfiguration(t *testing.T) {
 
 	exitCode, err := runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
 			"--vcs=git",
 			"--base=HEAD~1",
+			"--speed=fast",
+			"--filter=all",
 			"--lang=ts",
 			"--decisions-rules-dir=" + rulesDir,
 			"--color=never",
@@ -466,7 +472,7 @@ func TestDecisionsSessionCloseNilReceiver(t *testing.T) {
 func TestDecisionsSessionCloseClosesAndClearsCache(t *testing.T) {
 	ctx := context.Background()
 	cacheDir := t.TempDir()
-	session := newDecisionsSession(ctx, cliFlags{decisions: true}, nil, mapGetenv(map[string]string{
+	session := newDecisionsSession(ctx, cliFlags{speed: "fast", filter: "advisory", decisions: true}, nil, mapGetenv(map[string]string{
 		"CODEQUALITY_DECISIONS_CACHE_DIR": cacheDir,
 	}))
 	openedCache, err := session.ensureCache(ctx)
@@ -491,7 +497,7 @@ func TestDecisionsSessionCloseClosesAndClearsCache(t *testing.T) {
 func TestDecisionsSessionEnsureCacheReusesInstance(t *testing.T) {
 	ctx := context.Background()
 	cacheDir := t.TempDir()
-	session := newDecisionsSession(ctx, cliFlags{decisions: true}, nil, mapGetenv(map[string]string{
+	session := newDecisionsSession(ctx, cliFlags{speed: "fast", filter: "advisory", decisions: true}, nil, mapGetenv(map[string]string{
 		"CODEQUALITY_DECISIONS_CACHE_DIR": cacheDir,
 	}))
 	t.Cleanup(func() { _ = session.Close() })
@@ -511,6 +517,8 @@ func TestDecisionsSessionEnsureCacheReusesInstance(t *testing.T) {
 func TestDecisionsSessionEvaluateSkipsEmptyDiffWhenNotFull(t *testing.T) {
 	ctx := context.Background()
 	session := newDecisionsSession(ctx, cliFlags{
+		speed:             "fast",
+		filter:            "advisory",
 		decisions:         true,
 		decisionsRulesDir: filepath.Join(t.TempDir(), "missing-rules"),
 	}, nil, nil)
@@ -535,6 +543,8 @@ func TestDecisionsSessionEvaluateFullModeWithEmptyDiff(t *testing.T) {
 	writeSimpleDocRule(t, rulesDir, "pkg/**")
 	pPass := 0.95
 	session := newDecisionsSession(ctx, cliFlags{
+		speed:             "fast",
+		filter:            "advisory",
 		decisions:         true,
 		full:              true,
 		decisionsRulesDir: rulesDir,
@@ -605,6 +615,8 @@ questions:
 		t.Fatalf("CollectChangedLines() failed: %v", err)
 	}
 	session := newDecisionsSession(ctx, cliFlags{
+		speed:       "fast",
+		filter:      "advisory",
 		decisions:   true,
 		trustedRoot: trustedRoot,
 	}, nil, mapGetenv(map[string]string{"CODEQUALITY_DECISIONS_CACHE_DIR": cacheDir}))
@@ -627,6 +639,27 @@ questions:
 	if diff := cmp.Diff(want, rep); diff != "" {
 		t.Errorf("evaluate() skipped report mismatch (-want +got):\n%s", diff)
 	}
+
+	// Also verify that factory errors propagate on a cache miss.
+	errRulesDir := filepath.Join(t.TempDir(), "err-rules")
+	writeSimpleDocRule(t, errRulesDir, "pkg/**")
+	errSession := newDecisionsSession(ctx, cliFlags{
+		speed:             "fast",
+		filter:            "advisory",
+		decisions:         true,
+		decisionsRulesDir: errRulesDir,
+	}, func(context.Context, decisioncheck.DeciderOptions) (decisioncheck.Decider, string, error) {
+		return nil, "", errors.New("factory boom")
+	}, mapGetenv(map[string]string{"CODEQUALITY_DECISIONS_CACHE_DIR": cacheDir}))
+	t.Cleanup(func() { _ = errSession.Close() })
+	errRep, factoryErr := errSession.evaluate(ctx, repoDir, gotestutil.DiffResult{
+		VCS:          "git",
+		BaseLabel:    "HEAD~1",
+		ChangedFiles: []string{"pkg/foo/extra.go"},
+	})
+	if factoryErr == nil || !strings.Contains(factoryErr.Error(), "factory boom") || errRep != nil {
+		t.Fatalf("evaluate() = (%+v, %v), want (nil, factory boom)", errRep, factoryErr)
+	}
 }
 
 // TestDecisionsSessionEvaluateReturnsNilWhenNoTargetsMatch verifies that evaluate returns nil when enabled rules match none of the changed files.
@@ -637,6 +670,8 @@ func TestDecisionsSessionEvaluateReturnsNilWhenNoTargetsMatch(t *testing.T) {
 	cacheDir := filepath.Join(t.TempDir(), "cache")
 	writeSimpleDocRule(t, rulesDir, "docs/**")
 	session := newDecisionsSession(ctx, cliFlags{
+		speed:             "fast",
+		filter:            "advisory",
 		decisions:         true,
 		decisionsRulesDir: rulesDir,
 	}, nil, mapGetenv(map[string]string{"CODEQUALITY_DECISIONS_CACHE_DIR": cacheDir}))
@@ -653,35 +688,6 @@ func TestDecisionsSessionEvaluateReturnsNilWhenNoTargetsMatch(t *testing.T) {
 	}
 	if rep != nil {
 		t.Errorf("evaluate() = %+v, want nil when zero targets match", rep)
-	}
-}
-
-// TestDecisionsSessionEvaluatePropagatesFactoryError verifies that evaluate returns the error produced by deciderFactory on a cache miss.
-func TestDecisionsSessionEvaluatePropagatesFactoryError(t *testing.T) {
-	ctx := context.Background()
-	repoDir := initDecisionsTestGitRepo(t)
-	rulesDir := filepath.Join(t.TempDir(), "rules")
-	cacheDir := filepath.Join(t.TempDir(), "cache")
-	writeSimpleDocRule(t, rulesDir, "pkg/**")
-	session := newDecisionsSession(ctx, cliFlags{
-		decisions:         true,
-		decisionsRulesDir: rulesDir,
-	}, func(context.Context, decisioncheck.DeciderOptions) (decisioncheck.Decider, string, error) {
-		return nil, "", errors.New("factory boom")
-	}, mapGetenv(map[string]string{"CODEQUALITY_DECISIONS_CACHE_DIR": cacheDir}))
-	t.Cleanup(func() { _ = session.Close() })
-
-	rep, err := session.evaluate(ctx, repoDir, gotestutil.DiffResult{
-		VCS:          "git",
-		BaseLabel:    "HEAD~1",
-		ChangedFiles: []string{"pkg/foo/extra.go"},
-	})
-
-	if err == nil || !strings.Contains(err.Error(), "factory boom") {
-		t.Fatalf("evaluate() error = %v, want substring %q", err, "factory boom")
-	}
-	if rep != nil {
-		t.Errorf("evaluate() report = %+v, want nil on error", rep)
 	}
 }
 
@@ -734,5 +740,44 @@ questions:
 func mapGetenv(env map[string]string) func(string) string {
 	return func(key string) string {
 		return env[key]
+	}
+}
+
+// TestDecisionsSessionDisabledBySpeedOrFilter verifies that newDecisionsSession disables evaluation unless both fast speed and advisory filter are active, and that evaluate returns nil cleanly when disabled or nil.
+func TestDecisionsSessionDisabledBySpeedOrFilter(t *testing.T) {
+	ctx := context.Background()
+	var nilSess *decisionsSession
+	if rep, err := nilSess.evaluate(ctx, t.TempDir(), gotestutil.DiffResult{}); err != nil || rep != nil {
+		t.Fatalf("nilSess.evaluate() = (%+v, %v), want (nil, nil)", rep, err)
+	}
+
+	testCases := []struct {
+		name      string
+		speed     string
+		filter    string
+		decisions bool
+	}{
+		// Disables decisions by default unless explicitly opted in even under fast advisory.
+		{name: "fast advisory without opt-in disables decisions", speed: "fast", filter: "advisory", decisions: false},
+		// Disables decisions when filter is must even if opted in and speed is fast.
+		{name: "fast must disables decisions", speed: "fast", filter: "must", decisions: true},
+		// Disables decisions when speed is slow even if opted in and filter is advisory.
+		{name: "slow advisory disables decisions", speed: "slow", filter: "advisory", decisions: true},
+	}
+
+	for _, tc := range testCases {
+		sess := newDecisionsSession(ctx, cliFlags{
+			speed:             tc.speed,
+			filter:            tc.filter,
+			decisions:         tc.decisions,
+			decisionsRulesDir: filepath.Join(t.TempDir(), "missing-rules"),
+		}, nil, nil)
+		if sess.enabled {
+			t.Fatalf("%s: sess.enabled = true for (%s, %s), want false", tc.name, tc.speed, tc.filter)
+		}
+		rep, err := sess.evaluate(ctx, t.TempDir(), gotestutil.DiffResult{ChangedFiles: []string{"pkg/a/a.go"}})
+		if err != nil || rep != nil {
+			t.Errorf("%s: sess.evaluate() = (%+v, %v), want (nil, nil)", tc.name, rep, err)
+		}
 	}
 }

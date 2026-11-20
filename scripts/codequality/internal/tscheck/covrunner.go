@@ -25,7 +25,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 )
 
 // KarmaCoverageRequest configures an Angular Karma coverage execution.

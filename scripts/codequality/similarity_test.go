@@ -23,8 +23,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 type stubClosableEmbedder struct {
@@ -127,48 +127,59 @@ func dedupNames(names []string) []string {
 	var defaultOffOut, stderr bytes.Buffer
 	code, err := runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
 			"--vcs=git",
 			"--base=HEAD~1",
-			"--fast",
+			"--speed=slow",
+			"--filter=advisory",
 			"--color=never",
 		},
 		stdout: &defaultOffOut,
 		stderr: &stderr,
-		getenv: func(string) string { return "" },
+		getenv: func(k string) string {
+			if k == "CODEQUALITY_SIMILARITY_PROJECT" {
+				return "env-sim-project"
+			}
+			return ""
+		},
 		embedFactory: func(context.Context, simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
 			factoryCalls.Add(1)
 			return emb, "", nil
 		},
 	})
 	if err != nil || code != 0 {
-		t.Fatalf("runCLI(default opt-out) = (%d, %v), stderr=%s", code, err, stderr.String())
+		t.Fatalf("runCLI(default off slow advisory) = (%d, %v), stderr=%s", code, err, stderr.String())
 	}
 	if factoryCalls.Load() != 0 || strings.Contains(defaultOffOut.String(), "Similarity:") {
-		t.Errorf("default run invoked similarity unexpectedly: calls=%d, out:\n%s", factoryCalls.Load(), defaultOffOut.String())
+		t.Errorf("default off slow advisory invoked similarity unexpectedly: calls=%d, out:\n%s", factoryCalls.Load(), defaultOffOut.String())
 	}
 
 	var gotGoProject string
 	var stdout bytes.Buffer
 	code, err = runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
+			"--lang=go",
 			"--vcs=git",
 			"--base=HEAD~1",
-			"--fast",
+			"--speed=slow",
+			"--filter=advisory",
 			"--color=never",
 			"--summary-file=" + summaryPath,
 		},
 		stdout: &stdout,
 		stderr: &stderr,
 		getenv: func(k string) string {
-			if k == "CODEQUALITY_SIMILARITY" {
-				return " true "
-			}
-			if k == "CODEQUALITY_SIMILARITY_PROJECT" {
+			switch k {
+			case "CODEQUALITY_SIMILARITY":
+				return "true"
+			case "CODEQUALITY_SIMILARITY_PROJECT":
 				return " env-sim-project "
+			default:
+				return ""
 			}
-			return ""
 		},
 		embedFactory: func(_ context.Context, opts simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
 			factoryCalls.Add(1)
@@ -177,7 +188,7 @@ func dedupNames(names []string) []string {
 		},
 	})
 	if err != nil || code != 0 {
-		t.Fatalf("runCLI(CODEQUALITY_SIMILARITY=true) = (%d, %v), stderr=%s", code, err, stderr.String())
+		t.Fatalf("runCLI(slow advisory) = (%d, %v), stderr=%s", code, err, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "Similar Existing Go Functions") || !strings.Contains(stdout.String(), "DedupItems") {
 		t.Errorf("stdout missing Go similarity advisory:\n%s", stdout.String())
@@ -193,19 +204,20 @@ func dedupNames(names []string) []string {
 	var goOverrideOut bytes.Buffer
 	code, err = runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
+			"--lang=go",
 			"--vcs=git",
 			"--base=HEAD~1",
-			"--fast",
+			"--speed=slow",
+			"--filter=advisory",
+			"--similarity",
 			"--similarity-project=cli-override-project",
 			"--color=never",
 		},
 		stdout: &goOverrideOut,
 		stderr: &stderr,
 		getenv: func(k string) string {
-			if k == "CODEQUALITY_SIMILARITY" {
-				return "1"
-			}
 			if k == "CODEQUALITY_SIMILARITY_PROJECT" {
 				return "env-sim-project"
 			}
@@ -233,11 +245,14 @@ func dedupNames(names []string) []string {
 	var nilFactoryOut bytes.Buffer
 	code, err = runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
+			"--lang=go",
 			"--vcs=git",
 			"--base=HEAD~1",
-			"--fast",
-			"--similarity=true",
+			"--speed=slow",
+			"--filter=advisory",
+			"--similarity",
 			"--color=never",
 		},
 		stdout: &nilFactoryOut,
@@ -251,34 +266,30 @@ func dedupNames(names []string) []string {
 	var disabledOut bytes.Buffer
 	code, err = runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
+			"--lang=go",
 			"--vcs=git",
 			"--base=HEAD~1",
-			"--fast",
-			"--similarity=false",
+			"--speed=slow",
+			"--filter=advisory",
+			"--similarity",
+			"--skip-sources=similarity",
 			"--color=never",
 		},
 		stdout: &disabledOut,
 		stderr: &stderr,
-		getenv: func(k string) string {
-			if k == "CODEQUALITY_SIMILARITY" {
-				return "true"
-			}
-			return ""
-		},
+		getenv: func(string) string { return "" },
 		embedFactory: func(context.Context, simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
 			return emb, "", nil
 		},
 	})
-	if err != nil || code != 0 || strings.Contains(disabledOut.String(), "Similarity:") {
-		t.Errorf("runCLI(--similarity=false) = (%d, %v), out:\n%s", code, err, disabledOut.String())
+	if err != nil || code != 0 || !strings.Contains(disabledOut.String(), "SKIPPED (explicitly skipped via --skip-sources)") {
+		t.Errorf("runCLI(--skip-sources=similarity) = (%d, %v), out:\n%s", code, err, disabledOut.String())
 	}
 }
 
 func TestSimilaritySessionIdempotentCloseAndNilSafety(t *testing.T) {
-	if parseSimilarityEnv(nil) {
-		t.Errorf("parseSimilarityEnv(nil) = true, want false")
-	}
 	if gotProj := parseSimilarityProjectEnv(nil); gotProj != "" {
 		t.Errorf("parseSimilarityProjectEnv(nil) = %q, want empty", gotProj)
 	}
@@ -290,7 +301,7 @@ func TestSimilaritySessionIdempotentCloseAndNilSafety(t *testing.T) {
 	}
 
 	emb := &stubClosableEmbedder{}
-	sess := newSimilaritySession(ctx, cliFlags{similarity: true}, func(context.Context, simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
+	sess := newSimilaritySession(ctx, cliFlags{speed: "slow", filter: "advisory", similarity: true}, func(context.Context, simcheck.EmbedderOptions) (simcheck.Embedder, string, error) {
 		return emb, "", nil
 	}, nil)
 	if _, err := sess.resolve(); err != nil {
@@ -309,6 +320,21 @@ func TestSimilaritySessionIdempotentCloseAndNilSafety(t *testing.T) {
 	emptySum, err := sess.evaluateTS(ctx, t.TempDir(), gotestutil.DiffResult{})
 	if err != nil || emptySum.Enabled {
 		t.Errorf("evaluateTS(empty diff) = (%+v, %v), want disabled", emptySum, err)
+	}
+
+	for _, tc := range []struct {
+		speed      string
+		filter     string
+		similarity bool
+	}{
+		{"slow", "advisory", false},
+		{"fast", "advisory", true},
+		{"slow", "must", true},
+	} {
+		disabledSess := newSimilaritySession(ctx, cliFlags{speed: tc.speed, filter: tc.filter, similarity: tc.similarity}, nil, nil)
+		if disabledSess.enabled {
+			t.Errorf("newSimilaritySession(%s, %s, %v).enabled = true, want false", tc.speed, tc.filter, tc.similarity)
+		}
 	}
 }
 
@@ -330,8 +356,12 @@ func verifySimilarityTypeScriptCLI(t *testing.T, realRepoRoot string, repoDir st
 	var tsOut, stderr bytes.Buffer
 	code, err := runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
 			"--lang=ts",
+			"--speed=slow",
+			"--filter=advisory",
+			"--similarity",
 			"--ts-coverage=" + tsCovPath,
 			"--similarity-project=cli-override-project",
 			"--vcs=git",
@@ -341,9 +371,6 @@ func verifySimilarityTypeScriptCLI(t *testing.T, realRepoRoot string, repoDir st
 		stdout: &tsOut,
 		stderr: &stderr,
 		getenv: func(k string) string {
-			if k == "CODEQUALITY_SIMILARITY" {
-				return "1"
-			}
 			if k == "CODEQUALITY_SIMILARITY_PROJECT" {
 				return "env-sim-project"
 			}

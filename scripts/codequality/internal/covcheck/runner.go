@@ -26,7 +26,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 )
 
 // PlanRequest specifies how to choose Go packages for coverage execution.

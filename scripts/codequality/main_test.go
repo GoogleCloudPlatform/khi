@@ -23,7 +23,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
 func TestRunCLIEndToEndModes(t *testing.T) {
@@ -36,46 +37,49 @@ func TestRunCLIEndToEndModes(t *testing.T) {
 		wantCode   int
 		wantErr    bool
 		wantStdout string
+		wantStderr string
 	}{
 		{
 			name:       "fast mode passes clean git diff",
-			args:       []string{"--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1", "--fast", "--color=never"},
+			args:       []string{"check", "--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1", "--speed=fast", "--filter=must", "--color=never"},
 			wantCode:   0,
 			wantStdout: "PASS (0 violations)",
+			wantStderr: "[1/2]",
 		},
 		{
 			name:       "full dynamic mode passes Go and writes github summary",
-			args:       []string{"--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1", "--format=github", "--summary-file=" + summaryPath},
+			args:       []string{"check", "--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1", "--skip-sources=decisions,similarity", "--format=github", "--summary-file=" + summaryPath},
 			wantCode:   0,
 			wantStdout: "",
+			wantStderr: "[1/4]",
 		},
 		{
 			name:       "lang ts on Go-only diff passes cleanly",
-			args:       []string{"--repo-root=" + repoDir, "--lang=ts", "--vcs=git", "--base=HEAD~1", "--color=never"},
+			args:       []string{"check", "--repo-root=" + repoDir, "--lang=ts", "--vcs=git", "--base=HEAD~1", "--skip-sources=decisions,similarity", "--color=never"},
 			wantCode:   0,
 			wantStdout: "TypeScript Quality Report",
 		},
 		{
 			name:       "lang ts with fast skips dynamic TS stage cleanly",
-			args:       []string{"--repo-root=" + repoDir, "--lang=ts", "--fast", "--vcs=git", "--base=HEAD~1", "--summary-file=" + summaryPath},
+			args:       []string{"check", "--repo-root=" + repoDir, "--lang=ts", "--speed=fast", "--filter=must", "--vcs=git", "--base=HEAD~1", "--summary-file=" + summaryPath},
 			wantCode:   0,
 			wantStdout: "no Go or TypeScript files changed",
 		},
 		{
 			name:     "invalid lang flag returns code 2",
-			args:     []string{"--lang=python"},
+			args:     []string{"check", "--lang=python"},
 			wantCode: 2,
 			wantErr:  true,
 		},
 		{
 			name:     "invalid format flag returns code 2",
-			args:     []string{"--format=xml"},
+			args:     []string{"check", "--format=xml"},
 			wantCode: 2,
 			wantErr:  true,
 		},
 		{
 			name:     "unknown flag returns code 2",
-			args:     []string{"--unknown-flag"},
+			args:     []string{"check", "--unknown-flag"},
 			wantCode: 2,
 			wantErr:  true,
 		},
@@ -98,6 +102,7 @@ func TestRunCLIEndToEndModes(t *testing.T) {
 				stdout:     stdout.String(),
 				stderr:     stderr.String(),
 				wantStdout: tc.wantStdout,
+				wantStderr: tc.wantStderr,
 			})
 		})
 	}
@@ -117,6 +122,7 @@ type cliOutcomeCheck struct {
 	stdout     string
 	stderr     string
 	wantStdout string
+	wantStderr string
 }
 
 func assertCLIOutcome(t *testing.T, c cliOutcomeCheck) {
@@ -132,6 +138,9 @@ func assertCLIOutcome(t *testing.T, c cliOutcomeCheck) {
 	}
 	if c.wantStdout != "" && !strings.Contains(c.stdout, c.wantStdout) {
 		t.Errorf("stdout missing %q:\n%s", c.wantStdout, c.stdout)
+	}
+	if c.wantStderr != "" && !strings.Contains(c.stderr, c.wantStderr) {
+		t.Errorf("stderr missing %q:\n%s", c.wantStderr, c.stderr)
 	}
 }
 
@@ -177,27 +186,27 @@ func TestSkipShort(t *testing.T) {
 		// Passes with exit code 0 when the package satisfies all conventions.
 		{
 			name:     "clean package passes with exit code 0",
-			args:     []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/clean"},
+			args:     []string{"conventions", "--repo-root=" + dir, "--pkgs=./pkg/clean"},
 			wantCode: 0,
 		},
 		// Exits with code 1 and prints the exported-member-doc violation line.
 		{
 			name:       "violation prints formatted line and exits 1",
-			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/bad"},
+			args:       []string{"conventions", "--repo-root=" + dir, "--pkgs=./pkg/bad"},
 			wantCode:   1,
 			wantStdout: "pkg/bad/bad.go:4:2: exported struct field BadType.Missing must have a GoDoc comment (exported-member-doc)",
 		},
 		// Exits with code 1 and prints the no-short-skip violation line for a test file skipping under testing.Short().
 		{
 			name:       "no-short-skip violation prints formatted line and exits 1",
-			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/badshort"},
+			args:       []string{"conventions", "--repo-root=" + dir, "--pkgs=./pkg/badshort"},
 			wantCode:   1,
 			wantStdout: "pkg/badshort/badshort_test.go:7:3: do not call Skip/Skipf/SkipNow inside testing.Short(); scale down iteration counts instead of skipping tests (no-short-skip)",
 		},
 		// Returns exit code 2 and propagates a parse error for syntactically invalid Go files.
 		{
 			name:       "parse error returns exit code 2",
-			args:       []string{"--repo-root=" + dir, "--lang=go", "--conventions", "--pkgs=./pkg/broken"},
+			args:       []string{"conventions", "--repo-root=" + dir, "--pkgs=./pkg/broken"},
 			wantCode:   2,
 			wantErr:    true,
 			wantErrSub: "failed to parse pkg/broken/broken.go",
@@ -239,7 +248,7 @@ const Dead = 2
 
 	var stdout, stderr bytes.Buffer
 	code, err := runCLI(context.Background(), cliEnv{
-		args:   []string{"--repo-root=" + dir, "--lang=go", "--unused-exports", "--pkgs=./pkg/unused"},
+		args:   []string{"unused-exports", "--repo-root=" + dir, "--pkgs=./pkg/unused"},
 		stdout: &stdout,
 		stderr: &stderr,
 		getenv: func(string) string { return "" },
@@ -265,12 +274,12 @@ func TestRunCLIReturnsExitCodeOneOnViolation(t *testing.T) {
 	}{
 		{
 			name:      "dynamic mode evaluates lazy base overlay sorts multiple violations and exits 1",
-			extraArgs: []string{"--lang=go", "--fail-on-violations=true", "--summary-file=" + summaryPath},
+			extraArgs: []string{"--lang=go", "--skip-sources=decisions,similarity", "--fail-on-violations=true", "--summary-file=" + summaryPath},
 			wantCode:  1,
 		},
 		{
 			name:      "fast advisory mode exits 0 when fail-on-violations is false",
-			extraArgs: []string{"--fast", "--fail-on-violations=false"},
+			extraArgs: []string{"--speed=fast", "--filter=must", "--fail-on-violations=false"},
 			wantCode:  0,
 		},
 	}
@@ -278,7 +287,7 @@ func TestRunCLIReturnsExitCodeOneOnViolation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			args := append([]string{"--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1"}, tc.extraArgs...)
+			args := append([]string{"check", "--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1"}, tc.extraArgs...)
 			code, err := runCLI(context.Background(), cliEnv{
 				args:   args,
 				stdout: &stdout,
@@ -302,10 +311,13 @@ func TestRunCLIDecisionsEvaluationError(t *testing.T) {
 
 	code, err := runCLI(context.Background(), cliEnv{
 		args: []string{
+			"check",
 			"--repo-root=" + repoDir,
 			"--vcs=git",
 			"--base=HEAD~1",
-			"--decisions-only",
+			"--speed=fast",
+			"--filter=advisory",
+			"--decisions",
 			"--decisions-rules-dir=" + filepath.Join(repoDir, "nonexistent-rules"),
 		},
 		stdout: &stdout,
@@ -325,29 +337,37 @@ func TestShouldRunGo(t *testing.T) {
 	testCases := []struct {
 		name    string
 		flags   cliFlags
+		speed   rule.Speed
+		filter  rule.Filter
 		diffRes gotestutil.DiffResult
 		want    bool
 	}{
-		// Returns false in decisions-only mode even when --lang=go, --fast, --full, and changed Go lines are present.
+		// Returns false in fast advisory mode even when --lang=go, --full, --similarity, and changed Go lines are present.
 		{
-			name:  "decisions-only disables Go pipeline",
-			flags: cliFlags{decisionsOnly: true, lang: "go", fast: true, full: true},
+			name:   "fast advisory disables Go pipeline",
+			flags:  cliFlags{lang: "go", full: true, similarity: true},
+			speed:  rule.SpeedFast,
+			filter: rule.FilterAdvisory,
 			diffRes: gotestutil.DiffResult{
 				ChangedLines: map[string]map[int]struct{}{"pkg/a/a.go": {1: {}}},
 			},
 			want: false,
 		},
-		// Returns false when --lang=all has no fast/full/coverprofile flags and no Go files changed.
+		// Returns false when --lang=all has no full/coverprofile flags and no Go files changed.
 		{
 			name:    "lang all with empty diff and no flags skips Go pipeline",
 			flags:   cliFlags{lang: "all"},
+			speed:   rule.SpeedAll,
+			filter:  rule.FilterAll,
 			diffRes: gotestutil.DiffResult{},
 			want:    false,
 		},
-		// Returns true when --lang=all and --fast is enabled without changed Go files.
+		// Returns true when --lang=go and --speed=fast even on an empty diff.
 		{
-			name:    "lang all with fast flag runs Go pipeline on empty diff",
-			flags:   cliFlags{lang: "all", fast: true},
+			name:    "lang go with fast speed runs Go pipeline on empty diff",
+			flags:   cliFlags{lang: "go"},
+			speed:   rule.SpeedFast,
+			filter:  rule.FilterMust,
 			diffRes: gotestutil.DiffResult{},
 			want:    true,
 		},
@@ -355,7 +375,7 @@ func TestShouldRunGo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := shouldRunGo(tc.flags, tc.diffRes)
+			got := shouldRunGo(tc.flags, tc.speed, tc.filter, tc.diffRes)
 
 			if got != tc.want {
 				t.Errorf("shouldRunGo() = %v, want %v", got, tc.want)
@@ -471,4 +491,110 @@ func runGitCmd(t *testing.T, dir string, args ...string) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
 	}
+}
+
+// TestParseFlagsDefaultsAndErrors verifies subcommand defaults and FlagSet error prefixes in parseFlags.
+func TestParseFlagsDefaultsAndErrors(t *testing.T) {
+	var errBuf bytes.Buffer
+	if _, err := parseFlags(nil, &errBuf, func(string) string { return "" }); err == nil || !strings.Contains(err.Error(), "missing subcommand") {
+		t.Fatalf("parseFlags(nil) err = %v, want missing subcommand", err)
+	}
+
+	for _, sub := range []string{"conventions", "unused-exports", "qa", "check"} {
+		errBuf.Reset()
+		if _, err := parseFlags([]string{sub, "--unknown-test-flag"}, &errBuf, func(string) string { return "" }); err == nil {
+			t.Errorf("parseFlags(%s, --unknown-test-flag) expected error", sub)
+		} else if !strings.Contains(errBuf.String(), "codequality "+sub) {
+			t.Errorf("errOut = %q, want prefix %q", errBuf.String(), "codequality "+sub)
+		}
+	}
+
+	qaFlags, err := parseFlags([]string{"qa"}, &errBuf, func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("parseFlags(qa) error: %v", err)
+	}
+	if qaFlags.speed != "fast" || qaFlags.decisionsMaxTargets != 0 || qaFlags.maxMutants != 0 || qaFlags.decisions || qaFlags.similarity {
+		t.Errorf("qa defaults = (speed=%q, decisionsMaxTargets=%d, maxMutants=%d, decisions=%v, similarity=%v), want (fast, 0, 0, false, false)",
+			qaFlags.speed, qaFlags.decisionsMaxTargets, qaFlags.maxMutants, qaFlags.decisions, qaFlags.similarity)
+	}
+
+	checkFlags, err := parseFlags([]string{"check"}, &errBuf, func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("parseFlags(check) error: %v", err)
+	}
+	if checkFlags.speed != "all" || checkFlags.decisionsMaxTargets != 0 || checkFlags.maxMutants != 0 || checkFlags.decisions || checkFlags.similarity {
+		t.Errorf("check defaults = (speed=%q, decisionsMaxTargets=%d, maxMutants=%d, decisions=%v, similarity=%v), want (all, 0, 0, false, false)",
+			checkFlags.speed, checkFlags.decisionsMaxTargets, checkFlags.maxMutants, checkFlags.decisions, checkFlags.similarity)
+	}
+
+	envEnabled, err := parseFlags([]string{"qa"}, &errBuf, mapGetenv(map[string]string{
+		"CODEQUALITY_DECISIONS":  "true",
+		"CODEQUALITY_SIMILARITY": "1",
+	}))
+	if err != nil || !envEnabled.decisions || !envEnabled.similarity {
+		t.Errorf("parseFlags(qa env opt-in) = (decisions=%v, similarity=%v, err=%v), want (true, true, nil)",
+			envEnabled.decisions, envEnabled.similarity, err)
+	}
+
+	envOverridden, err := parseFlags([]string{"qa", "--decisions=false", "--similarity=false"}, &errBuf, mapGetenv(map[string]string{
+		"CODEQUALITY_DECISIONS":  "true",
+		"CODEQUALITY_SIMILARITY": "true",
+	}))
+	if err != nil || envOverridden.decisions || envOverridden.similarity {
+		t.Errorf("parseFlags(qa CLI override) = (decisions=%v, similarity=%v, err=%v), want (false, false, nil)",
+			envOverridden.decisions, envOverridden.similarity, err)
+	}
+}
+
+// TestPipelineHelpersAndStageSelection verifies shouldRunGo, shouldRunTS, and changedGoFiles stage selection.
+func TestPipelineHelpersAndStageSelection(t *testing.T) {
+	t.Run("changedGoFiles", func(t *testing.T) {
+		got := changedGoFiles(gotestutil.DiffResult{
+			ChangedLines:     map[string]map[int]struct{}{"pkg/a/a.go": {1: {}}},
+			ChangedTestLines: map[string]map[int]struct{}{"pkg/a/a_test.go": {2: {}}},
+		})
+		if len(got) != 2 || got[0] != "pkg/a/a.go" || got[1] != "pkg/a/a_test.go" {
+			t.Errorf("changedGoFiles() = %v, want [pkg/a/a.go pkg/a/a_test.go]", got)
+		}
+	})
+
+	t.Run("shouldRunGo", func(t *testing.T) {
+		goDiff := gotestutil.DiffResult{ChangedLines: map[string]map[int]struct{}{"pkg/a/a.go": {1: {}}}}
+		if !shouldRunGo(cliFlags{lang: "all", coverprofile: "cov.out"}, rule.SpeedSlow, rule.FilterMust, gotestutil.DiffResult{}) {
+			t.Errorf("shouldRunGo(coverprofile) = false, want true")
+		}
+		if shouldRunGo(cliFlags{lang: "all"}, rule.SpeedSlow, rule.FilterAdvisory, goDiff) {
+			t.Errorf("shouldRunGo(slow advisory without similarity) = true, want false")
+		}
+		if !shouldRunGo(cliFlags{lang: "all", similarity: true}, rule.SpeedSlow, rule.FilterAdvisory, goDiff) {
+			t.Errorf("shouldRunGo(slow advisory with similarity) = false, want true")
+		}
+		if shouldRunGo(cliFlags{lang: "all", similarity: true}, rule.SpeedSlow, rule.FilterAdvisory, gotestutil.DiffResult{}) {
+			t.Errorf("shouldRunGo(slow advisory empty) = true, want false")
+		}
+	})
+
+	t.Run("shouldRunTS", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			flags   cliFlags
+			filter  rule.Filter
+			diffRes gotestutil.DiffResult
+			want    bool
+		}{
+			{name: "prod lines", flags: cliFlags{lang: "all"}, filter: rule.FilterMust, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: true},
+			{name: "test lines", flags: cliFlags{lang: "all"}, filter: rule.FilterMust, diffRes: gotestutil.DiffResult{TSChangedTestLines: map[string]map[int]struct{}{"a.spec.ts": {1: {}}}}, want: true},
+			{name: "tsCoverage", flags: cliFlags{lang: "all", tsCoverage: "cov.json"}, filter: rule.FilterMust, want: true},
+			{name: "full", flags: cliFlags{lang: "all", full: true}, filter: rule.FilterMust, want: true},
+			{name: "empty must", flags: cliFlags{lang: "all"}, filter: rule.FilterMust, want: false},
+			{name: "advisory prod without similarity", flags: cliFlags{lang: "all"}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: false},
+			{name: "advisory prod with similarity", flags: cliFlags{lang: "all", similarity: true}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: true},
+			{name: "advisory test only", flags: cliFlags{lang: "all", similarity: true}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedTestLines: map[string]map[int]struct{}{"a.spec.ts": {1: {}}}}, want: false},
+		}
+		for _, tc := range cases {
+			if got := shouldRunTS(tc.flags, rule.SpeedSlow, tc.filter, tc.diffRes); got != tc.want {
+				t.Errorf("shouldRunTS(%s) = %v, want %v", tc.name, got, tc.want)
+			}
+		}
+	})
 }

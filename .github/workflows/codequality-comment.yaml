@@ -115,7 +115,10 @@ jobs:
           HEAD_SHA: ${{ github.event.check_run.head_sha }}
         run: |
           "${RUNNER_TEMP}/khi-codequality" \
-            --decisions-only \
+            check \
+            --speed=fast \
+            --filter=advisory \
+            --decisions \
             --vcs=git \
             --repo-root="${RUNNER_TEMP}/pr-repo" \
             --trusted-root="${GITHUB_WORKSPACE}" \

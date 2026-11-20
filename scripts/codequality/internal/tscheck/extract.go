@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/redundancy"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 // TSMutant describes a single candidate logic change extracted from a TypeScript file.

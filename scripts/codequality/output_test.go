@@ -22,9 +22,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/report"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 // TestEmitOutputsMultiLanguageAndEnvelope verifies that emitOutputs renders multi-language text reports and optional Base64 PR comment envelopes.
@@ -35,21 +35,21 @@ func TestEmitOutputsMultiLanguageAndEnvelope(t *testing.T) {
 
 func TestEmitOutputsEmptyReportsText(t *testing.T) {
 	testCases := []struct {
-		name          string
-		decisionsOnly bool
-		want          string
+		name   string
+		filter string
+		want   string
 	}{
-		// Prints the decision-specific no-targets message when decisions-only produces zero reports.
+		// Prints the decision-specific no-targets message when filter=advisory produces zero reports.
 		{
-			name:          "decisions-only empty reports",
-			decisionsOnly: true,
-			want:          "Decision Rules Report (base: origin/main): no matching targets changed.\n",
+			name:   "advisory empty reports",
+			filter: "advisory",
+			want:   "Decision Rules Report (base: origin/main): no matching targets changed.\n",
 		},
 		// Prints the Go/TypeScript no-changes message when standard mode produces zero reports.
 		{
-			name:          "standard empty reports",
-			decisionsOnly: false,
-			want:          "Code Quality Report (base: origin/main): no Go or TypeScript files changed.\n",
+			name:   "standard empty reports",
+			filter: "all",
+			want:   "Code Quality Report (base: origin/main): no Go or TypeScript files changed.\n",
 		},
 	}
 
@@ -58,7 +58,7 @@ func TestEmitOutputsEmptyReportsText(t *testing.T) {
 			var out bytes.Buffer
 
 			err := emitOutputs(context.Background(), emitRequest{
-				flags:     cliFlags{format: "text", decisionsOnly: tc.decisionsOnly},
+				flags:     cliFlags{subcommand: subcmdCheck, format: "text", filter: tc.filter},
 				baseLabel: "origin/main",
 				colorMode: gotestutil.ColorNever,
 				env:       cliEnv{stdout: &out, stderr: &out, getenv: func(string) string { return "" }},
@@ -74,13 +74,13 @@ func TestEmitOutputsEmptyReportsText(t *testing.T) {
 	}
 }
 
-// TestEmitOutputsDecisionsOnlyEmptySkipsSummaryFile verifies that emitOutputs does not create a summary file when decisions-only produces zero reports.
-func TestEmitOutputsDecisionsOnlyEmptySkipsSummaryFile(t *testing.T) {
+// TestEmitOutputsAdvisoryEmptySkipsSummaryFile verifies that emitOutputs does not create a summary file when filter=advisory produces zero reports.
+func TestEmitOutputsAdvisoryEmptySkipsSummaryFile(t *testing.T) {
 	summaryPath := filepath.Join(t.TempDir(), "summary.md")
 	var out bytes.Buffer
 
 	err := emitOutputs(context.Background(), emitRequest{
-		flags:     cliFlags{format: "text", decisionsOnly: true, summaryFile: summaryPath},
+		flags:     cliFlags{subcommand: subcmdCheck, format: "text", filter: "advisory", summaryFile: summaryPath},
 		baseLabel: "origin/main",
 		reports:   nil,
 		colorMode: gotestutil.ColorNever,
@@ -97,15 +97,15 @@ func TestEmitOutputsDecisionsOnlyEmptySkipsSummaryFile(t *testing.T) {
 
 func TestEmitOutputsSummaryFile(t *testing.T) {
 	testCases := []struct {
-		name          string
-		decisionsOnly bool
-		reports       []*rule.Report
-		wantSubstr    string
+		name       string
+		filter     string
+		reports    []*rule.Report
+		wantSubstr string
 	}{
-		// Writes the decision summary file when decisions-only produces at least one report.
+		// Writes the decision summary file when filter=advisory produces at least one report.
 		{
-			name:          "decisions-only non-empty reports writes summary file",
-			decisionsOnly: true,
+			name:   "advisory non-empty reports writes summary file",
+			filter: "advisory",
 			reports: []*rule.Report{
 				{
 					Language:  "Decisions",
@@ -117,15 +117,15 @@ func TestEmitOutputsSummaryFile(t *testing.T) {
 		},
 		// Writes the empty-changes summary message when standard mode produces zero reports.
 		{
-			name:          "standard empty reports writes no-changes summary",
-			decisionsOnly: false,
-			reports:       nil,
-			wantSubstr:    "No Go or TypeScript files were modified",
+			name:       "standard empty reports writes no-changes summary",
+			filter:     "all",
+			reports:    nil,
+			wantSubstr: "No Go or TypeScript files were modified",
 		},
 		// Separates multiple summary sections with a blank line when multiple reports are present.
 		{
-			name:          "multi-report summary separates sections",
-			decisionsOnly: false,
+			name:   "multi-report summary separates sections",
+			filter: "all",
 			reports: []*rule.Report{
 				{Language: "Go", BaseLabel: "origin/main"},
 				{Language: "TypeScript", BaseLabel: "origin/main"},
@@ -140,7 +140,7 @@ func TestEmitOutputsSummaryFile(t *testing.T) {
 			var out bytes.Buffer
 
 			err := emitOutputs(context.Background(), emitRequest{
-				flags:     cliFlags{format: "text", decisionsOnly: tc.decisionsOnly, summaryFile: summaryPath},
+				flags:     cliFlags{subcommand: subcmdCheck, format: "text", filter: tc.filter, summaryFile: summaryPath},
 				baseLabel: "origin/main",
 				reports:   tc.reports,
 				colorMode: gotestutil.ColorNever,
@@ -214,5 +214,52 @@ func testEmitCommentEnvelope(t *testing.T) {
 	}
 	if !strings.Contains(decoded, report.PRCommentMarker) || !strings.Contains(decoded, "964c03d6e66d") || !strings.Contains(decoded, "builds/b99") {
 		t.Errorf("unexpected decoded envelope:\n%s", decoded)
+	}
+}
+
+// TestEmitOutputsQASubcommand verifies that emitOutputs renders QAReport text and GitHub annotations for the qa subcommand.
+func TestEmitOutputsQASubcommand(t *testing.T) {
+	qaRep := &rule.QAReport{
+		BaseLabel: "@-",
+		Speed:     rule.SpeedFast,
+		Filter:    rule.FilterMust,
+		MustFix: []rule.QAItem{
+			{
+				ID:      "id1",
+				Source:  "gofmt",
+				Check:   "gofmt",
+				File:    "pkg/a/a.go",
+				Line:    3,
+				Summary: "file is not gofmt-formatted",
+			},
+		},
+	}
+
+	var textOut bytes.Buffer
+	if err := emitOutputs(context.Background(), emitRequest{
+		flags:     cliFlags{subcommand: subcmdQA, format: "text"},
+		baseLabel: "@-",
+		qaReport:  qaRep,
+		colorMode: gotestutil.ColorNever,
+		env:       cliEnv{stdout: &textOut, stderr: &textOut, getenv: func(string) string { return "" }},
+	}); err != nil {
+		t.Fatalf("emitOutputs(qa text) error: %v", err)
+	}
+	if !strings.Contains(textOut.String(), "KHI QA Report") || !strings.Contains(textOut.String(), "MUSTFIX (1)") {
+		t.Errorf("qa text output missing expected sections:\n%s", textOut.String())
+	}
+
+	var ghOut bytes.Buffer
+	if err := emitOutputs(context.Background(), emitRequest{
+		flags:     cliFlags{subcommand: subcmdQA, format: "github"},
+		baseLabel: "@-",
+		qaReport:  qaRep,
+		colorMode: gotestutil.ColorNever,
+		env:       cliEnv{stdout: &ghOut, stderr: &ghOut, getenv: func(string) string { return "" }},
+	}); err != nil {
+		t.Fatalf("emitOutputs(qa github) error: %v", err)
+	}
+	if !strings.Contains(ghOut.String(), "::error ") || !strings.Contains(ghOut.String(), "file is not gofmt-formatted") {
+		t.Errorf("qa github output missing expected error annotation:\n%s", ghOut.String())
 	}
 }

@@ -23,7 +23,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/vrt/internal/report"
 )
 
@@ -34,11 +33,9 @@ type postVRTScriptScenario struct {
 	wantStdout string
 }
 
+// TestPostVRTPRCommentScript verifies that post-vrt-pr-comment.sh extracts envelopes and updates PR comments.
 func TestPostVRTPRCommentScript(t *testing.T) {
-	repoRoot, err := gotestutil.ResolveRepoRoot("")
-	if err != nil {
-		t.Fatalf("ResolveRepoRoot() error: %v", err)
-	}
+	repoRoot := resolveVRTRepoRoot(t)
 	scriptPath := filepath.Join(repoRoot, "scripts", "post-vrt-pr-comment.sh")
 
 	t.Run("extracts envelope and creates sticky comment when none exists", func(t *testing.T) {
@@ -177,5 +174,23 @@ esac
 	ghPath := filepath.Join(dir, "gh")
 	if err := os.WriteFile(ghPath, []byte(fakeGH), 0o755); err != nil {
 		t.Fatalf("WriteFile(fake gh) error: %v", err)
+	}
+}
+
+func resolveVRTRepoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd() error: %v", err)
+	}
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("failed to locate repository go.mod from %s", dir)
+		}
+		dir = parent
 	}
 }

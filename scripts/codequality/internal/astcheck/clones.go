@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 )
 
 // StmtFingerprint pairs a normalized structural token with its 1-based source line.

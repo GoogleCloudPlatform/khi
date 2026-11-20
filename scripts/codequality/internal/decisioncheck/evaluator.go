@@ -18,9 +18,12 @@ import (
 	"cmp"
 	"context"
 	"slices"
+	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
+
+const defaultEvaluationWorkers = 4
 
 // Options configures a multi-rule Gemini Decisions evaluation run.
 type Options struct {
@@ -32,6 +35,8 @@ type Options struct {
 	Model string
 	// ForceBlocking promotes all evaluated rules to blocking violations when true.
 	ForceBlocking bool
+	// Workers bounds concurrent target bundle evaluations (defaults to 4 when <= 0).
+	Workers int
 	// TargetOpts configures target bundle discovery and context rendering.
 	TargetOpts ResolveOptions
 	// Cache optionally persists and serves cached DecisionResponses.
@@ -118,18 +123,16 @@ func evaluateRule(ctx context.Context, model string, r RuleSpec, opts Options) (
 		return ruleEvalOutcome{}, err
 	}
 	out := ruleEvalOutcome{targets: len(bundles)}
-	for _, bundle := range bundles {
-		sharedInput, err := RenderSharedInput(r, bundle, opts.TargetOpts)
-		if err != nil {
-			return ruleEvalOutcome{}, err
-		}
-		batches, err := CompileQuestions(model, sharedInput, r, bundle)
-		if err != nil {
-			return ruleEvalOutcome{}, err
-		}
-		batchOut, err := executeCompiledBatches(ctx, r, batches, opts)
-		if err != nil || batchOut.skipped {
-			return batchOut, err
+	if len(bundles) == 0 {
+		return out, nil
+	}
+	results, err := evaluateBundlesConcurrently(ctx, model, r, bundles, opts)
+	if err != nil {
+		return ruleEvalOutcome{}, err
+	}
+	for _, batchOut := range results {
+		if batchOut.skipped {
+			return batchOut, nil
 		}
 		out.questions += batchOut.questions
 		out.cacheHits += batchOut.cacheHits
@@ -137,6 +140,52 @@ func evaluateRule(ctx context.Context, model string, r RuleSpec, opts Options) (
 		out.findings = append(out.findings, batchOut.findings...)
 	}
 	return out, nil
+}
+
+func evaluateBundlesConcurrently(ctx context.Context, model string, r RuleSpec, bundles []TargetBundle, opts Options) ([]ruleEvalOutcome, error) {
+	workers := opts.Workers
+	if workers <= 0 {
+		workers = defaultEvaluationWorkers
+	}
+	workerCount := min(workers, len(bundles))
+	results := make([]ruleEvalOutcome, len(bundles))
+	errs := make([]error, len(bundles))
+	jobs := make(chan int, len(bundles))
+	for i := range bundles {
+		jobs <- i
+	}
+	close(jobs)
+
+	var wg sync.WaitGroup
+	for range workerCount {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				results[idx], errs[idx] = evaluateSingleBundle(ctx, model, r, bundles[idx], opts)
+			}
+		}()
+	}
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			return nil, err
+		}
+	}
+	return results, nil
+}
+
+func evaluateSingleBundle(ctx context.Context, model string, r RuleSpec, bundle TargetBundle, opts Options) (ruleEvalOutcome, error) {
+	sharedInput, err := RenderSharedInput(r, bundle, opts.TargetOpts)
+	if err != nil {
+		return ruleEvalOutcome{}, err
+	}
+	batches, err := CompileQuestions(model, sharedInput, r, bundle)
+	if err != nil {
+		return ruleEvalOutcome{}, err
+	}
+	return executeCompiledBatches(ctx, r, batches, opts)
 }
 
 func executeCompiledBatches(ctx context.Context, r RuleSpec, batches []CompiledBatch, opts Options) (ruleEvalOutcome, error) {

@@ -45,11 +45,6 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 5,
       sourceType: "script",
-
-      parserOptions: {
-        project: ["tsconfig.json"],
-        createDefaultProgram: true,
-      },
     },
 
     rules: {

@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 func renderSimilarityHeaderLine(w io.Writer, sim rule.SimilaritySummary, style gotestutil.TermStyle) {
