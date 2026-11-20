@@ -66,8 +66,8 @@ func TestCheckAndQAConventionViolationsAndEnvelopes(t *testing.T) {
 		stderr: &allErr,
 		getenv: func(string) string { return "" },
 	})
-	if allRunErr != nil || allCode != 0 || !strings.Contains(allOut.String(), `"decisions"`) || !strings.Contains(allOut.String(), `"similarity"`) {
-		t.Errorf("runCLI(qa all) = (%d, %v), want code 0 with decisions and similarity in skipped_sources:\n%s", allCode, allRunErr, allOut.String())
+	if allRunErr != nil || allCode != 0 || !strings.Contains(allOut.String(), `"gofmt"`) || !strings.Contains(allOut.String(), `"decisions"`) || !strings.Contains(allOut.String(), `"similarity"`) {
+		t.Errorf("runCLI(qa all) = (%d, %v), want code 0 with gofmt, decisions, and similarity in skipped_sources:\n%s", allCode, allRunErr, allOut.String())
 	}
 
 	qaDiff, diffErr := collectScopedDiff(context.Background(), cliFlags{subcommand: subcmdQA, vcs: "git", base: "HEAD~1"}, cleanRepo)
@@ -177,7 +177,7 @@ func TestPipelineStageGatingAndASTCloneScan(t *testing.T) {
 	} {
 		var errBuf bytes.Buffer
 		_, stageErr := executeCheckStages(ctx, checkStagesRequest{
-			flags:    cliFlags{lang: "ts", decisionsRulesDir: missingRules},
+			flags:    cliFlags{lang: "ts", speed: "all", filter: "all", decisions: true, decisionsRulesDir: missingRules},
 			speed:    pair.speed,
 			filter:   pair.filter,
 			repoRoot: repoDir,
@@ -289,14 +289,16 @@ func MalformedDirective(x int) int { return x }
 	if len(slowAST.Findings) <= len(fastAST.Findings) {
 		t.Errorf("slowAST findings (%d) <= fastAST findings (%d), expected clone finding in slow", len(slowAST.Findings), len(fastAST.Findings))
 	}
-	unreadableRoot := t.TempDir()
-	unreadableSub := filepath.Join(unreadableRoot, "locked")
-	if mkErr := os.MkdirAll(unreadableSub, 0o000); mkErr != nil {
-		t.Fatalf("MkdirAll(locked) error: %v", mkErr)
+	notADirFile := filepath.Join(t.TempDir(), "not-a-dir")
+	if writeErr := os.WriteFile(notADirFile, []byte("x"), 0o600); writeErr != nil {
+		t.Fatalf("WriteFile(not-a-dir) error: %v", writeErr)
 	}
-	t.Cleanup(func() { _ = os.Chmod(unreadableSub, 0o755) })
-	if _, err := runASTStage(ctx, unreadableRoot, gotestutil.DiffResult{}, rule.SpeedSlow); err != nil {
-		t.Errorf("runASTStage(empty diff, unreadable root) unexpected error: %v", err)
+	invalidRoot := filepath.Join(notADirFile, "sub")
+	if _, err := runASTStage(ctx, invalidRoot, gotestutil.DiffResult{}, rule.SpeedSlow); err != nil {
+		t.Errorf("runASTStage(empty diff, invalid root) unexpected error: %v", err)
+	}
+	if _, err := runASTStage(ctx, invalidRoot, diffRes, rule.SpeedSlow); err == nil {
+		t.Errorf("runASTStage(non-empty diff, invalid root) error = nil, want ENOTDIR error")
 	}
 
 	var goFastErrBuf bytes.Buffer
