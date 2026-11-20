@@ -39,6 +39,8 @@ type Options struct {
 	DeletedGoFiles []string
 	// CloneCorpusFiles lists all production Go files included in cross-file clone indexing.
 	CloneCorpusFiles []string
+	// SkipCloneScan disables cross-file clone indexing and clone detection when true.
+	SkipCloneScan bool
 	// ReadTargetFile reads raw bytes for a target working-tree file.
 	ReadTargetFile TargetReader
 	// ReadBaseFile reads raw bytes for a base-revision file.
@@ -95,10 +97,14 @@ func Evaluate(opts Options) (*Result, error) {
 		return nil, err
 	}
 
+	var targetClones *CloneIndex
+	if !opts.SkipCloneScan {
+		targetClones = buildTargetCloneIndex(opts, prodFiles)
+	}
 	sess := &evalSession{
 		opts:         opts,
 		base:         baseSnap,
-		targetClones: buildTargetCloneIndex(opts, prodFiles),
+		targetClones: targetClones,
 		res: &Result{
 			Files:               make(map[string]*FileMetrics),
 			TouchedFuncs:        make(map[string][]FuncMetrics),
@@ -150,7 +156,10 @@ func (s *evalSession) evaluateProdFile(relPath string) error {
 	s.checkFileSize(fm, rule.RuleFileCodeLines)
 
 	targetHashes := ExtractFuncTokenHashes(relPath, src)
-	cloneByFunc := indexCloneBlocksByKey(ExtractCloneBlocks(relPath, src))
+	var cloneByFunc map[string]FuncCloneBlock
+	if !s.opts.SkipCloneScan {
+		cloneByFunc = indexCloneBlocksByKey(ExtractCloneBlocks(relPath, src))
+	}
 	for _, fn := range fm.Funcs {
 		if !OverlapsLines(fn.StartLine, fn.EndLine, changed) {
 			continue
@@ -351,7 +360,7 @@ func (s *evalSession) buildProdFuncChecks(fn FuncMetrics, baseFn FuncMetrics, ha
 }
 
 func (s *evalSession) evaluateFuncClone(fm *FileMetrics, fn FuncMetrics, cloneBlk FuncCloneBlock) {
-	if len(cloneBlk.Stmts) == 0 {
+	if s.targetClones == nil {
 		return
 	}
 	match, found := s.targetClones.FindMaxClone(cloneBlk)

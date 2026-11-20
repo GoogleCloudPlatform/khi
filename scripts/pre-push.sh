@@ -124,114 +124,33 @@ main() {
     return
   fi
 
-  local has_md="false"
-  local has_misc="false"
   local has_proto="false"
-  local has_go="false"
-  local has_web="false"
-
   local path
   while IFS= read -r path; do
-    [[ -z "${path}" ]] && continue
-
-    case "${path}" in
-      *.md|.markdownlint-cli2.yaml)
-        has_md="true"
-        ;;
-    esac
-
-    case "${path}" in
-      .cloudbuild/*|.github/*|.vscode/*)
-        has_misc="true"
-        ;;
-    esac
-
     case "${path}" in
       proto/*|buf.yaml|buf.gen.yaml)
         has_proto="true"
-        has_go="true"
-        has_web="true"
-        ;;
-    esac
-
-    case "${path}" in
-      web/*)
-        has_web="true"
-        ;;
-      go.mod|go.sum|.golangci.yaml|scripts/backend-codegen/*|scripts/codequality/*|scripts/gotestutil/*|*.go)
-        has_go="true"
-        ;;
-    esac
-
-    case "${path}" in
-      .node-version|scripts/frontend-codegen/*|scripts/fontlist-gen/*|scripts/msdf-generator/*|scripts/generate-angular-json.sh|scripts/generate-version.sh)
-        has_web="true"
+        break
         ;;
     esac
   done <<< "${changed_files}"
 
-  local -a cq_scope_args=("CODEQUALITY_VCS=${vcs}" "CODEQUALITY_BASE=${base_rev}")
+  local -a qa_args=("BASE=${base_rev}")
   if [[ -n "${target_rev}" ]]; then
-    cq_scope_args+=("CODEQUALITY_TARGET=${target_rev}")
+    qa_args+=("TARGET=${target_rev}")
   fi
 
   echo "=================================================================="
   echo "KHI Pre-Push CI-Parity Gate (VCS: ${vcs}, Base: ${base_rev}${target_rev:+, Target: ${target_rev}})"
-  echo "Scopes -> go:${has_go} web:${has_web} proto:${has_proto} md:${has_md} misc:${has_misc}"
   echo "=================================================================="
 
-  # Phase 1: Fast static, format, and lint checks.
-  run_step "${MAKE_BIN}" check-licenses
-
-  if [[ "${has_md}" == "true" ]]; then
-    run_step "${MAKE_BIN}" lint-md
-  fi
-
-  if [[ "${has_misc}" == "true" ]]; then
-    run_step "${MAKE_BIN}" check-format-misc
-  fi
-
   if [[ "${has_proto}" == "true" ]]; then
-    run_step "${MAKE_BIN}" lint-proto
     run_step "${MAKE_BIN}" build-proto
   fi
 
-  if [[ "${has_go}" == "true" ]]; then
-    run_step "${MAKE_BIN}" lint-go
-    run_step "${MAKE_BIN}" codequality-fast "${cq_scope_args[@]}"
-  fi
-
-  if [[ "${has_web}" == "true" ]]; then
-    run_step "${MAKE_BIN}" check-format-web
-    run_step "${MAKE_BIN}" lint-web
-  fi
-
-  # Phase 2: Build and unit test parity.
-  if [[ "${has_web}" == "true" ]]; then
-    run_step "${MAKE_BIN}" build-web
-    run_step "${MAKE_BIN}" build-web-dev
-    run_step "${MAKE_BIN}" build-storybook
-    run_step "${MAKE_BIN}" test-web
-  fi
-
-  if [[ "${has_go}" == "true" ]]; then
-    KHI_SKIP_CLOUD_LOGGING="${KHI_SKIP_CLOUD_LOGGING:-true}" run_step "${MAKE_BIN}" test-go
-    run_step "${MAKE_BIN}" build-go-binaries
-  fi
-
-  # Phase 3: Cloud Build differential codequality parity (unlimited mutants).
-  local -a cq_args=(
-    "CODEQUALITY_MAX=${CQ_MAX}"
-    "CODEQUALITY_TIMEOUT=${CQ_TIMEOUT}"
-    "${cq_scope_args[@]}"
-  )
-  if [[ "${has_go}" == "true" && "${has_web}" == "true" ]]; then
-    run_step "${MAKE_BIN}" codequality "${cq_args[@]}"
-  elif [[ "${has_go}" == "true" ]]; then
-    run_step "${MAKE_BIN}" codequality-go "${cq_args[@]}"
-  elif [[ "${has_web}" == "true" ]]; then
-    run_step "${MAKE_BIN}" codequality-web "${cq_args[@]}"
-  fi
+  export CODEQUALITY_MAX="${CQ_MAX}"
+  export CODEQUALITY_TIMEOUT="${CQ_TIMEOUT}"
+  run_step "${MAKE_BIN}" qa-all-must "${qa_args[@]}"
 }
 
 main "$@"

@@ -25,7 +25,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 )
 
 type hookScriptCase struct {
@@ -72,7 +72,7 @@ func TestHookScripts(t *testing.T) {
 			presentFiles: []string{".agents/skills/pr_quality_ci/SKILL.md"},
 			wantCalls: []string{
 				"format-md",
-				"lint-md",
+				"qa-fast-must",
 			},
 		},
 		{
@@ -90,8 +90,22 @@ func TestHookScripts(t *testing.T) {
 			wantCalls: []string{
 				"add-licenses",
 				"format-go LINT_PKGS=./pkg/api,./pkg/common",
-				"lint-go LINT_PKGS=./pkg/api,./pkg/common",
-				"codequality-fast",
+				"qa-fast-must",
+			},
+		},
+		{
+			name:         "pre-commit runs proto format and build-proto before qa-fast-must when proto changes",
+			scriptName:   "pre-commit.sh",
+			vcs:          "jj",
+			diffLines:    []string{"proto/khifile/v6/khifile.proto"},
+			presentFiles: []string{"proto/khifile/v6/khifile.proto"},
+			wantCalls: []string{
+				"add-licenses",
+				"format-proto",
+				"build-proto",
+				"format-go LINT_PKGS=./...",
+				"format-web",
+				"qa-fast-must",
 			},
 		},
 		{
@@ -100,12 +114,7 @@ func TestHookScripts(t *testing.T) {
 			vcs:        "jj",
 			diffLines:  []string{"pkg/api/handler.go"},
 			wantCalls: []string{
-				"check-licenses",
-				"lint-go",
-				"codequality-fast CODEQUALITY_VCS=jj CODEQUALITY_BASE=trunk() CODEQUALITY_TARGET=@",
-				"test-go",
-				"build-go-binaries",
-				"codequality-go CODEQUALITY_MAX=0 CODEQUALITY_TIMEOUT=10m CODEQUALITY_VCS=jj CODEQUALITY_BASE=trunk() CODEQUALITY_TARGET=@",
+				"qa-all-must BASE=trunk() TARGET=@",
 			},
 		},
 		{
@@ -118,37 +127,17 @@ func TestHookScripts(t *testing.T) {
 				"web/src/app/view.component.ts",
 			},
 			wantCalls: []string{
-				"check-licenses",
-				"lint-md",
-				"check-format-web",
-				"lint-web",
-				"build-web",
-				"build-web-dev",
-				"build-storybook",
-				"test-web",
-				"codequality-web CODEQUALITY_MAX=0 CODEQUALITY_TIMEOUT=10m CODEQUALITY_VCS=jj CODEQUALITY_BASE=push-parentbookmark CODEQUALITY_TARGET=@",
+				"qa-all-must BASE=push-parentbookmark TARGET=@",
 			},
 		},
 		{
-			name:       "pre-push runs proto, Go, and Web gates when proto changes",
+			name:       "pre-push runs build-proto and qa-all-must when proto changes",
 			scriptName: "pre-push.sh",
 			vcs:        "jj",
 			diffLines:  []string{"proto/khifile/v6/khifile.proto"},
 			wantCalls: []string{
-				"check-licenses",
-				"lint-proto",
 				"build-proto",
-				"lint-go",
-				"codequality-fast CODEQUALITY_VCS=jj CODEQUALITY_BASE=trunk() CODEQUALITY_TARGET=@",
-				"check-format-web",
-				"lint-web",
-				"build-web",
-				"build-web-dev",
-				"build-storybook",
-				"test-web",
-				"test-go",
-				"build-go-binaries",
-				"codequality CODEQUALITY_MAX=0 CODEQUALITY_TIMEOUT=10m CODEQUALITY_VCS=jj CODEQUALITY_BASE=trunk() CODEQUALITY_TARGET=@",
+				"qa-all-must BASE=trunk() TARGET=@",
 			},
 		},
 	}

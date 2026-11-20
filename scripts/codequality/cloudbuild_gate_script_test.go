@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 )
 
 type fakeCheckRun struct {

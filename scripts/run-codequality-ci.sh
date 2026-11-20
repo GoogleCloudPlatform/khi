@@ -155,7 +155,10 @@ main() {
 
   prepare_workspace_artifacts "${merge_base}"
 
-  local -a similarity_args=("--similarity=${CODEQUALITY_SIMILARITY}")
+  local -a similarity_args=()
+  if [[ "${CODEQUALITY_SIMILARITY}" == "true" ]]; then
+    similarity_args+=("--similarity")
+  fi
   if [[ -n "${CODEQUALITY_SIMILARITY_PROJECT}" ]]; then
     similarity_args+=("--similarity-project=${CODEQUALITY_SIMILARITY_PROJECT}")
   fi
@@ -167,14 +170,16 @@ main() {
   local build_url
   build_url="$(build_cloud_build_log_url)"
 
-  KHI_SKIP_CLOUD_LOGGING=true go run ./scripts/codequality \
+  KHI_SKIP_CLOUD_LOGGING=true go run ./scripts/codequality check \
+    --speed=all \
+    --filter=all \
     --lang=all \
     --vcs=git \
     --base="origin/${BASE_BRANCH}" \
     --workers="${CODEQUALITY_WORKERS}" \
     --max-mutants="${CODEQUALITY_MAX}" \
     --timeout="${CODEQUALITY_TIMEOUT}" \
-    "${similarity_args[@]}" \
+    ${similarity_args[@]+"${similarity_args[@]}"} \
     --comment-envelope="${emit_envelope}" \
     --commit-sha="${COMMIT_SHA:-${head_sha}}" \
     --build-url="${build_url}" \

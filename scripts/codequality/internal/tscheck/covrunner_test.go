@@ -26,7 +26,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 )
 
 func TestRunTSTestCoverage(t *testing.T) {

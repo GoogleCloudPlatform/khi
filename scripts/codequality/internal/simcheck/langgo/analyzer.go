@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 var _ simcheck.LanguageAnalyzer = (*Analyzer)(nil)

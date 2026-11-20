@@ -27,8 +27,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/simcheck"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 //go:embed extract_ts.js

@@ -23,11 +23,9 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/decisioncheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
-
-const defaultDecisionMaxTargets = 20
 
 type deciderFactory func(ctx context.Context, opts decisioncheck.DeciderOptions) (decisioncheck.Decider, string, error)
 
@@ -37,12 +35,21 @@ type resolvedDecider struct {
 }
 
 type decisionsSession struct {
-	enabled bool
-	flags   cliFlags
-	getenv  func(string) string
-	resolve func() (resolvedDecider, error)
-	mu      sync.Mutex
-	cache   *decisioncheck.DecisionCache
+	enabled           bool
+	explicitlySkipped bool
+	flags             cliFlags
+	getenv            func(string) string
+	resolve           func() (resolvedDecider, error)
+	mu                sync.Mutex
+	cache             *decisioncheck.DecisionCache
+}
+
+type decisionEvalInput struct {
+	repoRoot    string
+	trustedRoot string
+	diffRes     gotestutil.DiffResult
+	specs       []decisioncheck.RuleSpec
+	cache       *decisioncheck.DecisionCache
 }
 
 func parseTrimmedEnv(getenv func(string) string, key string) string {
@@ -57,10 +64,6 @@ func parseBoolEnv(getenv func(string) string, key string) bool {
 	return normalized == "true" || normalized == "1"
 }
 
-func parseDecisionsEnv(getenv func(string) string) bool {
-	return parseBoolEnv(getenv, "CODEQUALITY_DECISIONS")
-}
-
 func parseDecisionsProjectEnv(getenv func(string) string) string {
 	return parseTrimmedEnv(getenv, "CODEQUALITY_DECISIONS_PROJECT")
 }
@@ -70,10 +73,15 @@ func parseDecisionsFailEnv(getenv func(string) string) bool {
 }
 
 func newDecisionsSession(ctx context.Context, flags cliFlags, factory deciderFactory, getenv func(string) string) *decisionsSession {
+	speed, _ := rule.ParseSpeed(flags.speed)
+	filter, _ := rule.ParseFilter(flags.filter)
+	skipSources := parseCSVSet(flags.skipSources)
+	_, explicitlySkipped := skipSources["decisions"]
 	session := &decisionsSession{
-		enabled: flags.decisions || flags.decisionsOnly,
-		flags:   flags,
-		getenv:  getenv,
+		enabled:           flags.decisions && speed.IncludesFast() && filter.IncludesAdvisory(),
+		explicitlySkipped: explicitlySkipped,
+		flags:             flags,
+		getenv:            getenv,
 	}
 	session.resolve = sync.OnceValues(func() (resolvedDecider, error) {
 		if factory == nil {
@@ -101,6 +109,9 @@ func (s *decisionsSession) evaluate(ctx context.Context, repoRoot string, diffRe
 	if s == nil || !s.enabled {
 		return nil, nil
 	}
+	if s.explicitlySkipped {
+		return skippedDecisionsReport(diffRes.BaseLabel, "explicitly skipped via --skip-sources"), nil
+	}
 	if !s.flags.full && len(diffRes.ChangedFiles) == 0 && len(diffRes.DeletedFiles) == 0 {
 		return nil, nil
 	}
@@ -120,28 +131,13 @@ func (s *decisionsSession) evaluate(ctx context.Context, repoRoot string, diffRe
 	if err != nil {
 		return nil, err
 	}
-	sum, err := decisioncheck.Evaluate(ctx, decisioncheck.Options{
-		Rules:         specs,
-		RuleFilter:    parseCSVSet(s.flags.decisionsRules),
-		ForceBlocking: s.flags.decisionsFailOnViolations,
-		TargetOpts: decisioncheck.ResolveOptions{
-			RepoRoot:     repoRoot,
-			TrustedRoot:  trustedRoot,
-			Full:         s.flags.full,
-			MaxTargets:   s.flags.decisionsMaxTargets,
-			ChangedFiles: diffRes.ChangedFiles,
-			DeletedFiles: diffRes.DeletedFiles,
-			ChangedLines: mergeChangedLines(diffRes.ChangedLines, diffRes.ChangedTestLines, diffRes.TSChangedLines, diffRes.TSChangedTestLines),
-			ReadDiff: func(relPaths []string) (string, error) {
-				return collectPathsUnifiedDiff(ctx, repoRoot, diffRes, relPaths)
-			},
-		},
-		Cache: cache,
-		ResolveDecider: func(context.Context) (decisioncheck.Decider, string, error) {
-			resolved, resolveErr := s.resolve()
-			return resolved.decider, resolved.skipReason, resolveErr
-		},
-	})
+	sum, err := decisioncheck.Evaluate(ctx, s.buildDecisionOptions(ctx, decisionEvalInput{
+		repoRoot:    repoRoot,
+		trustedRoot: trustedRoot,
+		diffRes:     diffRes,
+		specs:       specs,
+		cache:       cache,
+	}))
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +149,44 @@ func (s *decisionsSession) evaluate(ctx context.Context, repoRoot string, diffRe
 		BaseLabel: diffRes.BaseLabel,
 		Decisions: sum,
 	}, nil
+}
+
+func skippedDecisionsReport(baseLabel string, reason string) *rule.Report {
+	return &rule.Report{
+		Language:  "Decisions",
+		BaseLabel: baseLabel,
+		Decisions: rule.DecisionSummary{
+			Enabled:    true,
+			Skipped:    true,
+			SkipReason: reason,
+		},
+	}
+}
+
+func (s *decisionsSession) buildDecisionOptions(ctx context.Context, in decisionEvalInput) decisioncheck.Options {
+	return decisioncheck.Options{
+		Rules:         in.specs,
+		RuleFilter:    parseCSVSet(s.flags.decisionsRules),
+		ForceBlocking: s.flags.decisionsFailOnViolations,
+		Workers:       s.flags.workers,
+		TargetOpts: decisioncheck.ResolveOptions{
+			RepoRoot:     in.repoRoot,
+			TrustedRoot:  in.trustedRoot,
+			Full:         s.flags.full,
+			MaxTargets:   s.flags.decisionsMaxTargets,
+			ChangedFiles: in.diffRes.ChangedFiles,
+			DeletedFiles: in.diffRes.DeletedFiles,
+			ChangedLines: mergeChangedLines(in.diffRes.ChangedLines, in.diffRes.ChangedTestLines, in.diffRes.TSChangedLines, in.diffRes.TSChangedTestLines),
+			ReadDiff: func(relPaths []string) (string, error) {
+				return collectPathsUnifiedDiff(ctx, in.repoRoot, in.diffRes, relPaths)
+			},
+		},
+		Cache: in.cache,
+		ResolveDecider: func(context.Context) (decisioncheck.Decider, string, error) {
+			resolved, resolveErr := s.resolve()
+			return resolved.decider, resolved.skipReason, resolveErr
+		},
+	}
 }
 
 func (s *decisionsSession) ensureCache(ctx context.Context) (*decisioncheck.DecisionCache, error) {
@@ -183,14 +217,13 @@ func resolveTrustedRoot(repoRoot string, trustedFlag string) (string, error) {
 }
 
 func parseCSVSet(raw string) map[string]struct{} {
-	if strings.TrimSpace(raw) == "" {
+	items := parseCSVList(raw)
+	if len(items) == 0 {
 		return nil
 	}
-	out := make(map[string]struct{})
-	for part := range strings.SplitSeq(raw, ",") {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			out[trimmed] = struct{}{}
-		}
+	out := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		out[item] = struct{}{}
 	}
 	return out
 }

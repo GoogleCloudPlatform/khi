@@ -27,8 +27,8 @@ import (
 	"unicode"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 var outcomeDurationRe = regexp.MustCompile(`\s+\([^)]*\)$`)

@@ -19,26 +19,28 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/report"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
-	"github.com/GoogleCloudPlatform/khi/scripts/gotestutil"
 )
 
 type emitRequest struct {
 	flags     cliFlags
 	baseLabel string
 	reports   []*rule.Report
+	qaReport  *rule.QAReport
 	colorMode gotestutil.ColorMode
 	env       cliEnv
 }
 
 func emitOutputs(_ context.Context, req emitRequest) error {
-	if req.flags.format == "github" {
-		for _, rep := range req.reports {
-			report.RenderGitHubAnnotations(req.env.stdout, rep, req.flags.maxAnnotations)
-		}
+	if req.flags.format == "json" {
+		return report.RenderQAJSON(req.env.stdout, req.qaReport)
+	}
+	if req.flags.subcommand == subcmdQA {
+		emitQAOutputs(req)
 	} else {
-		emitTextOutputs(req)
+		emitCheckOutputs(req)
 	}
 	if req.flags.commentEnvelope {
 		body := report.FormatPRCommentBody(req.baseLabel, req.reports, report.PRCommentMeta{
@@ -48,7 +50,7 @@ func emitOutputs(_ context.Context, req emitRequest) error {
 		report.WriteCommentEnvelope(req.env.stdout, body)
 	}
 	if req.flags.summaryFile != "" {
-		if req.flags.decisionsOnly && len(req.reports) == 0 {
+		if req.flags.filter == string(rule.FilterAdvisory) && len(req.reports) == 0 {
 			return nil
 		}
 		return writeSummaryFile(req.flags.summaryFile, req.baseLabel, req.reports)
@@ -56,23 +58,30 @@ func emitOutputs(_ context.Context, req emitRequest) error {
 	return nil
 }
 
-func hasAnyBlockingReport(flags cliFlags, reports []*rule.Report) bool {
-	if !flags.failOnViolations {
-		return false
+func emitQAOutputs(req emitRequest) {
+	if req.flags.format == "github" {
+		report.RenderQAGitHub(req.env.stdout, req.qaReport)
+		return
 	}
-	for _, rep := range reports {
-		if rep.HasBlockingIssues() {
-			return true
+	style := gotestutil.TermStyle{Enabled: gotestutil.ResolveColorEnabled(req.colorMode, req.env.stdout, req.env.getenv)}
+	report.RenderQAText(req.env.stdout, req.qaReport, style)
+}
+
+func emitCheckOutputs(req emitRequest) {
+	if req.flags.format == "github" {
+		for _, rep := range req.reports {
+			report.RenderGitHubAnnotations(req.env.stdout, rep, req.flags.maxAnnotations)
 		}
+		return
 	}
-	return false
+	emitTextOutputs(req)
 }
 
 func emitTextOutputs(req emitRequest) {
 	style := gotestutil.TermStyle{Enabled: gotestutil.ResolveColorEnabled(req.colorMode, req.env.stdout, req.env.getenv)}
 	if len(req.reports) == 0 {
 		msg := fmt.Sprintf("Code Quality Report (base: %s): no Go or TypeScript files changed.", req.baseLabel)
-		if req.flags.decisionsOnly {
+		if req.flags.filter == string(rule.FilterAdvisory) {
 			msg = fmt.Sprintf("Decision Rules Report (base: %s): no matching targets changed.", req.baseLabel)
 		}
 		fmt.Fprintf(req.env.stdout, "%s\n", style.Dim(msg))
