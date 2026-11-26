@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/advisorycheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/qarunner"
@@ -42,6 +43,10 @@ func evaluateQASubcommand(ctx context.Context, req checkStagesRequest) ([]*rule.
 		SkipSources:        parseCSVSet(req.flags.skipSources),
 		UseContainer:       req.flags.useContainer,
 		UnusedExportsCheck: evaluateUnusedExportsForQA,
+		AdvisoryProviders:  []rule.AdvisoryProvider{advisorycheck.NewProvider()},
+		ReadBaseFile: func(relPath string) ([]byte, bool, error) {
+			return gotestutil.ReadBaseFile(ctx, req.repoRoot, req.diffRes, relPath)
+		},
 		CodequalityCheck: func(ctx context.Context, phaseSpeed rule.Speed, _ rule.Filter) (*rule.QAReport, error) {
 			phaseReq := req
 			phaseReq.speed = phaseSpeed

@@ -162,6 +162,58 @@ func TestDomainScopeAndHelpers(t *testing.T) {
 	})
 }
 
+// TestRunAdvisoryProviderReadBaseFileAndSkipSources verifies ReadBaseFile wiring and SkipSources handling in runAdvisoryProviders.
+func TestRunAdvisoryProviderReadBaseFileAndSkipSources(t *testing.T) {
+	// Custom ReadBaseFile is forwarded and SkipSources omits matching advisory provider.
+	t.Run("custom ReadBaseFile and skipSources", func(t *testing.T) {
+		cfg, _, _ := newTestSetup(t, []string{"pkg/common/collection.go"}, nil)
+		cfg.Filter = rule.FilterAdvisory
+		cfg.ReadBaseFile = func(relPath string) ([]byte, bool, error) {
+			return []byte("base:" + relPath), true, nil
+		}
+		active := &mockAdvisoryProvider{name: "active-adv", speed: rule.SpeedFast}
+		skipped := &mockAdvisoryProvider{name: "skipped-adv", speed: rule.SpeedFast}
+		cfg.SkipSources = map[string]struct{}{"skipped-adv": {}}
+		cfg.AdvisoryProviders = []rule.AdvisoryProvider{active, skipped}
+
+		rep, err := Run(context.Background(), cfg)
+		if err != nil {
+			t.Fatalf("Run() unexpected error: %v", err)
+		}
+		reqs := active.snapshotRequests()
+		if len(reqs) != 1 || reqs[0].ReadBaseFile == nil {
+			t.Fatalf("active provider requests = %+v, want 1 request with ReadBaseFile", reqs)
+		}
+		gotBytes, ok, readErr := reqs[0].ReadBaseFile("a.go")
+		if readErr != nil || !ok || string(gotBytes) != "base:a.go" {
+			t.Errorf("ReadBaseFile() = (%q, %v, %v), want (base:a.go, true, nil)", string(gotBytes), ok, readErr)
+		}
+		if len(skipped.snapshotRequests()) != 0 {
+			t.Errorf("skipped provider was unexpectedly invoked")
+		}
+		if len(rep.SkippedSources) != 1 || rep.SkippedSources[0].Source != "skipped-adv" {
+			t.Errorf("SkippedSources = %+v, want skipped-adv", rep.SkippedSources)
+		}
+	})
+
+	// Non-empty ResolvedBaseRev wires default gotestutil.ReadBaseFile fallback cleanly.
+	t.Run("resolved base rev populates default ReadBaseFile", func(t *testing.T) {
+		cfg, _, _ := newTestSetup(t, []string{"pkg/common/collection.go"}, nil)
+		cfg.Filter = rule.FilterAdvisory
+		cfg.Diff.ResolvedBaseRev = "HEAD~1"
+		provider := &mockAdvisoryProvider{name: "diff-adv", speed: rule.SpeedFast}
+		cfg.AdvisoryProviders = []rule.AdvisoryProvider{provider}
+
+		if _, err := Run(context.Background(), cfg); err != nil {
+			t.Fatalf("Run() unexpected error: %v", err)
+		}
+		reqs := provider.snapshotRequests()
+		if len(reqs) != 1 || reqs[0].ReadBaseFile == nil {
+			t.Fatalf("provider requests = %+v, want 1 request with non-nil ReadBaseFile", reqs)
+		}
+	})
+}
+
 func assertMixedDomainScope(t *testing.T) {
 	t.Helper()
 	repoRoot := materializeRepoFiles(t, []string{
