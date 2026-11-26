@@ -77,4 +77,21 @@ export default defineConfig([
     extends: compat.extends("plugin:@angular-eslint/template/recommended"),
     rules: {},
   },
+  {
+    files: ["**/*.spec.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "fit",
+          message: "Do not commit focused Jasmine specs (fit); use it instead.",
+        },
+        {
+          name: "fdescribe",
+          message:
+            "Do not commit focused Jasmine suites (fdescribe); use describe instead.",
+        },
+      ],
+    },
+  },
 ]);

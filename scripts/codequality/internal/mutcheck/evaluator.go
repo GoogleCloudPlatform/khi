@@ -25,7 +25,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/overlay"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/redundancy"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
@@ -48,8 +47,6 @@ type Options struct {
 	HasCoverProfile bool
 	// ASTResult holds Stage-1 AST analysis results shared with Stage-2 checks.
 	ASTResult *astcheck.Result
-	// EnsureBaseOverlay lazily materializes the base-revision overlay workspace.
-	EnsureBaseOverlay func() (*overlay.Snapshot, error)
 	// Workers specifies the parallel mutant execution worker count.
 	Workers int
 	// MaxMutants caps the total number of evaluated mutants across packages.
@@ -94,7 +91,7 @@ type pkgRunBundle struct {
 	tracker *pkgRedundancyTracker
 }
 
-// Evaluate runs differential Super-Mutant evaluation, test_redundancy analysis, and lazy base ratchets.
+// Evaluate runs differential Super-Mutant evaluation and test_redundancy analysis.
 func Evaluate(ctx context.Context, opts Options) (*Result, error) {
 	if opts.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -148,9 +145,7 @@ func Evaluate(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	accumulateSummary(&res.Summary, allPlans)
-	if err := collectSurvivingMutantFindings(ctx, opts, allPlans, workers, res); err != nil {
-		return nil, err
-	}
+	collectSurvivingMutantFindings(opts, allPlans, res)
 	collectRedundancyFindings(opts, trackers, res)
 	return res, nil
 }
@@ -356,6 +351,6 @@ func collectRedundancyFindings(opts Options, trackers []*pkgRedundancyTracker, r
 			MutantRuns:           tr.mutantRuns,
 			BudgetSkippedMutants: collectBudgetSkippedMutantIDs(tr.pkgPlans),
 		})
-		res.Findings = append(res.Findings, redundancy.BuildFindings(groups, limit, nil)...)
+		res.Findings = append(res.Findings, redundancy.BuildFindings(groups, limit)...)
 	}
 }

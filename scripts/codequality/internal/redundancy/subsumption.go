@@ -60,7 +60,6 @@ type leafDescriptor struct {
 	line        int
 	isCandidate bool
 	onlyErrNil  bool
-	orderIdx    int
 	polarity    map[string]struct{}
 	ranMutants  map[int]struct{}
 	kills       map[int]struct{}
@@ -109,33 +108,22 @@ func Analyze(in AnalyzeInput) []FuncRedundancy {
 }
 
 // BuildFindings converts grouped FuncRedundancy items into unified test_redundancy rule Findings.
-func BuildFindings(groups []FuncRedundancy, limit int, beforeByFuncKey map[string]int) []rule.Finding {
+func BuildFindings(groups []FuncRedundancy, limit int) []rule.Finding {
 	var findings []rule.Finding
 	for _, grp := range groups {
 		after := len(grp.Details)
-		key := grp.File + "|" + grp.FuncName
-		before, hasBefore := beforeByFuncKey[key]
-		sample := rule.Sample{
-			After:     after,
-			Limit:     limit,
-			Before:    before,
-			HasBefore: hasBefore,
-		}
-		kind := rule.ClassifyRatchet(sample)
-		if kind == rule.ViolationNone {
+		if after <= limit {
 			continue
 		}
 		findings = append(findings, rule.Finding{
 			Rule:           rule.RuleTestRedundancy,
-			Kind:           kind,
+			Kind:           rule.ViolationAdvisory,
 			File:           grp.File,
 			Line:           grp.Details[0].Line,
 			EndLine:        grp.EndLine,
 			Subject:        grp.FuncName,
-			Before:         sample.Before,
-			HasBefore:      sample.HasBefore,
-			After:          sample.After,
-			Limit:          sample.Limit,
+			After:          after,
+			Limit:          limit,
 			Detail:         fmt.Sprintf("%d redundant subtest(s) subsumed by stronger tests", after),
 			RedundantTests: grp.Details,
 		})
@@ -153,14 +141,14 @@ func indexFuncsByName(funcs []ChangedTestFunc) map[string]ChangedTestFunc {
 
 func buildLeafDescriptors(in AnalyzeInput, funcByName map[string]ChangedTestFunc) []leafDescriptor {
 	var leaves []leafDescriptor
-	for idx, leaf := range in.LeafOrder {
+	for _, leaf := range in.LeafOrder {
 		topFn, _ := SplitTopAndSubtest(leaf)
 		fnMeta, tracked := funcByName[topFn]
 		pol := in.PolarityByLeaf[leaf]
 		if !tracked || len(pol) == 0 {
 			continue
 		}
-		desc := newLeafDescriptor(idx, leaf, fnMeta, pol)
+		desc := newLeafDescriptor(leaf, fnMeta, pol)
 		populateMutantKills(&desc, in.MutantRuns)
 		leaves = append(leaves, desc)
 	}
@@ -168,7 +156,6 @@ func buildLeafDescriptors(in AnalyzeInput, funcByName map[string]ChangedTestFunc
 }
 
 func newLeafDescriptor(
-	idx int,
 	leaf string,
 	fnMeta ChangedTestFunc,
 	pol map[string]struct{},
@@ -181,7 +168,6 @@ func newLeafDescriptor(
 		line:        fnMeta.Line,
 		isCandidate: true,
 		onlyErrNil:  fnMeta.OnlyErrorNil,
-		orderIdx:    idx,
 		polarity:    pol,
 		ranMutants:  make(map[int]struct{}),
 		kills:       make(map[int]struct{}),
@@ -199,6 +185,9 @@ func newLeafDescriptor(
 
 func populateMutantKills(desc *leafDescriptor, mutantRuns map[int]VerboseTestResult) {
 	for mutID, runRes := range mutantRuns {
+		if runRes.Aborted {
+			continue
+		}
 		if _, ran := runRes.RanLeafSet[desc.name]; ran {
 			desc.ranMutants[mutID] = struct{}{}
 		}
@@ -248,13 +237,13 @@ func findDominatingDuplicate(cand *leafDescriptor, all []leafDescriptor) *leafDe
 	var best *leafDescriptor
 	for j := range all {
 		dom := &all[j]
-		if !maps.Equal(cand.polarity, dom.polarity) || !killsSubsumedOnSharedRuns(cand, dom) {
+		if dom.topFunc != cand.topFunc {
 			continue
 		}
-		if !dominatesInOrder(dom, cand) {
+		if len(dom.kills) <= len(cand.kills) || !maps.Equal(cand.polarity, dom.polarity) || !killsSubsumedOnSharedRuns(cand, dom) {
 			continue
 		}
-		if best == nil || dominatesInOrder(dom, best) {
+		if best == nil || beatsAsDominator(dom, best) {
 			best = dom
 		}
 	}
@@ -262,13 +251,16 @@ func findDominatingDuplicate(cand *leafDescriptor, all []leafDescriptor) *leafDe
 }
 
 func findDominatingCoveringTest(cand *leafDescriptor, all []leafDescriptor) *leafDescriptor {
+	var best *leafDescriptor
 	for j := range all {
 		dom := &all[j]
 		if len(dom.kills) > 0 && isStringSubset(cand.polarity, dom.polarity) {
-			return dom
+			if best == nil || beatsAsDominator(dom, best) {
+				best = dom
+			}
 		}
 	}
-	return nil
+	return best
 }
 
 func killsSubsumedOnSharedRuns(cand *leafDescriptor, dom *leafDescriptor) bool {
@@ -280,17 +272,18 @@ func killsSubsumedOnSharedRuns(cand *leafDescriptor, dom *leafDescriptor) bool {
 	return true
 }
 
-func dominatesInOrder(dom *leafDescriptor, cand *leafDescriptor) bool {
-	if len(dom.kills) > len(cand.kills) {
-		return true
+func beatsAsDominator(dom *leafDescriptor, best *leafDescriptor) bool {
+	if len(dom.kills) != len(best.kills) {
+		return len(dom.kills) > len(best.kills)
 	}
-	if len(dom.kills) < len(cand.kills) {
-		return false
-	}
-	if dom.isCandidate != cand.isCandidate {
+	if dom.isCandidate != best.isCandidate {
 		return !dom.isCandidate
 	}
-	return dom.orderIdx < cand.orderIdx
+	return cmp.Or(
+		cmp.Compare(dom.file, best.file),
+		cmp.Compare(dom.line, best.line),
+		cmp.Compare(dom.name, best.name),
+	) < 0
 }
 
 func isStringSubset(sub map[string]struct{}, sup map[string]struct{}) bool {

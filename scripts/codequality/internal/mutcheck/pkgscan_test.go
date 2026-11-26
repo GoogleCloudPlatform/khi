@@ -94,3 +94,12 @@ func TestPkgScanHelpers(t *testing.T) {
 		t.Errorf("expected mutant 4 in skipped set, got %v", skipped)
 	}
 }
+
+// lineRangeSet builds an inclusive 1-based line-number set for test fixtures.
+func lineRangeSet(endLine int) map[int]struct{} {
+	set := make(map[int]struct{}, endLine)
+	for ln := 1; ln <= endLine; ln++ {
+		set[ln] = struct{}{}
+	}
+	return set
+}

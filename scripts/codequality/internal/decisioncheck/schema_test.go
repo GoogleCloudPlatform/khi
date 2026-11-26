@@ -313,8 +313,8 @@ func TestBuiltinRulesDirectoryValidatesCleanly(t *testing.T) {
 
 	specs, err := LoadRulesDir(rulesDir)
 
-	assertLoadedRuleIDs(t, specs, err, []string{"go_code_quality", "go_test_quality", "ts_code_quality", "ts_test_quality"}, "")
-	if !specs[3].Context.IncludeCompanionTS {
+	assertLoadedRuleIDs(t, specs, err, []string{"go_code_quality", "go_refactor_safety", "go_test_quality", "ts_code_quality", "ts_test_quality"}, "")
+	if !specs[4].Context.IncludeCompanionTS {
 		t.Errorf("ts_test_quality.Context.IncludeCompanionTS = false, want true")
 	}
 }

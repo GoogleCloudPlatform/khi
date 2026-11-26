@@ -157,9 +157,9 @@ func TestAsyncTaskManager_ResetAndCancel(t *testing.T) {
 	mgr.Reset("slot-1")
 
 	// After reset, calling DoAsyncOrGet with new worker should run again
-	ranAgain := false
+	var ranAgain atomic.Bool
 	newResult := mgr.DoAsyncOrGet("slot-1", "input-1", func(ctx context.Context) (string, error) {
-		ranAgain = true
+		ranAgain.Store(true)
 		return "value-2", nil
 	})
 	if newResult.Status != StatusRunning {
@@ -167,7 +167,7 @@ func TestAsyncTaskManager_ResetAndCancel(t *testing.T) {
 	}
 
 	time.Sleep(20 * time.Millisecond)
-	if !ranAgain {
+	if !ranAgain.Load() {
 		t.Errorf("expected worker to run again after reset")
 	}
 }

@@ -160,6 +160,39 @@ func TestRenderText(t *testing.T) {
   pkg/a/a.go:40 (Handler) [func_params / protocol]: rpc contract
 `,
 		},
+		// Renders zero-blocking advisory verdict when only ViolationAdvisory findings are present on a non-advisory report.
+		{
+			name: "renders zero-blocking pass with advisory findings",
+			rep: &rule.Report{
+				Language:         "Go",
+				BaseLabel:        "main",
+				ProdFilesChanged: 1,
+				FuncsEvaluated:   1,
+				Findings: []rule.Finding{
+					{
+						Rule:    rule.RuleFuncUncoveredLines,
+						Kind:    rule.ViolationAdvisory,
+						File:    "pkg/a/a.go",
+						Line:    10,
+						Subject: "Guard",
+						After:   1,
+						Limit:   0,
+					},
+				},
+			},
+			want: `══ Go Quality Report (base: main) ══
+  Scope:      1 prod file(s), 0 test file(s), 1 unit(s) evaluated
+  Verdict:    PASS with ADVISORY (0 blocking, 1 advisory finding(s))
+
+── Quality Rule Violations (1) ──
+  #     RULE                  STATUS    VALUE (LIMIT)  TARGET
+  [Q1]  func_uncovered_lines  ADVISORY  1 (<= 0)       pkg/a/a.go:10 · Guard
+
+  [Q1] func_uncovered_lines — pkg/a/a.go:10 (Guard) [ADVISORY: 1 (<= 0)]
+      Why:    Substantive branches in touched functions were never executed by unit tests (boilerplate error guards are already excluded).
+      Fix:    Add focused table-driven test cases covering the unexecuted branch, or delete unreachable production code.
+`,
+		},
 	}
 
 	for _, tc := range testCases {

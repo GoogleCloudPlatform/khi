@@ -41,7 +41,7 @@ func Calc(a, b int, ok bool) bool {
 func check(x int) bool { return x > 0 }
 `
 	plan, err := PlanFileMutations("demo/demo.go", []byte(src), PlanOptions{
-		TargetLines: lineRangeSet(1, 25),
+		TargetLines: lineRangeSet(25),
 	})
 	if err != nil {
 		t.Fatalf("PlanFileMutations() error: %v", err)

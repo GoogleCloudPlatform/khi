@@ -127,6 +127,11 @@ func TestEvaluateEndToEndWithMockKarmaSession(t *testing.T) {
 		rule.RuleFuncSurvivingMutants,
 		rule.RuleFuncUncoveredLines,
 	})
+	for i, f := range rep.Findings {
+		if f.Kind != rule.ViolationAdvisory {
+			t.Errorf("Findings[%d].Kind = %q, want %q", i, f.Kind, rule.ViolationAdvisory)
+		}
+	}
 	if prog.phases != 3 {
 		t.Errorf("expected 3 progress phase callbacks, got %d", prog.phases)
 	}
@@ -391,7 +396,7 @@ func TestRecordTSBundleAndFileSortHelpers(t *testing.T) {
 		MutantRuns: map[string]redundancy.TSMutantSpecRun{
 			"1": {RanSpecIDs: []string{"s0", "s1"}, FailedSpecIDs: []string{"s0"}},
 		},
-	})
+	}, false)
 
 	wantMut := rule.MutationSummary{
 		Enabled:       true,
@@ -412,8 +417,15 @@ func TestRecordTSBundleAndFileSortHelpers(t *testing.T) {
 	if diff := cmp.Diff(fp.DirectiveErrors, rep.DirectiveErrors); diff != "" {
 		t.Errorf("DirectiveErrors mismatch (-want +got):\n%s", diff)
 	}
-	if len(rep.Findings) != 1 || len(rep.Findings[0].SurvivingMutants) != 1 || rep.Findings[0].SurvivingMutants[0].Line != 4 {
+	if len(rep.Findings) != 1 || rep.Findings[0].Kind != rule.ViolationAdvisory || len(rep.Findings[0].SurvivingMutants) != 1 || rep.Findings[0].SurvivingMutants[0].Line != 4 {
 		t.Errorf("unexpected surviving mutant findings: %+v", rep.Findings)
+	}
+
+	// Verify failOnViolations=true sets ViolationHardLimit on TS surviving mutant findings.
+	hardRep := &rule.Report{Mutation: rule.MutationSummary{Enabled: true, ByCategory: make(map[rule.AllowCategory]int)}}
+	recordTSBundleIntoReport(hardRep, bundle, nil, true)
+	if len(hardRep.Findings) != 1 || hardRep.Findings[0].Kind != rule.ViolationHardLimit {
+		t.Errorf("hardRep findings = %+v, want single ViolationHardLimit finding", hardRep.Findings)
 	}
 
 	assertFileFilterAndSortHelpers(t)
@@ -533,6 +545,7 @@ func writeFakeKarmaPluginResults(cfgPath string) error {
 			"spec1": {"1:F", "2:F", "3:S"},
 		},
 		MutantRuns: map[string]redundancy.TSMutantSpecRun{
+			"2": {RanSpecIDs: []string{"spec0", "spec1"}, FailedSpecIDs: []string{"spec0"}},
 			"3": {RanSpecIDs: []string{"spec0", "spec1"}, FailedSpecIDs: []string{"spec0", "spec1"}},
 		},
 	}

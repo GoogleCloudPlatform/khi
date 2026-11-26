@@ -15,6 +15,7 @@
 package decisioncheck
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -257,7 +258,7 @@ export function g3() {}`)},
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := ExtractChangedTSDecls("web/app", webDir, tc.files, tc.changedLines)
+			got, err := ExtractChangedTSDecls(context.Background(), "web/app", webDir, tc.files, tc.changedLines)
 
 			if err != nil {
 				t.Fatalf("ExtractChangedTSDecls() unexpected error: %v", err)
@@ -311,7 +312,7 @@ export function untouchedAction(): void {}
 		},
 	}
 
-	got, err := ExtractChangedTSFuncs("web/app", "", files, changedLines)
+	got, err := ExtractChangedTSFuncs(context.Background(), "web/app", "", files, changedLines)
 
 	if err != nil {
 		t.Fatalf("ExtractChangedTSFuncs() unexpected error: %v", err)
@@ -415,7 +416,7 @@ it('untouched three', () => {});
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := ExtractChangedTSSpecs(tc.targetID, webDir, tc.files, tc.changedLines)
+			got, err := ExtractChangedTSSpecs(context.Background(), tc.targetID, webDir, tc.files, tc.changedLines)
 
 			if err != nil {
 				t.Fatalf("ExtractChangedTSSpecs() unexpected error: %v", err)
@@ -430,7 +431,7 @@ it('untouched three', () => {});
 func TestExtractChangedTSShortCircuit(t *testing.T) {
 	testCases := []struct {
 		name         string
-		extract      func(string, string, []BundledFile, map[string]map[int]struct{}) ([]ExtractedItem, error)
+		extract      func(context.Context, string, string, []BundledFile, map[string]map[int]struct{}) ([]ExtractedItem, error)
 		files        []BundledFile
 		changedLines map[string]map[int]struct{}
 	}{
@@ -460,7 +461,7 @@ func TestExtractChangedTSShortCircuit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("PATH", t.TempDir())
 
-			got, err := tc.extract("web/app", "/nonexistent/web", tc.files, tc.changedLines)
+			got, err := tc.extract(context.Background(), "web/app", "/nonexistent/web", tc.files, tc.changedLines)
 
 			if err != nil {
 				t.Fatalf("extractor unexpected error: %v", err)
@@ -514,12 +515,29 @@ printf '{bad-json'
 			webDir := tc.setup(t)
 			files := []BundledFile{{RelPath: "web/src/app/a.ts", Content: []byte("export function f() {}")}}
 
-			_, err := ExtractChangedTSDecls("web/app", webDir, files, nil)
+			_, err := ExtractChangedTSDecls(context.Background(), "web/app", webDir, files, nil)
 
 			if err == nil || !strings.Contains(err.Error(), tc.wantErrSub) {
 				t.Fatalf("ExtractChangedTSDecls() error = %v, want substring %q", err, tc.wantErrSub)
 			}
 		})
+	}
+}
+
+// TestExtractChangedTSCanceledContext verifies that TypeScript AST extraction fails immediately when ctx is already canceled.
+func TestExtractChangedTSCanceledContext(t *testing.T) {
+	webDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(webDir, "package.json"), []byte(`{"name":"canceled"}`), 0o600); err != nil {
+		t.Fatalf("WriteFile(package.json) failed: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	files := []BundledFile{{RelPath: "web/src/app/a.ts", Content: []byte("export function f() {}")}}
+
+	_, err := ExtractChangedTSDecls(ctx, "web/app", webDir, files, nil)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ExtractChangedTSDecls(canceled) error = %v, want context.Canceled", err)
 	}
 }
 

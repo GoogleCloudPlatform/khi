@@ -103,3 +103,74 @@ func TestCoverageAndMutationSummaries(t *testing.T) {
 		})
 	}
 }
+
+// TestFindingIsAdvisoryAndBlockingCounts verifies Finding.IsAdvisory, Report.BlockingFindingCount, Report.AdvisoryFindingCount, and Report.HasBlockingIssues.
+func TestFindingIsAdvisoryAndBlockingCounts(t *testing.T) {
+	testCases := []struct {
+		name         string
+		rep          Report
+		wantBlocking int
+		wantAdvisory int
+		wantHasBlock bool
+		wantHasIssue bool
+	}{
+		// Report with only ViolationAdvisory findings has issues without blocking.
+		{
+			name: "advisory findings only do not block",
+			rep: Report{
+				Findings: []Finding{
+					{Rule: RuleFuncUncoveredLines, Kind: ViolationAdvisory},
+					{Rule: RuleFuncSurvivingMutants, Kind: ViolationAdvisory},
+				},
+			},
+			wantBlocking: 0,
+			wantAdvisory: 2,
+			wantHasBlock: false,
+			wantHasIssue: true,
+		},
+		// Mixed blocking and advisory findings count separately and block.
+		{
+			name: "mixed blocking and advisory findings",
+			rep: Report{
+				Findings: []Finding{
+					{Rule: RuleFuncCognitive, Kind: ViolationHardLimit},
+					{Rule: RuleFuncUncoveredLines, Kind: ViolationAdvisory},
+					{Rule: RuleFuncNesting, Kind: ViolationRatchetRegression},
+				},
+			},
+			wantBlocking: 2,
+			wantAdvisory: 1,
+			wantHasBlock: true,
+			wantHasIssue: true,
+		},
+		// Report marked Advisory never blocks even with blocking finding kinds or directive errors.
+		{
+			name: "report marked advisory suppresses blocking",
+			rep: Report{
+				Advisory: true,
+				Findings: []Finding{{Rule: RuleFuncCognitive, Kind: ViolationHardLimit}},
+			},
+			wantBlocking: 1,
+			wantAdvisory: 0,
+			wantHasBlock: false,
+			wantHasIssue: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.rep.BlockingFindingCount(); got != tc.wantBlocking {
+				t.Errorf("BlockingFindingCount() = %d, want %d", got, tc.wantBlocking)
+			}
+			if got := tc.rep.AdvisoryFindingCount(); got != tc.wantAdvisory {
+				t.Errorf("AdvisoryFindingCount() = %d, want %d", got, tc.wantAdvisory)
+			}
+			if got := tc.rep.HasBlockingIssues(); got != tc.wantHasBlock {
+				t.Errorf("HasBlockingIssues() = %v, want %v", got, tc.wantHasBlock)
+			}
+			if got := tc.rep.HasIssues(); got != tc.wantHasIssue {
+				t.Errorf("HasIssues() = %v, want %v", got, tc.wantHasIssue)
+			}
+		})
+	}
+}

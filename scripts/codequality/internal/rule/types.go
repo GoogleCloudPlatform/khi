@@ -34,8 +34,6 @@ const (
 	RuleFuncParams RuleID = "func_params"
 	// RuleFuncResults bounds return value count on a production function.
 	RuleFuncResults RuleID = "func_results"
-	// RuleControlFlagParam forbids boolean control-flow flag parameters on multi-parameter functions.
-	RuleControlFlagParam RuleID = "control_flag_param"
 	// RuleFileCodeLines bounds non-blank, non-comment, non-import code lines in a production Go file.
 	RuleFileCodeLines RuleID = "file_code_lines"
 	// RuleCatchAllFilename forbids low-cohesion catch-all filenames such as util.go or helpers.go.
@@ -48,6 +46,10 @@ const (
 	RuleTestHelperCognitive RuleID = "test_helper_cognitive"
 	// RuleTestFileCodeLines bounds non-blank, non-comment, non-import code lines in a *_test.go file.
 	RuleTestFileCodeLines RuleID = "test_file_code_lines"
+	// RuleMultilineStringEscape forbids non-format double-quoted string literals containing embedded middle newlines.
+	RuleMultilineStringEscape RuleID = "multiline_string_escape"
+	// RuleDeferUnlockBeforeLock forbids deferring Unlock or RUnlock before acquiring the corresponding Lock or RLock in the same block.
+	RuleDeferUnlockBeforeLock RuleID = "defer_unlock_before_lock"
 	// RuleFuncUncoveredLines bounds uncovered substantive executable lines in touched production functions.
 	RuleFuncUncoveredLines RuleID = "func_uncovered_lines"
 	// RuleFuncSurvivingMutants bounds surviving mutants in touched production functions.
@@ -173,15 +175,6 @@ var ruleSpecs = []RuleSpec{
 		Fix:               "Return a named result struct + error instead of positional tuples.",
 	},
 	{
-		ID:                RuleControlFlagParam,
-		Stage:             StageAST,
-		Label:             "Control-flow bool parameter",
-		DefaultLimit:      0,
-		AllowedCategories: []AllowCategory{CategoryProtocol},
-		Why:               "Boolean mode flags on multi-parameter functions couple two distinct behaviors inside one body.",
-		Fix:               "Split into two explicit functions or pass a typed strategy/options struct.",
-	},
-	{
 		ID:                RuleFileCodeLines,
 		Stage:             StageAST,
 		Label:             "Production file code lines",
@@ -212,7 +205,7 @@ var ruleSpecs = []RuleSpec{
 		ID:                RuleTRunCognitive,
 		Stage:             StageAST,
 		Label:             "Subtest t.Run complexity",
-		DefaultLimit:      8,
+		DefaultLimit:      11,
 		AllowedCategories: []AllowCategory{CategoryProtocol},
 		Why:               "Branching logic inside t.Run bodies re-implements production logic in tests and hides assertion bugs.",
 		Fix:               "Declare expected outputs as explicit literals in testCases and compare with a linear cmp.Diff(tc.want, got).",
@@ -234,6 +227,24 @@ var ruleSpecs = []RuleSpec{
 		AllowedCategories: []AllowCategory{CategoryDispatch, CategoryProtocol},
 		Why:               "Oversized test files obscure coverage gaps and slow maintenance.",
 		Fix:               "Split production responsibilities into smaller files with matching *_test.go files or trim redundant fixtures.",
+	},
+	{
+		ID:                RuleMultilineStringEscape,
+		Stage:             StageAST,
+		Label:             "Escaped multiline string literal",
+		DefaultLimit:      0,
+		AllowedCategories: nil,
+		Why:               "Embedding \\n escapes inside double-quoted multiline fixtures hides structure and hurts readability.",
+		Fix:               "Use a raw backquote string literal (`...`) preserving actual line breaks.",
+	},
+	{
+		ID:                RuleDeferUnlockBeforeLock,
+		Stage:             StageAST,
+		Label:             "defer Unlock before Lock",
+		DefaultLimit:      0,
+		AllowedCategories: nil,
+		Why:               "Deferring Unlock/RUnlock before Lock/RLock panics on early return and leaves a mutex unlocked if panic occurs before Lock.",
+		Fix:               "Acquire `Lock()`/`RLock()` first and immediately place `defer Unlock()`/`RUnlock()` on the next statement.",
 	},
 	{
 		ID:                RuleFuncUncoveredLines,
@@ -301,8 +312,6 @@ type RuleSpec struct {
 type Thresholds struct {
 	// Limits maps RuleIDs to configured upper bounds.
 	Limits map[RuleID]int
-	// MinParamsForFlagCheck is the minimum parameter count before checking for control-flow bool flags.
-	MinParamsForFlagCheck int
 }
 
 // AllRuleSpecs returns a copy of all registered quality RuleSpecs in canonical display order.
@@ -329,8 +338,7 @@ func DefaultThresholds() Thresholds {
 		limits[spec.ID] = spec.DefaultLimit
 	}
 	return Thresholds{
-		Limits:                limits,
-		MinParamsForFlagCheck: 3,
+		Limits: limits,
 	}
 }
 

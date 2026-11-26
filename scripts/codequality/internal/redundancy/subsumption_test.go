@@ -231,16 +231,6 @@ func TestAnalyzeAndBuildFindings(t *testing.T) {
 	calcSkippedDetails := []rule.RedundantDetail{
 		{
 			Kind:            rule.RedundantSamePath,
-			Line:            16,
-			TestName:        "TestCalc/mid_cand",
-			DominatedBy:     "TestCalc/strong_base",
-			DominatedByFile: "pkg/svc/svc_test.go",
-			DominatedByLine: 15,
-			CandidateKills:  2,
-			DominatorKills:  2,
-		},
-		{
-			Kind:            rule.RedundantSamePath,
 			Line:            20,
 			TestName:        "TestCalc/dup_same#01",
 			DominatedBy:     "TestCalc/strong_base",
@@ -281,29 +271,20 @@ func TestAnalyzeAndBuildFindings(t *testing.T) {
 			CandidateKills:  1,
 			DominatorKills:  2,
 		},
-		{
-			Kind:            rule.RedundantSamePath,
-			Line:            70,
-			TestName:        "TestLater/cand_strong_second",
-			DominatedBy:     "TestLater/cand_strong_first",
-			DominatedByFile: "pkg/svc/svc_test.go",
-			DominatedByLine: 65,
-			CandidateKills:  2,
-			DominatorKills:  2,
-		},
 	}
 
 	testCases := []struct {
 		name         string
 		skipped      map[int]struct{}
-		beforeMap    map[string]int
+		limit        int
 		wantGroups   []FuncRedundancy
 		wantFindings []rule.Finding
 	}{
+		// Flags subsumed candidates sorted by file and line while exempting skipped mutants.
 		{
-			name:      "flags subsumed candidates sorted by file and line while exempting skipped mutants",
-			skipped:   map[int]struct{}{99: {}},
-			beforeMap: nil,
+			name:    "flags subsumed candidates sorted by file and line while exempting skipped mutants",
+			skipped: map[int]struct{}{99: {}},
+			limit:   0,
 			wantGroups: []FuncRedundancy{
 				{File: "pkg/a/a_test.go", FuncName: "TestWhole", Line: 100, EndLine: 120, Details: wholeDetails},
 				{File: "pkg/svc/svc_test.go", FuncName: "TestCalc", Line: 10, EndLine: 55, Details: calcSkippedDetails},
@@ -312,7 +293,7 @@ func TestAnalyzeAndBuildFindings(t *testing.T) {
 			wantFindings: []rule.Finding{
 				{
 					Rule:           rule.RuleTestRedundancy,
-					Kind:           rule.ViolationHardLimit,
+					Kind:           rule.ViolationAdvisory,
 					File:           "pkg/a/a_test.go",
 					Line:           100,
 					EndLine:        120,
@@ -323,42 +304,52 @@ func TestAnalyzeAndBuildFindings(t *testing.T) {
 				},
 				{
 					Rule:           rule.RuleTestRedundancy,
-					Kind:           rule.ViolationHardLimit,
+					Kind:           rule.ViolationAdvisory,
 					File:           "pkg/svc/svc_test.go",
-					Line:           16,
+					Line:           20,
 					EndLine:        55,
 					Subject:        "TestCalc",
-					After:          3,
-					Detail:         "3 redundant subtest(s) subsumed by stronger tests",
+					After:          2,
+					Detail:         "2 redundant subtest(s) subsumed by stronger tests",
 					RedundantTests: calcSkippedDetails,
 				},
 				{
 					Rule:           rule.RuleTestRedundancy,
-					Kind:           rule.ViolationHardLimit,
+					Kind:           rule.ViolationAdvisory,
 					File:           "pkg/svc/svc_test.go",
 					Line:           62,
 					EndLine:        95,
 					Subject:        "TestLater",
-					After:          2,
-					Detail:         "2 redundant subtest(s) subsumed by stronger tests",
+					After:          1,
+					Detail:         "1 redundant subtest(s) subsumed by stronger tests",
 					RedundantTests: laterDetails,
 				},
 			},
 		},
+		// Suppresses groups at or below limit and evaluates all candidates when skipped map is nil.
 		{
-			name:    "ratchet suppresses unchanged counts and nil skipped map evaluates all candidates",
+			name:    "limit suppresses groups within threshold and nil skipped map evaluates all candidates",
 			skipped: nil,
-			beforeMap: map[string]int{
-				"pkg/a/a_test.go|TestWhole":     2,
-				"pkg/svc/svc_test.go|TestCalc":  4,
-				"pkg/svc/svc_test.go|TestLater": 2,
-			},
+			limit:   2,
 			wantGroups: []FuncRedundancy{
 				{File: "pkg/a/a_test.go", FuncName: "TestWhole", Line: 100, EndLine: 120, Details: wholeDetails},
 				{File: "pkg/svc/svc_test.go", FuncName: "TestCalc", Line: 10, EndLine: 55, Details: calcAllDetails},
 				{File: "pkg/svc/svc_test.go", FuncName: "TestLater", Line: 60, EndLine: 95, Details: laterDetails},
 			},
-			wantFindings: nil,
+			wantFindings: []rule.Finding{
+				{
+					Rule:           rule.RuleTestRedundancy,
+					Kind:           rule.ViolationAdvisory,
+					File:           "pkg/svc/svc_test.go",
+					Line:           20,
+					EndLine:        55,
+					Subject:        "TestCalc",
+					After:          3,
+					Limit:          2,
+					Detail:         "3 redundant subtest(s) subsumed by stronger tests",
+					RedundantTests: calcAllDetails,
+				},
+			},
 		},
 	}
 
@@ -374,10 +365,426 @@ func TestAnalyzeAndBuildFindings(t *testing.T) {
 			if diff := cmp.Diff(tc.wantGroups, groups); diff != "" {
 				t.Errorf("Analyze() mismatch (-want +got):\n%s", diff)
 			}
-			findings := BuildFindings(groups, 0, tc.beforeMap)
+			findings := BuildFindings(groups, tc.limit)
 			if diff := cmp.Diff(tc.wantFindings, findings); diff != "" {
 				t.Errorf("BuildFindings() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// TestAnalyzeDoesNotFlagSamePathAcrossDistinctTestFuncs verifies that a separate top-level Test* function executing the same differential polarity does not subsume another dedicated unit test as SAME PATH.
+func TestAnalyzeDoesNotFlagSamePathAcrossDistinctTestFuncs(t *testing.T) {
+	// Arrange.
+	changed := []ChangedTestFunc{
+		{
+			File:              "pkg/runner/runner_test.go",
+			FuncName:          "TestCompileIntegration",
+			Line:              10,
+			EndLine:           25,
+			EntireFuncChanged: true,
+		},
+		{
+			File:              "pkg/runner/runner_test.go",
+			FuncName:          "TestBuildEnvUnit",
+			Line:              30,
+			EndLine:           45,
+			EntireFuncChanged: true,
+		},
+	}
+	sharedPolarity := map[string]struct{}{"1:T": {}, "2:S": {}}
+	ranBoth := map[string]struct{}{
+		"TestCompileIntegration": {},
+		"TestBuildEnvUnit":       {},
+	}
+	input := AnalyzeInput{
+		ChangedFuncs: changed,
+		LeafOrder:    []string{"TestCompileIntegration", "TestBuildEnvUnit"},
+		PolarityByLeaf: map[string]map[string]struct{}{
+			"TestCompileIntegration": sharedPolarity,
+			"TestBuildEnvUnit":       sharedPolarity,
+		},
+		MutantRuns: map[int]VerboseTestResult{
+			1: {RanLeafSet: ranBoth, FailedLeafs: ranBoth},
+		},
+	}
+
+	// Act.
+	got := Analyze(input)
+
+	// Assert.
+	if len(got) != 0 {
+		t.Errorf("Analyze() = %+v, want empty (cross-TestFunc SAME PATH must not fire)", got)
+	}
+}
+
+// TestAnalyzeDoesNotFlagEqualKillPairs verifies that subtests killing the exact same mutant set are never flagged as SAME PATH regardless of candidate status.
+func TestAnalyzeDoesNotFlagEqualKillPairs(t *testing.T) {
+	testCases := []struct {
+		name     string
+		subtests map[string]SubtestMeta
+		order    []string
+	}{
+		// Candidate subtests with identical kills do not subsume each other.
+		{
+			name: "two candidates with identical kills",
+			subtests: map[string]SubtestMeta{
+				"case_a": {NormalizedName: "case_a", Line: 12, InDiff: true},
+				"case_b": {NormalizedName: "case_b", Line: 16, InDiff: true},
+			},
+			order: []string{"TestPair/case_b", "TestPair/case_a"},
+		},
+		// Candidate subtest matching an untouched baseline's exact kill set is not flagged.
+		{
+			name: "candidate matching baseline identical kills",
+			subtests: map[string]SubtestMeta{
+				"baseline":  {NormalizedName: "baseline", Line: 12, InDiff: false},
+				"candidate": {NormalizedName: "candidate", Line: 16, InDiff: true},
+			},
+			order: []string{"TestPair/candidate", "TestPair/baseline"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange.
+			sharedPol := map[string]struct{}{"1:T": {}, "2:F": {}}
+			ranBoth := map[string]struct{}{tc.order[0]: {}, tc.order[1]: {}}
+			input := AnalyzeInput{
+				ChangedFuncs: []ChangedTestFunc{{
+					File:     "pkg/svc/svc_test.go",
+					FuncName: "TestPair",
+					Line:     10,
+					EndLine:  25,
+					Subtests: tc.subtests,
+				}},
+				LeafOrder: tc.order,
+				PolarityByLeaf: map[string]map[string]struct{}{
+					tc.order[0]: sharedPol,
+					tc.order[1]: sharedPol,
+				},
+				MutantRuns: map[int]VerboseTestResult{
+					1: {RanLeafSet: ranBoth, FailedLeafs: ranBoth},
+					2: {RanLeafSet: ranBoth, FailedLeafs: ranBoth},
+				},
+			}
+
+			// Act.
+			got := Analyze(input)
+
+			// Assert.
+			if len(got) != 0 {
+				t.Errorf("Analyze() = %+v, want empty for equal-kill pair", got)
+			}
+		})
+	}
+}
+
+// TestAnalyzeDeterministicDominatorAcrossLeafOrder verifies that dominator selection is independent of LeafOrder across both SAME PATH and NO OUTPUT CHECK modes.
+func TestAnalyzeDeterministicDominatorAcrossLeafOrder(t *testing.T) {
+	testCases := []struct {
+		name           string
+		changed        []ChangedTestFunc
+		forwardOrder   []string
+		polarityByLeaf map[string]map[string]struct{}
+		mutantRuns     map[int]VerboseTestResult
+		want           []FuncRedundancy
+	}{
+		// Prefers higher kill count over non-candidate status in SAME PATH regardless of execution order.
+		{
+			name: "same path prefers higher kill count over baseline status",
+			changed: []ChangedTestFunc{{
+				File: "pkg/svc/svc_test.go", FuncName: "TestOrder", Line: 10, EndLine: 40,
+				Subtests: map[string]SubtestMeta{
+					"weak":       {NormalizedName: "weak", Line: 12, InDiff: true},
+					"base_two":   {NormalizedName: "base_two", Line: 15, InDiff: false},
+					"cand_three": {NormalizedName: "cand_three", Line: 20, InDiff: true},
+				},
+			}},
+			forwardOrder: []string{"TestOrder/weak", "TestOrder/base_two", "TestOrder/cand_three"},
+			polarityByLeaf: map[string]map[string]struct{}{
+				"TestOrder/weak":       {"1:T": {}},
+				"TestOrder/base_two":   {"1:T": {}},
+				"TestOrder/cand_three": {"1:T": {}},
+			},
+			mutantRuns: map[int]VerboseTestResult{
+				1: {RanLeafSet: map[string]struct{}{"TestOrder/weak": {}, "TestOrder/base_two": {}, "TestOrder/cand_three": {}}, FailedLeafs: map[string]struct{}{"TestOrder/weak": {}, "TestOrder/base_two": {}, "TestOrder/cand_three": {}}},
+				2: {RanLeafSet: map[string]struct{}{"TestOrder/weak": {}, "TestOrder/base_two": {}, "TestOrder/cand_three": {}}, FailedLeafs: map[string]struct{}{"TestOrder/base_two": {}, "TestOrder/cand_three": {}}},
+				3: {RanLeafSet: map[string]struct{}{"TestOrder/weak": {}, "TestOrder/base_two": {}, "TestOrder/cand_three": {}}, FailedLeafs: map[string]struct{}{"TestOrder/cand_three": {}}},
+			},
+			want: []FuncRedundancy{{
+				File: "pkg/svc/svc_test.go", FuncName: "TestOrder", Line: 10, EndLine: 40,
+				Details: []rule.RedundantDetail{{
+					Kind: rule.RedundantSamePath, Line: 12, TestName: "TestOrder/weak",
+					DominatedBy: "TestOrder/cand_three", DominatedByFile: "pkg/svc/svc_test.go", DominatedByLine: 20,
+					CandidateKills: 1, DominatorKills: 3,
+				}},
+			}},
+		},
+		// Tie-breaks equal-kill covering dominators by non-candidate then file, line, and name across NO OUTPUT CHECK.
+		{
+			name: "covering test tie-breaks by non-candidate then file line name",
+			changed: []ChangedTestFunc{
+				{
+					File: "pkg/b/b_test.go", FuncName: "TestB", Line: 5, EndLine: 20,
+					Subtests: map[string]SubtestMeta{
+						"base_b": {NormalizedName: "base_b", Line: 10, InDiff: false},
+					},
+				},
+				{
+					File: "pkg/a/a_test.go", FuncName: "TestA", Line: 5, EndLine: 30,
+					Subtests: map[string]SubtestMeta{
+						"cand_a": {NormalizedName: "cand_a", Line: 8, InDiff: true},
+						"base_z": {NormalizedName: "base_z", Line: 12, InDiff: false},
+						"base_a": {NormalizedName: "base_a", Line: 12, InDiff: false},
+					},
+				},
+				{
+					File: "pkg/c/c_test.go", FuncName: "TestWeak", Line: 5, EndLine: 15,
+					EntireFuncChanged: true, OnlyErrorNil: true,
+				},
+			},
+			forwardOrder: []string{"TestWeak", "TestB/base_b", "TestA/cand_a", "TestA/base_z", "TestA/base_a"},
+			polarityByLeaf: map[string]map[string]struct{}{
+				"TestWeak":     {"1:T": {}},
+				"TestB/base_b": {"1:T": {}},
+				"TestA/cand_a": {"1:T": {}},
+				"TestA/base_z": {"1:T": {}},
+				"TestA/base_a": {"1:T": {}},
+			},
+			mutantRuns: map[int]VerboseTestResult{
+				1: {
+					RanLeafSet:  map[string]struct{}{"TestWeak": {}, "TestB/base_b": {}, "TestA/cand_a": {}, "TestA/base_z": {}, "TestA/base_a": {}},
+					FailedLeafs: map[string]struct{}{"TestB/base_b": {}, "TestA/cand_a": {}, "TestA/base_z": {}, "TestA/base_a": {}},
+				},
+			},
+			want: []FuncRedundancy{{
+				File: "pkg/c/c_test.go", FuncName: "TestWeak", Line: 5, EndLine: 15,
+				Details: []rule.RedundantDetail{{
+					Kind: rule.RedundantNoOutputCheck, Line: 5, TestName: "TestWeak",
+					DominatedBy: "TestA/base_a", DominatedByFile: "pkg/a/a_test.go", DominatedByLine: 12,
+					CandidateKills: 0, DominatorKills: 1,
+				}},
+			}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange.
+			reversedOrder := make([]string, len(tc.forwardOrder))
+			for i, leaf := range tc.forwardOrder {
+				reversedOrder[len(tc.forwardOrder)-1-i] = leaf
+			}
+
+			// Act.
+			gotForward := Analyze(AnalyzeInput{
+				ChangedFuncs: tc.changed, LeafOrder: tc.forwardOrder, PolarityByLeaf: tc.polarityByLeaf, MutantRuns: tc.mutantRuns,
+			})
+			gotReversed := Analyze(AnalyzeInput{
+				ChangedFuncs: tc.changed, LeafOrder: reversedOrder, PolarityByLeaf: tc.polarityByLeaf, MutantRuns: tc.mutantRuns,
+			})
+
+			// Assert.
+			if diff := cmp.Diff(tc.want, gotForward); diff != "" {
+				t.Errorf("Analyze(forward) mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(gotForward, gotReversed); diff != "" {
+				t.Errorf("Analyze(reversed) differed from forward order (-forward +reversed):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestAnalyzeIgnoresAbortedMutantRuns verifies that aborted mutant runs do not induce SAME PATH or NO OUTPUT CHECK dominance while non-aborted runs evaluate normally.
+func TestAnalyzeIgnoresAbortedMutantRuns(t *testing.T) {
+	testCases := []struct {
+		name       string
+		subtests   map[string]SubtestMeta
+		leafOrder  []string
+		polarity   map[string]map[string]struct{}
+		mutantRuns map[int]VerboseTestResult
+		want       []FuncRedundancy
+	}{
+		// Ignores aborted mutant run so equal non-aborted kills do not induce SAME PATH dominance.
+		{
+			name: "aborted run does not induce SAME PATH",
+			subtests: map[string]SubtestMeta{
+				"weak":   {NormalizedName: "weak", Line: 12, InDiff: true},
+				"strong": {NormalizedName: "strong", Line: 16, InDiff: false},
+			},
+			leafOrder: []string{"TestAbort/weak", "TestAbort/strong"},
+			polarity: map[string]map[string]struct{}{
+				"TestAbort/weak":   {"1:T": {}, "2:T": {}},
+				"TestAbort/strong": {"1:T": {}, "2:T": {}},
+			},
+			mutantRuns: map[int]VerboseTestResult{
+				1: {
+					RanLeafSet:  map[string]struct{}{"TestAbort/weak": {}, "TestAbort/strong": {}},
+					FailedLeafs: map[string]struct{}{"TestAbort/weak": {}, "TestAbort/strong": {}},
+				},
+				2: {
+					RanLeafSet:  map[string]struct{}{"TestAbort/weak": {}, "TestAbort/strong": {}},
+					FailedLeafs: map[string]struct{}{"TestAbort/strong": {}},
+					Aborted:     true,
+				},
+			},
+			want: []FuncRedundancy{},
+		},
+		// Ignores aborted mutant run so an aborted-only killer does not induce NO OUTPUT CHECK dominance.
+		{
+			name: "aborted run does not induce NO OUTPUT CHECK",
+			subtests: map[string]SubtestMeta{
+				"weak_err":   {NormalizedName: "weak_err", Line: 12, InDiff: true, OnlyErrorNil: true},
+				"panic_only": {NormalizedName: "panic_only", Line: 16, InDiff: false},
+			},
+			leafOrder: []string{"TestAbort/weak_err", "TestAbort/panic_only"},
+			polarity: map[string]map[string]struct{}{
+				"TestAbort/weak_err":   {"1:T": {}, "2:T": {}},
+				"TestAbort/panic_only": {"1:T": {}, "2:T": {}},
+			},
+			mutantRuns: map[int]VerboseTestResult{
+				1: {
+					RanLeafSet:  map[string]struct{}{"TestAbort/weak_err": {}, "TestAbort/panic_only": {}},
+					FailedLeafs: map[string]struct{}{},
+				},
+				2: {
+					RanLeafSet:  map[string]struct{}{"TestAbort/weak_err": {}, "TestAbort/panic_only": {}},
+					FailedLeafs: map[string]struct{}{"TestAbort/panic_only": {}},
+					Aborted:     true,
+				},
+			},
+			want: []FuncRedundancy{},
+		},
+		// Evaluates non-aborted mutant runs normally alongside ignored aborted runs.
+		{
+			name: "non-aborted runs evaluate normally alongside aborted runs",
+			subtests: map[string]SubtestMeta{
+				"weak_err": {NormalizedName: "weak_err", Line: 12, InDiff: true, OnlyErrorNil: true},
+				"dup":      {NormalizedName: "dup", Line: 15, InDiff: true},
+				"strong":   {NormalizedName: "strong", Line: 20, InDiff: false},
+			},
+			leafOrder: []string{"TestAbort/weak_err", "TestAbort/dup", "TestAbort/strong"},
+			polarity: map[string]map[string]struct{}{
+				"TestAbort/weak_err": {"1:T": {}, "2:T": {}, "3:T": {}},
+				"TestAbort/dup":      {"1:T": {}, "2:T": {}, "3:T": {}},
+				"TestAbort/strong":   {"1:T": {}, "2:T": {}, "3:T": {}},
+			},
+			mutantRuns: map[int]VerboseTestResult{
+				1: {
+					RanLeafSet:  map[string]struct{}{"TestAbort/weak_err": {}, "TestAbort/dup": {}, "TestAbort/strong": {}},
+					FailedLeafs: map[string]struct{}{"TestAbort/dup": {}, "TestAbort/strong": {}},
+				},
+				2: {
+					RanLeafSet:  map[string]struct{}{"TestAbort/weak_err": {}, "TestAbort/dup": {}, "TestAbort/strong": {}},
+					FailedLeafs: map[string]struct{}{"TestAbort/strong": {}},
+				},
+				3: {
+					RanLeafSet:  map[string]struct{}{"TestAbort/weak_err": {}, "TestAbort/dup": {}, "TestAbort/strong": {}},
+					FailedLeafs: map[string]struct{}{"TestAbort/dup": {}},
+					Aborted:     true,
+				},
+			},
+			want: []FuncRedundancy{{
+				File:     "pkg/svc/svc_test.go",
+				FuncName: "TestAbort",
+				Line:     10,
+				EndLine:  25,
+				Details: []rule.RedundantDetail{
+					{
+						Kind:            rule.RedundantNoOutputCheck,
+						Line:            12,
+						TestName:        "TestAbort/weak_err",
+						DominatedBy:     "TestAbort/strong",
+						DominatedByFile: "pkg/svc/svc_test.go",
+						DominatedByLine: 20,
+						CandidateKills:  0,
+						DominatorKills:  2,
+					},
+					{
+						Kind:            rule.RedundantSamePath,
+						Line:            15,
+						TestName:        "TestAbort/dup",
+						DominatedBy:     "TestAbort/strong",
+						DominatedByFile: "pkg/svc/svc_test.go",
+						DominatedByLine: 20,
+						CandidateKills:  1,
+						DominatorKills:  2,
+					},
+				},
+			}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange.
+			input := AnalyzeInput{
+				ChangedFuncs: []ChangedTestFunc{{
+					File:     "pkg/svc/svc_test.go",
+					FuncName: "TestAbort",
+					Line:     10,
+					EndLine:  25,
+					Subtests: tc.subtests,
+				}},
+				LeafOrder:      tc.leafOrder,
+				PolarityByLeaf: tc.polarity,
+				MutantRuns:     tc.mutantRuns,
+			}
+
+			// Act.
+			got := Analyze(input)
+
+			// Assert.
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("Analyze() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestAnalyzeIgnoresParentPanicAfterChildFail verifies that a parent panic after a child failure produces Aborted=true via ParseVerboseTestOutput and does not induce false SAME PATH dominance against unexecuted siblings.
+func TestAnalyzeIgnoresParentPanicAfterChildFail(t *testing.T) {
+	// Arrange.
+	panickedRun := ParseVerboseTestOutput([]byte(`=== RUN   TestParent
+=== RUN   TestParent/a
+--- FAIL: TestParent/a (0.00s)
+=== CONT  TestParent
+panic: setup for b crashed
+`), true)
+	input := AnalyzeInput{
+		ChangedFuncs: []ChangedTestFunc{{
+			File:     "pkg/svc/svc_test.go",
+			FuncName: "TestParent",
+			Line:     10,
+			EndLine:  30,
+			Subtests: map[string]SubtestMeta{
+				"a": {NormalizedName: "a", Line: 15, InDiff: false},
+				"b": {NormalizedName: "b", Line: 20, InDiff: true},
+			},
+		}},
+		LeafOrder: []string{"TestParent/a", "TestParent/b"},
+		PolarityByLeaf: map[string]map[string]struct{}{
+			"TestParent/a": {"1:T": {}, "2:T": {}},
+			"TestParent/b": {"1:T": {}, "2:T": {}},
+		},
+		MutantRuns: map[int]VerboseTestResult{
+			1: {
+				RanLeafSet:  map[string]struct{}{"TestParent/a": {}, "TestParent/b": {}},
+				FailedLeafs: map[string]struct{}{"TestParent/a": {}, "TestParent/b": {}},
+			},
+			2: panickedRun,
+		},
+	}
+
+	// Act.
+	got := Analyze(input)
+
+	// Assert.
+	if !panickedRun.Aborted {
+		t.Fatalf("ParseVerboseTestOutput() Aborted = false, want true")
+	}
+	if len(got) != 0 {
+		t.Errorf("Analyze() = %+v, want empty when mutant 2 aborted in parent panic", got)
 	}
 }

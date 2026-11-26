@@ -186,7 +186,7 @@ func TestMutantExecutionPassesShortFlag(t *testing.T) {
 			},
 			wantArgs: []string{"-test.short", "-test.failfast"},
 		},
-		// Passes -test.short alongside -test.v when running a tracked mutant without a targeted regex.
+		// Passes -test.short, -test.v, and -test.parallel=1 when running a tracked mutant without a targeted regex.
 		{
 			name: "tracked mutant without targeted regex",
 			run: func(workDir string, scriptPath string) {
@@ -198,9 +198,9 @@ func TestMutantExecutionPassesShortFlag(t *testing.T) {
 					tracker:          &pkgRedundancyTracker{mutantRuns: make(map[int]redundancy.VerboseTestResult)},
 				})
 			},
-			wantArgs: []string{"-test.short", "-test.v"},
+			wantArgs: []string{"-test.short", "-test.v", "-test.parallel=1"},
 		},
-		// Passes -test.short, -test.v, and -test.run when running a tracked mutant with a targeted regex.
+		// Passes -test.short, -test.v, -test.parallel=1, and -test.run when running a tracked mutant with a targeted regex.
 		{
 			name: "tracked mutant with targeted regex",
 			run: func(workDir string, scriptPath string) {
@@ -215,7 +215,7 @@ func TestMutantExecutionPassesShortFlag(t *testing.T) {
 					},
 				})
 			},
-			wantArgs: []string{"-test.short", "-test.v", "-test.run=^(TestFocus)$"},
+			wantArgs: []string{"-test.short", "-test.v", "-test.parallel=1", "-test.run=^(TestFocus)$"},
 		},
 	}
 
@@ -226,6 +226,49 @@ func TestMutantExecutionPassesShortFlag(t *testing.T) {
 
 			tc.run(workDir, scriptPath)
 
+			gotArgs := readRecordedArgs(t, argsLogPath)
+			if diff := cmp.Diff(tc.wantArgs, gotArgs); diff != "" {
+				t.Errorf("command args mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestRunBaselineTestBinaryFlags verifies that runBaselineTestBinary passes -test.v and -test.parallel=1 only when verbose is true.
+func TestRunBaselineTestBinaryFlags(t *testing.T) {
+	testCases := []struct {
+		name     string
+		verbose  bool
+		wantArgs []string
+	}{
+		// Omits -test.v and -test.parallel=1 when verbose is false.
+		{
+			name:     "non-verbose baseline",
+			verbose:  false,
+			wantArgs: []string{"-test.short"},
+		},
+		// Appends -test.v and -test.parallel=1 when verbose is true.
+		{
+			name:     "verbose baseline",
+			verbose:  true,
+			wantArgs: []string{"-test.short", "-test.v", "-test.parallel=1"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			workDir := t.TempDir()
+			scriptPath, argsLogPath := writeArgRecorderScript(t, workDir)
+
+			_, _, err := runBaselineTestBinary(context.Background(), baselineRequest{
+				binPath:   scriptPath,
+				pkgAbsDir: workDir,
+				verbose:   tc.verbose,
+			})
+
+			if err != nil {
+				t.Fatalf("runBaselineTestBinary() unexpected error: %v", err)
+			}
 			gotArgs := readRecordedArgs(t, argsLogPath)
 			if diff := cmp.Diff(tc.wantArgs, gotArgs); diff != "" {
 				t.Errorf("command args mismatch (-want +got):\n%s", diff)

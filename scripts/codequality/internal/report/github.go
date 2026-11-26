@@ -53,13 +53,17 @@ func RenderGitHubAnnotations(w io.Writer, rep *rule.Report, maxAnnotations int) 
 		if emitted >= maxAnnotations {
 			return
 		}
+		findingLevel := level
+		if f.IsAdvisory() {
+			findingLevel = "warning"
+		}
 		idTag := fmt.Sprintf("[Q%d]", indexOrFallback(f.GlobalIndex, i+1))
 		title := fmt.Sprintf("%s Quality %s (%s)", lang, idTag, f.Rule)
 		msg := fmt.Sprintf("%s [%s]: %s", f.Subject, f.Kind, FormatBudgetValue(f))
 		if f.Detail != "" {
 			msg += " — " + f.Detail
 		}
-		emitAnnotation(w, annotationSpec{level: level, file: f.File, line: f.Line, title: title, message: msg})
+		emitAnnotation(w, annotationSpec{level: findingLevel, file: f.File, line: f.Line, title: title, message: msg})
 		emitted++
 	}
 }
@@ -72,10 +76,13 @@ func RenderGitHubSummary(w io.Writer, rep *rule.Report) {
 	}
 	verdict := "✅ PASS"
 	if rep.HasIssues() {
-		if rep.Advisory {
+		switch {
+		case rep.Advisory:
 			verdict = fmt.Sprintf("⚠️ ADVISORY (%d finding(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors))
-		} else {
-			verdict = fmt.Sprintf("❌ FAIL (%d violation(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors))
+		case rep.HasBlockingIssues():
+			verdict = fmt.Sprintf("❌ FAIL (%d violation(s), %d directive error(s))", rep.BlockingFindingCount(), len(rep.DirectiveErrors))
+		default:
+			verdict = fmt.Sprintf("✅ PASS (0 blocking, %d advisory finding(s))", rep.AdvisoryFindingCount())
 		}
 	}
 	fmt.Fprintf(w, "## %s Quality Report (`%s`) — %s\n", rep.LanguageTitle(), rep.BaseLabel, verdict)

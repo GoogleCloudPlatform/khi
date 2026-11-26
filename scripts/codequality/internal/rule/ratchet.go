@@ -21,6 +21,8 @@ const (
 	ViolationHardLimit ViolationKind = "HARD_LIMIT"
 	// ViolationRatchetRegression indicates an existing legacy unit worsened beyond its base revision value.
 	ViolationRatchetRegression ViolationKind = "RATCHET_REGRESSION"
+	// ViolationAdvisory indicates a non-blocking advisory finding routed to human/agent review.
+	ViolationAdvisory ViolationKind = "ADVISORY"
 )
 
 // ViolationKind classifies whether a rule sample passes, exceeds a hard limit, or worsens a legacy ratchet.

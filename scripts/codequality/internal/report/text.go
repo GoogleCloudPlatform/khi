@@ -110,11 +110,18 @@ func renderMutationLine(w io.Writer, mut rule.MutationSummary, style gotestutil.
 func renderVerdictLine(w io.Writer, rep *rule.Report, style gotestutil.TermStyle) {
 	renderVerdictStatusLine(w, verdictStatus{
 		hasIssues:       rep.HasIssues(),
-		blocking:        !rep.Advisory,
+		blocking:        rep.HasBlockingIssues(),
 		passMessage:     "PASS (0 violations)",
-		advisoryMessage: fmt.Sprintf("ADVISORY (%d finding(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors)),
-		failMessage:     fmt.Sprintf("FAIL (%d violation(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors)),
+		advisoryMessage: formatAdvisoryVerdictMessage(rep),
+		failMessage:     fmt.Sprintf("FAIL (%d violation(s), %d directive error(s))", rep.BlockingFindingCount(), len(rep.DirectiveErrors)),
 	}, style)
+}
+
+func formatAdvisoryVerdictMessage(rep *rule.Report) string {
+	if rep.Advisory {
+		return fmt.Sprintf("ADVISORY (%d finding(s), %d directive error(s))", len(rep.Findings), len(rep.DirectiveErrors))
+	}
+	return fmt.Sprintf("PASS with ADVISORY (0 blocking, %d advisory finding(s))", rep.AdvisoryFindingCount())
 }
 
 func renderVerdictStatusLine(w io.Writer, status verdictStatus, style gotestutil.TermStyle) {
@@ -147,10 +154,16 @@ func renderFindingsTable(w io.Writer, findings []rule.Finding, style gotestutil.
 		statusPlain := string(f.Kind)
 		valPlain := FormatBudgetValue(f)
 		targetPlain := fmt.Sprintf("%s:%d · %s", f.File, f.Line, f.Subject)
+		idStyled := style.BoldRed(idTag)
+		statusStyled := style.Red(statusPlain)
+		if f.IsAdvisory() {
+			idStyled = style.BoldYellow(idTag)
+			statusStyled = style.Yellow(statusPlain)
+		}
 		rows = append(rows, []gotestutil.TableCell{
-			{Plain: idTag, Styled: style.BoldRed(idTag)},
+			{Plain: idTag, Styled: idStyled},
 			{Plain: string(f.Rule), Styled: style.Bold(string(f.Rule))},
-			{Plain: statusPlain, Styled: style.Red(statusPlain)},
+			{Plain: statusPlain, Styled: statusStyled},
 			{Plain: valPlain, Styled: style.Yellow(valPlain)},
 			{Plain: targetPlain, Styled: targetPlain},
 		})
@@ -162,8 +175,12 @@ func renderFindingDetails(w io.Writer, findings []rule.Finding, style gotestutil
 	fmt.Fprintln(w)
 	for i, f := range findings {
 		idTag := fmt.Sprintf("[Q%d]", indexOrFallback(f.GlobalIndex, i+1))
+		idStyled := style.BoldRed(idTag)
+		if f.IsAdvisory() {
+			idStyled = style.BoldYellow(idTag)
+		}
 		header := fmt.Sprintf("%s %s — %s:%d (%s) [%s: %s]",
-			style.BoldRed(idTag), style.Bold(string(f.Rule)), f.File, f.Line, f.Subject, f.Kind, FormatBudgetValue(f))
+			idStyled, style.Bold(string(f.Rule)), f.File, f.Line, f.Subject, f.Kind, FormatBudgetValue(f))
 		fmt.Fprintf(w, "  %s\n", header)
 		if f.Detail != "" {
 			fmt.Fprintf(w, "      Detail: %s\n", f.Detail)

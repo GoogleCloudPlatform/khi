@@ -44,7 +44,7 @@ func TestAnalyzeFile(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name:    "extracts prod metrics generic receivers and control bool flags",
+			name:    "extracts prod metrics and generic receivers",
 			relPath: "./pkg/svc/svc.go",
 			src: `// Code generated note without magic suffix.
 package svc
@@ -105,33 +105,31 @@ func wrapFlag(b bool, r runner) bool {
 						Params:      2,
 					},
 					{
-						Key:               "Box.Run",
-						DisplayName:       "(*Box).Run",
-						StartLine:         13,
-						EndLine:           23,
-						CodeLines:         10,
-						Statements:        6,
-						Cognitive:         2,
-						MaxNesting:        1,
-						Params:            4,
-						Results:           2,
-						ControlFlagParams: []string{"verbose", "dryRun"},
+						Key:         "Box.Run",
+						DisplayName: "(*Box).Run",
+						StartLine:   13,
+						EndLine:     23,
+						CodeLines:   10,
+						Statements:  6,
+						Cognitive:   2,
+						MaxNesting:  1,
+						Params:      4,
+						Results:     2,
 						Hotspots: []rule.Hotspot{
 							{Line: 14, Delta: 1, Summary: "+1 (if)"},
 							{Line: 18, Delta: 1, Summary: "+1 (switch)"},
 						},
 					},
 					{
-						Key:               "Pair.Check",
-						DisplayName:       "Pair.Check",
-						StartLine:         25,
-						EndLine:           32,
-						CodeLines:         8,
-						Statements:        4,
-						Cognitive:         3,
-						MaxNesting:        1,
-						Params:            5,
-						ControlFlagParams: []string{"flag"},
+						Key:         "Pair.Check",
+						DisplayName: "Pair.Check",
+						StartLine:   25,
+						EndLine:     32,
+						CodeLines:   8,
+						Statements:  4,
+						Cognitive:   3,
+						MaxNesting:  1,
+						Params:      5,
 						Hotspots: []rule.Hotspot{
 							{Line: 27, Delta: 1, Summary: "+1 (boolean operator sequence)"},
 							{Line: 27, Delta: 1, Summary: "+1 (if)"},
@@ -319,7 +317,7 @@ func BenchmarkSvc(b *testing.B) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			fm, err := AnalyzeFile(tc.relPath, []byte(tc.src), 3)
+			fm, err := AnalyzeFile(tc.relPath, []byte(tc.src))
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("AnalyzeFile() error = %v, wantErr %v", err, tc.wantErr)
 			}

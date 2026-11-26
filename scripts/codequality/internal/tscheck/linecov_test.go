@@ -127,11 +127,13 @@ export class SamplePresenter {
 	}
 
 	testCases := []struct {
-		name           string
-		changedLines   map[string]map[int]struct{}
-		includeOverall bool
-		wantSummary    rule.CoverageSummary
-		wantSpanStarts []int
+		name             string
+		changedLines     map[string]map[int]struct{}
+		includeOverall   bool
+		failOnViolations bool
+		wantSummary      rule.CoverageSummary
+		wantSpanStarts   []int
+		wantKinds        []rule.ViolationKind
 	}{
 		{
 			name: "handles interfaces callbacks single-line guards nullish coalescing and multi-line ternaries",
@@ -151,6 +153,7 @@ export class SamplePresenter {
 				OverallCovered:    7,
 			},
 			wantSpanStarts: []int{8, 16, 20, 22},
+			wantKinds:      []rule.ViolationKind{rule.ViolationAdvisory},
 		},
 		{
 			name: "evaluates final line when file has no trailing newline and ignores empty changed line map",
@@ -158,7 +161,8 @@ export class SamplePresenter {
 				"web/src/app/sample/eof.ts":    {1: {}, 2: {}},
 				"web/src/app/sample/sample.ts": {},
 			},
-			includeOverall: false,
+			includeOverall:   false,
+			failOnViolations: true,
 			wantSummary: rule.CoverageSummary{
 				Enabled:         true,
 				HasOverall:      false,
@@ -166,6 +170,7 @@ export class SamplePresenter {
 				PatchCovered:    1,
 			},
 			wantSpanStarts: []int{2},
+			wantKinds:      []rule.ViolationKind{rule.ViolationHardLimit},
 		},
 		{
 			name: "interface-only and comment-only changes report zero uncovered findings",
@@ -187,6 +192,7 @@ export class SamplePresenter {
 				ChangedLinesByFile: tc.changedLines,
 				ReadSource:         readSource,
 				IncludeOverall:     tc.includeOverall,
+				FailOnViolations:   tc.failOnViolations,
 			})
 			if err != nil {
 				t.Fatalf("AnalyzeTSCoverage() error: %v", err)
@@ -194,7 +200,7 @@ export class SamplePresenter {
 			if diff := cmp.Diff(tc.wantSummary, got.Summary); diff != "" {
 				t.Errorf("Summary mismatch (-want +got):\n%s", diff)
 			}
-			assertTSSpanStarts(t, got.Findings, tc.wantSpanStarts)
+			assertTSSpanStarts(t, got.Findings, tc.wantSpanStarts, tc.wantKinds)
 		})
 	}
 
@@ -210,16 +216,21 @@ export class SamplePresenter {
 	}
 }
 
-func assertTSSpanStarts(t *testing.T, findings []rule.Finding, wantStarts []int) {
+func assertTSSpanStarts(t *testing.T, findings []rule.Finding, wantStarts []int, wantKinds []rule.ViolationKind) {
 	t.Helper()
 	var gotStarts []int
+	var gotKinds []rule.ViolationKind
 	for _, f := range findings {
+		gotKinds = append(gotKinds, f.Kind)
 		for _, sp := range f.UncoveredSpans {
 			gotStarts = append(gotStarts, sp.StartLine)
 		}
 	}
 	if diff := cmp.Diff(wantStarts, gotStarts); diff != "" {
 		t.Errorf("UncoveredSpan starts mismatch (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff(wantKinds, gotKinds); diff != "" {
+		t.Errorf("Finding kinds mismatch (-want +got):\n%s", diff)
 	}
 }
 

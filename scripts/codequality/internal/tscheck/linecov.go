@@ -41,6 +41,8 @@ type TSCoverageOptions struct {
 	ReadSource func(relPath string) ([]byte, error)
 	// IncludeOverall enables overall statement coverage totals in the summary.
 	IncludeOverall bool
+	// FailOnViolations marks uncovered line findings as HARD_LIMIT instead of ADVISORY.
+	FailOnViolations bool
 }
 
 // TSCoverageResult holds aggregate coverage summary metrics and per-file uncovered line findings.
@@ -138,10 +140,14 @@ func analyzeSingleTSFile(relFile string, opts TSCoverageOptions) (tsFileCovOutco
 	if len(uncovered) == 0 {
 		return tsFileCovOutcome{execCount: execCount, covCount: covCount}, nil
 	}
+	kind := rule.ViolationAdvisory
+	if opts.FailOnViolations {
+		kind = rule.ViolationHardLimit
+	}
 	spans := rule.BuildUncoveredSpans(relFile, rawLines, codeLines, uncovered)
 	finding := &rule.Finding{
 		Rule:           rule.RuleFuncUncoveredLines,
-		Kind:           rule.ViolationHardLimit,
+		Kind:           kind,
 		File:           relFile,
 		Line:           spans[0].StartLine,
 		EndLine:        spans[len(spans)-1].EndLine,

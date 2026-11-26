@@ -181,6 +181,12 @@ func runGoTestCompile(ctx context.Context, repoRoot string, overlayPath string, 
 	if pkgDir == "." || pkgDir == "" {
 		pkgTarget = "."
 	}
+	goTmpDir := filepath.Join(filepath.Dir(outBin), "gotmp")
+	if err := os.MkdirAll(goTmpDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create GOTMPDIR %s: %w", goTmpDir, err)
+	}
+	defer func() { _ = os.RemoveAll(goTmpDir) }()
+
 	args := []string{"test"}
 	if overlayPath != "" {
 		args = append(args, "-overlay="+overlayPath)
@@ -189,7 +195,7 @@ func runGoTestCompile(ctx context.Context, repoRoot string, overlayPath string, 
 
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = repoRoot
-	cmd.Env = buildMutantEnv(os.Environ(), 0, "")
+	cmd.Env = withEnvOverride(buildMutantEnv(os.Environ(), 0, ""), "GOTMPDIR", goTmpDir)
 	var stderr bytes.Buffer
 	cmd.Stdout = &stderr
 	cmd.Stderr = &stderr
@@ -203,7 +209,8 @@ func runBaselineTestBinary(ctx context.Context, req baselineRequest) (time.Durat
 	start := time.Now()
 	args := []string{"-test.short"}
 	if req.verbose {
-		args = append(args, "-test.v")
+		// Run subtests sequentially under -test.v so === RUN/CONT lines never interleave.
+		args = append(args, "-test.v", "-test.parallel=1")
 	}
 	cmd := exec.CommandContext(ctx, req.binPath, args...)
 	cmd.Dir = req.pkgAbsDir
@@ -269,4 +276,15 @@ func buildMutantEnv(base []string, mutantID int, tracePath string) []string {
 		env = append(env, "KHI_MUTANT_TRACE_FILE="+tracePath)
 	}
 	return env
+}
+
+func withEnvOverride(env []string, key string, value string) []string {
+	prefix := key + "="
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, prefix) {
+			out = append(out, kv)
+		}
+	}
+	return append(out, prefix+value)
 }

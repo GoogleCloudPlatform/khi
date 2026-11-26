@@ -170,7 +170,7 @@ func (s *BaseSnapshot) ingestBaseFile(relPath string) error {
 		return err
 	}
 	s.fileExisted[relPath] = true
-	fm, err := AnalyzeFile(relPath, src, s.thresholds.MinParamsForFlagCheck)
+	fm, err := AnalyzeFile(relPath, src)
 	if err != nil || fm == nil {
 		return nil
 	}

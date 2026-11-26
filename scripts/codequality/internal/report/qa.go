@@ -132,7 +132,7 @@ func appendReportToQA(qa *rule.QAReport, rep *rule.Report) {
 	}
 	for i, f := range rep.Findings {
 		item := findingToQAItem(source, i, f)
-		if rep.Advisory {
+		if rep.Advisory || f.IsAdvisory() {
 			qa.Advisory = append(qa.Advisory, item)
 		} else {
 			qa.MustFix = append(qa.MustFix, item)
@@ -145,19 +145,91 @@ func appendReportToQA(qa *rule.QAReport, rep *rule.Report) {
 func findingToQAItem(source string, idx int, f rule.Finding) rule.QAItem {
 	summary := cmp.Or(f.Detail, fmt.Sprintf("%s [%s]: %s", f.Subject, f.Kind, FormatBudgetValue(f)))
 	return rule.QAItem{
-		ID:      fmt.Sprintf("%s:%s:%s:%d:%d", source, f.Rule, f.File, f.Line, idx+1),
-		Source:  source,
-		Check:   string(f.Rule),
-		File:    f.File,
-		Line:    f.Line,
-		Symbol:  f.Subject,
-		Summary: summary,
-		Detail:  formatFindingDetail(f),
-		Evidence: map[string]any{
-			"kind":  string(f.Kind),
-			"after": f.After,
-			"limit": f.Limit,
-		},
+		ID:           fmt.Sprintf("%s:%s:%s:%d:%d", source, f.Rule, f.File, f.Line, idx+1),
+		Source:       source,
+		Check:        string(f.Rule),
+		File:         f.File,
+		Line:         f.Line,
+		EndLine:      f.EndLine,
+		Symbol:       f.Subject,
+		Summary:      summary,
+		Detail:       formatFindingDetail(f),
+		Evidence:     buildFindingEvidence(f),
+		ReviewPrompt: reviewPromptForRule(f.Rule),
+	}
+}
+
+func buildFindingEvidence(f rule.Finding) map[string]any {
+	ev := map[string]any{
+		"kind":  string(f.Kind),
+		"after": f.After,
+		"limit": f.Limit,
+	}
+	if len(f.UncoveredSpans) > 0 {
+		ev["uncovered_spans"] = buildUncoveredSpansEvidence(f.UncoveredSpans)
+	}
+	if len(f.SurvivingMutants) > 0 {
+		ev["surviving_mutants"] = buildSurvivingMutantsEvidence(f.SurvivingMutants)
+	}
+	if len(f.RedundantTests) > 0 {
+		ev["redundant_tests"] = buildRedundantTestsEvidence(f.RedundantTests)
+	}
+	return ev
+}
+
+func buildUncoveredSpansEvidence(spans []rule.UncoveredSpan) []map[string]any {
+	out := make([]map[string]any, 0, len(spans))
+	for _, sp := range spans {
+		out = append(out, map[string]any{
+			"file":             sp.File,
+			"start_line":       sp.StartLine,
+			"end_line":         sp.EndLine,
+			"executable_lines": sp.ExecutableLines,
+		})
+	}
+	return out
+}
+
+func buildSurvivingMutantsEvidence(mutants []rule.MutantDetail) []map[string]any {
+	out := make([]map[string]any, 0, len(mutants))
+	for _, m := range mutants {
+		out = append(out, map[string]any{
+			"operator": string(m.Operator),
+			"line":     m.Line,
+			"original": m.OriginalExpr,
+			"mutated":  m.MutatedExpr,
+		})
+	}
+	return out
+}
+
+func buildRedundantTestsEvidence(tests []rule.RedundantDetail) []map[string]any {
+	out := make([]map[string]any, 0, len(tests))
+	for _, rt := range tests {
+		out = append(out, map[string]any{
+			"kind":              string(rt.Kind),
+			"line":              rt.Line,
+			"test_name":         rt.TestName,
+			"dominated_by":      rt.DominatedBy,
+			"dominated_by_file": rt.DominatedByFile,
+			"dominated_by_line": rt.DominatedByLine,
+			"candidate_kills":   rt.CandidateKills,
+			"dominator_kills":   rt.DominatorKills,
+		})
+	}
+	return out
+}
+
+func reviewPromptForRule(id rule.RuleID) string {
+	switch id {
+	case rule.RuleFuncUncoveredLines:
+		return "Inspect uncovered spans in context: add targeted tests for missing branches, or retain legitimate defensive/pre-sizing guards instead of deleting safety checks."
+	case rule.RuleFuncSurvivingMutants:
+		return "Inspect surviving mutants in context: strengthen assertions for missing edge checks, or retain legitimate defensive guards, pre-sizing, or equivalent expressions."
+	case rule.RuleTestRedundancy:
+		return "Inspect flagged redundant subtests: add distinct output assertions or merge duplicates introduced in this change, and never delete pre-existing regression tests without user confirmation."
+	default:
+		return ""
 	}
 }
 

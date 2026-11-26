@@ -1,0 +1,87 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id: go_refactor_safety
+name: Go Refactoring Safety & Contract Preservation
+description: Verifies that modified Go production functions do not silently strip defensive guards, pre-sizing, or documented concurrency/error contracts during refactoring.
+enabled: true
+enforcement: advisory
+
+target:
+  kind: changed_file
+  include:
+    - "pkg/**/*.go"
+    - "cmd/**/*.go"
+    - "internal/**/*.go"
+    - "scripts/**/*.go"
+  exclude:
+    - "**/*_test.go"
+    - "pkg/generated/**"
+    - "**/zzz_*.go"
+    - "**/testdata/**"
+
+context:
+  line_numbers: true
+  include_diff: true
+  include_go_ast_summary: true
+
+questions:
+  - id: guard_or_contract_removal
+    for_each: changed_go_funcs
+    type: choice
+    instructions: >-
+      Compare the diff hunks against {{.Kind}} "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+      to check whether any boundary guard, empty/nil check, error-handling branch, or slice/map
+      pre-allocation capacity hint was removed without a documented invariant guarantee.
+    options:
+      safe:
+        description: >-
+          All boundary guards, nil/empty checks, error checks, and pre-sizing allocations remain
+          intact, or any removed check was demonstrably redundant/unreachable by construction.
+      guard_or_contract_removed:
+        description: >-
+          A non-trivial nil/empty check, boundary validation, error check, or capacity pre-allocation
+          was removed in the diff to simplify paths or silence coverage/mutation warnings without a
+          proven invariant guarantee.
+        fix_hint: >-
+          Restore the removed boundary guard or pre-allocation in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          and add a focused test if needed, rather than deleting defensive code.
+    pass:
+      expected_choice: safe
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: unannounced_behavior_or_lock_change
+    for_each: changed_go_funcs
+    type: choice
+    instructions: >-
+      Inspect the diff hunks for {{.Kind}} "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+      to verify that synchronization ordering, lock scope, and exported error/fallback semantics
+      were not altered silently or inconsistently with the rest of the file.
+    options:
+      safe:
+        description: >-
+          Lock acquisition/unlock ordering, error returns, and observable edge-case behavior remain
+          consistent and sound across the function and its sibling methods.
+      unsafe_behavior_or_lock_change:
+        description: >-
+          Mutex locking/unlocking scope, defer placement, or error/fallback semantics changed in a
+          way that risks a race, panic, or unannounced behavioral regression.
+        fix_hint: >-
+          Audit synchronization and error semantics in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          and align all sibling mutex/error paths consistently.
+    pass:
+      expected_choice: safe
+      min_probability: 0.50
+      min_confidence: 0.55

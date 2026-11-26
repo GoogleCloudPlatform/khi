@@ -69,7 +69,7 @@ func Compute(v int, inErr error) (int, error) {
 		{StartLine: 28, StartCol: 2, EndLine: 28, EndCol: 15, NumStatements: 1, Count: 1},
 	}
 
-	fm, err := astcheck.AnalyzeFile("pkg/demo/demo.go", []byte(src), 3)
+	fm, err := astcheck.AnalyzeFile("pkg/demo/demo.go", []byte(src))
 	if err != nil {
 		t.Fatalf("AnalyzeFile failed: %v", err)
 	}
@@ -84,14 +84,25 @@ func Compute(v int, inErr error) (int, error) {
 		wantSpanStarts []int
 		wantSpanEnds   []int
 	}{
+		// Scopes uncovered lines to changed non-boilerplate lines and merges close lines across comments.
 		{
-			name:           "merges close uncovered lines across comments and splits across covered code or >3 line gaps",
-			changed:        map[int]struct{}{1: {}, 2: {}, 6: {}, 7: {}, 10: {}, 11: {}, 13: {}, 14: {}, 22: {}, 28: {}},
+			name:           "scopes to changed lines and merges close uncovered lines across comments",
+			changed:        map[int]struct{}{1: {}, 2: {}, 6: {}, 7: {}, 10: {}, 13: {}, 14: {}, 15: {}, 17: {}, 22: {}, 28: {}},
 			wantPatchCov:   5,
-			wantPatchExec:  8,
-			wantUncovCount: 5,
-			wantSpanStarts: []int{14, 20, 26},
-			wantSpanEnds:   []int{17, 20, 26},
+			wantPatchExec:  9,
+			wantUncovCount: 3,
+			wantSpanStarts: []int{14},
+			wantSpanEnds:   []int{17},
+		},
+		// Emits uncovered lines even when a CODEQUALITY_ALLOW directive is present and splits gaps >3 lines.
+		{
+			name:           "ignores CODEQUALITY_ALLOW on advisory coverage and splits >3 line gaps",
+			changed:        map[int]struct{}{10: {}, 11: {}, 20: {}, 26: {}},
+			wantPatchCov:   1,
+			wantPatchExec:  4,
+			wantUncovCount: 3,
+			wantSpanStarts: []int{11, 20, 26},
+			wantSpanEnds:   []int{11, 20, 26},
 		},
 	}
 
@@ -101,7 +112,7 @@ func Compute(v int, inErr error) (int, error) {
 			if cov != tc.wantPatchCov || exec != tc.wantPatchExec {
 				t.Errorf("MeasurePatchTotals() = (%d, %d), want (%d, %d)", cov, exec, tc.wantPatchCov, tc.wantPatchExec)
 			}
-			uncov, spans := MeasureFuncUncovered("pkg/demo/demo.go", fa, fm.Funcs[0], fm.Directives)
+			uncov, spans := MeasureFuncUncovered("pkg/demo/demo.go", fa, fm.Funcs[0], tc.changed)
 			if uncov != tc.wantUncovCount {
 				t.Errorf("MeasureFuncUncovered() count = %d, want %d", uncov, tc.wantUncovCount)
 			}

@@ -141,6 +141,14 @@ linters:
           deny:
             - pkg: "github.com/GoogleCloudPlatform/khi/pkg/testutil"
               desc: "non-test code outside test utility packages must not import pkg/testutil (see pkg/GEMINI.md)"
+        no-x-exp-stdlib:
+          files:
+            - "$all"
+          deny:
+            - pkg: "golang.org/x/exp/maps"
+              desc: "use standard library maps package instead of golang.org/x/exp/maps"
+            - pkg: "golang.org/x/exp/slices"
+              desc: "use standard library slices package instead of golang.org/x/exp/slices"
     errorlint:
       errorf: true
       asserts: true

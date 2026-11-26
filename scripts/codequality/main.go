@@ -266,26 +266,28 @@ func shouldRunGo(flags cliFlags, speed rule.Speed, filter rule.Filter, diffRes g
 	if flags.lang != "go" && flags.lang != "all" {
 		return false
 	}
-	if filter.IncludesMust() {
-		if flags.lang == "go" {
-			return true
-		}
-		return len(diffRes.ChangedLines) > 0 || len(diffRes.ChangedTestLines) > 0 || (speed.IncludesSlow() && (flags.coverprofile != "" || flags.full))
+	runMust := filter.IncludesMust()
+	runSlowAdv := speed.IncludesSlow() && filter.IncludesAdvisory()
+	if !runMust && !runSlowAdv {
+		return false
 	}
-	return flags.similarity && speed.IncludesSlow() && filter.IncludesAdvisory() && len(diffRes.ChangedLines) > 0
+	if flags.lang == "go" {
+		return true
+	}
+	return len(diffRes.ChangedLines) > 0 || len(diffRes.ChangedTestLines) > 0 || (speed.IncludesSlow() && (flags.coverprofile != "" || flags.full))
 }
 
 func shouldRunTS(flags cliFlags, speed rule.Speed, filter rule.Filter, diffRes gotestutil.DiffResult) bool {
 	if (flags.lang != "ts" && flags.lang != "all") || !speed.IncludesSlow() {
 		return false
 	}
-	if filter.IncludesMust() {
-		if flags.lang == "ts" {
-			return true
-		}
-		return len(diffRes.TSChangedLines) > 0 || len(diffRes.TSChangedTestLines) > 0 || flags.tsCoverage != "" || flags.full
+	if !filter.IncludesAdvisory() && !(filter.IncludesMust() && flags.tsFailOnViolations) {
+		return false
 	}
-	return flags.similarity && filter.IncludesAdvisory() && len(diffRes.TSChangedLines) > 0
+	if flags.lang == "ts" {
+		return true
+	}
+	return len(diffRes.TSChangedLines) > 0 || len(diffRes.TSChangedTestLines) > 0 || flags.tsCoverage != "" || flags.full
 }
 
 func executeGoPipeline(ctx context.Context, penv pipelineEnv, speed rule.Speed, filter rule.Filter) (*rule.Report, error) {
@@ -296,27 +298,45 @@ func executeGoPipeline(ctx context.Context, penv pipelineEnv, speed rule.Speed, 
 		ProdFilesChanged: len(penv.diffRes.ChangedLines),
 		TestFilesChanged: len(penv.diffRes.ChangedTestLines),
 	}
+	runMust := filter.IncludesMust()
+	runDynamic := speed.IncludesSlow() && filter.IncludesAdvisory()
+	if !runMust && !runDynamic {
+		return rep, nil
+	}
 
-	if filter.IncludesMust() {
-		if err := runGoMustStages(ctx, penv, speed, rep); err != nil {
+	var astRes *astcheck.Result
+	var err error
+	if runMust {
+		astRes, err = runGoASTAndConventions(ctx, penv, speed, rep)
+	} else {
+		astRes, err = loadGoASTForDynamic(ctx, penv, rep)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if runDynamic {
+		if err := runGoSlowAdvisory(ctx, penv, astRes, rep); err != nil {
 			return nil, err
 		}
 	}
-	if filter.IncludesAdvisory() && speed.IncludesSlow() {
-		simSum, err := penv.simSession.evaluateGo(ctx, penv.repoRoot, penv.diffRes)
-		if err != nil {
-			return nil, err
-		}
-		rep.Similarity = simSum
+	if runMust {
+		appendUnusedDirectiveErrors(astRes, rep)
 	}
+	finalizeReportOrdering(rep)
 	return rep, nil
 }
 
-func runGoMustStages(ctx context.Context, penv pipelineEnv, speed rule.Speed, rep *rule.Report) error {
-	modulePath, err := gotestutil.ReadModulePath(filepath.Join(penv.repoRoot, "go.mod"))
+func loadGoASTForDynamic(ctx context.Context, penv pipelineEnv, rep *rule.Report) (*astcheck.Result, error) {
+	penv.progress.Phase(2, 4, "Evaluating Go AST structural and naming rules...")
+	astRes, err := runASTStage(ctx, penv.repoRoot, penv.diffRes, rule.SpeedFast)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	rep.FuncsEvaluated = astRes.FuncsEvaluated
+	return astRes, nil
+}
+
+func runGoASTAndConventions(ctx context.Context, penv pipelineEnv, speed rule.Speed, rep *rule.Report) (*astcheck.Result, error) {
 	totalSteps := 4
 	if !speed.IncludesSlow() {
 		totalSteps = 2
@@ -324,43 +344,56 @@ func runGoMustStages(ctx context.Context, penv pipelineEnv, speed rule.Speed, re
 	penv.progress.Phase(2, totalSteps, "Evaluating Go AST structural and naming rules...")
 	astRes, err := runASTStage(ctx, penv.repoRoot, penv.diffRes, speed)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	rep.FuncsEvaluated = astRes.FuncsEvaluated
 	rep.Findings = append(rep.Findings, astRes.Findings...)
 	rep.Suppressed = append(rep.Suppressed, astRes.Suppressed...)
 	rep.DirectiveErrors = append(rep.DirectiveErrors, astRes.DirectiveErrors...)
-
 	if speed.IncludesFast() {
-		convViolations, err := astcheck.CheckFileConventions(penv.repoRoot, changedGoFiles(penv.diffRes))
-		if err != nil {
-			return err
-		}
-		for _, v := range convViolations {
-			rep.Findings = append(rep.Findings, rule.Finding{
-				Rule:   rule.RuleID(v.Rule),
-				Kind:   rule.ViolationHardLimit,
-				File:   v.File,
-				Line:   v.Line,
-				Detail: v.Message,
-			})
-		}
+		return astRes, appendGoFileConventions(penv.repoRoot, penv.diffRes, rep)
 	}
-	if speed.IncludesSlow() {
-		if err := runDynamicStages(ctx, dynamicStageInput{
-			flags:      penv.flags,
-			repoRoot:   penv.repoRoot,
-			modulePath: modulePath,
-			diffRes:    penv.diffRes,
-			astRes:     astRes,
-			progress:   penv.progress,
-			errOut:     penv.errOut,
-		}, rep); err != nil {
-			return err
-		}
+	return astRes, nil
+}
+
+func appendGoFileConventions(repoRoot string, diffRes gotestutil.DiffResult, rep *rule.Report) error {
+	convViolations, err := astcheck.CheckFileConventions(repoRoot, changedGoFiles(diffRes))
+	if err != nil {
+		return err
 	}
-	appendUnusedDirectiveErrors(astRes, rep)
-	finalizeReportOrdering(rep)
+	for _, v := range convViolations {
+		rep.Findings = append(rep.Findings, rule.Finding{
+			Rule:   rule.RuleID(v.Rule),
+			Kind:   rule.ViolationHardLimit,
+			File:   v.File,
+			Line:   v.Line,
+			Detail: v.Message,
+		})
+	}
+	return nil
+}
+
+func runGoSlowAdvisory(ctx context.Context, penv pipelineEnv, astRes *astcheck.Result, rep *rule.Report) error {
+	modulePath, err := gotestutil.ReadModulePath(filepath.Join(penv.repoRoot, "go.mod"))
+	if err != nil {
+		return err
+	}
+	if err := runDynamicStages(ctx, dynamicStageInput{
+		flags:      penv.flags,
+		repoRoot:   penv.repoRoot,
+		modulePath: modulePath,
+		diffRes:    penv.diffRes,
+		astRes:     astRes,
+		progress:   penv.progress,
+		errOut:     penv.errOut,
+	}, rep); err != nil {
+		return err
+	}
+	simSum, err := penv.simSession.evaluateGo(ctx, penv.repoRoot, penv.diffRes)
+	if err != nil {
+		return err
+	}
+	rep.Similarity = simSum
 	return nil
 }
 
@@ -374,7 +407,7 @@ func changedGoFiles(diffRes gotestutil.DiffResult) []string {
 
 func executeTSPipeline(ctx context.Context, penv pipelineEnv, filter rule.Filter) (*rule.Report, error) {
 	var rep *rule.Report
-	if filter.IncludesMust() {
+	if filter.IncludesAdvisory() || penv.flags.tsFailOnViolations {
 		var err error
 		rep, err = tscheck.Evaluate(ctx, tscheck.Options{
 			RepoRoot:               penv.repoRoot,
@@ -447,7 +480,7 @@ func appendUnusedDirectiveErrors(astRes *astcheck.Result, rep *rule.Report) {
 		fm := astRes.Files[relPath]
 		unused := rule.CollectUnusedDirectives(fm.Directives, rule.UnusedScope{
 			File:           relPath,
-			IncludeDynamic: !rep.FastMode,
+			IncludeDynamic: false,
 			EvaluatedLines: astRes.EvaluatedLines[relPath],
 		})
 		rep.DirectiveErrors = append(rep.DirectiveErrors, unused...)

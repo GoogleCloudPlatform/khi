@@ -48,8 +48,6 @@ type FuncMetrics struct {
 	Params int
 	// Results is the number of return values.
 	Results int
-	// ControlFlagParams lists boolean parameters used directly in control-flow conditions.
-	ControlFlagParams []string
 	// Hotspots lists complexity hotspot locations inside the function.
 	Hotspots []rule.Hotspot
 	// IsTestEntry reports whether the function is a Go test entry point.
@@ -92,13 +90,14 @@ type FileMetrics struct {
 	Directives []rule.Directive
 	// DirectiveErrors holds syntax or validation errors for directives in the file.
 	DirectiveErrors []rule.DirectiveError
+	// StyleIssues holds mechanical Go style and lock-safety violations found in the file.
+	StyleIssues []StyleIssue
 }
 
 type fileAnalyzer struct {
-	fset             *token.FileSet
-	codeMask         []bool
-	isTest           bool
-	minParamsForFlag int
+	fset     *token.FileSet
+	codeMask []bool
+	isTest   bool
 }
 
 // OverlapsLines reports whether the inclusive interval [startLine, endLine] contains any line in changed.
@@ -112,7 +111,7 @@ func OverlapsLines(startLine int, endLine int, changed map[int]struct{}) bool {
 }
 
 // AnalyzeFile parses src as Go source for relPath and extracts file, function, subtest, and directive metrics.
-func AnalyzeFile(relPath string, src []byte, minParamsForFlag int) (*FileMetrics, error) {
+func AnalyzeFile(relPath string, src []byte) (*FileMetrics, error) {
 	cleanPath := strings.TrimPrefix(filepath.ToSlash(relPath), "./")
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, cleanPath, src, parser.ParseComments)
@@ -127,6 +126,7 @@ func AnalyzeFile(relPath string, src []byte, minParamsForFlag int) (*FileMetrics
 	codeMask := rule.BuildCodeLineMask(fset, file, src)
 	fileMask := excludeHeaderAndImports(fset, file, codeMask)
 	directives, dirErrs := rule.ParseDirectives(cleanPath, fset, file, src)
+	styleIssues := analyzeFileStyleIssues(fset, file)
 
 	out := &FileMetrics{
 		File:            cleanPath,
@@ -136,13 +136,13 @@ func AnalyzeFile(relPath string, src []byte, minParamsForFlag int) (*FileMetrics
 		CodeLines:       CountTrueInRange(fileMask, 1, len(fileMask)-1),
 		Directives:      directives,
 		DirectiveErrors: dirErrs,
+		StyleIssues:     styleIssues,
 	}
 
 	fa := &fileAnalyzer{
-		fset:             fset,
-		codeMask:         codeMask,
-		isTest:           isTest,
-		minParamsForFlag: minParamsForFlag,
+		fset:     fset,
+		codeMask: codeMask,
+		isTest:   isTest,
 	}
 	for _, decl := range file.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
@@ -234,25 +234,19 @@ func (a *fileAnalyzer) analyzeFuncDecl(fd *ast.FuncDecl) FuncMetrics {
 	results := countFields(fd.Type.Results)
 	key, display := FormatFuncIdentity(fd)
 
-	var flagParams []string
-	if !a.isTest && params >= a.minParamsForFlag {
-		flagParams = detectControlBoolParams(fd)
-	}
-
 	return FuncMetrics{
-		Key:               key,
-		DisplayName:       display,
-		StartLine:         startLine,
-		EndLine:           endLine,
-		CodeLines:         CountTrueInRange(a.codeMask, startLine, endLine),
-		Statements:        CountBlockStatements(fd.Body),
-		Cognitive:         comp.Cognitive,
-		MaxNesting:        comp.MaxNesting,
-		Params:            params,
-		Results:           results,
-		ControlFlagParams: flagParams,
-		Hotspots:          comp.Hotspots,
-		IsTestEntry:       a.isTest && isGoTestEntryFunc(fd),
+		Key:         key,
+		DisplayName: display,
+		StartLine:   startLine,
+		EndLine:     endLine,
+		CodeLines:   CountTrueInRange(a.codeMask, startLine, endLine),
+		Statements:  CountBlockStatements(fd.Body),
+		Cognitive:   comp.Cognitive,
+		MaxNesting:  comp.MaxNesting,
+		Params:      params,
+		Results:     results,
+		Hotspots:    comp.Hotspots,
+		IsTestEntry: a.isTest && isGoTestEntryFunc(fd),
 	}
 }
 
@@ -301,75 +295,6 @@ func isGoTestEntryFunc(fd *ast.FuncDecl) bool {
 		}
 	}
 	return false
-}
-
-func detectControlBoolParams(fd *ast.FuncDecl) []string {
-	boolNames := collectBoolParamNames(fd.Type.Params)
-	if len(boolNames) == 0 {
-		return nil
-	}
-	usedInBranch := make(map[string]bool)
-	ast.Inspect(fd.Body, func(n ast.Node) bool {
-		inspectBranchCondition(n, usedInBranch)
-		return true
-	})
-	var flagged []string
-	for _, name := range boolNames {
-		if usedInBranch[name] {
-			flagged = append(flagged, name)
-		}
-	}
-	return flagged
-}
-
-func inspectBranchCondition(n ast.Node, used map[string]bool) {
-	switch s := n.(type) {
-	case *ast.IfStmt:
-		markDirectBoolIdents(s.Cond, used)
-	case *ast.SwitchStmt:
-		if s.Tag != nil {
-			markDirectBoolIdents(s.Tag, used)
-			return
-		}
-		markCaseBoolIdents(s.Body, used)
-	}
-}
-
-func collectBoolParamNames(params *ast.FieldList) []string {
-	var names []string
-	for _, field := range params.List {
-		ident, ok := field.Type.(*ast.Ident)
-		if !ok || ident.Name != "bool" {
-			continue
-		}
-		for _, n := range field.Names {
-			if n.Name != "_" {
-				names = append(names, n.Name)
-			}
-		}
-	}
-	return names
-}
-
-func markCaseBoolIdents(body *ast.BlockStmt, out map[string]bool) {
-	for _, stmt := range body.List {
-		cc := stmt.(*ast.CaseClause)
-		for _, expr := range cc.List {
-			markDirectBoolIdents(expr, out)
-		}
-	}
-}
-
-func markDirectBoolIdents(cond ast.Expr, out map[string]bool) {
-	ast.Inspect(cond, func(n ast.Node) bool {
-		switch x := n.(type) {
-		case *ast.CallExpr, *ast.SelectorExpr:
-			return false
-		case *ast.Ident:
-			out[x.Name] = true
-		}
-		return true
-	})
 }
 
 func collectTRunMetrics(fset *token.FileSet, fd *ast.FuncDecl) []TRunMetrics {

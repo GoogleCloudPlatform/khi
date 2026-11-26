@@ -73,8 +73,8 @@ func NewReporter(reportWriter ReportWriter) *Reporter {
 
 // GetMetadata returns a copy of the current metadata map.
 func (r *Reporter) GetMetadata() map[string]string {
-	defer r.metadataLock.RUnlock()
 	r.metadataLock.RLock()
+	defer r.metadataLock.RUnlock()
 	return maps.Clone(r.metadata)
 }
 

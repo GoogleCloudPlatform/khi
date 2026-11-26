@@ -15,7 +15,6 @@
 package covcheck
 
 import (
-	"go/ast"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -44,10 +43,6 @@ type FileAnalysis struct {
 	CodeMask []bool
 	// States holds 1-based per-line coverage and boilerplate states.
 	States []LineState
-	// FileAST is the parsed Go AST for the file.
-	FileAST *ast.File
-	// Fset is the token.FileSet for FileAST.
-	Fset *token.FileSet
 }
 
 // AnalyzeFileLines maps coverprofile blocks onto 1-based source lines and marks AST boilerplate lines.
@@ -67,8 +62,6 @@ func AnalyzeFileLines(relPath string, src []byte, blocks []gotestutil.CoverBlock
 		RawLines: rawLines,
 		CodeMask: codeLines,
 		States:   states,
-		FileAST:  file,
-		Fset:     fset,
 	}
 }
 
@@ -90,65 +83,26 @@ func MeasurePatchTotals(fa FileAnalysis, changedSet map[int]struct{}) (covered i
 	return covered, executable
 }
 
-// MeasureFuncUncovered counts substantive uncovered lines and builds UncoveredSpans inside fn.
+// MeasureFuncUncovered counts substantive uncovered lines on changedSet and builds UncoveredSpans inside fn.
 func MeasureFuncUncovered(
 	relFile string,
 	fa FileAnalysis,
 	fn astcheck.FuncMetrics,
-	directives []rule.Directive,
+	changedSet map[int]struct{},
 ) (int, []rule.UncoveredSpan) {
-	stmtSuppressed := collectSuppressedStmtLines(fa, fn, directives)
 	var uncovered []int
 	for ln := fn.StartLine; ln <= fn.EndLine && ln <= len(fa.RawLines); ln++ {
-		st := fa.States[ln]
-		if !st.Executable || st.Covered || st.Boilerplate {
+		if _, changed := changedSet[ln]; !changed {
 			continue
 		}
-		if _, ok := stmtSuppressed[ln]; ok {
+		st := fa.States[ln]
+		if !st.Executable || st.Covered || st.Boilerplate {
 			continue
 		}
 		uncovered = append(uncovered, ln)
 	}
 	spans := rule.BuildUncoveredSpans(relFile, fa.RawLines, fa.CodeMask, uncovered)
 	return len(uncovered), spans
-}
-
-func collectSuppressedStmtLines(fa FileAnalysis, fn astcheck.FuncMetrics, directives []rule.Directive) map[int]struct{} {
-	out := make(map[int]struct{})
-	if fa.FileAST == nil || len(directives) == 0 {
-		return out
-	}
-	ast.Inspect(fa.FileAST, func(n ast.Node) bool {
-		stmt, ok := n.(ast.Stmt)
-		if !ok {
-			return true
-		}
-		start := fa.Fset.Position(stmt.Pos()).Line
-		end := fa.Fset.Position(stmt.End()).Line
-		if start < fn.StartLine || start > fn.EndLine || start <= fn.StartLine {
-			return true
-		}
-		if !spanHasUncoveredLine(fa.States, start, end) {
-			return true
-		}
-		if rule.MatchLineDirective(directives, rule.RuleFuncUncoveredLines, start, "") != nil {
-			for ln := start; ln <= end; ln++ {
-				out[ln] = struct{}{}
-			}
-		}
-		return true
-	})
-	return out
-}
-
-func spanHasUncoveredLine(states []LineState, start int, end int) bool {
-	for ln := start; ln <= end && ln < len(states); ln++ {
-		st := states[ln]
-		if st.Executable && !st.Covered && !st.Boilerplate {
-			return true
-		}
-	}
-	return false
 }
 
 func classifyExecutableCodeLines(src []byte, numLines int) []bool {

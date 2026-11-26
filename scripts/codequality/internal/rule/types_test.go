@@ -69,16 +69,16 @@ func TestMutantOperatorMethods(t *testing.T) {
 
 func TestLookupRuleSpecAndThresholds(t *testing.T) {
 	specs := AllRuleSpecs()
-	if len(specs) != 16 {
-		t.Fatalf("len(AllRuleSpecs()) = %d, want 16", len(specs))
+	if len(specs) != 17 {
+		t.Fatalf("len(AllRuleSpecs()) = %d, want 17", len(specs))
 	}
 
 	th := DefaultThresholds()
-	if th.MinParamsForFlagCheck != 3 {
-		t.Errorf("MinParamsForFlagCheck = %d, want 3", th.MinParamsForFlagCheck)
-	}
 	if th.Limits[RuleFuncCognitive] != 15 {
 		t.Errorf("DefaultThresholds().Limits[%q] = %d, want 15", RuleFuncCognitive, th.Limits[RuleFuncCognitive])
+	}
+	if th.Limits[RuleTRunCognitive] != 11 {
+		t.Errorf("DefaultThresholds().Limits[%q] = %d, want 11", RuleTRunCognitive, th.Limits[RuleTRunCognitive])
 	}
 	if got := (Thresholds{}).Limit(RuleID("unknown_rule")); got != 0 {
 		t.Errorf("Thresholds{}.Limit(unknown_rule) = %d, want 0", got)
@@ -99,6 +99,15 @@ func TestLookupRuleSpecAndThresholds(t *testing.T) {
 			wantFound: true,
 			wantLimit: 15,
 			checkCat:  CategoryDispatch,
+			wantAllow: true,
+		},
+		// Returns the default t.Run cognitive limit of 11 and permits protocol category overrides.
+		{
+			name:      "default t.Run cognitive limit is 11",
+			id:        RuleTRunCognitive,
+			wantFound: true,
+			wantLimit: 11,
+			checkCat:  CategoryProtocol,
 			wantAllow: true,
 		},
 		{

@@ -140,26 +140,43 @@ func TestConvertReportsToQAReportFilteringAndDetails(t *testing.T) {
 						ReviewPrompt: "fix",
 					},
 					{
-						ID:       "codequality:func_uncovered_lines:pkg/a/a.go:10:1",
-						Source:   "codequality",
-						Check:    "func_uncovered_lines",
-						File:     "pkg/a/a.go",
-						Line:     10,
-						Symbol:   "Run",
-						Summary:  "Run [HARD_LIMIT]: 2 (<= 0)",
-						Detail:   "uncovered: L12, L15-L16",
-						Evidence: map[string]any{"after": 2, "kind": "HARD_LIMIT", "limit": 0},
+						ID:           "codequality:func_uncovered_lines:pkg/a/a.go:10:1",
+						Source:       "codequality",
+						Check:        "func_uncovered_lines",
+						File:         "pkg/a/a.go",
+						Line:         10,
+						Symbol:       "Run",
+						Summary:      "Run [HARD_LIMIT]: 2 (<= 0)",
+						Detail:       "uncovered: L12, L15-L16",
+						ReviewPrompt: "Inspect uncovered spans in context: add targeted tests for missing branches, or retain legitimate defensive/pre-sizing guards instead of deleting safety checks.",
+						Evidence: map[string]any{
+							"after": 2,
+							"kind":  "HARD_LIMIT",
+							"limit": 0,
+							"uncovered_spans": []map[string]any{
+								{"file": "", "start_line": 12, "end_line": 12, "executable_lines": 0},
+								{"file": "", "start_line": 15, "end_line": 16, "executable_lines": 0},
+							},
+						},
 					},
 					{
-						ID:       "codequality:func_surviving_mutants:pkg/a/a.go:20:2",
-						Source:   "codequality",
-						Check:    "func_surviving_mutants",
-						File:     "pkg/a/a.go",
-						Line:     20,
-						Symbol:   "Check",
-						Summary:  "Check [HARD_LIMIT]: 1 (<= 0)",
-						Detail:   "survived: L22 (ROR): a == b -> a != b",
-						Evidence: map[string]any{"after": 1, "kind": "HARD_LIMIT", "limit": 0},
+						ID:           "codequality:func_surviving_mutants:pkg/a/a.go:20:2",
+						Source:       "codequality",
+						Check:        "func_surviving_mutants",
+						File:         "pkg/a/a.go",
+						Line:         20,
+						Symbol:       "Check",
+						Summary:      "Check [HARD_LIMIT]: 1 (<= 0)",
+						Detail:       "survived: L22 (ROR): a == b -> a != b",
+						ReviewPrompt: "Inspect surviving mutants in context: strengthen assertions for missing edge checks, or retain legitimate defensive guards, pre-sizing, or equivalent expressions.",
+						Evidence: map[string]any{
+							"after": 1,
+							"kind":  "HARD_LIMIT",
+							"limit": 0,
+							"surviving_mutants": []map[string]any{
+								{"operator": "ROR", "line": 22, "original": "a == b", "mutated": "a != b"},
+							},
+						},
 					},
 					{
 						ID:       "codequality:func_cognitive:pkg/a/a.go:40:4",
@@ -173,15 +190,32 @@ func TestConvertReportsToQAReportFilteringAndDetails(t *testing.T) {
 						Evidence: map[string]any{"after": 16, "kind": "HARD_LIMIT", "limit": 15},
 					},
 					{
-						ID:       "codequality:test_redundancy:pkg/a/a_test.go:30:3",
-						Source:   "codequality",
-						Check:    "test_redundancy",
-						File:     "pkg/a/a_test.go",
-						Line:     30,
-						Symbol:   "TestRun",
-						Summary:  "TestRun [HARD_LIMIT]: 1 (<= 0)",
-						Detail:   "redundant: [SAME PATH] sub1 (L32) dominated by sub2",
-						Evidence: map[string]any{"after": 1, "kind": "HARD_LIMIT", "limit": 0},
+						ID:           "codequality:test_redundancy:pkg/a/a_test.go:30:3",
+						Source:       "codequality",
+						Check:        "test_redundancy",
+						File:         "pkg/a/a_test.go",
+						Line:         30,
+						Symbol:       "TestRun",
+						Summary:      "TestRun [HARD_LIMIT]: 1 (<= 0)",
+						Detail:       "redundant: [SAME PATH] sub1 (L32) dominated by sub2",
+						ReviewPrompt: "Inspect flagged redundant subtests: add distinct output assertions or merge duplicates introduced in this change, and never delete pre-existing regression tests without user confirmation.",
+						Evidence: map[string]any{
+							"after": 1,
+							"kind":  "HARD_LIMIT",
+							"limit": 0,
+							"redundant_tests": []map[string]any{
+								{
+									"kind":              "SAME PATH",
+									"line":              32,
+									"test_name":         "sub1",
+									"dominated_by":      "sub2",
+									"dominated_by_file": "",
+									"dominated_by_line": 0,
+									"candidate_kills":   0,
+									"dominator_kills":   0,
+								},
+							},
+						},
 					},
 				},
 				Advisory:       []rule.QAItem{},
@@ -370,6 +404,65 @@ func TestRenderQATextAndGitHubEdgeCases(t *testing.T) {
 			assertRenderedTokens(t, "RenderQAText", textBuf.String(), tc.wantTextTokens, tc.forbidTextTokens)
 			assertRenderedTokens(t, "RenderQAGitHub", ghBuf.String(), tc.wantGHTokens, tc.forbidGHTokens)
 		})
+	}
+}
+
+// TestConvertAdvisoryDynamicFindingsToQAReport verifies that ViolationAdvisory Go dynamic findings route to QAReport.Advisory with structured Evidence and ReviewPrompt even on non-advisory reports.
+func TestConvertAdvisoryDynamicFindingsToQAReport(t *testing.T) {
+	reports := []*rule.Report{
+		{
+			Language: "Go",
+			Findings: []rule.Finding{
+				{
+					Rule:    rule.RuleFuncSurvivingMutants,
+					Kind:    rule.ViolationAdvisory,
+					File:    "pkg/a/a.go",
+					Line:    12,
+					EndLine: 25,
+					Subject: "Guard",
+					After:   1,
+					Limit:   0,
+					SurvivingMutants: []rule.MutantDetail{
+						{Operator: rule.OperatorROR, Line: 12, OriginalExpr: "n == 0", MutatedExpr: "n != 0"},
+					},
+				},
+			},
+		},
+	}
+
+	got := ConvertReportsToQAReport("main", rule.SpeedSlow, rule.FilterAll, reports)
+
+	want := &rule.QAReport{
+		BaseLabel: "main",
+		Speed:     rule.SpeedSlow,
+		Filter:    rule.FilterAll,
+		MustFix:   []rule.QAItem{},
+		Advisory: []rule.QAItem{
+			{
+				ID:           "go:func_surviving_mutants:pkg/a/a.go:12:1",
+				Source:       "go",
+				Check:        "func_surviving_mutants",
+				File:         "pkg/a/a.go",
+				Line:         12,
+				EndLine:      25,
+				Symbol:       "Guard",
+				Summary:      "Guard [ADVISORY]: 1 (<= 0)",
+				Detail:       "survived: L12 (ROR): n == 0 -> n != 0",
+				ReviewPrompt: "Inspect surviving mutants in context: strengthen assertions for missing edge checks, or retain legitimate defensive guards, pre-sizing, or equivalent expressions.",
+				Evidence: map[string]any{
+					"after": 1,
+					"kind":  "ADVISORY",
+					"limit": 0,
+					"surviving_mutants": []map[string]any{
+						{"operator": "ROR", "line": 12, "original": "n == 0", "mutated": "n != 0"},
+					},
+				},
+			},
+		},
+		SkippedSources: []rule.SkippedSource{},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("ConvertReportsToQAReport() mismatch (-want +got):\n%s", diff)
 	}
 }
 

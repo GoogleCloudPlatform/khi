@@ -96,6 +96,7 @@ func TestRenderQAJSON(t *testing.T) {
 						Check:   "go_code_quality",
 						File:    "pkg/b/b.go",
 						Line:    22,
+						EndLine: 30,
 						Symbol:  "Helper",
 						Summary: "comment mismatch",
 					},
@@ -133,6 +134,7 @@ func TestRenderQAJSON(t *testing.T) {
 						Check:   "go_code_quality",
 						File:    "pkg/b/b.go",
 						Line:    22,
+						EndLine: 30,
 						Symbol:  "Helper",
 						Summary: "comment mismatch",
 					},
@@ -467,6 +469,7 @@ func TestRenderQATextAndGitHub(t *testing.T) {
 						Check:   "go_code_quality",
 						File:    "pkg/b/b.go",
 						Line:    22,
+						EndLine: 30,
 						Symbol:  "Helper",
 						Summary: "comment mismatch",
 					},
@@ -544,6 +547,7 @@ func assertSingleJSONSchemaAndRoundTrip(t *testing.T, payload []byte, wantTopKey
 func assertNestedItemKeys(t *testing.T, rawMap map[string]any) {
 	t.Helper()
 	assertFirstMapKeys(t, rawMap["mustfix"], []string{"check", "detail", "evidence", "file", "id", "line", "review_prompt", "source", "summary", "symbol"}, "mustfix[0]")
+	assertFirstMapKeys(t, rawMap["advisory"], []string{"check", "detail", "end_line", "evidence", "file", "id", "line", "review_prompt", "source", "summary", "symbol"}, "advisory[0]")
 	assertFirstMapKeys(t, rawMap["skipped_sources"], []string{"reason", "source"}, "skipped_sources[0]")
 }
 

@@ -239,7 +239,8 @@ func runTrackedMutant(
 	baseEnv []string,
 	job mutantJob,
 ) (rule.MutantStatus, bool) {
-	args := []string{"-test.short", "-test.v"}
+	// Pin subtest parallelism to 1 so verbose failure/panic attribution stays deterministic.
+	args := []string{"-test.short", "-test.v", "-test.parallel=1"}
 	if job.tracker.targetedRunRegex != "" {
 		args = append(args, "-test.run="+job.tracker.targetedRunRegex)
 	}
