@@ -208,7 +208,7 @@ func buildTSLeavesByFile(
 ) map[string][]leafDescriptor {
 	cursorByName := make(map[string]int, len(specsByName))
 	leavesByFile := make(map[string][]leafDescriptor)
-	for idx, entry := range in.SpecOrder {
+	for _, entry := range in.SpecOrder {
 		meta, ok := matchNextOrderedTSSpec(entry, specsByName, cursorByName)
 		if !ok {
 			continue
@@ -223,7 +223,6 @@ func buildTSLeavesByFile(
 			line:        meta.Line,
 			isCandidate: meta.InDiff,
 			onlyErrNil:  meta.WeakAssertion,
-			orderIdx:    idx,
 			polarity:    pol,
 			ranMutants:  filterMutantIDsForSpec(meta.File, ranBySpecID[entry.ID], in.MutantFileByID),
 			kills:       filterMutantIDsForSpec(meta.File, killsBySpecID[entry.ID], in.MutantFileByID),

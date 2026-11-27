@@ -17,11 +17,14 @@ package mutcheck
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
@@ -76,7 +79,7 @@ func TestR(t *testing.T) { _ = R() }
 		t.Fatalf("runGoTestCompile(.) failed: %v", err)
 	}
 
-	plan, err := PlanFileMutations("calc/calc.go", []byte(src), PlanOptions{TargetLines: lineRangeSet(1, 10)})
+	plan, err := PlanFileMutations("calc/calc.go", []byte(src), PlanOptions{TargetLines: lineRangeSet(10)})
 	if err != nil {
 		t.Fatalf("PlanFileMutations failed: %v", err)
 	}
@@ -157,5 +160,86 @@ func TestR(t *testing.T) { _ = R() }
 	}
 	if got := resolveWorkerCount(9999); got != 9999 {
 		t.Errorf("resolveWorkerCount(9999) = %d, want 9999", got)
+	}
+}
+
+// TestWithEnvOverride verifies that withEnvOverride replaces existing entries and appends missing keys.
+func TestWithEnvOverride(t *testing.T) {
+	testCases := []struct {
+		name  string
+		env   []string
+		key   string
+		value string
+		want  []string
+	}{
+		// Strips all pre-existing entries matching key and appends the override once.
+		{
+			name:  "replaces existing keys including duplicates",
+			env:   []string{"GOTMPDIR=/old1", "OTHER=1", "GOTMPDIR=/old2"},
+			key:   "GOTMPDIR",
+			value: "/isolated/gotmp",
+			want:  []string{"OTHER=1", "GOTMPDIR=/isolated/gotmp"},
+		},
+		// Preserves unrelated entries and appends key when absent.
+		{
+			name:  "appends key when absent",
+			env:   []string{"PATH=/usr/bin"},
+			key:   "GOTMPDIR",
+			value: "/isolated/gotmp",
+			want:  []string{"PATH=/usr/bin", "GOTMPDIR=/isolated/gotmp"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := withEnvOverride(tc.env, tc.key, tc.value)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("withEnvOverride() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestRunGoTestCompileIsolatesGoTmpDir verifies that runGoTestCompile cleans up its isolated GOTMPDIR and returns an error when GOTMPDIR cannot be created.
+func TestRunGoTestCompileIsolatesGoTmpDir(t *testing.T) {
+	blockingFile := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(blockingFile, []byte("x"), 0o600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	err := runGoTestCompile(context.Background(), t.TempDir(), "", filepath.Join(blockingFile, "pkg.test"), ".")
+	if err == nil || !strings.Contains(err.Error(), "failed to create GOTMPDIR") {
+		t.Fatalf("runGoTestCompile(file parent) error = %v, want GOTMPDIR error", err)
+	}
+
+	repoDir := t.TempDir()
+	workDir := t.TempDir()
+	for rel, content := range map[string]string{
+		"go.mod": `module example.com/gotmpmod
+
+go 1.24
+`,
+		"root.go": `package root
+
+func R() int { return 1 }
+`,
+		"root_test.go": `package root
+
+import "testing"
+
+func TestR(t *testing.T) { _ = R() }
+`,
+	} {
+		if err := os.WriteFile(filepath.Join(repoDir, rel), []byte(content), 0o600); err != nil {
+			t.Fatalf("WriteFile(%s) failed: %v", rel, err)
+		}
+	}
+
+	if err := runGoTestCompile(context.Background(), repoDir, "", filepath.Join(workDir, "root.test"), "."); err != nil {
+		t.Fatalf("runGoTestCompile() unexpected error: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(workDir, "gotmp")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("gotmp cleanup stat err = %v, want os.ErrNotExist", statErr)
 	}
 }

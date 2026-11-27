@@ -23,7 +23,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/overlay"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
@@ -47,8 +46,6 @@ type Options struct {
 	ASTResult *astcheck.Result
 	// ReadTargetFile reads raw bytes for a target working-tree file.
 	ReadTargetFile func(relPath string) ([]byte, error)
-	// EnsureBaseOverlay lazily materializes the base-revision overlay workspace.
-	EnsureBaseOverlay func() (*overlay.Snapshot, error)
 	// ErrOut receives diagnostic progress and command error output.
 	ErrOut io.Writer
 }
@@ -57,24 +54,12 @@ type Options struct {
 type Result struct {
 	// Summary holds aggregated patch and overall statement coverage counts.
 	Summary rule.CoverageSummary
-	// Findings contains func_uncovered_lines violations.
+	// Findings contains func_uncovered_lines advisory violations.
 	Findings []rule.Finding
-	// Suppressed contains coverage findings suppressed by CODEQUALITY_ALLOW.
-	Suppressed []rule.SuppressedItem
 	// CoverBlocksByFile maps file paths to parsed Go coverprofile blocks.
 	CoverBlocksByFile map[string][]gotestutil.CoverBlock
 	// HasCoverProfile reports whether coverage profile data was loaded.
 	HasCoverProfile bool
-}
-
-type pendingBaseCov struct {
-	relFile  string
-	fm       *astcheck.FileMetrics
-	fn       astcheck.FuncMetrics
-	baseFile string
-	baseFn   astcheck.FuncMetrics
-	after    int
-	spans    []rule.UncoveredSpan
 }
 
 type targetCoverLoaded struct {
@@ -83,7 +68,7 @@ type targetCoverLoaded struct {
 	includeOverall bool
 }
 
-// Evaluate runs target coverage, evaluates func_uncovered_lines, and lazily runs base -overlay coverage when needed.
+// Evaluate runs target coverage and emits func_uncovered_lines advisories for changed uncovered lines.
 func Evaluate(ctx context.Context, opts Options) (*Result, error) {
 	loaded, err := loadTargetBlocks(ctx, opts)
 	if err != nil {
@@ -102,16 +87,8 @@ func Evaluate(ctx context.Context, opts Options) (*Result, error) {
 		accumulateOverallStatements(&res.Summary, loaded.blocks)
 	}
 
-	limit := opts.Thresholds.Limit(rule.RuleFuncUncoveredLines)
-	pending, err := evaluateTargetFunctions(opts, loaded.blocks, res)
-	if err != nil {
+	if err := evaluateTargetFunctions(opts, loaded.blocks, res); err != nil {
 		return nil, err
-	}
-
-	if len(pending) > 0 && opts.EnsureBaseOverlay != nil {
-		if err := evaluateLazyBaseFunctions(ctx, opts, pending, limit, res); err != nil {
-			return nil, err
-		}
 	}
 	return res, nil
 }
@@ -165,210 +142,75 @@ func evaluateTargetFunctions(
 	opts Options,
 	blocksByFile map[string][]gotestutil.CoverBlock,
 	res *Result,
-) ([]pendingBaseCov, error) {
-	var pending []pendingBaseCov
+) error {
+	limit := opts.Thresholds.Limit(rule.RuleFuncUncoveredLines)
 	for _, relFile := range sortedFiles(opts.ChangedProdLinesByFile) {
-		filePending, err := evaluateTargetFile(opts, relFile, blocksByFile[relFile], res)
-		if err != nil {
-			return nil, err
+		if err := evaluateTargetFile(opts, relFile, blocksByFile[relFile], limit, res); err != nil {
+			return err
 		}
-		pending = append(pending, filePending...)
 	}
-	return pending, nil
+	return nil
 }
 
 func evaluateTargetFile(
 	opts Options,
 	relFile string,
 	blocks []gotestutil.CoverBlock,
+	limit int,
 	res *Result,
-) ([]pendingBaseCov, error) {
+) error {
 	src, err := opts.ReadTargetFile(relFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil
 		}
-		return nil, fmt.Errorf("failed to read %s: %w", relFile, err)
+		return fmt.Errorf("failed to read %s: %w", relFile, err)
 	}
+	changedSet := opts.ChangedProdLinesByFile[relFile]
 	fa := AnalyzeFileLines(relFile, src, blocks)
-	cov, exec := MeasurePatchTotals(fa, opts.ChangedProdLinesByFile[relFile])
+	cov, exec := MeasurePatchTotals(fa, changedSet)
 	res.Summary.PatchCovered += cov
 	res.Summary.PatchExecutable += exec
 
 	fm := opts.ASTResult.Files[relFile]
 	if fm == nil {
-		return nil, nil
+		return nil
 	}
-	var pending []pendingBaseCov
 	for _, fn := range opts.ASTResult.TouchedFuncs[relFile] {
-		if p, ok := evaluateSingleTargetFunc(opts, fm, fa, fn, res); ok {
-			pending = append(pending, p)
+		if finding, ok := evaluateSingleTargetFunc(fm.File, fa, fn, changedSet, limit); ok {
+			res.Findings = append(res.Findings, finding)
 		}
-	}
-	return pending, nil
-}
-
-func evaluateSingleTargetFunc(
-	opts Options,
-	fm *astcheck.FileMetrics,
-	fa FileAnalysis,
-	fn astcheck.FuncMetrics,
-	res *Result,
-) (pendingBaseCov, bool) {
-	limit := opts.Thresholds.Limit(rule.RuleFuncUncoveredLines)
-	after, spans := MeasureFuncUncovered(fm.File, fa, fn, fm.Directives)
-	if after <= limit {
-		return pendingBaseCov{}, false
-	}
-	baseFile, baseFn, hasBase := opts.ASTResult.Base.LookupFuncLocation(fm.File, fn.Key)
-	if !hasBase || opts.EnsureBaseOverlay == nil {
-		recordCovOutcome(res, fm, fn, rule.Sample{After: after, Limit: limit}, spans)
-		return pendingBaseCov{}, false
-	}
-	return pendingBaseCov{
-		relFile:  fm.File,
-		fm:       fm,
-		fn:       fn,
-		baseFile: baseFile,
-		baseFn:   baseFn,
-		after:    after,
-		spans:    spans,
-	}, true
-}
-
-func evaluateLazyBaseFunctions(
-	ctx context.Context,
-	opts Options,
-	pending []pendingBaseCov,
-	limit int,
-	res *Result,
-) error {
-	snap, err := opts.EnsureBaseOverlay()
-	if err != nil {
-		return err
-	}
-	basePkgs := collectPendingBasePackages(snap.RepoRoot(), pending)
-	baseBlocks := runBaseCoverBlocks(ctx, opts, snap.RepoRoot(), basePkgs)
-	res.Summary.BaseOverlayRuns++
-
-	for _, item := range pending {
-		before := measureBaseFuncUncovered(opts, snap, baseBlocks, item)
-		sample := rule.Sample{
-			After:     item.after,
-			Limit:     limit,
-			Before:    before,
-			HasBefore: true,
-		}
-		recordCovOutcome(res, item.fm, item.fn, sample, item.spans)
 	}
 	return nil
 }
 
-func runBaseCoverBlocks(
-	ctx context.Context,
-	opts Options,
-	baseRoot string,
-	basePkgs []string,
-) map[string][]gotestutil.CoverBlock {
-	blocks, err := RunCoverProfile(ctx, RunRequest{
-		RepoRoot:    baseRoot,
-		ModulePath:  opts.ModulePath,
-		Packages:    basePkgs,
-		WorkDir:     opts.WorkDir,
-		ProfileName: "base.coverprofile",
-	})
-	if err == nil {
-		return blocks
-	}
-	merged := make(map[string][]gotestutil.CoverBlock)
-	for i, pkg := range basePkgs {
-		sub, subErr := RunCoverProfile(ctx, RunRequest{
-			RepoRoot:    baseRoot,
-			ModulePath:  opts.ModulePath,
-			Packages:    []string{pkg},
-			WorkDir:     opts.WorkDir,
-			ProfileName: fmt.Sprintf("base_%d.coverprofile", i),
-		})
-		if subErr == nil {
-			for k, v := range sub {
-				merged[k] = v
-			}
-		}
-	}
-	return merged
-}
-
-func measureBaseFuncUncovered(
-	opts Options,
-	snap *overlay.Snapshot,
-	baseBlocks map[string][]gotestutil.CoverBlock,
-	item pendingBaseCov,
-) int {
-	baseSrc, ok := snap.BaseSource(item.baseFile)
-	if !ok {
-		return 0
-	}
-	fa := AnalyzeFileLines(item.baseFile, baseSrc, baseBlocks[item.baseFile])
-	var baseDirectives []rule.Directive
-	if baseFM, hasFM := opts.ASTResult.Base.FileMetrics(item.baseFile); hasFM {
-		baseDirectives = baseFM.Directives
-	}
-	uncov, _ := MeasureFuncUncovered(item.baseFile, fa, item.baseFn, baseDirectives)
-	return uncov
-}
-
-func recordCovOutcome(
-	res *Result,
-	fm *astcheck.FileMetrics,
+func evaluateSingleTargetFunc(
+	relFile string,
+	fa FileAnalysis,
 	fn astcheck.FuncMetrics,
-	sample rule.Sample,
-	spans []rule.UncoveredSpan,
-) {
-	kind := rule.ClassifyRatchet(sample)
-	if kind == rule.ViolationNone {
-		return
-	}
-	if kind == rule.ViolationHardLimit {
-		if d := rule.MatchDeclDirective(fm.Directives, rule.RuleFuncUncoveredLines, fn.StartLine); d != nil {
-			res.Suppressed = append(res.Suppressed, rule.SuppressedItem{
-				Rule:     rule.RuleFuncUncoveredLines,
-				File:     fm.File,
-				Line:     fn.StartLine,
-				Subject:  fn.DisplayName,
-				Category: d.Category,
-				Reason:   d.Reason,
-				After:    sample.After,
-				Limit:    sample.Limit,
-			})
-			return
-		}
+	changedSet map[int]struct{},
+	limit int,
+) (rule.Finding, bool) {
+	after, spans := MeasureFuncUncovered(relFile, fa, fn, changedSet)
+	if after <= limit {
+		return rule.Finding{}, false
 	}
 	reportLine := fn.StartLine
 	if len(spans) > 0 {
 		reportLine = spans[0].StartLine
 	}
-	res.Findings = append(res.Findings, rule.Finding{
+	return rule.Finding{
 		Rule:           rule.RuleFuncUncoveredLines,
-		Kind:           kind,
-		File:           fm.File,
+		Kind:           rule.ViolationAdvisory,
+		File:           relFile,
 		Line:           reportLine,
 		EndLine:        fn.EndLine,
 		Subject:        fn.DisplayName,
-		Before:         sample.Before,
-		HasBefore:      sample.HasBefore,
-		After:          sample.After,
-		Limit:          sample.Limit,
-		Detail:         fmt.Sprintf("%d substantive uncovered line(s) across %d span(s)", sample.After, len(spans)),
+		After:          after,
+		Limit:          limit,
+		Detail:         fmt.Sprintf("%d substantive uncovered line(s) across %d span(s)", after, len(spans)),
 		UncoveredSpans: spans,
-	})
-}
-
-func collectPendingBasePackages(baseRoot string, pending []pendingBaseCov) []string {
-	var files []string
-	for _, p := range pending {
-		files = append(files, p.baseFile)
-	}
-	return PlanPackages(PlanRequest{RepoRoot: baseRoot, ProdFiles: files})
+	}, true
 }
 
 func sortedFiles(m map[string]map[int]struct{}) []string {

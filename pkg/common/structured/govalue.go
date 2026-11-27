@@ -15,10 +15,9 @@
 package structured
 
 import (
+	"maps"
 	"slices"
 	"unique"
-
-	"golang.org/x/exp/maps"
 )
 
 var defaultFieldPathCapacity = 8
@@ -35,7 +34,7 @@ type AlphabeticalGoMapKeyOrderProvider struct {
 
 // GetOrderedKeys returns the map keys sorted in alphabetical order.
 func (a *AlphabeticalGoMapKeyOrderProvider) GetOrderedKeys(sourcePath []string, sourceMap map[string]any) ([]string, error) {
-	keys := maps.Keys(sourceMap)
+	keys := slices.AppendSeq(make([]string, 0, len(sourceMap)), maps.Keys(sourceMap))
 	slices.Sort(keys)
 	return keys, nil
 }

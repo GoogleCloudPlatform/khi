@@ -181,7 +181,7 @@ func evaluateSingleBundle(ctx context.Context, model string, r RuleSpec, bundle 
 	if err != nil {
 		return ruleEvalOutcome{}, err
 	}
-	batches, err := CompileQuestions(model, sharedInput, r, bundle)
+	batches, err := CompileQuestions(ctx, model, sharedInput, r, bundle)
 	if err != nil {
 		return ruleEvalOutcome{}, err
 	}

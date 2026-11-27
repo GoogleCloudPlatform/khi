@@ -102,14 +102,6 @@ func collectBudgetSkippedMutantIDs(plans []*FilePlan) map[int]struct{} {
 	return skipped
 }
 
-func lineRangeSet(startLine int, endLine int) map[int]struct{} {
-	set := make(map[int]struct{}, endLine-startLine+1)
-	for ln := startLine; ln <= endLine; ln++ {
-		set[ln] = struct{}{}
-	}
-	return set
-}
-
 func cloneDirectives(in []rule.Directive) []rule.Directive {
 	out := make([]rule.Directive, len(in))
 	copy(out, in)

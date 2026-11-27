@@ -258,8 +258,8 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 // Run executes the inspection. It resolves the task graph, sets up the context
 // and metadata, and starts the task runner asynchronously.
 func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore.InspectionRequest) error {
-	defer i.runnerLock.Unlock()
 	i.runnerLock.Lock()
+	defer i.runnerLock.Unlock()
 	if i.runner != nil {
 		return fmt.Errorf("this task is already started")
 	}

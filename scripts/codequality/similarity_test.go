@@ -131,6 +131,7 @@ func dedupNames(names []string) []string {
 			"--repo-root=" + repoDir,
 			"--vcs=git",
 			"--base=HEAD~1",
+			"--lang=go",
 			"--speed=slow",
 			"--filter=advisory",
 			"--color=never",

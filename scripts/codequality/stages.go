@@ -20,13 +20,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/covcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/mutcheck"
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/overlay"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/report"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
@@ -48,16 +46,14 @@ func runDynamicStages(ctx context.Context, in dynamicStageInput, rep *rule.Repor
 	}
 	defer os.RemoveAll(workDir)
 
-	ensureOverlay := newLazyOverlayBuilder(ctx, in, workDir)
-	covRes, err := runCoverageStage(ctx, in, workDir, ensureOverlay)
+	covRes, err := runCoverageStage(ctx, in, workDir)
 	if err != nil {
 		return err
 	}
 	rep.Coverage = covRes.Summary
 	rep.Findings = append(rep.Findings, covRes.Findings...)
-	rep.Suppressed = append(rep.Suppressed, covRes.Suppressed...)
 
-	mutRes, err := runMutationStage(ctx, in, workDir, covRes, ensureOverlay)
+	mutRes, err := runMutationStage(ctx, in, workDir, covRes)
 	if err != nil {
 		return err
 	}
@@ -67,23 +63,7 @@ func runDynamicStages(ctx context.Context, in dynamicStageInput, rep *rule.Repor
 	return nil
 }
 
-func newLazyOverlayBuilder(ctx context.Context, in dynamicStageInput, workDir string) func() (*overlay.Snapshot, error) {
-	return sync.OnceValues(func() (*overlay.Snapshot, error) {
-		return overlay.Build(overlay.Config{
-			RepoRoot:            in.repoRoot,
-			WorkDir:             filepath.Join(workDir, "base_overlay"),
-			ProdFiles:           mapKeys(in.diffRes.ChangedLines),
-			TestFiles:           mapKeys(in.diffRes.ChangedTestLines),
-			DeletedGoFiles:      in.diffRes.DeletedGoFiles,
-			OtherChangedGoFiles: in.diffRes.OtherChangedGoFiles,
-			ReadBaseFile: func(relPath string) ([]byte, bool, error) {
-				return gotestutil.ReadBaseFile(ctx, in.repoRoot, in.diffRes, relPath)
-			},
-		})
-	})
-}
-
-func runCoverageStage(ctx context.Context, in dynamicStageInput, workDir string, ensureOverlay func() (*overlay.Snapshot, error)) (*covcheck.Result, error) {
+func runCoverageStage(ctx context.Context, in dynamicStageInput, workDir string) (*covcheck.Result, error) {
 	in.progress.Phase(2, 4, "Evaluating Go differential line coverage...")
 	return covcheck.Evaluate(ctx, covcheck.Options{
 		RepoRoot:               in.repoRoot,
@@ -97,12 +77,11 @@ func runCoverageStage(ctx context.Context, in dynamicStageInput, workDir string,
 		ReadTargetFile: func(relPath string) ([]byte, error) {
 			return os.ReadFile(filepath.Join(in.repoRoot, filepath.FromSlash(relPath)))
 		},
-		EnsureBaseOverlay: ensureOverlay,
-		ErrOut:            in.errOut,
+		ErrOut: in.errOut,
 	})
 }
 
-func runMutationStage(ctx context.Context, in dynamicStageInput, workDir string, covRes *covcheck.Result, ensureOverlay func() (*overlay.Snapshot, error)) (*mutcheck.Result, error) {
+func runMutationStage(ctx context.Context, in dynamicStageInput, workDir string, covRes *covcheck.Result) (*mutcheck.Result, error) {
 	return mutcheck.Evaluate(ctx, mutcheck.Options{
 		RepoRoot:               in.repoRoot,
 		WorkDir:                filepath.Join(workDir, "mut"),
@@ -112,7 +91,6 @@ func runMutationStage(ctx context.Context, in dynamicStageInput, workDir string,
 		CoverBlocksByFile:      covRes.CoverBlocksByFile,
 		HasCoverProfile:        covRes.HasCoverProfile,
 		ASTResult:              in.astRes,
-		EnsureBaseOverlay:      ensureOverlay,
 		Workers:                in.flags.workers,
 		MaxMutants:             in.flags.maxMutants,
 		Timeout:                in.flags.timeout,

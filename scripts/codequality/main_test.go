@@ -273,7 +273,7 @@ func TestRunCLIReturnsExitCodeOneOnViolation(t *testing.T) {
 		wantCode  int
 	}{
 		{
-			name:      "dynamic mode evaluates lazy base overlay sorts multiple violations and exits 1",
+			name:      "dynamic mode sorts multiple violations and exits 1",
 			extraArgs: []string{"--lang=go", "--skip-sources=decisions,similarity", "--fail-on-violations=true", "--summary-file=" + summaryPath},
 			wantCode:  1,
 		},
@@ -409,6 +409,7 @@ func Double(x int) int { return x * 2 }
 
 import "testing"
 
+// TestDouble verifies that Double doubles its input.
 func TestDouble(t *testing.T) {
 	if Double(3) != 6 {
 		t.Fatal("bad")
@@ -563,8 +564,11 @@ func TestPipelineHelpersAndStageSelection(t *testing.T) {
 		if !shouldRunGo(cliFlags{lang: "all", coverprofile: "cov.out"}, rule.SpeedSlow, rule.FilterMust, gotestutil.DiffResult{}) {
 			t.Errorf("shouldRunGo(coverprofile) = false, want true")
 		}
-		if shouldRunGo(cliFlags{lang: "all"}, rule.SpeedSlow, rule.FilterAdvisory, goDiff) {
-			t.Errorf("shouldRunGo(slow advisory without similarity) = true, want false")
+		if shouldRunGo(cliFlags{lang: "all"}, rule.SpeedFast, rule.FilterAdvisory, goDiff) {
+			t.Errorf("shouldRunGo(fast advisory) = true, want false")
+		}
+		if !shouldRunGo(cliFlags{lang: "all"}, rule.SpeedSlow, rule.FilterAdvisory, goDiff) {
+			t.Errorf("shouldRunGo(slow advisory with changed lines) = false, want true")
 		}
 		if !shouldRunGo(cliFlags{lang: "all", similarity: true}, rule.SpeedSlow, rule.FilterAdvisory, goDiff) {
 			t.Errorf("shouldRunGo(slow advisory with similarity) = false, want true")
@@ -582,14 +586,15 @@ func TestPipelineHelpersAndStageSelection(t *testing.T) {
 			diffRes gotestutil.DiffResult
 			want    bool
 		}{
-			{name: "prod lines", flags: cliFlags{lang: "all"}, filter: rule.FilterMust, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: true},
-			{name: "test lines", flags: cliFlags{lang: "all"}, filter: rule.FilterMust, diffRes: gotestutil.DiffResult{TSChangedTestLines: map[string]map[int]struct{}{"a.spec.ts": {1: {}}}}, want: true},
-			{name: "tsCoverage", flags: cliFlags{lang: "all", tsCoverage: "cov.json"}, filter: rule.FilterMust, want: true},
-			{name: "full", flags: cliFlags{lang: "all", full: true}, filter: rule.FilterMust, want: true},
-			{name: "empty must", flags: cliFlags{lang: "all"}, filter: rule.FilterMust, want: false},
-			{name: "advisory prod without similarity", flags: cliFlags{lang: "all"}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: false},
+			{name: "must prod lines without tsFailOnViolations", flags: cliFlags{lang: "all"}, filter: rule.FilterMust, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: false},
+			{name: "must prod lines with tsFailOnViolations", flags: cliFlags{lang: "all", tsFailOnViolations: true}, filter: rule.FilterMust, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: true},
+			{name: "advisory prod lines", flags: cliFlags{lang: "all"}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: true},
+			{name: "advisory test lines", flags: cliFlags{lang: "all"}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedTestLines: map[string]map[int]struct{}{"a.spec.ts": {1: {}}}}, want: true},
+			{name: "advisory tsCoverage", flags: cliFlags{lang: "all", tsCoverage: "cov.json"}, filter: rule.FilterAdvisory, want: true},
+			{name: "advisory full", flags: cliFlags{lang: "all", full: true}, filter: rule.FilterAdvisory, want: true},
+			{name: "empty must", flags: cliFlags{lang: "all", tsFailOnViolations: true}, filter: rule.FilterMust, want: false},
+			{name: "empty advisory", flags: cliFlags{lang: "all"}, filter: rule.FilterAdvisory, want: false},
 			{name: "advisory prod with similarity", flags: cliFlags{lang: "all", similarity: true}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedLines: map[string]map[int]struct{}{"a.ts": {1: {}}}}, want: true},
-			{name: "advisory test only", flags: cliFlags{lang: "all", similarity: true}, filter: rule.FilterAdvisory, diffRes: gotestutil.DiffResult{TSChangedTestLines: map[string]map[int]struct{}{"a.spec.ts": {1: {}}}}, want: false},
 		}
 		for _, tc := range cases {
 			if got := shouldRunTS(tc.flags, rule.SpeedSlow, tc.filter, tc.diffRes); got != tc.want {

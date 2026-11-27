@@ -92,13 +92,13 @@ type RedundantDetail struct {
 	DominatorKills int
 }
 
-// Finding represents a single blocking quality rule violation (HARD_LIMIT or RATCHET_REGRESSION).
+// Finding represents a single quality rule violation (HARD_LIMIT, RATCHET_REGRESSION, or ADVISORY).
 type Finding struct {
 	// GlobalIndex is the 1-based report-wide index assigned during final sorting.
 	GlobalIndex int
 	// Rule is the violated RuleID.
 	Rule RuleID
-	// Kind classifies the violation as HARD_LIMIT or RATCHET_REGRESSION.
+	// Kind classifies the violation as HARD_LIMIT, RATCHET_REGRESSION, or ADVISORY.
 	Kind ViolationKind
 	// File is the slash-separated relative path of the finding.
 	File string
@@ -172,8 +172,6 @@ type CoverageSummary struct {
 	OverallCovered int
 	// OverallStatements is the total statement count across the repository.
 	OverallStatements int
-	// BaseOverlayRuns is the number of lazy base-overlay coverage runs executed.
-	BaseOverlayRuns int
 }
 
 // MutationSummary holds aggregate mutant evaluation counts for dashboard display.
@@ -194,8 +192,6 @@ type MutationSummary struct {
 	SkippedBudget int
 	// CompileSkipped is the count of mutants dropped during compile bisect fallback.
 	CompileSkipped int
-	// BaseOverlayRuns is the number of lazy base-overlay mutation runs executed.
-	BaseOverlayRuns int
 	// ByCategory counts suppressed mutants grouped by AllowCategory.
 	ByCategory map[AllowCategory]int
 }
@@ -267,6 +263,11 @@ func (m MutationSummary) Score() float64 {
 	return float64(m.DetectedCount()) * 100.0 / float64(total)
 }
 
+// IsAdvisory reports whether f is a non-blocking advisory finding.
+func (f Finding) IsAdvisory() bool {
+	return f.Kind == ViolationAdvisory
+}
+
 // LanguageTitle returns the display language name, defaulting to "Go".
 func (r *Report) LanguageTitle() string {
 	if r.Language != "" {
@@ -283,6 +284,28 @@ func (r *Report) CodeFence() string {
 	return "go"
 }
 
+// BlockingFindingCount returns the number of non-advisory Findings in r.
+func (r *Report) BlockingFindingCount() int {
+	count := 0
+	for _, f := range r.Findings {
+		if !f.IsAdvisory() {
+			count++
+		}
+	}
+	return count
+}
+
+// AdvisoryFindingCount returns the number of advisory Findings in r.
+func (r *Report) AdvisoryFindingCount() int {
+	count := 0
+	for _, f := range r.Findings {
+		if f.IsAdvisory() {
+			count++
+		}
+	}
+	return count
+}
+
 // HasIssues reports whether the report contains any findings, directive errors, or blocking decision violations.
 func (r *Report) HasIssues() bool {
 	return len(r.Findings) > 0 || len(r.DirectiveErrors) > 0 || r.Decisions.HasBlockingFindings()
@@ -290,5 +313,8 @@ func (r *Report) HasIssues() bool {
 
 // HasBlockingIssues reports whether the report contains blocking rule violations, directive errors, or blocking decision violations.
 func (r *Report) HasBlockingIssues() bool {
-	return !r.Advisory && r.HasIssues()
+	if r.Advisory {
+		return false
+	}
+	return r.BlockingFindingCount() > 0 || len(r.DirectiveErrors) > 0 || r.Decisions.HasBlockingFindings()
 }

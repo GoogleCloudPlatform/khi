@@ -104,15 +104,7 @@ func EmptyBody() {
 
 import "testing"
 
-func complexHelper(a, b bool) int {
-	if a {
-		if b {
-			return 1
-		}
-	}
-	return 0
-}
-
+// TestSvc verifies nested subtest behavior.
 func TestSvc(t *testing.T) {
 	t.Run("untouched_sub", func(t *testing.T) {})
 	t.Run("branchy", func(t *testing.T) {
@@ -121,6 +113,15 @@ func TestSvc(t *testing.T) {
 			}
 		}
 	})
+}
+
+func complexHelper(a, b bool) int {
+	if a {
+		if b {
+			return 1
+		}
+	}
+	return 0
 }
 `,
 	}
@@ -151,7 +152,7 @@ func RegressedLegacy(x int) int {
 		},
 		ChangedTestLinesByFile: map[string]map[int]struct{}{
 			"pkg/svc/gen_test.go": {1: {}},
-			"pkg/svc/svc_test.go": {6: {}, 17: {}},
+			"pkg/svc/svc_test.go": {9: {}, 17: {}},
 		},
 		DeletedGoFiles:   []string{"pkg/svc/legacy.go"},
 		CloneCorpusFiles: []string{"pkg/peer/peer.go", "pkg/peer/peer.go", "pkg/svc/new_util.go", "pkg/peer/missing_corpus.go"},
@@ -201,7 +202,7 @@ func RegressedLegacy(x int) int {
 	wantEvaluatedLines := map[string]map[int]struct{}{
 		"pkg/svc/util.go":     {1: {}, 5: {}, 7: {}},
 		"pkg/svc/new_util.go": {1: {}, 6: {}, 7: {}, 15: {}, 16: {}, 29: {}, 30: {}, 38: {}, 39: {}},
-		"pkg/svc/svc_test.go": {1: {}, 5: {}, 6: {}, 16: {}, 17: {}},
+		"pkg/svc/svc_test.go": {1: {}, 8: {}, 9: {}, 16: {}, 17: {}},
 	}
 	if diff := cmp.Diff(wantEvaluatedLines, res.EvaluatedLines); diff != "" {
 		t.Errorf("EvaluatedLines mismatch (-want +got):\n%s", diff)
@@ -246,18 +247,6 @@ func RegressedLegacy(x int) int {
 			Limit:   4,
 		},
 		{
-			Rule:      rule.RuleControlFlagParam,
-			Kind:      rule.ViolationHardLimit,
-			File:      "pkg/svc/new_util.go",
-			Line:      15,
-			EndLine:   27,
-			Subject:   "RegressedLegacy",
-			HasBefore: true,
-			After:     1,
-			Limit:     0,
-			Detail:    "boolean control-flow parameter(s): flag",
-		},
-		{
 			Rule:      rule.RuleFuncCognitive,
 			Kind:      rule.ViolationRatchetRegression,
 			File:      "pkg/svc/new_util.go",
@@ -287,26 +276,26 @@ func RegressedLegacy(x int) int {
 			Detail:  "lines 30-35 duplicate 5 normalized statements from pkg/peer/peer.go:4-9 (PeerClone)",
 		},
 		{
-			Rule:    rule.RuleTestHelperCognitive,
-			Kind:    rule.ViolationHardLimit,
-			File:    "pkg/svc/svc_test.go",
-			Line:    5,
-			EndLine: 12,
-			Subject: "complexHelper",
-			After:   3,
-			Limit:   1,
-			Hotspots: []rule.Hotspot{
-				{Line: 6, Delta: 1, Summary: "+1 (if)"},
-				{Line: 7, Delta: 2, Summary: "+2 (nested if, depth=1)"},
-			},
-		},
-		{
 			Rule:    rule.RuleTRunCognitive,
 			Kind:    rule.ViolationHardLimit,
 			File:    "pkg/svc/svc_test.go",
-			Line:    16,
-			EndLine: 21,
+			Line:    8,
+			EndLine: 13,
 			Subject: "TestSvc [t.Run(branchy)]",
+			After:   3,
+			Limit:   1,
+			Hotspots: []rule.Hotspot{
+				{Line: 9, Delta: 1, Summary: "+1 (if)"},
+				{Line: 10, Delta: 2, Summary: "+2 (nested if, depth=1)"},
+			},
+		},
+		{
+			Rule:    rule.RuleTestHelperCognitive,
+			Kind:    rule.ViolationHardLimit,
+			File:    "pkg/svc/svc_test.go",
+			Line:    16,
+			EndLine: 23,
+			Subject: "complexHelper",
 			After:   3,
 			Limit:   1,
 			Hotspots: []rule.Hotspot{

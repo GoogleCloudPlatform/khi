@@ -55,6 +55,8 @@ type QAItem struct {
 	File string `json:"file"`
 	// Line is the 1-based source line number associated with this item.
 	Line int `json:"line"`
+	// EndLine is the optional 1-based ending source line number of this item's scope.
+	EndLine int `json:"end_line,omitempty"`
 	// Symbol is the function, type, or unit name associated with this item.
 	Symbol string `json:"symbol"`
 	// Summary is a concise one-line description of the issue.
@@ -103,6 +105,8 @@ type AdvisoryRequest struct {
 	DeletedFiles []string
 	// ChangedLines maps repository-relative file paths to modified 1-based line numbers.
 	ChangedLines map[string]map[int]struct{}
+	// ReadBaseFile optionally reads a file's contents from the base VCS revision.
+	ReadBaseFile func(relPath string) ([]byte, bool, error)
 }
 
 // AdvisoryProvider evaluates a single advisory source against changed files.

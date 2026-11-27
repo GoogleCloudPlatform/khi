@@ -267,6 +267,9 @@ func SuppressedParams(a, b, c, d, e, f int) int { return a + b + c + d + e + f }
 // CODEQUALITY_ALLOW(func_params, protocol): unused directive.
 func UnusedDirective(x int) int { return x }
 
+// CODEQUALITY_ALLOW(func_uncovered_lines, external): unused dynamic directive must not become MustFix.
+func UnusedDynamicDirective(x int) int { return x }
+
 // CODEQUALITY_ALLOW(unknown_rule, protocol): invalid rule.
 func MalformedDirective(x int) int { return x }
 `,
@@ -335,8 +338,8 @@ func MalformedDirective(x int) int { return x }
 	if err != nil {
 		t.Fatalf("executeGoPipeline(slow must) error: %v", err)
 	}
-	if goSlowRep.FastMode || goSlowRep.FuncsEvaluated == 0 || !goSlowRep.Coverage.Enabled || len(goSlowRep.DirectiveErrors) < 2 || len(goSlowRep.Suppressed) == 0 {
-		t.Errorf("goSlowRep = %+v, want FastMode=false, FuncsEvaluated>0, Coverage.Enabled=true, DirectiveErrors>=2, Suppressed>0", goSlowRep)
+	if goSlowRep.FastMode || goSlowRep.FuncsEvaluated == 0 || goSlowRep.Coverage.Enabled || goSlowRep.Mutation.Enabled || len(goSlowRep.DirectiveErrors) < 2 || len(goSlowRep.Suppressed) == 0 {
+		t.Errorf("goSlowRep = %+v, want FastMode=false, FuncsEvaluated>0, Coverage.Enabled=false, Mutation.Enabled=false, DirectiveErrors>=2, Suppressed>0", goSlowRep)
 	}
 	for _, f := range goSlowRep.Findings {
 		if f.Rule == "exported-member-doc" {
@@ -359,8 +362,19 @@ func MalformedDirective(x int) int { return x }
 	if err != nil {
 		t.Fatalf("executeGoPipeline(slow advisory) error: %v", err)
 	}
-	if !goSlowAdvRep.Similarity.Enabled {
-		t.Errorf("goSlowAdvRep.Similarity.Enabled = false, want true")
+	if !goSlowAdvRep.Coverage.Enabled || !goSlowAdvRep.Mutation.Enabled || !goSlowAdvRep.Similarity.Enabled || len(goSlowAdvRep.DirectiveErrors) != 0 {
+		t.Errorf("goSlowAdvRep = %+v, want Coverage.Enabled=true, Mutation.Enabled=true, Similarity.Enabled=true, DirectiveErrors=0", goSlowAdvRep)
+	}
+
+	// Verify combined must+advisory slow pipeline ignores unused dynamic CODEQUALITY_ALLOW directives while reporting AST directive errors.
+	goAllRep, err := executeGoPipeline(ctx, penv, rule.SpeedAll, rule.FilterAll)
+	if err != nil {
+		t.Fatalf("executeGoPipeline(all all) error: %v", err)
+	}
+	for _, de := range goAllRep.DirectiveErrors {
+		if strings.Contains(de.Message, "func_uncovered_lines") {
+			t.Errorf("unexpected MustFix directive error for dynamic rule: %+v", de)
+		}
 	}
 
 	tsCovPath := filepath.Join(t.TempDir(), "ts-cov.json")
@@ -392,14 +406,23 @@ func MalformedDirective(x int) int { return x }
 	if err != nil {
 		t.Fatalf("executeTSPipeline(must) error: %v", err)
 	}
-	if !tsMustRep.Coverage.Enabled || tsMustRep.Similarity.Enabled {
-		t.Errorf("tsMustRep = %+v, want Coverage.Enabled=true and Similarity.Enabled=false", tsMustRep)
+	if tsMustRep.Coverage.Enabled || tsMustRep.Similarity.Enabled {
+		t.Errorf("tsMustRep = %+v, want Coverage.Enabled=false and Similarity.Enabled=false without tsFailOnViolations", tsMustRep)
+	}
+	tsMustFailPenv := tsPenv
+	tsMustFailPenv.flags.tsFailOnViolations = true
+	tsMustFailRep, err := executeTSPipeline(ctx, tsMustFailPenv, rule.FilterMust)
+	if err != nil {
+		t.Fatalf("executeTSPipeline(must, tsFailOnViolations) error: %v", err)
+	}
+	if !tsMustFailRep.Coverage.Enabled || tsMustFailRep.Advisory {
+		t.Errorf("tsMustFailRep = %+v, want Coverage.Enabled=true and Advisory=false", tsMustFailRep)
 	}
 	tsAdvRep, err := executeTSPipeline(ctx, tsPenv, rule.FilterAdvisory)
 	if err != nil {
 		t.Fatalf("executeTSPipeline(advisory) error: %v", err)
 	}
-	if tsAdvRep.Coverage.Enabled || !tsAdvRep.Advisory || (len(tsDiff.TSChangedLines) > 0 && !tsAdvRep.Similarity.Enabled) {
-		t.Errorf("tsAdvRep = %+v, want Coverage.Enabled=false, Advisory=true, Similarity.Enabled=%v", tsAdvRep, len(tsDiff.TSChangedLines) > 0)
+	if !tsAdvRep.Coverage.Enabled || !tsAdvRep.Advisory || (len(tsDiff.TSChangedLines) > 0 && !tsAdvRep.Similarity.Enabled) {
+		t.Errorf("tsAdvRep = %+v, want Coverage.Enabled=true, Advisory=true, Similarity.Enabled=%v", tsAdvRep, len(tsDiff.TSChangedLines) > 0)
 	}
 }

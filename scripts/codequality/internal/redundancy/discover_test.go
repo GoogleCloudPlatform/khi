@@ -191,6 +191,7 @@ func TestParseVerboseTestOutput(t *testing.T) {
 				LeafOrder:   []string{"TestSuite/first_case", "TestSuite/explicit_assert", "TestSuiteExtra"},
 				RanLeafSet:  map[string]struct{}{"TestSuite/first_case": {}, "TestSuite/explicit_assert": {}, "TestSuiteExtra": {}},
 				FailedLeafs: map[string]struct{}{"TestSuite/explicit_assert": {}},
+				Aborted:     false,
 			},
 		},
 		{
@@ -203,6 +204,7 @@ panic: boom
 				LeafOrder:   []string{"TestDirectCrash"},
 				RanLeafSet:  map[string]struct{}{"TestDirectCrash": {}},
 				FailedLeafs: map[string]struct{}{"TestDirectCrash": {}},
+				Aborted:     true,
 			},
 		},
 		{
@@ -220,6 +222,7 @@ panic: boom
 				LeafOrder:   []string{"TestResumed", "TestOther", "TestEarly"},
 				RanLeafSet:  map[string]struct{}{"TestResumed": {}, "TestOther": {}, "TestEarly": {}},
 				FailedLeafs: map[string]struct{}{"TestResumed": {}},
+				Aborted:     true,
 			},
 		},
 		{
@@ -231,6 +234,7 @@ panic: boom
 				LeafOrder:   []string{"TestIncomplete"},
 				RanLeafSet:  map[string]struct{}{"TestIncomplete": {}},
 				FailedLeafs: map[string]struct{}{},
+				Aborted:     false,
 			},
 		},
 		{
@@ -243,6 +247,7 @@ panic: boom
 				LeafOrder:   []string{"TestPassed"},
 				RanLeafSet:  map[string]struct{}{"TestPassed": {}},
 				FailedLeafs: map[string]struct{}{},
+				Aborted:     true,
 			},
 		},
 		{
@@ -256,6 +261,7 @@ panic: boom
 				LeafOrder:   []string{"TestExplicitFail", "TestStillRunning"},
 				RanLeafSet:  map[string]struct{}{"TestExplicitFail": {}, "TestStillRunning": {}},
 				FailedLeafs: map[string]struct{}{"TestExplicitFail": {}},
+				Aborted:     true,
 			},
 		},
 		{
@@ -271,6 +277,24 @@ panic: parent cleanup failed
 				LeafOrder:   []string{"TestParent/child"},
 				RanLeafSet:  map[string]struct{}{"TestParent/child": {}},
 				FailedLeafs: map[string]struct{}{},
+				Aborted:     true,
+			},
+		},
+		// Marks run as aborted when a non-leaf parent panics after a child subtest already failed.
+		{
+			name: "marks non-leaf parent panic after child fail as aborted",
+			rawOut: `=== RUN   TestParent
+=== RUN   TestParent/a
+--- FAIL: TestParent/a (0.00s)
+=== CONT  TestParent
+panic: setup for b crashed
+`,
+			nonZero: true,
+			want: VerboseTestResult{
+				LeafOrder:   []string{"TestParent/a"},
+				RanLeafSet:  map[string]struct{}{"TestParent/a": {}},
+				FailedLeafs: map[string]struct{}{"TestParent/a": {}},
+				Aborted:     true,
 			},
 		},
 	}

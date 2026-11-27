@@ -25,29 +25,28 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/astcheck"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/gotestutil"
-	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/overlay"
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
-func TestEvaluateSurvivingMutantsRatchetAndRedundancy(t *testing.T) {
+func TestEvaluateSurvivingMutantsAndRedundancy(t *testing.T) {
 	repoDir := t.TempDir()
 	workDir := t.TempDir()
 
 	targetSvc := `package svc
 
 func KilledClean(x int) int {
-	return x + 1
+	return x*x + 1
 }
 
 func NewWeak(x int) bool {
 	return x >= 10
 }
 
-func LegacyUnchangedWeak(x int) bool {
+func UntouchedWeak(x int) bool {
 	return x >= 10
 }
 
-func LegacyWorsenedWeak(x int, y int) bool {
+func MultiWeak(x int, y int) bool {
 	return x >= 10 && y >= 10
 }
 
@@ -72,8 +71,8 @@ func TestSvc(t *testing.T) {
 		x    int
 		want int
 	}{
-		{name: "case one", x: 1, want: 2},
-		{name: "duplicate case", x: 5, want: 6},
+		{name: "case one", x: 5, want: 26},
+		{name: "duplicate case", x: 1, want: 2},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -82,30 +81,7 @@ func TestSvc(t *testing.T) {
 			}
 		})
 	}
-	if !NewWeak(20) || !LegacyUnchangedWeak(20) || !LegacyWorsenedWeak(20, 20) {
-		t.Fatal("expected true")
-	}
-}
-`
-	baseSvc := `package svc
-
-func LegacyUnchangedWeak(x int) bool {
-	return x >= 10
-}
-
-func LegacyWorsenedWeak(x int, y int) bool {
-	return x >= 10
-}
-`
-	baseTest := `package svc
-
-import "testing"
-
-func TestSvc(t *testing.T) {
-	if !testing.Short() {
-		t.Fatal("expected -test.short")
-	}
-	if !LegacyUnchangedWeak(20) || !LegacyWorsenedWeak(20, 20) {
+	if !NewWeak(20) || !UntouchedWeak(20) || !MultiWeak(20, 20) {
 		t.Fatal("expected true")
 	}
 }
@@ -118,20 +94,10 @@ func TestSvc(t *testing.T) {
 		"empty/empty.go":     {3: {}},
 		"notest/notest.go":   {3: {}},
 		"suppkg/sup.go":      {5: {}},
-		"svc/svc.go":         {4: {}, 8: {}, 12: {}, 16: {}, 20: {}, 24: {}},
+		"svc/svc.go":         {4: {}, 8: {}, 16: {}, 20: {}, 24: {}},
 	}
 	changedTest := map[string]map[int]struct{}{
 		"svc/svc_test.go": {15: {}},
-	}
-	readBase := func(relPath string) ([]byte, bool, error) {
-		switch relPath {
-		case "svc/svc.go":
-			return []byte(baseSvc), true, nil
-		case "svc/svc_test.go":
-			return []byte(baseTest), true, nil
-		default:
-			return nil, false, nil
-		}
 	}
 	readTarget := func(relPath string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(repoDir, filepath.FromSlash(relPath)))
@@ -143,7 +109,6 @@ func TestSvc(t *testing.T) {
 		ChangedProdLinesByFile: changedProd,
 		ChangedTestLinesByFile: changedTest,
 		ReadTargetFile:         readTarget,
-		ReadBaseFile:           readBase,
 	})
 	if err != nil {
 		t.Fatalf("astcheck.Evaluate failed: %v", err)
@@ -168,21 +133,9 @@ func TestSvc(t *testing.T) {
 		MaxMutants: 80,
 		Timeout:    30 * time.Second,
 		Progress:   prog,
-		EnsureBaseOverlay: func() (*overlay.Snapshot, error) {
-			return overlay.Build(overlay.Config{
-				RepoRoot:     repoDir,
-				WorkDir:      filepath.Join(workDir, "ov"),
-				ProdFiles:    []string{"svc/svc.go"},
-				TestFiles:    []string{"svc/svc_test.go"},
-				ReadBaseFile: readBase,
-			})
-		},
 	})
 	if evalErr != nil {
 		t.Fatalf("mutcheck.Evaluate failed: %v", evalErr)
-	}
-	if mutRes.Summary.BaseOverlayRuns != 2 {
-		t.Errorf("BaseOverlayRuns = %d, want 2", mutRes.Summary.BaseOverlayRuns)
 	}
 
 	assertMutEvalResult(t, mutRes, prog)
@@ -230,11 +183,11 @@ func assertMutEvalResult(t *testing.T, mutRes *Result, prog *spyProgress) {
 		rule.RuleFuncSurvivingMutants,
 		rule.RuleTestRedundancy,
 	}
-	wantSubjects := []string{"NewWeak", "LegacyWorsenedWeak", "TestSvc"}
+	wantSubjects := []string{"NewWeak", "MultiWeak", "TestSvc"}
 	wantKinds := []rule.ViolationKind{
-		rule.ViolationHardLimit,
-		rule.ViolationRatchetRegression,
-		rule.ViolationHardLimit,
+		rule.ViolationAdvisory,
+		rule.ViolationAdvisory,
+		rule.ViolationAdvisory,
 	}
 	var gotRules []rule.RuleID
 	var gotSubjects []string

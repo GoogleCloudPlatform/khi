@@ -7,6 +7,7 @@ Adding a new semantic check requires **no Go code changes**: create a `*.yaml` f
 ## Built-in Rules
 
 - **`go_code_quality.yaml`**: Verifies comment-to-logic alignment and clear, accurate function/parameter/variable naming on modified Go production files.
+- **`go_refactor_safety.yaml`**: Verifies via diff hunks that modified Go production functions do not silently remove defensive guards, capacity pre-allocations, or lock/error invariants.
 - **`go_test_quality.yaml`**: Verifies preceding test-case explanation comments and logic alignment, linear Arrange-Act-Assert structure, callback testing practices (recording inside callbacks and asserting outside), and clear naming on modified Go `*_test.go` files.
 - **`ts_code_quality.yaml`**: Verifies TSDoc and inline comment-to-logic alignment and clear, accurate function/method/parameter/variable naming on modified TypeScript production files (`web/src/**/*.ts`).
 - **`ts_test_quality.yaml`**: Verifies preceding spec explanation comments and logic alignment, linear Arrange-Act-Assert structure, callback and subscription testing practices (recording inside callbacks/`.subscribe(...)` and asserting outside), and clear naming on modified TypeScript `*.spec.ts` files.
@@ -17,10 +18,10 @@ Set `CODEQUALITY_DECISIONS_API_KEY` in `~/.config/khi/codequality.mk` (or `GEMIN
 
 ```bash
 # Run all enabled Gemini Decisions rules on current VCS diff
-make codequality-decisions
+CODEQUALITY_DECISIONS=true make qa-fast-advisory
 
 # Run a single rule on current VCS diff
-go run ./scripts/codequality --decisions-only --decisions-rules=go_test_quality
+go run ./scripts/codequality check --speed=fast --filter=advisory --decisions --decisions-rules=go_test_quality
 ```
 
 Responses are cached in `~/.cache/khi/decisions/decisions_v1.db` keyed by the SHA-256 hash of the model, shared input, and rendered question JSON. Editing a rule YAML file or any target/reference file automatically invalidates stale cache entries.

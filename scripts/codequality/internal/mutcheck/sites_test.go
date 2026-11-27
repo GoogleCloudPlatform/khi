@@ -44,7 +44,7 @@ func TestSiteHelpers(t *testing.T) {
 		"func PtrRet() *bool { return true }\r\n"
 
 	plan, err := PlanFileMutations("p.go", []byte(src), PlanOptions{
-		TargetLines: lineRangeSet(1, 30),
+		TargetLines: lineRangeSet(30),
 	})
 	if err != nil {
 		t.Fatalf("PlanFileMutations() error: %v", err)

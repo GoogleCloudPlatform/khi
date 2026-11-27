@@ -67,55 +67,75 @@ type tsExtractSpec struct {
 	keepItem  func(tsRawItem) bool
 }
 
+type tsExtractInput struct {
+	targetID     string
+	webDir       string
+	files        []BundledFile
+	changedLines map[string]map[int]struct{}
+	spec         tsExtractSpec
+}
+
 // ExtractChangedTSDecls extracts production TypeScript declarations (classes, interfaces, enums, types, functions, and methods) overlapping changedLines.
-func ExtractChangedTSDecls(targetID string, webDir string, files []BundledFile, changedLines map[string]map[int]struct{}) ([]ExtractedItem, error) {
-	return extractChangedTSItems(targetID, webDir, files, changedLines, tsExtractSpec{
-		mode:      tsExtractModeDecls,
-		matchFile: isProdTSFile,
-		keepItem:  keepAllTSItems,
+func ExtractChangedTSDecls(ctx context.Context, targetID string, webDir string, files []BundledFile, changedLines map[string]map[int]struct{}) ([]ExtractedItem, error) {
+	return extractChangedTSItems(ctx, tsExtractInput{
+		targetID:     targetID,
+		webDir:       webDir,
+		files:        files,
+		changedLines: changedLines,
+		spec: tsExtractSpec{
+			mode:      tsExtractModeDecls,
+			matchFile: isProdTSFile,
+			keepItem:  keepAllTSItems,
+		},
 	})
 }
 
 // ExtractChangedTSFuncs extracts production TypeScript functions and class methods overlapping changedLines.
-func ExtractChangedTSFuncs(targetID string, webDir string, files []BundledFile, changedLines map[string]map[int]struct{}) ([]ExtractedItem, error) {
-	return extractChangedTSItems(targetID, webDir, files, changedLines, tsExtractSpec{
-		mode:      tsExtractModeDecls,
-		matchFile: isProdTSFile,
-		keepItem:  keepCallableTSItems,
+func ExtractChangedTSFuncs(ctx context.Context, targetID string, webDir string, files []BundledFile, changedLines map[string]map[int]struct{}) ([]ExtractedItem, error) {
+	return extractChangedTSItems(ctx, tsExtractInput{
+		targetID:     targetID,
+		webDir:       webDir,
+		files:        files,
+		changedLines: changedLines,
+		spec: tsExtractSpec{
+			mode:      tsExtractModeDecls,
+			matchFile: isProdTSFile,
+			keepItem:  keepCallableTSItems,
+		},
 	})
 }
 
 // ExtractChangedTSSpecs extracts Jasmine spec blocks (it/fit/xit) in *.spec.ts files overlapping changedLines.
-func ExtractChangedTSSpecs(targetID string, webDir string, files []BundledFile, changedLines map[string]map[int]struct{}) ([]ExtractedItem, error) {
-	return extractChangedTSItems(targetID, webDir, files, changedLines, tsExtractSpec{
-		mode:      tsExtractModeSpecs,
-		matchFile: isSpecTSFile,
-		keepItem:  keepAllTSItems,
+func ExtractChangedTSSpecs(ctx context.Context, targetID string, webDir string, files []BundledFile, changedLines map[string]map[int]struct{}) ([]ExtractedItem, error) {
+	return extractChangedTSItems(ctx, tsExtractInput{
+		targetID:     targetID,
+		webDir:       webDir,
+		files:        files,
+		changedLines: changedLines,
+		spec: tsExtractSpec{
+			mode:      tsExtractModeSpecs,
+			matchFile: isSpecTSFile,
+			keepItem:  keepAllTSItems,
+		},
 	})
 }
 
-func extractChangedTSItems(
-	targetID string,
-	webDir string,
-	files []BundledFile,
-	changedLines map[string]map[int]struct{},
-	spec tsExtractSpec,
-) ([]ExtractedItem, error) {
-	wireFiles := filterTSWireFiles(files, changedLines, spec.matchFile)
+func extractChangedTSItems(ctx context.Context, input tsExtractInput) ([]ExtractedItem, error) {
+	wireFiles := filterTSWireFiles(input.files, input.changedLines, input.spec.matchFile)
 	if len(wireFiles) == 0 {
 		return nil, nil
 	}
-	resolvedWebDir, err := gotestutil.ResolveWebDir(webDir)
+	resolvedWebDir, err := gotestutil.ResolveWebDir(input.webDir)
 	if err != nil {
 		return nil, err
 	}
 	// tsExtractRequest contains only strings and slices, so json.Marshal cannot fail.
 	payload, _ := json.Marshal(tsExtractRequest{
 		WebDir: resolvedWebDir,
-		Mode:   spec.mode,
+		Mode:   input.spec.mode,
 		Files:  wireFiles,
 	})
-	rawOutput, err := runTSNodeScript(payload)
+	rawOutput, err := runTSNodeScript(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +143,7 @@ func extractChangedTSItems(
 	if err := json.Unmarshal(rawOutput, &parsed); err != nil {
 		return nil, fmt.Errorf("failed decoding TypeScript AST output: %w", err)
 	}
-	return collectExtractedTSItems(targetID, wireFiles, &parsed, changedLines, spec.keepItem), nil
+	return collectExtractedTSItems(input.targetID, wireFiles, &parsed, input.changedLines, input.spec.keepItem), nil
 }
 
 func filterTSWireFiles(files []BundledFile, changedLines map[string]map[int]struct{}, matchFile func(string) bool) []tsWireFile {
@@ -144,8 +164,8 @@ func filterTSWireFiles(files []BundledFile, changedLines map[string]map[int]stru
 	return wireFiles
 }
 
-func runTSNodeScript(payload []byte) ([]byte, error) {
-	cmd := exec.CommandContext(context.Background(), "node", "-e", extractTSScript)
+func runTSNodeScript(ctx context.Context, payload []byte) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "node", "-e", extractTSScript)
 	cmd.Stdin = bytes.NewReader(payload)
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf

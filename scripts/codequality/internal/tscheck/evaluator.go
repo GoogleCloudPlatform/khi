@@ -114,7 +114,8 @@ func Evaluate(ctx context.Context, opts Options) (*rule.Report, error) {
 		ReadSource: func(relPath string) ([]byte, error) {
 			return os.ReadFile(filepath.Join(opts.RepoRoot, filepath.FromSlash(relPath)))
 		},
-		IncludeOverall: opts.TSCoveragePath != "" || opts.Full,
+		IncludeOverall:   opts.TSCoveragePath != "" || opts.Full,
+		FailOnViolations: opts.FailOnViolations,
 	})
 	if err != nil {
 		return nil, err
@@ -154,7 +155,7 @@ func evaluateTSMutationsAndSpecs(
 	if err != nil {
 		return err
 	}
-	recordTSBundleIntoReport(rep, &bundle, pluginRes)
+	recordTSBundleIntoReport(rep, &bundle, pluginRes, opts.FailOnViolations)
 	return nil
 }
 
@@ -352,8 +353,13 @@ func recordTSBundleIntoReport(
 	rep *rule.Report,
 	bundle *tsMutPlanBundle,
 	pluginRes *karmaPluginResults,
+	failOnViolations bool,
 ) {
 	skippedIDs := make(map[int]struct{})
+	findingKind := rule.ViolationAdvisory
+	if failOnViolations {
+		findingKind = rule.ViolationHardLimit
+	}
 	for _, fp := range bundle.allPlans {
 		rep.Suppressed = append(rep.Suppressed, fp.Suppressed...)
 		rep.DirectiveErrors = append(rep.DirectiveErrors, fp.DirectiveErrors...)
@@ -367,7 +373,7 @@ func recordTSBundleIntoReport(
 		if len(survived) > 0 {
 			rep.Findings = append(rep.Findings, rule.Finding{
 				Rule:             rule.RuleFuncSurvivingMutants,
-				Kind:             rule.ViolationHardLimit,
+				Kind:             findingKind,
 				File:             fp.File,
 				Line:             survived[0].Line,
 				EndLine:          survived[len(survived)-1].Line,
@@ -389,7 +395,7 @@ func recordTSBundleIntoReport(
 			MutantFileByID:       bundle.mutantFileByID,
 			BudgetSkippedMutants: skippedIDs,
 		})
-		rep.Findings = append(rep.Findings, redundancy.BuildFindings(groups, 0, nil)...)
+		rep.Findings = append(rep.Findings, redundancy.BuildFindings(groups, 0)...)
 	}
 }
 

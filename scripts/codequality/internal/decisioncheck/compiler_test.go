@@ -15,6 +15,8 @@
 package decisioncheck
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,7 +93,7 @@ questions:
 		},
 	}
 
-	batches, err := CompileQuestions("gemini-decision-1", "shared-ctx", spec, bundle)
+	batches, err := CompileQuestions(context.Background(), "gemini-decision-1", "shared-ctx", spec, bundle)
 	if err != nil {
 		t.Fatalf("CompileQuestions() error: %v", err)
 	}
@@ -368,7 +370,7 @@ Plain text body.
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := CompileQuestions("gemini-decision-1", "shared-ctx", tc.rule, tc.bundle)
+			got, err := CompileQuestions(context.Background(), "gemini-decision-1", "shared-ctx", tc.rule, tc.bundle)
 
 			if err != nil {
 				t.Fatalf("CompileQuestions() unexpected error: %v", err)
@@ -500,7 +502,7 @@ export function runDemo(): void {}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := CompileQuestions("gemini-decision-1", "shared-ctx", tc.rule, tsBundle)
+			got, err := CompileQuestions(context.Background(), "gemini-decision-1", "shared-ctx", tc.rule, tsBundle)
 
 			if err != nil {
 				t.Fatalf("CompileQuestions() unexpected error: %v", err)
@@ -542,12 +544,42 @@ func TestCompileQuestionsErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := CompileQuestions("gemini-decision-1", "shared-ctx", tc.rule, bundle)
+			_, err := CompileQuestions(context.Background(), "gemini-decision-1", "shared-ctx", tc.rule, bundle)
 
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("CompileQuestions() error = %v, want substring %q", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// TestCompileQuestionsTypeScriptCanceledContext verifies that all TypeScript extractors propagate context cancellation.
+func TestCompileQuestionsTypeScriptCanceledContext(t *testing.T) {
+	webDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(webDir, "package.json"), []byte(`{"name":"canceled"}`), 0o600); err != nil {
+		t.Fatalf("WriteFile(package.json) failed: %v", err)
+	}
+	bundle := TargetBundle{
+		ID:          "web/src/app/demo.ts",
+		PrimaryFile: "web/src/app/demo.ts",
+		WebDir:      webDir,
+		Files: []BundledFile{
+			{RelPath: "web/src/app/demo.ts", Content: []byte("export function runDemo(): void {}")},
+			{RelPath: "web/src/app/demo.spec.ts", Content: []byte("it('runs', () => {});")},
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	for _, kind := range []ExtractorKind{ExtractorChangedTSDecls, ExtractorChangedTSFuncs, ExtractorChangedTSSpecs} {
+		spec := RuleSpec{
+			ID:        "ts_cancel",
+			Questions: []QuestionSpec{{ID: "q1", ForEach: kind, Type: QuestionTypeNoul, Instructions: "Check"}},
+		}
+		_, err := CompileQuestions(ctx, "gemini-decision-1", "shared-ctx", spec, bundle)
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("CompileQuestions(%s) error = %v, want context.Canceled", kind, err)
+		}
 	}
 }
 

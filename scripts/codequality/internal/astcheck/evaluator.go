@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
@@ -154,6 +153,7 @@ func (s *evalSession) evaluateProdFile(relPath string) error {
 	s.markEvaluatedLines(relPath, fm.PkgLine, changed)
 	s.checkCatchAllFilename(relPath)
 	s.checkFileSize(fm, rule.RuleFileCodeLines)
+	evaluateFileStyleIssues(s, fm, fileStyleRules)
 
 	targetHashes := ExtractFuncTokenHashes(relPath, src)
 	var cloneByFunc map[string]FuncCloneBlock
@@ -208,6 +208,7 @@ func (s *evalSession) evaluateTestFile(relPath string) error {
 	s.markEvaluatedLines(relPath, fm.PkgLine, changed)
 	s.checkCatchAllFilename(relPath)
 	s.checkFileSize(fm, rule.RuleTestFileCodeLines)
+	evaluateFileStyleIssues(s, fm, fileStyleRules)
 
 	for _, fn := range fm.Funcs {
 		if fn.IsTestEntry || !OverlapsLines(fn.StartLine, fn.EndLine, changed) {
@@ -252,7 +253,7 @@ func (s *evalSession) loadTargetMetrics(relPath string) ([]byte, *FileMetrics, e
 		}
 		return nil, nil, fmt.Errorf("failed to read %s: %w", relPath, err)
 	}
-	fm, err := AnalyzeFile(relPath, src, s.opts.Thresholds.MinParamsForFlagCheck)
+	fm, err := AnalyzeFile(relPath, src)
 	if err != nil || fm == nil {
 		return src, nil, err
 	}
@@ -346,8 +347,6 @@ func (s *evalSession) buildProdFuncChecks(fn FuncMetrics, baseFn FuncMetrics, ha
 	}
 	cog := mk(rule.RuleFuncCognitive, fn.Cognitive, baseFn.Cognitive)
 	cog.hotspots = fn.Hotspots
-	flagChk := mk(rule.RuleControlFlagParam, len(fn.ControlFlagParams), len(baseFn.ControlFlagParams))
-	flagChk.detail = formatFlagParamDetail(fn.ControlFlagParams)
 	return []checkInput{
 		cog,
 		mk(rule.RuleFuncNesting, fn.MaxNesting, baseFn.MaxNesting),
@@ -355,7 +354,6 @@ func (s *evalSession) buildProdFuncChecks(fn FuncMetrics, baseFn FuncMetrics, ha
 		mk(rule.RuleFuncStatements, fn.Statements, baseFn.Statements),
 		mk(rule.RuleFuncParams, fn.Params, baseFn.Params),
 		mk(rule.RuleFuncResults, fn.Results, baseFn.Results),
-		flagChk,
 	}
 }
 
@@ -427,10 +425,6 @@ func (s *evalSession) recordCheck(fm *FileMetrics, in checkInput) {
 		Detail:    in.detail,
 		Hotspots:  in.hotspots,
 	})
-}
-
-func formatFlagParamDetail(names []string) string {
-	return "boolean control-flow parameter(s): " + strings.Join(names, ", ")
 }
 
 func indexCloneBlocksByKey(blocks []FuncCloneBlock) map[string]FuncCloneBlock {

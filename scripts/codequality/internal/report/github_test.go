@@ -118,6 +118,26 @@ func TestRenderGitHubAnnotations(t *testing.T) {
 ::warning file=web/src/app/x.ts,line=9,title=TypeScript Quality [Q2] (func_cognitive)::render [RATCHET_REGRESSION]: 16 -> 18 (<= 15) — regressed
 `,
 		},
+		// Non-advisory report with ViolationAdvisory findings emits ::warning annotations rather than ::error.
+		{
+			name: "non-advisory report emits warning for ViolationAdvisory findings",
+			rep: &rule.Report{
+				Language: "Go",
+				Findings: []rule.Finding{
+					{
+						Rule:    rule.RuleFuncSurvivingMutants,
+						Kind:    rule.ViolationAdvisory,
+						File:    "pkg/a/a.go",
+						Line:    12,
+						Subject: "Guard",
+						After:   1,
+						Limit:   0,
+					},
+				},
+			},
+			maxAnnots: 10,
+			want:      "::warning file=pkg/a/a.go,line=12,title=Go Quality [Q1] (func_surviving_mutants)::Guard [ADVISORY]: 1 (<= 0)\n",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -260,6 +280,48 @@ func TestRenderGitHubSummary(t *testing.T) {
 ` + "```ts" + `
    9 | return 0;
 ` + "```" + `
+
+</details>
+
+`,
+		},
+		// Non-advisory report with only ViolationAdvisory findings displays 0 blocking PASS verdict cleanly.
+		{
+			name: "zero-blocking advisory findings summary",
+			rep: &rule.Report{
+				Language:         "Go",
+				BaseLabel:        "main",
+				ProdFilesChanged: 1,
+				FuncsEvaluated:   1,
+				Findings: []rule.Finding{
+					{
+						Rule:    rule.RuleFuncUncoveredLines,
+						Kind:    rule.ViolationAdvisory,
+						File:    "pkg/a/a.go",
+						Line:    10,
+						Subject: "Guard",
+						After:   1,
+						Limit:   0,
+					},
+				},
+			},
+			want: `## Go Quality Report (` + "`main`" + `) — ✅ PASS (0 blocking, 1 advisory finding(s))
+
+| Metric | Result |
+| :--- | :--- |
+| Changed Scope | 1 prod file(s), 0 test file(s), 1 unit(s) |
+
+### Quality Rule Violations
+
+| # | Rule | Status | Value (Limit) | Location | Subject |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| ` + "`[Q1]`" + ` | ` + "`func_uncovered_lines`" + ` | ` + "`ADVISORY`" + ` | ` + "`1 (<= 0)`" + ` | ` + "`pkg/a/a.go:10`" + ` | ` + "`Guard`" + ` |
+
+<details>
+<summary><strong>[Q1] func_uncovered_lines</strong> — <code>pkg/a/a.go:10</code> (<code>Guard</code>)</summary>
+
+- **Why**: Substantive branches in touched functions were never executed by unit tests (boilerplate error guards are already excluded).
+- **Fix**: Add focused table-driven test cases covering the unexecuted branch, or delete unreachable production code.
 
 </details>
 

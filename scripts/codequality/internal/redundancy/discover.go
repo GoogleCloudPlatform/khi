@@ -71,6 +71,8 @@ type VerboseTestResult struct {
 	RanLeafSet map[string]struct{}
 	// FailedLeafs contains all leaf test names that failed.
 	FailedLeafs map[string]struct{}
+	// Aborted reports whether the test binary exited non-zero without clean completion of all started leaves.
+	Aborted bool
 }
 
 type subtestExtractor struct {
@@ -88,6 +90,7 @@ type verboseScanState struct {
 	seenOrder  []string
 	seenSet    map[string]struct{}
 	skippedSet map[string]struct{}
+	passedAll  map[string]struct{}
 	failedAll  map[string]struct{}
 	activeLeaf string
 }
@@ -134,6 +137,7 @@ func ParseVerboseTestOutput(out []byte, exitedNonZero bool) VerboseTestResult {
 	st := &verboseScanState{
 		seenSet:    make(map[string]struct{}),
 		skippedSet: make(map[string]struct{}),
+		passedAll:  make(map[string]struct{}),
 		failedAll:  make(map[string]struct{}),
 	}
 	sc := bufio.NewScanner(bytes.NewReader(out))
@@ -357,7 +361,9 @@ func (s *verboseScanState) step(line string) {
 	case strings.HasPrefix(line, "=== CONT "):
 		s.activeLeaf = strings.TrimSpace(strings.TrimPrefix(line, "=== CONT "))
 	case strings.HasPrefix(line, "--- PASS: "):
-		s.clearActiveIf(parseOutcomeTestName(strings.TrimPrefix(line, "--- PASS: ")))
+		name := parseOutcomeTestName(strings.TrimPrefix(line, "--- PASS: "))
+		s.passedAll[name] = struct{}{}
+		s.clearActiveIf(name)
 	case strings.HasPrefix(line, "--- SKIP: "):
 		name := parseOutcomeTestName(strings.TrimPrefix(line, "--- SKIP: "))
 		s.skippedSet[name] = struct{}{}
@@ -393,21 +399,39 @@ func (s *verboseScanState) isLeaf(name string) bool {
 	return true
 }
 
+func (s *verboseScanState) isUnfinished(name string) bool {
+	_, failed := s.failedAll[name]
+	_, passed := s.passedAll[name]
+	return !failed && !passed
+}
+
+func (s *verboseScanState) recordLeafOutcome(name string, res *VerboseTestResult) {
+	if !s.isLeaf(name) {
+		return
+	}
+	res.LeafOrder = append(res.LeafOrder, name)
+	res.RanLeafSet[name] = struct{}{}
+	if _, failed := s.failedAll[name]; failed {
+		res.FailedLeafs[name] = struct{}{}
+	}
+}
+
 func (s *verboseScanState) finalize(exitedNonZero bool) VerboseTestResult {
 	res := VerboseTestResult{
 		RanLeafSet:  make(map[string]struct{}),
 		FailedLeafs: make(map[string]struct{}),
 	}
+	hasUnfinished := false
 	for _, name := range s.seenOrder {
-		if _, skipped := s.skippedSet[name]; skipped || !s.isLeaf(name) {
+		if _, skipped := s.skippedSet[name]; skipped {
 			continue
 		}
-		res.LeafOrder = append(res.LeafOrder, name)
-		res.RanLeafSet[name] = struct{}{}
-		if _, failed := s.failedAll[name]; failed {
-			res.FailedLeafs[name] = struct{}{}
+		if s.isUnfinished(name) {
+			hasUnfinished = true
 		}
+		s.recordLeafOutcome(name, &res)
 	}
+	res.Aborted = exitedNonZero && (len(res.FailedLeafs) == 0 || hasUnfinished)
 	if exitedNonZero && len(res.FailedLeafs) == 0 {
 		if _, ok := res.RanLeafSet[s.activeLeaf]; ok {
 			res.FailedLeafs[s.activeLeaf] = struct{}{}

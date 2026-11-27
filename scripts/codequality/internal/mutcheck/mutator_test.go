@@ -123,7 +123,7 @@ func checkReady(v int) bool { return false }
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			plan, planErr := PlanFileMutations("demo.go", []byte(tc.src), PlanOptions{
-				TargetLines:  lineRangeSet(1, 40),
+				TargetLines:  lineRangeSet(40),
 				CoveredLines: tc.coveredLines,
 				Directives:   cloneDirectives(directives),
 				Rules:        tc.rules,

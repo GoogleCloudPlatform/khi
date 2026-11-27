@@ -17,6 +17,7 @@ package decisioncheck
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -95,7 +96,7 @@ type findingSummary struct {
 }
 
 // CompileQuestions expands all questions in r over bundle and partitions them into <=1,000-question batches.
-func CompileQuestions(model string, sharedInput string, r RuleSpec, bundle TargetBundle) ([]CompiledBatch, error) {
+func CompileQuestions(ctx context.Context, model string, sharedInput string, r RuleSpec, bundle TargetBundle) ([]CompiledBatch, error) {
 	type keyedEntry struct {
 		key  string
 		wire WireQuestion
@@ -103,7 +104,7 @@ func CompileQuestions(model string, sharedInput string, r RuleSpec, bundle Targe
 	}
 	var all []keyedEntry
 	for _, q := range r.Questions {
-		items, err := extractItemsForQuestion(q.ForEach, bundle)
+		items, err := extractItemsForQuestion(ctx, q.ForEach, bundle)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +171,7 @@ func CanonicalQuestionsJSON(questionsByKey map[string]WireQuestion) ([]byte, err
 	return json.Marshal(questionsByKey)
 }
 
-func extractItemsForQuestion(kind ExtractorKind, bundle TargetBundle) ([]ExtractedItem, error) {
+func extractItemsForQuestion(ctx context.Context, kind ExtractorKind, bundle TargetBundle) ([]ExtractedItem, error) {
 	switch kind {
 	case "", ExtractorBundle:
 		return []ExtractedItem{{
@@ -201,11 +202,11 @@ func extractItemsForQuestion(kind ExtractorKind, bundle TargetBundle) ([]Extract
 	case ExtractorChangedGoTestCases:
 		return ExtractChangedGoTestCases(bundle.ID, bundle.Files, bundle.ChangedLines)
 	case ExtractorChangedTSDecls:
-		return ExtractChangedTSDecls(bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
+		return ExtractChangedTSDecls(ctx, bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
 	case ExtractorChangedTSFuncs:
-		return ExtractChangedTSFuncs(bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
+		return ExtractChangedTSFuncs(ctx, bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
 	case ExtractorChangedTSSpecs:
-		return ExtractChangedTSSpecs(bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
+		return ExtractChangedTSSpecs(ctx, bundle.ID, bundle.WebDir, bundle.Files, bundle.ChangedLines)
 	default:
 		return nil, fmt.Errorf("unsupported extractor %q", kind)
 	}
