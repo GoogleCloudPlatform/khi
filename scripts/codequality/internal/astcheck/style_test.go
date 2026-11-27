@@ -112,6 +112,75 @@ func TestMultiline(t *testing.T) {
 				},
 			},
 		},
+		// Format calls exempt only the format-string parameter and still flag multiline non-format value arguments.
+		{
+			name:    "format call exempts only format parameter not value arguments",
+			relPath: "pkg/demo/format_args.go",
+			src: `package demo
+
+import (
+	"fmt"
+	"io"
+)
+
+func formatArgs(w io.Writer, code int) {
+	_ = fmt.Sprintf("%s", "arg1\narg2")
+	_, _ = fmt.Fprintf(w, "header\nbody: %s", "val1\nval2")
+	_ = statusErrorf(code, "err1\nerr2: %s", "detail1\ndetail2")
+}
+
+func statusErrorf(code int, format string, args ...any) error { return fmt.Errorf(format, args...) }
+`,
+			want: []StyleIssue{
+				{
+					Rule:    rule.RuleMultilineStringEscape,
+					Line:    9,
+					Subject: "<file>",
+					Reason:  `double-quoted string embeds middle "\n"; use a raw backquote literal`,
+				},
+				{
+					Rule:    rule.RuleMultilineStringEscape,
+					Line:    10,
+					Subject: "<file>",
+					Reason:  `double-quoted string embeds middle "\n"; use a raw backquote literal`,
+				},
+				{
+					Rule:    rule.RuleMultilineStringEscape,
+					Line:    11,
+					Subject: "<file>",
+					Reason:  `double-quoted string embeds middle "\n"; use a raw backquote literal`,
+				},
+				{
+					Rule:    rule.RuleMultilineStringEscape,
+					Line:    11,
+					Subject: "<file>",
+					Reason:  `double-quoted string embeds middle "\n"; use a raw backquote literal`,
+				},
+			},
+		},
+		// Qualified Errorf with a leading non-string code argument exempts its second parameter as the format string.
+		{
+			name:    "status.Errorf exempts second parameter format string and flags value arg",
+			relPath: "pkg/demo/status_errorf.go",
+			src: `package demo
+
+type statusPkg struct{}
+
+func (statusPkg) Errorf(code int, format string, args ...any) error { return nil }
+
+func emit(status statusPkg) {
+	_ = status.Errorf(13, "first\nsecond: %s", "value1\nvalue2")
+}
+`,
+			want: []StyleIssue{
+				{
+					Rule:    rule.RuleMultilineStringEscape,
+					Line:    8,
+					Subject: "<file>",
+					Reason:  `double-quoted string embeds middle "\n"; use a raw backquote literal`,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -223,6 +292,99 @@ func TestLockOrder(t *testing.T) {
 					Rule:    rule.RuleDeferUnlockBeforeLock,
 					Line:    10,
 					Subject: "TestLockOrder",
+					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
+				},
+			},
+		},
+		// Closures nested inside if/else/for/switch blocks and if-conditions are each reported exactly once without duplicate counting.
+		{
+			name:    "nested closures inside control blocks are reported once each",
+			relPath: "pkg/demo/nested_closures.go",
+			src: `package demo
+
+import "sync"
+
+func nestedClosures(cond bool, mode int) {
+	var mu sync.Mutex
+	if cond {
+		go func() {
+			defer mu.Unlock()
+			mu.Lock()
+		}()
+	} else {
+		go func() {
+			defer mu.Unlock()
+			mu.Lock()
+		}()
+	}
+	if func() bool {
+		defer mu.Unlock()
+		mu.Lock()
+		return true
+	}() {
+		switch mode {
+		case 1:
+			defer func() {
+				defer mu.Unlock()
+				mu.Lock()
+			}()
+		}
+	}
+}
+`,
+			want: []StyleIssue{
+				{
+					Rule:    rule.RuleDeferUnlockBeforeLock,
+					Line:    9,
+					Subject: "nestedClosures",
+					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
+				},
+				{
+					Rule:    rule.RuleDeferUnlockBeforeLock,
+					Line:    14,
+					Subject: "nestedClosures",
+					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
+				},
+				{
+					Rule:    rule.RuleDeferUnlockBeforeLock,
+					Line:    19,
+					Subject: "nestedClosures",
+					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
+				},
+				{
+					Rule:    rule.RuleDeferUnlockBeforeLock,
+					Line:    26,
+					Subject: "nestedClosures",
+					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
+				},
+			},
+		},
+		// Caller-held lock temporarily released and re-acquired after defer Unlock is permitted, while defer Unlock followed by Lock then Unlock still triggers.
+		{
+			name:    "caller-held temporary unlock-relock passes while lock-before-unlock still triggers",
+			relPath: "pkg/demo/relock.go",
+			src: `package demo
+
+import "sync"
+
+func callerHeldRelock(mu *sync.Mutex, doIO func()) {
+	defer mu.Unlock()
+	mu.Unlock()
+	doIO()
+	mu.Lock()
+}
+
+func badLockThenUnlock(mu *sync.Mutex) {
+	defer mu.Unlock()
+	mu.Lock()
+	mu.Unlock()
+}
+`,
+			want: []StyleIssue{
+				{
+					Rule:    rule.RuleDeferUnlockBeforeLock,
+					Line:    13,
+					Subject: "badLockThenUnlock",
 					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
 				},
 			},

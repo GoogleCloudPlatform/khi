@@ -34,7 +34,9 @@ type AlphabeticalGoMapKeyOrderProvider struct {
 
 // GetOrderedKeys returns the map keys sorted in alphabetical order.
 func (a *AlphabeticalGoMapKeyOrderProvider) GetOrderedKeys(sourcePath []string, sourceMap map[string]any) ([]string, error) {
-	return slices.Sorted(maps.Keys(sourceMap)), nil
+	keys := slices.AppendSeq(make([]string, 0, len(sourceMap)), maps.Keys(sourceMap))
+	slices.Sort(keys)
+	return keys, nil
 }
 
 // FromGoValue instantiates a Node from the given Go map, slice, or scalar value.

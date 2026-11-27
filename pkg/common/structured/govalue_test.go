@@ -181,32 +181,48 @@ func testComplexValue(t *testing.T, orderProvider *AlphabeticalGoMapKeyOrderProv
 
 func TestAlphabeticalGoMapKeyOrderProvider(t *testing.T) {
 	provider := &AlphabeticalGoMapKeyOrderProvider{}
-
-	input := map[string]any{
-		"c": 3,
-		"a": 1,
-		"b": 2,
+	testCases := []struct {
+		name  string
+		input map[string]any
+		want  []string
+	}{
+		// Sorts non-empty map keys in alphabetical order.
+		{
+			name:  "non-empty map",
+			input: map[string]any{"c": 3, "a": 1, "b": 2},
+			want:  []string{"a", "b", "c"},
+		},
+		// Returns a non-nil empty slice for an empty map.
+		{
+			name:  "empty map returns non-nil empty slice",
+			input: map[string]any{},
+			want:  []string{},
+		},
+		// Returns a non-nil empty slice for a nil map.
+		{
+			name:  "nil map returns non-nil empty slice",
+			input: nil,
+			want:  []string{},
+		},
 	}
 
-	keys, err := provider.GetOrderedKeys([]string{"test", "path"}, input)
-
-	if err != nil {
-		t.Fatalf("GetOrderedKeys returned error: %v", err)
-	}
-
-	if len(keys) != len(input) {
-		t.Errorf("Expected %d keys, got %d", len(input), len(keys))
-	}
-
-	expectedKeys := []string{"a", "b", "c"}
-	for i, expectedKey := range expectedKeys {
-		if i >= len(keys) {
-			t.Errorf("Missing expected key at index %d", i)
-			continue
-		}
-
-		if keys[i] != expectedKey {
-			t.Errorf("Expected key %q at index %d, got %q", expectedKey, i, keys[i])
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			keys, err := provider.GetOrderedKeys([]string{"test", "path"}, tc.input)
+			if err != nil {
+				t.Fatalf("GetOrderedKeys() unexpected error: %v", err)
+			}
+			if (keys == nil) != (tc.want == nil) {
+				t.Errorf("GetOrderedKeys() nil=%v, want nil=%v", keys == nil, tc.want == nil)
+			}
+			if len(keys) != len(tc.want) {
+				t.Fatalf("GetOrderedKeys() len=%d, want %d (keys=%v)", len(keys), len(tc.want), keys)
+			}
+			for i, wantKey := range tc.want {
+				if keys[i] != wantKey {
+					t.Errorf("GetOrderedKeys()[%d] = %q, want %q", i, keys[i], wantKey)
+				}
+			}
+		})
 	}
 }

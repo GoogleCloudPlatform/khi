@@ -25,6 +25,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
 
+const (
+	lockTransitionNone lockTransition = iota
+	lockTransitionAcquire
+	lockTransitionRelease
+)
+
 var fileStyleRules = []rule.RuleID{
 	rule.RuleMultilineStringEscape,
 	rule.RuleDeferUnlockBeforeLock,
@@ -43,6 +49,8 @@ type StyleIssue struct {
 }
 
 type formatStringSet map[*ast.BasicLit]struct{}
+
+type lockTransition int
 
 func evaluateFileStyleIssues(session *evalSession, fm *FileMetrics, ruleIDs []rule.RuleID) {
 	baseFM, hasBase := session.base.FileMetrics(fm.File)
@@ -113,34 +121,54 @@ func collectFormatStringLiterals(file *ast.File) formatStringSet {
 	result := make(formatStringSet)
 	for node := range ast.Preorder(file) {
 		callExpr, ok := node.(*ast.CallExpr)
-		if !ok || !isFormatCallExpr(callExpr.Fun) {
+		if !ok {
 			continue
 		}
-		for _, arg := range callExpr.Args {
-			if basicLit, isLit := arg.(*ast.BasicLit); isLit && basicLit.Kind == token.STRING {
-				result[basicLit] = struct{}{}
-			}
+		if lit := formatStringArgLit(callExpr); lit != nil {
+			result[lit] = struct{}{}
 		}
 	}
 	return result
 }
 
-func isFormatCallExpr(fun ast.Expr) bool {
-	var calleeName string
+func formatStringArgLit(callExpr *ast.CallExpr) *ast.BasicLit {
+	calleeName := callCalleeName(callExpr.Fun)
+	switch calleeName {
+	case "Fprintf":
+		return stringBasicLitAt(callExpr.Args, 1)
+	case "Errorf":
+		// Support both fmt/testing Errorf(format, ...) and gRPC status.Errorf(code, format, ...).
+		if lit := stringBasicLitAt(callExpr.Args, 0); lit != nil {
+			return lit
+		}
+		return stringBasicLitAt(callExpr.Args, 1)
+	case "Fatalf", "Logf", "Skipf", "Printf", "Sprintf":
+		return stringBasicLitAt(callExpr.Args, 0)
+	default:
+		return nil
+	}
+}
+
+func callCalleeName(fun ast.Expr) string {
 	switch typedFun := fun.(type) {
 	case *ast.Ident:
-		calleeName = typedFun.Name
+		return typedFun.Name
 	case *ast.SelectorExpr:
-		calleeName = typedFun.Sel.Name
+		return typedFun.Sel.Name
 	default:
-		return false
+		return ""
 	}
-	switch calleeName {
-	case "Errorf", "Fatalf", "Logf", "Skipf", "Printf", "Fprintf", "Sprintf":
-		return true
-	default:
-		return false
+}
+
+func stringBasicLitAt(args []ast.Expr, idx int) *ast.BasicLit {
+	if idx < 0 || idx >= len(args) {
+		return nil
 	}
+	basicLit, ok := args[idx].(*ast.BasicLit)
+	if !ok || basicLit.Kind != token.STRING {
+		return nil
+	}
+	return basicLit
 }
 
 func detectMultilineStringEscapes(fset *token.FileSet, file *ast.File, formatLits formatStringSet) []StyleIssue {
@@ -186,7 +214,8 @@ func detectDeferUnlockBeforeLock(fset *token.FileSet, fd *ast.FuncDecl) []StyleI
 
 func scanBlockForDeferUnlock(fset *token.FileSet, subject string, stmts []ast.Stmt, inherited map[string]bool, issues *[]StyleIssue) {
 	locked := maps.Clone(inherited)
-	for idx, stmt := range stmts {
+	for idx, rawStmt := range stmts {
+		stmt := unwrapLabeledStmt(rawStmt)
 		if target, ok := matchDeferUnlockStmt(stmt); ok && !locked[target] {
 			if blockListAcquiresTarget(stmts[idx+1:], target) {
 				*issues = append(*issues, StyleIssue{
@@ -202,15 +231,79 @@ func scanBlockForDeferUnlock(fset *token.FileSet, subject string, stmts []ast.St
 	}
 }
 
+func unwrapLabeledStmt(stmt ast.Stmt) ast.Stmt {
+	for {
+		labeled, ok := stmt.(*ast.LabeledStmt)
+		if !ok {
+			return stmt
+		}
+		stmt = labeled.Stmt
+	}
+}
+
 func descendNestedBlocksForLockOrder(fset *token.FileSet, subject string, stmt ast.Stmt, locked map[string]bool, issues *[]StyleIssue) {
+	// Inspect only expressions directly owned by stmt before child blocks so order matches source and closures are counted once.
+	scanDirectStmtFuncLits(fset, subject, stmt, issues)
 	for _, list := range childStmtLists(stmt) {
 		scanBlockForDeferUnlock(fset, subject, list, locked, issues)
 	}
 	if ifStmt, ok := stmt.(*ast.IfStmt); ok && ifStmt.Else != nil {
 		descendNestedBlocksForLockOrder(fset, subject, ifStmt.Else, locked, issues)
 	}
+}
+
+func scanDirectStmtFuncLits(fset *token.FileSet, subject string, stmt ast.Stmt, issues *[]StyleIssue) {
+	switch s := stmt.(type) {
+	case *ast.BlockStmt:
+		return
+	case *ast.IfStmt:
+		scanNodeFuncLits(fset, subject, s.Init, issues)
+		scanNodeFuncLits(fset, subject, s.Cond, issues)
+	case *ast.ForStmt:
+		scanNodeFuncLits(fset, subject, s.Init, issues)
+		scanNodeFuncLits(fset, subject, s.Cond, issues)
+		scanNodeFuncLits(fset, subject, s.Post, issues)
+	case *ast.RangeStmt:
+		scanNodeFuncLits(fset, subject, s.Key, issues)
+		scanNodeFuncLits(fset, subject, s.Value, issues)
+		scanNodeFuncLits(fset, subject, s.X, issues)
+	case *ast.SwitchStmt:
+		scanNodeFuncLits(fset, subject, s.Init, issues)
+		scanNodeFuncLits(fset, subject, s.Tag, issues)
+		scanClauseHeaderFuncLits(fset, subject, s.Body, issues)
+	case *ast.TypeSwitchStmt:
+		scanNodeFuncLits(fset, subject, s.Init, issues)
+		scanNodeFuncLits(fset, subject, s.Assign, issues)
+		scanClauseHeaderFuncLits(fset, subject, s.Body, issues)
+	case *ast.SelectStmt:
+		scanClauseHeaderFuncLits(fset, subject, s.Body, issues)
+	default:
+		scanNodeFuncLits(fset, subject, stmt, issues)
+	}
+}
+
+func scanClauseHeaderFuncLits(fset *token.FileSet, subject string, body *ast.BlockStmt, issues *[]StyleIssue) {
+	if body == nil {
+		return
+	}
+	for _, st := range body.List {
+		switch clause := st.(type) {
+		case *ast.CaseClause:
+			for _, expr := range clause.List {
+				scanNodeFuncLits(fset, subject, expr, issues)
+			}
+		case *ast.CommClause:
+			scanNodeFuncLits(fset, subject, clause.Comm, issues)
+		}
+	}
+}
+
+func scanNodeFuncLits(fset *token.FileSet, subject string, node ast.Node, issues *[]StyleIssue) {
+	if node == nil {
+		return
+	}
 	// Check function literals with an isolated lock set because closures execute outside the enclosing block's lock order.
-	ast.Inspect(stmt, func(n ast.Node) bool {
+	ast.Inspect(node, func(n ast.Node) bool {
 		if fl, ok := n.(*ast.FuncLit); ok && fl.Body != nil {
 			scanBlockForDeferUnlock(fset, subject, fl.Body.List, make(map[string]bool), issues)
 			return false
@@ -268,25 +361,43 @@ func matchDeferUnlockStmt(stmt ast.Stmt) (string, bool) {
 }
 
 func blockListAcquiresTarget(stmts []ast.Stmt, target string) bool {
-	for _, st := range stmts {
-		found := false
-		ast.Inspect(st, func(n ast.Node) bool {
-			if _, isLit := n.(*ast.FuncLit); isLit {
-				return false
-			}
-			if call, ok := n.(*ast.CallExpr); ok {
-				if key, isLock := matchLockMethodCall(call, "Lock", "RLock", "TryLock", "TryRLock"); isLock && key == target {
-					found = true
-					return false
-				}
-			}
-			return true
-		})
-		if found {
-			return true
+	for _, rawStmt := range stmts {
+		st := unwrapLabeledStmt(rawStmt)
+		if _, isDefer := st.(*ast.DeferStmt); isDefer {
+			continue
+		}
+		if transition := firstStmtLockTransition(st, target); transition != lockTransitionNone {
+			return transition == lockTransitionAcquire
 		}
 	}
 	return false
+}
+
+func firstStmtLockTransition(st ast.Stmt, target string) lockTransition {
+	transition := lockTransitionNone
+	ast.Inspect(st, func(n ast.Node) bool {
+		if transition != lockTransitionNone {
+			return false
+		}
+		switch n.(type) {
+		case *ast.FuncLit, *ast.DeferStmt:
+			return false
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if key, isLock := matchLockMethodCall(call, "Lock", "RLock", "TryLock", "TryRLock"); isLock && key == target {
+			transition = lockTransitionAcquire
+			return false
+		}
+		if key, isUnlock := matchLockMethodCall(call, "Unlock", "RUnlock"); isUnlock && key == target {
+			transition = lockTransitionRelease
+			return false
+		}
+		return true
+	})
+	return transition
 }
 
 func updateLockedTargetsFromStmt(stmt ast.Stmt, locked map[string]bool) {
