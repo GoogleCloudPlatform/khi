@@ -736,6 +736,33 @@ func TestPlainAssign(t *testing.T) {
 				{Check: checkTestStressReduced, File: "pkg/svc/svc_test.go", Symbol: "TestPlainAssign"},
 			},
 		},
+		// Pure-deletion stress reduction still triggers even when ChangedLines only contains an added line in another test function.
+		{
+			name: "pure deletion stress reduction triggers despite unrelated ChangedLines",
+			baseSrc: `package svc
+import "testing"
+func TestStressPureDelete(t *testing.T) {
+	workers := 10
+	workers = 1000
+	for range workers { go func() {}() }
+}
+func TestOther(t *testing.T) {}
+`,
+			targetSrc: `package svc
+import "testing"
+func TestStressPureDelete(t *testing.T) {
+	workers := 10
+	for range workers { go func() {}() }
+}
+func TestOther(t *testing.T) {
+	// unrelated addition
+}
+`,
+			changed: map[int]struct{}{8: {}},
+			want: []advisoryCheckSnapshot{
+				{Check: checkTestStressReduced, File: "pkg/svc/svc_test.go", Symbol: "TestStressPureDelete"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

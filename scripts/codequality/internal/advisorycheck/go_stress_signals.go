@@ -157,9 +157,6 @@ func detectGoStressReductions(
 	var items []rule.QAItem
 
 	for _, targetFn := range targetFuncs {
-		if len(in.changedLines) > 0 && !overlapsChangedLines(targetFn.line, targetFn.endLine, in.changedLines) {
-			continue
-		}
 		fnBaseFset, baseFn, ok := resolveBaseTestSummary(targetFn.name, baseFset, baseByName, in.movedInTests)
 		if !ok || !isConcurrentOrStressTest(baseFn.decl) {
 			continue

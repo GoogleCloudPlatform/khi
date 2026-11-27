@@ -218,7 +218,7 @@ func detectGoTestDiffSignals(
 			}
 			baseFn = moved.summary
 		}
-		items = append(items, compareGoTestPair(in.relPath, baseFn, targetFn, in.changedLines)...)
+		items = append(items, compareGoTestPair(in.relPath, baseFn, targetFn)...)
 	}
 	return items
 }
@@ -250,11 +250,8 @@ func compareGoTestPair(
 	relPath string,
 	baseFn goTestFuncSummary,
 	targetFn goTestFuncSummary,
-	changedLines map[int]struct{},
 ) []rule.QAItem {
-	if len(changedLines) > 0 && !overlapsChangedLines(targetFn.line, targetFn.endLine, changedLines) {
-		return nil
-	}
+	// Compare base and target AST summaries unconditionally so pure-deletion hunks and helper weakenings cannot evade detection.
 	var items []rule.QAItem
 	if targetFn.caseCount < baseFn.caseCount {
 		item := makeAdvisoryItem(checkTestCasesReduced, relPath, targetFn.line, targetFn.name, fmt.Sprintf("test cases reduced from %d to %d", baseFn.caseCount, targetFn.caseCount))
@@ -346,15 +343,6 @@ func indexGoTestFuncs(summaries []goTestFuncSummary) map[string]goTestFuncSummar
 		out[s.name] = s
 	}
 	return out
-}
-
-func overlapsChangedLines(startLine int, endLine int, changed map[int]struct{}) bool {
-	for ln := startLine; ln <= endLine; ln++ {
-		if _, ok := changed[ln]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 func detectOrphanTestFile(in goFileInput) (rule.QAItem, bool) {

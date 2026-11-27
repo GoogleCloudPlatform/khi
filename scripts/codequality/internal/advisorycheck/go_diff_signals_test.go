@@ -736,6 +736,76 @@ func TestExisting(t *testing.T) {
 			},
 			wantBefore: map[string]int{checkTestSkipAdded: 2, checkTestSleepAdded: 2},
 		},
+		// Pre-existing `_ = work()` in TestExisting does not suppress newly added `_ = work()` in TestUnit or a second `_ = work()` in TestExisting.
+		{
+			name: "pre-existing discard credit is per-function and consumed by untouched lines",
+			targetFiles: map[string]string{
+				"pkg/svc/svc.go": "package svc\n",
+				"pkg/svc/svc_test.go": `package svc
+import "testing"
+func TestExisting(t *testing.T) {
+	_ = work()
+	_ = work()
+}
+func TestUnit(t *testing.T) {
+	_ = work()
+}
+`,
+			},
+			baseFiles: map[string]string{
+				"pkg/svc/svc_test.go": `package svc
+import "testing"
+func TestExisting(t *testing.T) {
+	_ = work()
+}
+func TestUnit(t *testing.T) {}
+`,
+			},
+			changedFiles: []string{"pkg/svc/svc_test.go"},
+			changedLines: map[string]map[int]struct{}{
+				"pkg/svc/svc_test.go": {5: {}, 8: {}},
+			},
+			want: []advisoryCheckSnapshot{
+				{Check: checkTestAssertionWeakened, File: "pkg/svc/svc_test.go", Symbol: "TestExisting"},
+				{Check: checkTestAssertionWeakened, File: "pkg/svc/svc_test.go", Symbol: "TestUnit"},
+			},
+		},
+		// Stripping skip, sleep, and discard from TestLive while adding them to TestUnit in the same file still flags all three even if LCS diff aligns identical sleep/discard lines outside ChangedLines.
+		{
+			name: "same-file credit swap between TestLive and TestUnit still flags skip sleep and discard",
+			targetFiles: map[string]string{
+				"pkg/svc/svc.go": "package svc\n",
+				"pkg/svc/svc_test.go": `package svc
+import ("testing"; "time")
+func TestLive(t *testing.T) {}
+func TestUnit(t *testing.T) {
+	t.Skip("flaky")
+	time.Sleep(time.Second)
+	_ = work()
+}
+`,
+			},
+			baseFiles: map[string]string{
+				"pkg/svc/svc_test.go": `package svc
+import ("testing"; "time")
+func TestLive(t *testing.T) {
+	t.Skip("live")
+	time.Sleep(time.Second)
+	_ = work()
+}
+func TestUnit(t *testing.T) {}
+`,
+			},
+			changedFiles: []string{"pkg/svc/svc_test.go"},
+			changedLines: map[string]map[int]struct{}{
+				"pkg/svc/svc_test.go": {5: {}},
+			},
+			want: []advisoryCheckSnapshot{
+				{Check: checkTestSkipAdded, File: "pkg/svc/svc_test.go", Symbol: "TestUnit"},
+				{Check: checkTestSleepAdded, File: "pkg/svc/svc_test.go", Symbol: "TestUnit"},
+				{Check: checkTestAssertionWeakened, File: "pkg/svc/svc_test.go", Symbol: "TestUnit"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

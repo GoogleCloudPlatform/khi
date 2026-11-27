@@ -410,6 +410,34 @@ diff --git a/binary.dat b/binary.dat
 				DeletedFiles:   []string{"README.md", "pkg/foo/first_del.go"},
 			},
 		},
+		// Records both pure renames and edited renames as deletion of the old path plus change of the new path.
+		{
+			name: "pure and edited git renames record deleted old path and changed new path",
+			diff: `diff --git a/pkg/foo/pure_old_test.go b/pkg/foo/pure_new_test.go
+similarity index 100%
+rename from pkg/foo/pure_old_test.go
+rename to pkg/foo/pure_new_test.go
+diff --git a/pkg/foo/edit_old_test.go b/pkg/foo/edit_new_test.go
+similarity index 80%
+rename from pkg/foo/edit_old_test.go
+rename to pkg/foo/edit_new_test.go
+--- a/pkg/foo/edit_old_test.go
++++ b/pkg/foo/edit_new_test.go
+@@ -3,0 +4,1 @@
++func TestAddedAfterRename(t *testing.T) {}
+`,
+			want: UnifiedDiffDetails{
+				ProdLines: map[string]map[int]struct{}{},
+				TestLines: map[string]map[int]struct{}{
+					"pkg/foo/edit_new_test.go": {4: {}},
+				},
+				TSLines:        map[string]map[int]struct{}{},
+				TSTestLines:    map[string]map[int]struct{}{},
+				DeletedGoFiles: []string{"pkg/foo/pure_old_test.go", "pkg/foo/edit_old_test.go"},
+				ChangedFiles:   []string{"pkg/foo/edit_new_test.go", "pkg/foo/pure_new_test.go"},
+				DeletedFiles:   []string{"pkg/foo/edit_old_test.go", "pkg/foo/pure_old_test.go"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -519,6 +547,71 @@ func verifyGitMergeBaseAndTargetDiff(t *testing.T, tmpDir string) {
 	}
 	if _, hasFeat := targRes.ChangedLines["pkg/demo/feat.go"][3]; !hasFeat {
 		t.Errorf("expected feat.go line 3 in target diff, got %v", targRes.ChangedLines)
+	}
+}
+
+// TestCollectChangedLinesGitMoveDisablesRenameDetection verifies that git mv reports old path in DeletedFiles and new path in ChangedFiles (--no-renames).
+func TestCollectChangedLinesGitMoveDisablesRenameDetection(t *testing.T) {
+	tmpDir := t.TempDir()
+	initTestGitDiffRepo(t, tmpDir)
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.CommandContext(context.Background(), "git", args...)
+		cmd.Dir = tmpDir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test",
+			"GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test",
+			"GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
+		}
+	}
+
+	oldTest := filepath.Join(tmpDir, "pkg", "demo", "orig_test.go")
+	newTest := filepath.Join(tmpDir, "pkg", "demo", "moved_test.go")
+	origSrc := `package demo
+
+import "testing"
+
+func TestKeep(t *testing.T) {}
+func TestDrop(t *testing.T) {}
+`
+	if err := os.WriteFile(oldTest, []byte(origSrc), 0o600); err != nil {
+		t.Fatalf("write orig_test.go failed: %v", err)
+	}
+	runGit("add", ".")
+	runGit("commit", "-m", "add orig_test")
+	runGit("mv", "pkg/demo/orig_test.go", "pkg/demo/moved_test.go")
+	movedSrc := `package demo
+
+import "testing"
+
+func TestKeep(t *testing.T) {}
+`
+	if err := os.WriteFile(newTest, []byte(movedSrc), 0o600); err != nil {
+		t.Fatalf("write moved_test.go failed: %v", err)
+	}
+	runGit("add", ".")
+	runGit("commit", "-m", "move test file and drop TestDrop")
+
+	mvRes, err := CollectChangedLines(context.Background(), tmpDir, DiffOptions{
+		VCS:    "git",
+		Base:   "HEAD~1",
+		Target: "HEAD",
+	})
+	if err != nil {
+		t.Fatalf("CollectChangedLines(git mv) error: %v", err)
+	}
+	if diff := cmp.Diff([]string{"pkg/demo/orig_test.go"}, mvRes.DeletedFiles); diff != "" {
+		t.Errorf("git mv DeletedFiles mismatch (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff([]string{"pkg/demo/moved_test.go"}, mvRes.ChangedFiles); diff != "" {
+		t.Errorf("git mv ChangedFiles mismatch (-want +got):\n%s", diff)
+	}
+	if _, hasMovedLine := mvRes.ChangedTestLines["pkg/demo/moved_test.go"][5]; !hasMovedLine {
+		t.Errorf("expected moved_test.go line 5 in ChangedTestLines, got %v", mvRes.ChangedTestLines)
 	}
 }
 

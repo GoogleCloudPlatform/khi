@@ -15,10 +15,8 @@
 package advisorycheck
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/scripts/codequality/internal/rule"
 )
@@ -26,6 +24,7 @@ import (
 type lineSubject struct {
 	line    int
 	subject string
+	funcKey string
 }
 
 type countedLineSignalSpec struct {
@@ -33,6 +32,13 @@ type countedLineSignalSpec struct {
 	summary      string
 	reviewPrompt string
 	collectFunc  func(fset *token.FileSet, fd *ast.FuncDecl) []lineSubject
+}
+
+type countedLineBaselines struct {
+	baseCount        int
+	baseFuncCounts   map[string]int
+	movedBaseCounts  map[string]int
+	targetFuncCounts map[string]int
 }
 
 func detectGoTestSkips(
@@ -54,13 +60,14 @@ func collectFuncSkipsOutsideShort(fset *token.FileSet, fd *ast.FuncDecl) []lineS
 	if fd == nil || fd.Body == nil {
 		return out
 	}
+	key := funcDeclKey(fd)
 	walkSkippingShortIfs(fd.Body, func(call *ast.CallExpr) {
 		if isGoSkipCall(call) {
 			ln := 1
 			if fset != nil {
 				ln = fset.Position(call.Pos()).Line
 			}
-			out = append(out, lineSubject{line: ln, subject: fd.Name.Name})
+			out = append(out, lineSubject{line: ln, subject: fd.Name.Name, funcKey: key})
 		}
 	})
 	return out
@@ -132,37 +139,90 @@ func detectCountedGoLineSignals(
 	in goFileInput,
 	spec countedLineSignalSpec,
 ) []rule.QAItem {
-	baseCount := countRemainingBaseSubjects(baseFile, in.movedOutTests, spec.collectFunc)
 	targetEntries := collectFileLineSubjects(targetFset, targetFile, spec.collectFunc)
-	targetFuncCounts := countLineSubjectsByName(targetEntries)
+	targetFuncCounts := countLineSubjectsByKey(targetEntries)
+	baseFuncCounts, baseCount := collectRemainingBaseCreditCounts(baseFile, in.movedOutTests, targetFuncCounts, spec.collectFunc)
 	movedBaseCounts, movedCredit := collectMovedCreditCounts(in.movedInTests, targetFuncCounts, spec.collectFunc)
 	baseCount += movedCredit
 
 	if len(targetEntries) <= baseCount {
 		return nil
 	}
-	var items []rule.QAItem
+	baselines := countedLineBaselines{
+		baseCount:        baseCount,
+		baseFuncCounts:   baseFuncCounts,
+		movedBaseCounts:  movedBaseCounts,
+		targetFuncCounts: targetFuncCounts,
+	}
+	return buildCountedGoLineItems(targetEntries, in, spec, baselines)
+}
+
+func buildCountedGoLineItems(
+	targetEntries []lineSubject,
+	in goFileInput,
+	spec countedLineSignalSpec,
+	baselines countedLineBaselines,
+) []rule.QAItem {
+	inScopeByKey := make(map[string][]lineSubject)
+	allByKey := make(map[string][]lineSubject)
+	var keyOrder []string
 	for _, entry := range targetEntries {
-		if !isLineInScope(entry.line, in.changedLines) || isUnchangedMovedSubject(entry.subject, movedBaseCounts, targetFuncCounts) {
+		if _, seen := allByKey[entry.funcKey]; !seen {
+			keyOrder = append(keyOrder, entry.funcKey)
+		}
+		allByKey[entry.funcKey] = append(allByKey[entry.funcKey], entry)
+		if isLineInScope(entry.line, in.changedLines) {
+			inScopeByKey[entry.funcKey] = append(inScopeByKey[entry.funcKey], entry)
+		}
+	}
+	var items []rule.QAItem
+	for _, key := range keyOrder {
+		if isUnchangedSubject(key, baselines) {
 			continue
 		}
-		item := makeAdvisoryItem(spec.check, in.relPath, entry.line, entry.subject, spec.summary)
-		item.Evidence = map[string]any{"before_count": baseCount, "after_count": len(targetEntries)}
-		item.ReviewPrompt = spec.reviewPrompt
-		items = append(items, item)
+		excess := baselines.targetFuncCounts[key] - (baselines.baseFuncCounts[key] + baselines.movedBaseCounts[key])
+		selected := selectExcessLineSubjects(allByKey[key], inScopeByKey[key], excess)
+		for _, entry := range selected {
+			item := makeAdvisoryItem(spec.check, in.relPath, entry.line, entry.subject, spec.summary)
+			item.Evidence = map[string]any{"before_count": baselines.baseCount, "after_count": len(targetEntries)}
+			item.ReviewPrompt = spec.reviewPrompt
+			items = append(items, item)
+		}
 	}
 	return items
 }
 
-func countRemainingBaseSubjects(
+func selectExcessLineSubjects(all []lineSubject, inScope []lineSubject, excess int) []lineSubject {
+	if len(inScope) >= excess {
+		return inScope
+	}
+	// Git LCS diff can align lines moved from an adjacent gutted test as unchanged context; top up to excess.
+	selected := append([]lineSubject(nil), inScope...)
+	inScopeLines := make(map[int]bool, len(inScope))
+	for _, e := range inScope {
+		inScopeLines[e.line] = true
+	}
+	for _, e := range all {
+		if len(selected) >= excess {
+			break
+		}
+		if !inScopeLines[e.line] {
+			selected = append(selected, e)
+		}
+	}
+	return selected
+}
+
+func collectRemainingBaseCreditCounts(
 	baseFile *ast.File,
 	movedOutTests map[string]movedGoTestBase,
+	targetFuncCounts map[string]int,
 	collectFunc func(fset *token.FileSet, fd *ast.FuncDecl) []lineSubject,
-) int {
+) (map[string]int, int) {
 	if baseFile == nil {
-		return 0
+		return nil, 0
 	}
-	total := 0
+	counts := make(map[string]int)
 	for _, decl := range baseFile.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		if !ok || fd.Body == nil {
@@ -171,9 +231,14 @@ func countRemainingBaseSubjects(
 		if fd.Recv == nil && isMovedTestName(movedOutTests, fd.Name.Name) {
 			continue
 		}
-		total += len(collectFunc(nil, fd))
+		counts[funcDeclKey(fd)] += len(collectFunc(nil, fd))
 	}
-	return total
+	total := 0
+	for key, baseCnt := range counts {
+		// Credit only the retained per-function count so stripping from one test cannot launder additions in another test of the same file.
+		total += min(baseCnt, targetFuncCounts[key])
+	}
+	return counts, total
 }
 
 func collectFileLineSubjects(
@@ -216,17 +281,39 @@ func isMovedTestName(movedTests map[string]movedGoTestBase, name string) bool {
 	return ok
 }
 
-func countLineSubjectsByName(entries []lineSubject) map[string]int {
+func countLineSubjectsByKey(entries []lineSubject) map[string]int {
 	counts := make(map[string]int, len(entries))
 	for _, entry := range entries {
-		counts[entry.subject]++
+		counts[entry.funcKey]++
 	}
 	return counts
 }
 
-func isUnchangedMovedSubject(subject string, movedBaseCounts map[string]int, targetFuncCounts map[string]int) bool {
-	baseCnt, isMoved := movedBaseCounts[subject]
-	return isMoved && targetFuncCounts[subject] <= baseCnt
+func isUnchangedSubject(key string, baselines countedLineBaselines) bool {
+	allowed := baselines.baseFuncCounts[key] + baselines.movedBaseCounts[key]
+	return allowed > 0 && baselines.targetFuncCounts[key] <= allowed
+}
+
+func funcDeclKey(fd *ast.FuncDecl) string {
+	if fd.Recv == nil || len(fd.Recv.List) == 0 {
+		return fd.Name.Name
+	}
+	return formatReceiverType(fd.Recv.List[0].Type) + "." + fd.Name.Name
+}
+
+func formatReceiverType(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.StarExpr:
+		return formatReceiverType(e.X)
+	case *ast.Ident:
+		return e.Name
+	case *ast.IndexExpr:
+		return formatReceiverType(e.X)
+	case *ast.IndexListExpr:
+		return formatReceiverType(e.X)
+	default:
+		return "recv"
+	}
 }
 
 func collectFuncTimeSleepCalls(fset *token.FileSet, fd *ast.FuncDecl) []lineSubject {
@@ -234,6 +321,7 @@ func collectFuncTimeSleepCalls(fset *token.FileSet, fd *ast.FuncDecl) []lineSubj
 	if fd == nil || fd.Body == nil {
 		return out
 	}
+	key := funcDeclKey(fd)
 	for node := range ast.Preorder(fd.Body) {
 		call, ok := node.(*ast.CallExpr)
 		if !ok || !isTimeSleepCall(call) {
@@ -243,7 +331,7 @@ func collectFuncTimeSleepCalls(fset *token.FileSet, fd *ast.FuncDecl) []lineSubj
 		if fset != nil {
 			ln = fset.Position(call.Pos()).Line
 		}
-		out = append(out, lineSubject{line: ln, subject: fd.Name.Name})
+		out = append(out, lineSubject{line: ln, subject: fd.Name.Name, funcKey: key})
 	}
 	return out
 }
@@ -255,198 +343,4 @@ func isTimeSleepCall(call *ast.CallExpr) bool {
 	}
 	pkg, ok := sel.X.(*ast.Ident)
 	return ok && pkg.Name == "time"
-}
-
-func detectGoTestDiscardCalls(
-	targetFset *token.FileSet,
-	targetFile *ast.File,
-	_ *token.FileSet,
-	baseFile *ast.File,
-	in goFileInput,
-) []rule.QAItem {
-	baseDiscards := collectRemainingBaseDiscards(baseFile, in.movedOutTests)
-	movedDiscardsByFunc := collectMovedInDiscards(in.movedInTests)
-	var items []rule.QAItem
-	for _, decl := range targetFile.Decls {
-		fd, ok := decl.(*ast.FuncDecl)
-		if !ok || fd.Body == nil {
-			continue
-		}
-		var movedDiscards map[string]int
-		if fd.Recv == nil {
-			movedDiscards = movedDiscardsByFunc[fd.Name.Name]
-		}
-		items = append(items, inspectFuncDiscardCalls(targetFset, fd, in, baseDiscards, movedDiscards)...)
-	}
-	return items
-}
-
-func inspectFuncDiscardCalls(
-	fset *token.FileSet,
-	fd *ast.FuncDecl,
-	in goFileInput,
-	baseDiscards map[string]int,
-	movedDiscards map[string]int,
-) []rule.QAItem {
-	var items []rule.QAItem
-	for node := range ast.Preorder(fd.Body) {
-		pos, sig, ok := matchSingleDiscardCall(node)
-		if !ok {
-			continue
-		}
-		ln := fset.Position(pos).Line
-		if !isLineInScope(ln, in.changedLines) {
-			continue
-		}
-		if baseDiscards[sig] > 0 {
-			continue
-		}
-		if movedDiscards[sig] > 0 {
-			movedDiscards[sig]--
-			continue
-		}
-		item := makeAdvisoryItem(checkTestAssertionWeakened, in.relPath, ln, fd.Name.Name, fmt.Sprintf("newly added full return-value discard `_ = %s(...)`", sig))
-		item.Evidence = map[string]any{"discarded_call": sig}
-		item.ReviewPrompt = "Verify that discarding the return value of this call is intentional and not hiding an unchecked result or error."
-		items = append(items, item)
-	}
-	return items
-}
-
-func collectRemainingBaseDiscards(file *ast.File, movedOutTests map[string]movedGoTestBase) map[string]int {
-	out := make(map[string]int)
-	if file == nil {
-		return out
-	}
-	for _, decl := range file.Decls {
-		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Recv == nil && isMovedTestName(movedOutTests, fd.Name.Name) {
-			continue
-		}
-		addNodeDiscardCallTexts(decl, out)
-	}
-	return out
-}
-
-func collectMovedInDiscards(movedInTests map[string]movedGoTestBase) map[string]map[string]int {
-	if len(movedInTests) == 0 {
-		return nil
-	}
-	out := make(map[string]map[string]int, len(movedInTests))
-	for name, moved := range movedInTests {
-		if moved.summary.decl == nil {
-			continue
-		}
-		perFunc := make(map[string]int)
-		addNodeDiscardCallTexts(moved.summary.decl, perFunc)
-		out[name] = perFunc
-	}
-	return out
-}
-
-func addNodeDiscardCallTexts(node ast.Node, out map[string]int) {
-	if node == nil {
-		return
-	}
-	for cur := range ast.Preorder(node) {
-		if _, sig, ok := matchSingleDiscardCall(cur); ok {
-			out[sig]++
-		}
-	}
-}
-
-func matchSingleDiscardCall(node ast.Node) (token.Pos, string, bool) {
-	assign, ok := node.(*ast.AssignStmt)
-	if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
-		return token.NoPos, "", false
-	}
-	lhsID, isID := assign.Lhs[0].(*ast.Ident)
-	call, isCall := assign.Rhs[0].(*ast.CallExpr)
-	if !isID || lhsID.Name != "_" || !isCall {
-		return token.NoPos, "", false
-	}
-	return assign.Pos(), formatCallName(call.Fun), true
-}
-
-func formatCallName(expr ast.Expr) string {
-	switch e := expr.(type) {
-	case *ast.Ident:
-		return e.Name
-	case *ast.SelectorExpr:
-		return formatCallName(e.X) + "." + e.Sel.Name
-	default:
-		return "call"
-	}
-}
-
-func detectGoCommentSuppressions(
-	targetFset *token.FileSet,
-	targetFile *ast.File,
-	_ *token.FileSet,
-	baseFile *ast.File,
-	in goFileInput,
-) []rule.QAItem {
-	baseCount := 0
-	if baseFile != nil {
-		baseCount = len(collectGoSuppressions(nil, baseFile))
-	}
-	targetSuppressions := collectGoSuppressions(targetFset, targetFile)
-	if len(targetSuppressions) <= baseCount {
-		return nil
-	}
-	var items []rule.QAItem
-	for _, sup := range targetSuppressions {
-		if !isLineInScope(sup.line, in.changedLines) {
-			continue
-		}
-		item := makeAdvisoryItem(checkSuppressionAdded, in.relPath, sup.line, "<comment>", "newly added quality or linter suppression comment")
-		item.Evidence = map[string]any{"marker": sup.subject, "before_count": baseCount, "after_count": len(targetSuppressions)}
-		item.ReviewPrompt = "Verify that this CODEQUALITY_ALLOW or nolint suppression is strictly justified and not hiding an avoidable defect."
-		items = append(items, item)
-	}
-	return items
-}
-
-func collectGoSuppressions(fset *token.FileSet, file *ast.File) []lineSubject {
-	var out []lineSubject
-	for _, cg := range file.Comments {
-		for _, c := range cg.List {
-			marker := matchGoSuppressionMarker(c.Text)
-			if marker == "" {
-				continue
-			}
-			ln := 1
-			if fset != nil {
-				ln = fset.Position(c.Pos()).Line
-			}
-			out = append(out, lineSubject{line: ln, subject: marker})
-		}
-	}
-	return out
-}
-
-func matchGoSuppressionMarker(commentText string) string {
-	for _, rawLine := range strings.Split(commentText, "\n") {
-		trimmedRaw := strings.TrimSpace(rawLine)
-		body := stripCommentLineDelimiters(trimmedRaw)
-		if hasAllowDirectivePrefix(body) {
-			return "CODEQUALITY_ALLOW"
-		}
-		if hasGoNolintDirective(trimmedRaw, body) {
-			return "nolint"
-		}
-	}
-	return ""
-}
-
-func hasGoNolintDirective(trimmedRaw string, body string) bool {
-	// Detect naked //nolint even when followed by non-standard text after whitespace.
-	if after, ok := strings.CutPrefix(trimmedRaw, "//nolint"); ok {
-		return after == "" || after[0] == ':' || after[0] == '/' || after[0] == ' ' || after[0] == '\t'
-	}
-	after, ok := strings.CutPrefix(body, "nolint")
-	if !ok {
-		return false
-	}
-	rest := strings.TrimLeft(after, " \t")
-	return rest == "" || strings.HasPrefix(rest, ":") || strings.HasPrefix(rest, "//")
 }

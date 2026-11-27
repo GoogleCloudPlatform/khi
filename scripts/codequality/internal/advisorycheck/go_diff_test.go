@@ -803,40 +803,68 @@ func TestTableScalar(t *testing.T) {
 `,
 			want: nil,
 		},
-		// With ChangedLines set, only overlapping modified Test* functions are flagged for reduced cases/weakened assertions while untouched Test* functions are skipped.
+		// Pure-deletion hunks in TestCases/TestAssert still fire even when ChangedLines only contains an added line in TestOther, while genuinely unchanged TestKeep stays silent.
 		{
-			name: "changed lines scope flags modified weakened test and skips untouched test",
+			name: "pure deletion hunks still trigger when ChangedLines points at another function",
 			baseSrc: `package svc
 import ("testing"; "github.com/google/go-cmp/cmp")
-func TestUntouched(t *testing.T) {
+func TestKeep(t *testing.T) { if a() != 1 { t.Errorf("a") } }
+func TestAssert(t *testing.T) {
 	if a() != 1 { t.Errorf("a") }
-	if b() != 2 { t.Errorf("b") }
+	if d := cmp.Diff("ok", run()); d != "" { t.Errorf("m: %s", d) }
 }
-func TestModified(t *testing.T) {
-	cases := []struct{ name string }{{name: "a"}, {name: "b"}}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if d := cmp.Diff("ok", run()); d != "" { t.Errorf("m: %s", d) }
-		})
+func TestCases(t *testing.T) {
+	cases := []struct{ name string }{
+		{name: "a"},
+		{name: "b"},
+		{name: "c"},
 	}
+	for _, tc := range cases { t.Run(tc.name, func(t *testing.T) {}) }
+}
+func TestOther(t *testing.T) {}
+`,
+			targetSrc: `package svc
+import "testing"
+func TestKeep(t *testing.T) { if a() != 1 { t.Errorf("a") } }
+func TestAssert(t *testing.T) {
+	if a() != 1 { t.Errorf("a") }
+}
+func TestCases(t *testing.T) {
+	cases := []struct{ name string }{
+		{name: "a"},
+	}
+	for _, tc := range cases { t.Run(tc.name, func(t *testing.T) {}) }
+}
+func TestOther(t *testing.T) {
+	// unrelated addition
+}
+`,
+			changed: map[int]struct{}{14: {}},
+			want: []advisoryCheckSnapshot{
+				{Check: checkTestAssertionWeakened, File: "pkg/svc/svc_test.go", Symbol: "TestAssert"},
+				{Check: checkTestCasesReduced, File: "pkg/svc/svc_test.go", Symbol: "TestCases"},
+			},
+		},
+		// Weakening a same-file testing helper triggers test_assertion_weakened on its caller even when ChangedLines only overlaps the helper.
+		{
+			name: "weakening same-file helper flags calling test outside ChangedLines",
+			baseSrc: `package svc
+import ("testing"; "github.com/google/go-cmp/cmp")
+func TestCaller(t *testing.T) { checkResult(t, run()) }
+func checkResult(t *testing.T, got string) {
+	if d := cmp.Diff("ok", got); d != "" { t.Errorf("m: %s", d) }
 }
 `,
 			targetSrc: `package svc
 import "testing"
-func TestUntouched(t *testing.T) {
-	if a() != 1 { t.Errorf("a") }
-}
-func TestModified(t *testing.T) {
-	cases := []struct{ name string }{{name: "a"}}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) { run() })
-	}
+func TestCaller(t *testing.T) { checkResult(t, run()) }
+func checkResult(t *testing.T, got string) {
+	_ = got
 }
 `,
-			changed: map[int]struct{}{7: {}, 8: {}},
+			changed: map[int]struct{}{5: {}},
 			want: []advisoryCheckSnapshot{
-				{Check: checkTestAssertionWeakened, File: "pkg/svc/svc_test.go", Symbol: "TestModified"},
-				{Check: checkTestCasesReduced, File: "pkg/svc/svc_test.go", Symbol: "TestModified"},
+				{Check: checkTestAssertionWeakened, File: "pkg/svc/svc_test.go", Symbol: "TestCaller"},
 			},
 		},
 	}

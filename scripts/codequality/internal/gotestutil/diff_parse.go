@@ -102,6 +102,12 @@ func (s *diffScanState) step(line string) error {
 		s.oldFile = ""
 		s.targetMap = nil
 		s.inHunk = false
+	case strings.HasPrefix(line, "rename from "):
+		s.inHunk = false
+		s.oldFile = cleanDiffPath(strings.TrimPrefix(line, "rename from "), "")
+	case strings.HasPrefix(line, "rename to "):
+		s.inHunk = false
+		s.handleRenameTo(line)
 	case strings.HasPrefix(line, "--- "):
 		s.inHunk = false
 		s.handleOldHeader(line)
@@ -116,23 +122,43 @@ func (s *diffScanState) step(line string) error {
 	return nil
 }
 
+func cleanDiffPath(raw string, prefix string) string {
+	return strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(strings.TrimSpace(raw), prefix)), "./")
+}
+
+func (s *diffScanState) handleRenameTo(line string) {
+	clean := cleanDiffPath(strings.TrimPrefix(line, "rename to "), "")
+	if s.oldFile != "" && s.oldFile != clean {
+		s.recordDeletedFile()
+	}
+	if clean != "" {
+		s.changedFiles[clean] = struct{}{}
+	}
+	s.selectTargetMap(clean)
+}
+
 func (s *diffScanState) handleOldHeader(line string) {
 	rawPath := strings.TrimSpace(strings.TrimPrefix(line, "--- "))
 	if rawPath == "/dev/null" {
 		s.oldFile = ""
 		return
 	}
-	s.oldFile = strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(rawPath, "a/")), "./")
+	s.oldFile = cleanDiffPath(rawPath, "a/")
 }
 
 func (s *diffScanState) handleNewHeader(line string) {
 	rawPath := strings.TrimSpace(strings.TrimPrefix(line, "+++ "))
 	if rawPath == "/dev/null" {
 		s.recordDeletedFile()
+		s.oldFile = ""
 		s.targetMap = nil
 		return
 	}
-	clean := strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(rawPath, "b/")), "./")
+	clean := cleanDiffPath(rawPath, "b/")
+	if s.oldFile != "" && s.oldFile != clean {
+		s.recordDeletedFile()
+	}
+	s.oldFile = ""
 	if clean != "" {
 		s.changedFiles[clean] = struct{}{}
 	}
@@ -140,9 +166,13 @@ func (s *diffScanState) handleNewHeader(line string) {
 }
 
 func (s *diffScanState) recordDeletedFile() {
-	if s.oldFile != "" {
-		s.deletedFiles[s.oldFile] = struct{}{}
+	if s.oldFile == "" {
+		return
 	}
+	if _, already := s.deletedFiles[s.oldFile]; already {
+		return
+	}
+	s.deletedFiles[s.oldFile] = struct{}{}
 	if !strings.HasSuffix(s.oldFile, ".go") {
 		return
 	}
