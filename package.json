@@ -6,7 +6,7 @@
   "copyright": "Copyright 2025 Google LLC",
   "private": true,
   "devDependencies": {
-    "markdownlint-cli2": "^0.23.3",
+    "markdownlint-cli2": "^0.24.2",
     "prettier": "^3.9.6"
   }
 }
