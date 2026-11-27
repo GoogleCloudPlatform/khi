@@ -282,7 +282,7 @@ func makeLogOmittedLine(count int) ExcerptLine {
 	return ExcerptLine{
 		Kind:    ExcerptLineKindOmitted,
 		Omitted: count,
-		Text:    fmt.Sprintf("⋮ %d %s omitted", count, unit),
+		Text:    fmt.Sprintf("%d %s omitted", count, unit),
 	}
 }
 

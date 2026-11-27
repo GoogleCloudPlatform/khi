@@ -470,7 +470,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Title:        "Patch · Resource exists",
 				Subtitle:     "+2 / -2 · 7 diff lines",
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 diff lines omitted"},
 					{
 						Kind:       ExcerptLineKindDeleted,
 						OldLineNum: 7,
@@ -508,7 +508,7 @@ func TestResolve_AllLayersAndAutoInclude(t *testing.T) {
 				Subtitle:     "4 lines",
 				Lines: []ExcerptLine{
 					{Kind: ExcerptLineKindSummary, Text: "Container app OOMKilled"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 4,

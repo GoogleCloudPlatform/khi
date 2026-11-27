@@ -26,7 +26,9 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     chromium \
+    fonts-dejavu-core \
     fonts-liberation \
+    fonts-noto-cjk \
     libgl1 \
     libegl1 \
     libgles2 \

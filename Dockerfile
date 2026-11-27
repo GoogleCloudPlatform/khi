@@ -44,7 +44,9 @@ FROM debian:trixie-slim AS default
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     chromium \
+    fonts-dejavu-core \
     fonts-liberation \
+    fonts-noto-cjk \
     libgl1 \
     libegl1 \
     libgles2 \
