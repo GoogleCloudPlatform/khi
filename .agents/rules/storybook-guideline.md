@@ -1,3 +1,8 @@
+---
+trigger: glob
+globs: **/*.stories.ts
+---
+
 # Storybook Title Guidelines
 
 When creating or updating Storybook files (`*.stories.ts`), you MUST adhere to the following rules for defining the `title` property in the default export. This ensures a consistent folder structure in the Storybook UI.

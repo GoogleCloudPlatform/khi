@@ -20,9 +20,9 @@ Follow the `jj-workflow` skill for Jujutsu branch, stack, and conflict mechanics
 
 ## 1. Core Principles
 
-- **Two Commands Cover Local Verification**: Use `make pre-commit` for fast inner-loop auto-formatting and static checks on `@`, and `make pre-push` before pushing to run full GitHub Actions and Cloud Build CI-parity checks automatically scoped to changed files.
-- **Fix Root Causes, Never Game Metrics**: Never delete GoDoc comments to reduce line counts, never split functions into 6+ parameter pass-through helpers, and never suppress invariant or unreachable branches with `CODEQUALITY_ALLOW`.
-- **Green Checkmarks Are Necessary, Not Sufficient**: TypeScript quality findings and `Similarity` matches appear as non-blocking advisories in the sticky PR comment (`<!-- khi-codequality-report -->`), and `gemini-code-assist[bot]` posts inline review comments even when all checks pass. Always inspect both after checks complete.
+- **Two Commands Cover Local Verification**: Use `make pre-commit` (`make qa-fast-must` + formatters) for fast inner-loop auto-formatting and static checks on `@`, and `make pre-push` (`make qa-all-must` + `make qa-slow-advisory`) before pushing to run full GitHub Actions and Cloud Build CI-parity checks automatically scoped to changed files.
+- **Fix Root Causes, Never Game Metrics**: Never delete GoDoc comments to reduce line counts, never split functions into 6+ parameter pass-through helpers, never delete defensive guards or capacity pre-allocations to silence `func_uncovered_lines`/`func_surviving_mutants` advisories, and never suppress invariant or unreachable branches with `CODEQUALITY_ALLOW`.
+- **Green Checkmarks Are Necessary, Not Sufficient**: Go/TS coverage, mutation, redundancy (`qa-slow-advisory`), offline diff anti-Goodhart signals (`qa-fast-advisory` via `advisorycheck`), and `Similarity` matches emit non-blocking `ADVISORY` items (Exit `0`) in JSON and the sticky PR comment (`<!-- khi-codequality-report -->`), and `gemini-code-assist[bot]` posts inline review comments even when all checks pass. Always inspect both after checks complete.
 - **No-Squash Incremental Commits**: Never run `jj squash` once a PR is pushed. Always create incremental child commits (`jj new <pr-bookmark>`) so reviewers can inspect round-by-round diffs.
 
 ---
@@ -39,7 +39,7 @@ Run `make pre-commit` while your working copy (`@`) contains modified files (bef
 make pre-commit
 ```
 
-- Automatically detects modified files in `@` (exiting with an explicit error if `@` is empty) and runs **only** the formatters and fast static linters for touched domains: Apache-2.0 headers (`add-licenses`), Proto (`format-proto`, `lint-proto`, `build-proto`), package-scoped Go (`format-go`, `lint-go` with `--conventions`, `codequality-fast`), Web (`format-web`, `lint-web`), config YAML/JSON (`format-misc`), and Markdown (`format-md`, `lint-md`).
+- Automatically detects modified files in `@` (exiting with an explicit error if `@` is empty) and runs **only** the formatters and fast static checks for touched domains: Apache-2.0 headers (`add-licenses`), Proto (`format-proto`, `build-proto`), package-scoped Go (`format-go`), Web (`format-web`), config YAML/JSON (`format-misc`), Markdown (`format-md`), and `make qa-fast-must` (which runs `lint-go` including `codequality conventions`, `lint-web`, `lint-md`, `lint-proto`, and fast Go AST rules).
 - Combine with targeted unit tests (for example, `go test ./pkg/path/to/pkg/...`) while iterating on specific logic.
 
 ### 2. Pre-Push Full CI-Parity Gate (`make pre-push`)
@@ -55,11 +55,11 @@ make pre-push BASE=<parent-push-bookmark>
 ```
 
 - Inspects the full branch diff (`fork_point(BASE | @)..@`, defaulting to `BASE=trunk()`), so it works identically **before or after** `jj new`.
-- Runs only the CI suites affected by your branch diff in fail-fast order, matching `.github/workflows/pullrequest.yaml` and `.cloudbuild/github-codequality.yaml`:
+- Runs `make qa-all-must` across only the CI suites affected by your branch diff in fail-fast order, matching `.github/workflows/pullrequest.yaml` and `.cloudbuild/github-codequality.yaml`:
   - Static & license checks (`check-licenses`, `lint-md`, `check-format-misc`, `lint-proto` + `build-proto`)
-  - Go parity (`lint-go`, `codequality-fast`, `test-go`, cross-OS `build-go-binaries`)
+  - Go parity (`lint-go` including `codequality conventions` and `unused-exports`, `qa-fast-must`, `test-go`, cross-OS `build-go-binaries`)
   - Frontend parity (`check-format-web`, `lint-web`, `build-web`, `build-web-dev`, `build-storybook`, `test-web`)
-  - Differential `codequality` with **unlimited mutants** (`CODEQUALITY_MAX=0`, `CODEQUALITY_TIMEOUT=10m`)
+  - Differential `qa-slow` with **unlimited mutants** (`CODEQUALITY_MAX=0`, `CODEQUALITY_TIMEOUT=10m`)
 - Optional environment overrides: add `USE_CONTAINER=true` when headless Chromium is available only inside the builder container, or `CODEQUALITY_SIMILARITY=true` (when not already enabled in `~/.config/khi/codequality.mk`) to preview Vertex AI AST-normalized function similarity advisories locally.
 
 ---
@@ -71,10 +71,11 @@ Resolve `codequality` findings in this strict priority order:
 1. **`RATCHET_REGRESSION` (`after > before` on a legacy unit)**:
    - Legacy units already exceeding a default budget enforce a strict no-worsening ratchet (`after <= before`).
    - `CODEQUALITY_ALLOW` **never** suppresses `RATCHET_REGRESSION` (adding one causes an `unused CODEQUALITY_ALLOW` `DirectiveError`). Refactor or add tests until `after <= before`.
-2. **Uncovered Lines & Surviving Mutants (`func_uncovered_lines`, `func_surviving_mutants`)**:
-   - **Step A — Delete redundant or invariant guards first**: Check whether an `if` branch, fallback, or `typeof document !== 'undefined'` check is unreachable or guaranteed by an internal contract. Categories such as `invariant`, `unreachable`, `defensive`, and `dead` are rejected by `codequality`.
-   - **Step B — Strengthen assertions**: Compare whole structs with `cmp.Diff(tc.want, got)` and add boundary inputs (`ROR`/`LCR` operators). In TypeScript, test real DOM/layout behavior in Headless Chromium or extract pure `*calculator.ts` / `*.viewmodel.ts` helpers rather than suppressing UI code as `external`.
-   - **Step C — Suppress genuine `HARD_LIMIT` exceptions last**: Only when permitted by the rule (`dispatch`, `protocol`, `equivalent`, `perf`, `observability`, `external`), add `// CODEQUALITY_ALLOW(<rule_id>, <category>[, <operator>]): <reason (>= 8 chars)>` immediately above the target declaration or line. Delete stale directives immediately.
+2. **Advisory Coverage, Mutation & Diff Signals (`qa-slow-advisory`, `qa-fast-advisory`)**:
+   - **Never Game Advisory Metrics**: `func_uncovered_lines`, `func_surviving_mutants`, `test_redundancy` (`qa-slow-advisory`), and `advisorycheck` signals (`test_removed`, `test_cases_reduced`, `test_assertion_weakened`, `test_skip_added`, `test_stress_reduced`, `test_sleep_added`, `suppression_added`, `orphan_test_file` in `qa-fast-advisory`) report Exit `0` for human/auditor review. Never delete legitimate defensive guards, pre-sizing hints, or pre-existing tests—and never add `CODEQUALITY_ALLOW`—just to silence advisory items.
+   - **Step A — Delete genuinely dead code**: Remove only provably unreachable branches or duplicate subtests introduced in your current change.
+   - **Step B — Strengthen assertions**: Compare whole structs with `cmp.Diff(tc.want, got)` and add boundary inputs (`ROR`/`LCR` operators). In TypeScript, test real DOM/layout behavior in Headless Chromium or extract pure `*calculator.ts` / `*.viewmodel.ts` helpers.
+   - **Step C — Document intentionally retained advisories**: When an advisory item stems from a genuine external I/O boundary, equivalent mutant, or deliberate guard, leave the code clean and note the rationale in the PR summary comment if helpful rather than adding `CODEQUALITY_ALLOW`.
 3. **Redundant Tests (`test_redundancy`: `SAME PATH` / `NO OUTPUT CHECK`)**:
    - If a subtest or Jasmine `it(...)` spec added in your current change is dominated on the same branch-polarity path or checks only `err == nil` / `toBeTruthy()`, assert distinct output values so it kills a unique mutant, or consolidate the duplicate case you introduced.
    - Never delete pre-existing test cases or weaken pre-existing assertions from `main` without asking the user first.
@@ -115,7 +116,7 @@ gh pr create --repo GoogleCloudPlatform/khi \
 | `PR Tests / license-header-check` | GitHub Actions | ~35s | Google LLC Apache-2.0 headers (`make check-licenses`) |
 | `PR Tests / proto-checks` | GitHub Actions | ~1–2m | `make lint-proto` and `make build-proto` |
 | `PR Tests / build-web` | GitHub Actions | ~3m | Production frontend bundle |
-| `PR Tests / backend-tests` | GitHub Actions | ~4–5m | `go test ./...`, `check-format-misc`, `--conventions`, `golangci-lint` |
+| `PR Tests / backend-tests` | GitHub Actions | ~4–5m | `go test ./...`, `check-format-misc`, `codequality conventions`, `golangci-lint` |
 | `PR Tests / frontend-tests` | GitHub Actions | ~5m | `make test-web`, `check-format-web`, `lint-web` |
 | `PR Tests / build-frontend (prod, dev)` | GitHub Actions | ~4–5m | Angular `prod`/`dev` builds + `npm run build-storybook` |
 | `PR Tests / build-binaries` | GitHub Actions | ~5–6m | Cross-OS/arch Go binaries (`windows`, `linux`, `darwin`) |

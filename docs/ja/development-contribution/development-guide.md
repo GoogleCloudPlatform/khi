@@ -105,19 +105,19 @@ KHI_SKIP_CLOUD_LOGGING=true go test ./...
 make test-go-short
 ```
 
-`main`（`trunk`）からの変更差分に含まれるGoおよびTypeScriptコードの品質ルール（Go ASTの認知複雑度・関数/ファイル長・シグネチャ制約・クローン・ファイル名、ならびに両言語の未カバー実行行・生存ミュータント・冗長テスト）をまとめて検証するには、下記を実行してください。
+`main`（`trunk`）からの変更差分に含まれるGoおよびTypeScriptコードの品質ルール（Go ASTの認知複雑度・関数/ファイル長・コードクローン・ファイル名、ならびに両言語の未カバー実行行・生存ミュータント・冗長テスト）をまとめて検証するには、下記を実行してください。
 
 ```shell
-make codequality
+make qa-all
 ```
 
-Goリファクタリング中の高速フィードバック（1秒未満の静的AST構造検査のみ）には `make codequality-fast` を使用できます。言語別の個別実行（`make codequality-go` / `make codequality-web`）、コンテナ内のChromeを使った実行（`USE_CONTAINER=true`）、Vertex AI `gemini-embedding-2` を用いたAST正規化ベースの類似関数アドバイザリの有効化（`CODEQUALITY_SIMILARITY=true` および任意の課金先プロジェクト指定 `CODEQUALITY_SIMILARITY_PROJECT=<project-id>`、意図しないGCP課金を防ぐためローカル既定はオフ・Cloud Build CIで有効）、比較元のリビジョン指定（例: `make codequality CODEQUALITY_BASE=@-` や `CODEQUALITY_BASE=origin/main~3`）、リポジトリ全体のカバレッジ計測（`CODEQUALITY_FULL=true`）、およびパイプ渡し時のカラー出力切り替え（`COLOR=always` / `COLOR=never`、対話型ターミナルでは自動でカラー表示）もオプションで指定可能です。
+GoやTypeScriptのリファクタリング中の高速フィードバックには、ブロッキング検査のみの `make qa-fast-must`（またはアドバイザリも含む `make qa-fast`）を使用できます。言語別の個別実行（`QA_LANG=go` / `QA_LANG=ts`）、低速検査のブロッキング/アドバイザリ個別実行（`make qa-slow-must` / `make qa-slow-advisory`）、コンテナ内のChromeを使った実行（`USE_CONTAINER=true`）、宣言的セマンティックルールの有効化（`CODEQUALITY_DECISIONS=true`）、Vertex AI `gemini-embedding-2` を用いたAST正規化ベースの類似関数アドバイザリの有効化（`CODEQUALITY_SIMILARITY=true` および任意の課金先プロジェクト指定 `CODEQUALITY_SIMILARITY_PROJECT=<project-id>`、意図しないGCP課金を防ぐためローカルではデフォルトでオフ・Cloud Build CIで有効）、比較元のリビジョンや対象パスの指定（例: `make qa-fast BASE=@-` や `make qa-slow PATHS=pkg/common`）、およびパイプ渡し時のカラー出力切り替え（`COLOR=always` / `COLOR=never`、対話型ターミナルでは自動でカラー表示）もオプションで指定可能です。
 
-Go側の品質ルールはすべて統一された上限・悪化防止ラチェット（既存のレガシー関数では `after <= before` 判定）で動作します。GoまたはTypeScriptで生存ミュータントや未カバー分岐が検出された場合は、壊れやすいモックテストを無理に増やすのではなく、①不要・冗長な分岐（不変条件で到達しないガード等）の削除、②既存テストにおける `cmp.Diff` や `*.spec.ts` のシグナル・ViewModel・境界値アサーションの強化を優先してください。不変条件・到達不能コードを `CODEQUALITY_ALLOW` で抑制することは認められません。消せない正当なケースに限り、必須ルールID・カテゴリ付きのコメント（`// CODEQUALITY_ALLOW(<rule_id>, <category>): <理由>` または `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <理由>`、`<category>` はルールごとに許可された `dispatch` / `protocol` / `equivalent` / `perf` / `observability` / `external`）で明示的に抑制できます。
+Go側の品質ルールはすべて統一された上限・悪化防止ラチェット（既存のレガシー関数では `after <= before` 判定）で動作し、差分の行カバレッジ・生存ミュータント・`test_redundancy` はレビュー用の非ブロッキングな `ADVISORY` として報告されます。GoまたはTypeScriptで生存ミュータントや未カバー分岐が検出された場合は、壊れやすいモックテストを無理に増やすのではなく、①真に到達不能な不要分岐の削除、②既存テストにおける `cmp.Diff` や `*.spec.ts` のシグナル・ViewModel・境界値アサーションの強化を優先してください。正当な防御ガードを削除したり、アドバイザリを消す目的で `CODEQUALITY_ALLOW` を追加したりすることは認められません。
 
-また、`make codequality` は差分内で追加・変更された `*_test.go` および `*.spec.ts` のテストケースも `test_redundancy` ルールとして同時に解析し、冗長なテスト（既存のテストと全く同じ分岐極性経路を通って追加のバグを1つも検出していない `SAME PATH`、または既にカバー済みの経路に対して `err != nil` や `expect(component).toBeTruthy()` のみのスモーク確認しか行わず戻り値・状態を検証していない `NO OUTPUT CHECK`）を検出します。同値クラスの重複テストは整理するか、固有の変異を検出できるようアサーションを強化してください。
+また、`make qa-slow`（および `make qa-slow-advisory`）は差分内で追加・変更された `*_test.go` および `*.spec.ts` のテストケースも `test_redundancy` ルールとして同時に解析し、冗長なテスト（既存のテストと全く同じ分岐極性経路を通って追加のバグを1つも検出していない `SAME PATH`、または既にカバー済みの経路に対して `err != nil` や `expect(component).toBeTruthy()` のみのスモーク確認しか行わず戻り値・状態を検証していない `NO OUTPUT CHECK`）を検出します。同値クラスの重複テストは整理するか、固有の変異を検出できるようアサーションを強化してください。
 
-なお、`make codequality`（および `make codequality-go`）はGoのカバレッジ計測およびミューテーションテストを自動的に `-short`（`-test.short`）付きで実行し、高負荷なストレステストを高速化します（`make test-go` およびPR CIでは引き続きフル強度で実行されます）。Goテスト内で `testing.Short()` を使う場合は、分岐やアサーションのカバレッジを保ったまま反復回数・並行度・疑似遅延などの負荷パラメータを縮小する用途のみに限定してください。`testing.Short()` によるテストのスキップやアサーションの省略（`t.Skip`、早期 `return`、`if !testing.Short()` など）は禁止されており、`make lint-go` の `no-short-skip` ルールで検証されます。
+なお、`make qa-slow`（および `make qa-slow-advisory`）はGoのカバレッジ計測およびミューテーションテストを自動的に `-short`（`-test.short`）付きで実行し、高負荷なストレステストを高速化します（`make test-go` およびPR CIでは引き続きフル強度で実行されます）。Goテスト内で `testing.Short()` を使う場合は、分岐やアサーションのカバレッジを保ったまま反復回数・並行度・疑似遅延などの負荷パラメータを縮小する用途のみに限定してください。`testing.Short()` によるテストのスキップやアサーションの省略（`t.Skip`、早期 `return`、`if !testing.Short()` など）は禁止されており、`make lint-go` の `no-short-skip` ルールで検証されます。
 
 ### 過去の自動生成テストファイルのクリーンアップ
 

@@ -3,92 +3,44 @@ trigger: glob
 globs: **/*.ts
 ---
 
-## Typescript Coding rules
+# TypeScript Coding Rules
 
-- Use TSDoc-style comments for all public types, functions, and methods.
-- **Comments and TSDoc (Strict Logic Alignment)**: Every TSDoc (`/** ... */`) and inline (`// ...`) comment must accurately match the actual implementation behavior, Angular signal/RxJS reactivity, timestamp units (`bigint` nanoseconds vs `*Ms`), nullability, and error/fallback handling. When refactoring code (for example migrating from RxJS `Subject` or `@Input()` to `signal()` / `input()`), update or remove affected comments in the same change.
-- **Identifier Naming (Functions, Methods, Parameters, and Variables)**:
-  - Choose clear, domain-descriptive names that match how values and functions are actually used.
-  - **Avoid Cryptic or Overly Short Names**: Outside narrow conventional idioms (such as `i`/`j` in tiny index loops, `el`/`ev` in brief one-line DOM callbacks, and `x`/`y`/`w`/`h` in explicit 2D canvas geometry), do **NOT** use opaque 1–2 letter or generic placeholder names (`d`, `m`, `tmp`, `val`, `data`, `res`, `proc`, `handle`, `cb`) across non-trivial logic.
-  - **Match Name to Actual Usage**: Never give a variable, parameter, property, or method a name that contradicts its unit, boolean polarity, mutability, or side effects (for example, naming a `bigint` nanosecond timestamp `timestampMs`, naming a state-mutating method `isValid()` or `get*()`, or inverting boolean meaning).
+When developing or modifying TypeScript code in KHI, adhere to these rules alongside `.agents/rules/comment-guideline.md` and `.agents/skills/backward_compatibility_policy/SKILL.md`.
 
-```ts
-// BAD: cryptic short names and misleading unit/side-effect names.
-function check(d: bigint, m: Map<string, string>): number {
-  const timeoutMs = d; // Misleading: d is bigint nanoseconds, not milliseconds!
-  m.delete('expired'); // Mutates caller map despite "check" name!
-  return m.size;
-}
+## General TypeScript Rules
 
-// GOOD: names communicate exact domain role, unit, and mutating behavior.
-function pruneExpiredEntries(
-  timeoutNs: bigint,
-  entriesByKey: Map<string, string>,
-): number {
-  if (timeoutNs <= 0n) {
-    return entriesByKey.size;
-  }
-  entriesByKey.delete('expired');
-  return entriesByKey.size;
-}
-```
+- **Comments & TSDoc**: Follow `comment-guideline.md` for all public types, functions, and methods. Keep every TSDoc (`/** ... */`) and inline comment strictly aligned with current reactivity (`signal()` / `input()` vs RxJS), timestamp units (`bigint` nanoseconds vs `*Ms`), nullability, and error/fallback behavior.
+- **Identifier Naming**: Choose domain-descriptive names matching exact unit, boolean polarity, mutability, and side effects (e.g., never name a `bigint` nanosecond timestamp `timestampMs` or a mutating method `isValid()` / `get*()`). Outside narrow idioms (`i`/`j` in tiny loops, `el`/`ev` in one-line DOM callbacks, `x`/`y`/`w`/`h` in 2D canvas geometry), avoid cryptic placeholders (`d`, `m`, `tmp`, `val`, `data`, `res`, `proc`, `handle`, `cb`).
+- **Types & Style**:
+  - Test files must be named `A.spec.ts` when `A.ts` exists (do not organize specs by scenario).
+  - Do NOT use `any`.
+  - Make fields `readonly` wherever possible.
+  - Define an `enum` rather than a union of string literal types.
+  - Use absolute imports from the project base path (e.g., `src/app/...`).
+  - Default timestamps to `bigint` in nanoseconds (ns); append the unit name for any other unit (e.g., `timestampMs`).
+  - Prefix private fields with `_` **only** when a getter/setter with the same name exists.
+  - Do NOT prefix interface names with `I`.
+  - Do NOT use `as unknown as X` type assertions or object literal types (define an `interface` instead) in non-test code.
+  - Do NOT reference types via property lookup (`Type['field']`); import and use the official type name directly.
+- **No Backward Compatibility**: Internal TypeScript code requires no deprecated wrappers, unused optional parameters, or fallback shims; update all callers directly (`backward-compatibility-policy`).
 
-- Test files must be named with `A.spec.ts` if `A.ts` exists. Do not define spec files by scenarios.
-- Do NOT use `any`.
-- Make fields `readonly` as much as possible.
-- Define enum type rather than define a union of string literal types.
-- Write import path in absolute form from the project base path like `src/app/...`.
-- Run `make codequality` (or `make codequality-web`, adding `USE_CONTAINER=true` when Chrome is only inside the builder container, and `CODEQUALITY_SIMILARITY=true` / `CODEQUALITY_SIMILARITY_PROJECT=<project-id>` to opt in to Vertex AI `gemini-embedding-2` AST-normalized function similarity advisories locally) to verify differential line coverage, mutation score (assertion strength), and absence of redundant specs on changed TypeScript logic. Run `make codequality-decisions` (or `CODEQUALITY_DECISIONS=true`) to evaluate declarative Gemini Decisions semantic rules (`ts_code_quality` and `ts_test_quality`) on changed `.ts` and `.spec.ts` files. When a mutant survives:
-  - First check if the branch is redundant or guarded by an existing invariant (e.g., unreachable CSR `typeof document !== 'undefined'` fallbacks) — **never** suppress invariant, defensive, or unreachable conditions with `CODEQUALITY_ALLOW`; simplify or delete the redundant branch instead.
-  - Because Karma runs in real Headless Chromium, **never** blanket-suppress DOM layout, scroll math, or `should create`-only component effects as `external`. Instead, extract non-trivial calculations into pure `*calculator.ts` / `*.viewmodel.ts` helpers or strengthen assertions in `*.spec.ts`.
-  - Only for genuine non-deletable cases, suppress with a required rule ID, category, and explanation (`// CODEQUALITY_ALLOW(func_surviving_mutants, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is `equivalent` [e.g., sub-pixel `< 1` rounding tolerance], `perf` [e.g., DOM/Canvas property dirty-check caches or memoization], `observability`, or `external` [strictly browser I/O boundaries unobservable in headless unit tests such as `window.open`, Clipboard, file downloads, or raw GPU shader pixel output]).
-  - `make codequality-web` also flags redundant specs added or modified in `*.spec.ts` (`SAME PATH` specs with identical branch polarities and subsumed mutant kills, and `NO OUTPUT CHECK` specs such as boilerplate `it('should create', () => expect(component).toBeTruthy())` when real behavioral specs already cover the component). Remove pure equivalence-class duplicates and redundant `should create` smoke tests unless documenting a distinct regression.
-  - Make sure you run `make test-web` before asking the user to verify.
-- Run `make format-web`, `make lint-web`, and `make build-storybook` to follow the standard typescript coding convention in this project. Since running these serially takes a long time, launch them as separate background tasks to run them in parallel.
-- The default type for timestamps is `bigint` in nanoseconds (ns) unless specified otherwise. If a timestamp is in another unit, append the unit name to the field or method name (e.g., `timestampMs`).
-- Prefix private fields with `_` only if there is a corresponding property (getter or setter) with the same name. If there is no property with the same name and the field name can be defined without `_`, do not use the `_` prefix.
-- Do NOT prefix interface names with `I`.
-- Do NOT use `as unknown as X` type assertions in non test code.
-- Do NOT use Object literal type in non test code. Define an interface instead.
-- Do NOT reference types by accessing fields of other types (e.g., `Type['field']`). Use the official type name directly.
-- Internal TypeScript code in KHI requires no backward compatibility. When refactoring functions, classes, interfaces, or Angular component inputs/outputs, update all call sites across the codebase directly without leaving deprecated wrappers, unnecessary optional parameters, or fallback logic. Refer to the `backward-compatibility-policy` skill for anti-patterns and details.
+## Verification & Quality Checks
+
+- Run `make format-web`, `make lint-web`, `make test-web`, and `make build-storybook` before asking the user to verify (launch long-running checks in parallel when useful).
+- Run `make qa-fast QA_LANG=ts` and `make qa-slow QA_LANG=ts` (add `USE_CONTAINER=true` when Chrome is inside the builder container, `CODEQUALITY_DECISIONS=true` to evaluate `scripts/codequality/rules/ts_*.yaml`, and `CODEQUALITY_SIMILARITY=true` for Vertex AI AST similarity advisories) to inspect differential line coverage, mutation score, and redundant specs on changed files.
+- **Handling `qa-slow-advisory` Findings (`func_uncovered_lines`, `func_surviving_mutants`, `test_redundancy`)**:
+  - **Never** delete legitimate defensive guards or add `CODEQUALITY_ALLOW` to silence advisories; delete or simplify only genuinely dead/unreachable branches.
+  - Because Karma runs in Headless Chromium, **never** ignore DOM layout or scroll math as untestable. Extract non-trivial calculations into pure `*calculator.ts` / `*.viewmodel.ts` helpers or strengthen assertions in `*.spec.ts`.
+  - For `test_redundancy` (`SAME PATH` / `NO OUTPUT CHECK` such as boilerplate `it('should create', () => expect(component).toBeTruthy())`), consolidate pure equivalence-class duplicates you introduced or assert distinct outputs rather than deleting pre-existing tests.
 
 ## TypeScript Unit Testing Practices (`*.spec.ts`)
 
-1. **Mandatory Spec Explanation Comments**:
-   - Place a concise `// ...` comment (ending with `.`) immediately above **every** `it(...)` spec explaining the input scenario/preconditions and expected behavior.
-   - Ensure the spec's setup, trigger, and `expect(...)` assertions genuinely verify that described scenario and cannot pass coincidentally (for example, populate state before testing `clear()`).
-2. **Test Structure: Arrange, Act, Assert (AAA)**:
-   - Structure every `it(...)` block into three linear phases separated by blank lines (add explicit `// Arrange.`, `// Act.`, and `// Assert.` comments when any phase spans multiple blocks so `Act` stands out immediately):
-     - **Arrange**: Minimal inputs, spies, component inputs, and subscriptions needed for the target behavior.
-     - **Act**: Invoke the single function, method, DOM event, or signal update under test (plus `fixture.detectChanges()` when exercising Angular view rendering).
-     - **Assert**: Verify the returned outputs, DOM state, or recorded emissions with `expect(...)`.
-   - **One Behavior per Spec**: Do **NOT** chain multiple `Act -> Assert -> Act -> Assert` sequences testing independent behaviors inside a single `it(...)` block, and do **NOT** compute expected values dynamically via `if`/`else` or `for` loops inside the spec body.
-3. **Testing Callbacks and Subscriptions**:
-   - When testing functions accepting callbacks, Angular `output()` subscriptions (`.subscribe(...)`), RxJS Observables, or event listeners, **NEVER** place `expect(...)` or `fail(...)` directly inside the callback or `.subscribe(...)` handler. If a defect prevents the callback or Observable from firing, assertions inside the handler never run and the spec silently passes; it also mixes Assert into Arrange.
-   - Instead:
-     - **Arrange**: Record emitted values/arguments into a local array or variable (or pass a `jasmine.createSpy(...)`).
-     - **Act**: Trigger the function, method, or DOM event under test.
-     - **Assert**: **Outside** the callback (after `Act`), assert on the recorded values or spy (`expect(emitted).toEqual([...])` or `expect(onProgress).toHaveBeenCalledWith(...)`).
+1. **Mandatory Spec Explanation Comments**: Place a concise `// ... .` comment immediately above **every** `it(...)` block explaining the scenario/preconditions and expected behavior, and ensure setup, trigger, and `expect(...)` genuinely verify it.
+2. **Linear Arrange, Act, Assert (AAA)**: Separate Arrange, Act, and Assert with blank lines (add `// Arrange.`, `// Act.`, `// Assert.` when multi-block). Test **one behavior per spec**; never chain multiple `Act -> Assert` sequences or compute expected values with `if`/`else` or `for` inside `it(...)`.
+3. **Testing Callbacks and Subscriptions**: Never place `expect(...)` or `fail(...)` inside callbacks, `.subscribe(...)` handlers, or event listeners—if the callback never fires, the spec passes silently. Record emissions in Arrange (or use `jasmine.createSpy(...)`), trigger in Act, and assert **outside** after Act.
 
 ```ts
-// BAD 1: assertion inside subscribe silently passes if timeRangeSelected never emits!
-it('emits selected time range', () => {
-  component.timeRangeSelected.subscribe((range) => {
-    expect(range).toEqual({ startNs: 100n, endNs: 200n });
-  });
-  triggerRangeDrag(fixture, 100, 200);
-});
-
-// BAD 2: interleaved Act -> Assert -> Act -> Assert for two independent behaviors.
-it('adds and clears entries', () => {
-  store.add('k', 'v');
-  expect(store.size()).toBe(1);
-  store.clear();
-  expect(store.size()).toBe(0);
-});
-
-// GOOD: preceding comment, linear Arrange -> Act -> Assert, and callback recorded outside Assert.
+// GOOD: preceding comment, linear AAA, and subscription recorded outside Assert.
 // Emits the dragged time range once when the pointer drag completes on the ruler.
 it('emits selected time range on pointer up', () => {
   const emittedRanges: TimeRangeNs[] = [];
@@ -100,47 +52,33 @@ it('emits selected time range on pointer up', () => {
 });
 ```
 
-## Angular coding rules
+## Angular Coding Rules
 
-- Use Angular signal rather than RxJS.
-- Define templates and styles in separate files. Do not define them in @Component.
-- Import `KHIIconRegistrationModule` when the component uses `MatIconModule`.
-- Use `input()` or `input.required()` for component inputs instead of `@Input`.
-- Use `output()` instead of `@Output`.
-- Use `model()` for two-way bindings.
-- Use `signal()` and `computed()` for component-level state management.
-- To export enum type to the template, use protected readonly and it must be placed before any other fields, methods or constructor.
+- Use Angular signals rather than RxJS for component state.
+- Define templates and styles in separate files (never inline in `@Component`).
+- Import `KHIIconRegistrationModule` when a component uses `MatIconModule`.
+- Use `input()` / `input.required()`, `output()`, `model()`, `signal()`, and `computed()` instead of `@Input` / `@Output`.
+- To expose an enum type to the template, declare `protected readonly` before any other fields, methods, or constructor.
 
 ## Smart-Dumb Component Architecture
 
-To maintain a clean separation of concerns and improve testability, we adopt the Smart-Dumb component strategy.
-
-### Directory Structure
-
-Each feature or complex component should use the following directory structure:
+Organize each feature or complex component as follows:
 
 ```text
 foo/
-  components/           # Place non-smart (Dumb) components here
-    foo-layout.component(.ts|.scss|.html|.spec.ts|.stories.ts) # A layout dumb component
-    bar.component(.ts|.scss|.html|.spec.ts|.stories.ts) # Other dumb component used from the layout component
-    ...
-  types/                # Place component-specific types/ViewModels here (not shared outside foo/)
-  foo-smart.component.ts
-  foo-smart.component.scss
-  foo-smart.component.html
+  components/           # Dumb components (UI rendering and event emission only)
+    foo-layout.component(.ts|.scss|.html|.spec.ts|.stories.ts)
+    bar.component(.ts|.scss|.html|.spec.ts|.stories.ts)
+  types/                # Feature-local types and ViewModels
+  foo-smart.component(.ts|.scss|.html)
 ```
 
-### Dependency Rules
-
 1. **Smart Components**:
-   - Responsible for state management and data fetching.
-   - Allowed to depend on Angular Services.
-   - **MUST NOT** contain any elements other than layout components in their templates. They must only act as a bridge to propagate information from Services to the underlying layout components.
-   - **MUST NOT** have any styles except `:host { display: contents }`. This ensures that smart components do not contribute to the visual layout and remain purely logical containers.
+   - Manage state and data fetching; allowed to depend on Angular Services.
+   - **MUST NOT** contain elements other than layout components in their templates.
+   - **MUST NOT** contain styles other than `:host { display: contents }`.
 2. **Dumb Components**:
-   - Responsible only for rendering UI and propagating events.
-   - **MUST NOT** depend on Angular Services. They should only communicate via Inputs (`input()`, `model()`) and Outputs (`output()`).
-   - **MUST** have a corresponding Storybook story (`*.stories.ts`) to verify its visual states independently.
-   - **DO NOT** use suffixes like `-dumb` or `-ui` in the component name. Name them based on their semantic meaning (e.g., `user-profile`, `data-table`).
-   - **Layout Components** (which are a specialized type of dumb components) are responsible for the structural layout, including placing other dumb components and standard HTML elements (like `<div>`).
+   - Render UI and propagate events via `input()`, `model()`, and `output()` only (**MUST NOT** depend on Angular Services).
+   - **MUST** include a `*.stories.ts` file to verify visual states independently.
+   - **DO NOT** use `-dumb` or `-ui` suffixes in component names; name components semantically (e.g., `user-profile`, `data-table`).
+   - **Layout Components** are dumb components responsible for structural layout of other dumb components and standard HTML elements.

@@ -3,322 +3,117 @@ trigger: glob
 globs: **/*.go
 ---
 
-# Go Coding rules
+# Go Coding Rules
 
-When developing or modifying Go code in the KHI project, you **must** adhere to the following rules and best practices.
+When developing or modifying Go code in KHI, adhere to these rules alongside `.agents/rules/comment-guideline.md` and `.agents/skills/backward_compatibility_policy/SKILL.md`.
 
-## Verifications
+## Verification Commands
 
-1. **Build Verification**: Before running tests or submitting changes, you must always verify that your code compiles successfully.
-   - Run `make build-go` to ensure there are no compilation errors across the backend.
-2. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first (or `make test-go-short` for fast runs with scaled-down stress iterations). Run `make codequality-fast` during inner-loop refactoring for fast (<1s) AST complexity/size/naming ratchet feedback, and run `make codequality-go` (or `make codequality`) to verify all Go quality rules and ratchets (AST structural budgets, uncovered lines, surviving mutants, and redundant tests) on changed code. Note that `make codequality-go` runs Go coverage (`covcheck`) and mutation testing (`mutcheck`) with `-short` (`-test.short`) so stress tests use scaled-down iterations, whereas `make test-go` and PR CI run all tests at full strength. When a mutant survives or a quality rule fails:
-   - First check if the branch is redundant or guarded by an existing invariant — **never** suppress invariant, defensive, or unreachable conditions with `CODEQUALITY_ALLOW`; simplify or delete the redundant branch instead.
-   - Strengthen existing assertions (`cmp.Diff` on whole structs, boundary inputs) rather than adding mock-heavy boilerplate tests.
-   - Only for genuine non-deletable `HARD_LIMIT` cases, suppress with a required rule ID, category, and explanation (`// CODEQUALITY_ALLOW(<rule_id>, <category>): <reason>` or `// CODEQUALITY_ALLOW(func_surviving_mutants, <category>, <operator>): <reason>`, where `<category>` is one of `dispatch`, `protocol`, `equivalent`, `perf`, `observability`, `external` as allowed by the rule).
-   - Make sure you run full-strength `make test-go` before asking the user to verify.
-3. **Formatting and Linting**:
-   - Run `make format-go` to ensure standard Go formatting.
-   - Run `make lint-go` and ensure zero linting errors (`depguard`, `errorlint`, `forbidigo`, `nolintlint`, `staticcheck`, `govet`, Go conventions including `no-short-skip`, etc.). Naked `//nolint` comments without a specific linter name and explanation are forbidden.
-4. If you make any corrections during a verification phase, you MUST restart the verification from the beginning for that phase.
+- **Build & Test**: Run `make build-go` to verify compilation, `make test-go` for full-strength tests, and `make test-go-short` for `-short`.
+- **Fast Gate**: Run `make qa-fast-must` (or `make pre-commit`) for formatting, license headers, `lint-go` (`depguard` / `no-x-exp-stdlib`, `errorlint`, `forbidigo`, `nolintlint`, `staticcheck`, `govet`, `no-short-skip`), `go test -short`, and fast AST rules. Naked `//nolint` comments are forbidden.
+- **Slow & Advisory QA**: Run `make qa-slow-must QA_LANG=go` (`code_clone`, `deadcode`, `unused_exports`, `go test -race`, cross-OS builds) and `make qa-slow-advisory QA_LANG=go FORMAT=json` (`covcheck`, `mutcheck`, `test_redundancy`, opt-in `CODEQUALITY_SIMILARITY=true`). `covcheck` and `mutcheck` run with `-short`; `make test-go` and PR CI run full strength.
+- **Semantic Decisions**: Opt-in `CODEQUALITY_DECISIONS=true` evaluates `scripts/codequality/rules/*.yaml` (`go_code_quality`, `go_test_quality`, `go_refactor_safety`) via the Gemini Decisions API (auto-skips when no API key is configured; in Swarm runs without it, Auditors consult the YAML rules directly).
+- **Untracked Files in Git**: In `git` workspaces, stage new files (`git add -A`) before running `make qa-fast` or `make qa-slow-advisory` with `BASE=HEAD` so untracked files are included in the diff.
+- Restart verification from the start of a phase after any edit.
 
-## Go Quality Rules & Ratchet Budgets
+## Quality Budgets and Advisory Policy
 
-`make codequality-go` (and `make codequality-fast` for Stage-1 AST rules) enforces quantitative budgets on newly added/compliant Go units and a **strict no-worsening ratchet (`after <= before`)** on legacy units that already exceed a budget:
+`make qa-fast-must` and `make qa-slow-must` enforce hard limits on new/compliant units and a **strict no-worsening ratchet (`after <= before`)** on legacy units:
 
-- **Production Functions**:
-  - Cognitive complexity (`func_cognitive`): `<= 15` (flat `switch` counts as `+1`; deep `if/for` nesting and mixed `&&`/`||` chains incur compounding penalties).
-  - Max control-flow nesting (`func_nesting`): `<= 4` (`else if` does not increase nesting; prefer early-return guard clauses).
-  - Function size: `<= 60` code lines (`func_code_lines`, comments and blank lines excluded — **never** delete GoDoc comments to shrink line counts) and `<= 40` AST statements (`func_statements`).
-  - Signature bounds: `<= 5` parameters (`func_params`), `<= 3` return values (`func_results`), and **no control-flow `bool` flag parameters** on `>= 3`-parameter functions (`control_flag_param`). Do **not** shred complex functions into 6+ parameter pass-through helpers; group cohesive state into domain structs/methods instead.
-  - Duplication (`code_clone`): `<= 15` consecutive normalized AST statements duplicated across production functions (`>= 16` triggers a violation). When opted in via `CODEQUALITY_SIMILARITY=true` (with optional billing project `CODEQUALITY_SIMILARITY_PROJECT=<project-id>`; enabled in Cloud Build CI), `make codequality` / `make codequality-fast` also emits non-blocking `Similarity` advisories (`gemini-embedding-2` over AST-normalized Go functions, methods, and task closures) whenever newly added units match existing helpers — inspect and reuse matching `[shared]` or domain helpers instead of duplicating logic.
-  - Semantic Go Code & Test Rules (`CODEQUALITY_DECISIONS=true` / `make codequality-decisions`): Evaluates declarative YAML rules in `scripts/codequality/rules/*.yaml` via the Gemini Decisions API (`gemini-decision-1`), including `go_code_quality` (comment-to-logic alignment and identifier naming accuracy) and `go_test_quality` (test case explanation alignment, Arrange-Act-Assert structure, callback testing, and clear test naming).
-  - Uncovered substantive lines (`func_uncovered_lines`): `0` uncovered substantive executable lines in touched functions (idiomatic `if err != nil { return ... }` propagation, `defer`, `panic`, diagnostic log statements, and `func main()` entry wrappers are excluded automatically; legacy functions enforce `after <= before` via lazy Go `-overlay` comparison).
-  - Surviving mutants (`func_surviving_mutants`): `0` surviving mutants in touched functions (legacy functions enforce `after <= before` via lazy Go `-overlay` comparison).
-- **Files & Naming**:
-  - File size: `<= 450` code lines for production `.go` files (`file_code_lines`) and `<= 800` code lines for `*_test.go` files (`test_file_code_lines`), excluding comments, blanks, and `import` blocks.
-  - Catch-all filenames (`catchall_filename`): Newly created files must **never** be named `util(s).go`, `helper(s).go`, `common.go`, `misc.go`, `shared.go`, or `*_util(s).go` / `*_helper(s).go` / `*_misc.go`. Name files after their concrete domain concept or pipeline stage.
-- **Test Code (`*_test.go`)**:
-  - `t.Run` loop body cognitive complexity (`trun_cognitive`): `<= 8` (declarative `testCases` table literals do not count toward this limit; keep `t.Run` bodies linear and assert with `cmp.Diff(tc.want, got)`).
-  - Test helper cognitive complexity (`test_helper_cognitive`): `<= 15`.
-  - Redundant subtests (`test_redundancy`): `0` subsumed duplicate (`SAME PATH`) or assertion-free (`NO OUTPUT CHECK`) subtests in touched `Test*` functions.
+- **Production Functions (`MUSTFIX`)**:
+  - `func_cognitive <= 15`, `func_nesting <= 4` (`else if` adds no nesting; prefer early returns), `func_code_lines <= 60` (comments/blanks excluded—never strip GoDoc), `func_statements <= 40`, `func_params <= 5`, `func_results <= 3`.
+  - `code_clone <= 15` consecutive normalized AST statements (`qa-slow-must`).
+  - `defer_unlock_before_lock == 0`: never place `defer x.Unlock()`/`RUnlock()` before `x.Lock()`/`RLock()`/`TryLock()` in the same block. When fixing mutex/defer ordering in one method, audit **all** sibling methods touching the same mutex.
+- **Files, Style & Test Complexity (`MUSTFIX`)**:
+  - `file_code_lines <= 450` (prod), `test_file_code_lines <= 800` (test), excluding comments/blanks/imports.
+  - `catchall_filename`: never name new files `util(s).go`, `helper(s).go`, `common.go`, `misc.go`, `shared.go`, or `*_util(s).go` / `*_helper(s).go` / `*_misc.go`.
+  - `multiline_string_escape`: use raw backquote literals for multiline strings instead of middle `\n` escapes (exceptions: trailing `\n` in format strings, `cmp.Diff` failure headers, or content containing backquotes).
+  - `trun_cognitive <= 11`, `test_helper_cognitive <= 15` (prefer splitting unrelated behaviors into separate `Test*` functions over shattering flat tests into single-caller `t.Helper()` wrappers).
+- **Advisory Findings (`qa-fast-advisory` & `qa-slow-advisory`, Exit `0`)**:
+  - `func_uncovered_lines`, `func_surviving_mutants`, `test_redundancy`, and `advisorycheck` diff signals (`test_removed`, `test_cases_reduced`, `test_assertion_weakened`, `test_skip_added`, `test_stress_reduced`, `test_sleep_added`, `suppression_added`, `orphan_test_file`) are **advisory** for review.
+  - **Never** delete legitimate defensive guards (`n == 0`, `res != nil`), slice/map capacity pre-allocations (`make(..., 0, cap)`), or pre-existing tests, and never add `CODEQUALITY_ALLOW` to silence advisories.
+  - **100% statement/mutant coverage is NOT a goal**: never poke unexported internals or add timer/spin-poll waits solely to clear advisories (GC zeroing, sealed-interface guards, defensive branches, and interface boilerplate require no test contortions).
+  - Strengthen assertions (`cmp.Diff` on whole structs, boundary inputs) first, and prefer a single-argument `*With` injection seam (e.g., `runWith(deps)`) for testing hard-to-reach I/O boundaries.
+  - For `test_redundancy` (`SAME PATH` / `NO OUTPUT CHECK`), assert distinct concrete outputs rather than deleting pre-existing tests.
 
-## General Coding Rules
+## Go Coding Conventions
 
-1. **Comments and GoDoc (Strict Logic Alignment)**:
-   - All comments must be written in English.
-   - Add GoDoc comments on all exported symbols (`const`, `var`, `type`, `func`, and methods) AND on all exported struct fields and exported interface methods of exported types.
-   - Start GoDoc comments on exported declarations with the exact declared symbol name followed by a third-person singular verb (e.g., `// ParseFilter parses ...`), and end every GoDoc/declaration comment with a period (`.`).
-   - Add GoDoc comments for private types, functions, and methods when their names are not self-explanatory or usage is not intuitive.
-   - **Comments Must Match Implementation Logic**: Every GoDoc and inline comment must accurately reflect the code's actual behavior, boundary conditions, data structures, synchronization primitives, and error/fallback contracts. Whenever you refactor implementation details (such as replacing `sync.Map` with a custom map or changing fallback behavior to return an error), update or remove affected comments in the same change.
-
-2. **Identifier Naming (Functions, Parameters, and Variables)**:
-   - Choose function, method, parameter, field, and local variable names that clearly communicate their domain role and match how they are actually used:
-     - **Avoid Cryptic or Overly Short Names**: Outside narrow, conventional short-scope Go idioms (`ctx` for `context.Context`, `err` for `error`, `t`/`b` in tests/benchmarks, `r`/`w` for `io.Reader`/`io.Writer`, concise receiver names, and `i` in a tiny index loop), do **NOT** use opaque 1–2 letter or generic placeholder names (`d`, `m`, `v`, `tmp`, `val`, `res`, `data`, `proc`, `doWork`, `handle`) that obscure a symbol's role across multi-line logic.
-     - **Match Name to Actual Usage**: Never give a variable, parameter, or function a name that contradicts its unit, polarity, mutability, filtering stage, or side effects (for example, naming a millisecond duration `timeoutSec`, naming filtered records `rawLogs`, naming a failure flag `isReady`, or naming a state-mutating function `validate*` or `check*`).
-     - **Avoid Package/Receiver Stutter**: Omit redundant package or receiver prefixes on functions and methods (e.g., `yamlconfig.Parse` instead of `yamlconfig.ParseYAMLConfig`, `(c *Config) WriteTo` instead of `WriteConfigTo`), use noun-like names without `Get` for pure accessors (`JobName`), and use verb-like names for operations with side effects or computation (`WriteDetail`, `ParseFilter`).
+- **Comments & GoDoc**: Follow `comment-guideline.md`. Document all exported declarations, struct fields, and interface methods (`// SymbolName <third-person verb>... .`) and non-obvious private symbols. Keep comments strictly aligned with current behavior, boundaries, data structures, locks, and errors.
+- **Identifier Naming**: Outside narrow Go idioms (`ctx`, `err`, `t`/`b`, `r`/`w`, concise receivers, short loop `i`), avoid opaque placeholders (`d`, `m`, `v`, `tmp`, `val`, `res`, `data`, `proc`, `doWork`, `handle`). Match names to exact domain role, unit, polarity, mutability, and side effects; omit package/receiver stutter (`yamlconfig.Parse`, `JobName`).
 
 ```go
-// BAD: cryptic short names and misleading unit/side-effect names.
-func check(d int64, m map[string]string) error {
- timeoutSec := time.Duration(d) * time.Millisecond // Unit contradicts "Sec"!
- delete(m, "expired")                              // Mutates input map despite "check" name!
- return nil
-}
+// BAD: cryptic names ("d", "m"), missing unit, and hidden mutation in "check".
+func check(d int64, m map[string]string) error { ... }
 
-// GOOD: names express domain role, exact unit, and mutating behavior.
-func pruneExpiredEntries(timeoutMillis int64, entriesByKey map[string]string) time.Duration {
- timeout := time.Duration(timeoutMillis) * time.Millisecond
- delete(entriesByKey, "expired")
- return timeout
-}
+// GOOD: domain role, exact unit, and mutating verb are explicit.
+func pruneExpiredEntries(timeoutMillis int64, entriesByKey map[string]string) time.Duration { ... }
 ```
 
-1. **Imports and Declaration Ordering**:
-   - **Import sections (`gci`)**: Group imports in three blank-line-separated sections: (1) Go standard library, (2) third-party/external packages, and (3) `github.com/GoogleCloudPlatform/khi/...` internal packages.
-   - **Top-level declaration order (`decorder` + `decl-visibility-order`)**: Order top-level declarations strictly as `const -> var -> type -> func`. Within each kind (`const`, `var`, `type`), place exported declarations before unexported declarations (never reorder specs inside a single `const (...)` block where `iota` is used).
-   - **Interface implementation assertions**: Place compile-time interface checks (`var _ Interface = (*Implementation)(nil)`) in the `var` section *before* `type` declarations (not after the `type` definition).
-   - **Function and method order (`funcorder` + `decl-visibility-order`)**: Order functions as: (1) `init()`, (2) exported standalone functions and exported-receiver groups (`New*`/`new*` constructors -> exported methods -> unexported methods on the exported receiver), and (3) unexported-receiver groups and unexported standalone helpers.
+- **Imports & Declaration Ordering**:
+  - Group imports (`gci`): stdlib, third-party, `github.com/GoogleCloudPlatform/khi/...`.
+  - Order top-level declarations (`decorder` + `decl-visibility-order`): `const -> var -> type -> func`, exported before unexported (preserve `iota` blocks), with compile-time interface checks (`var _ Iface = (*Impl)(nil)`) in `var` before `type`.
+  - Order functions (`funcorder` + `decl-visibility-order`): `init()`, exported functions and exported-receiver groups (`New*`/`new*` -> exported methods -> unexported methods), then unexported-receiver groups and unexported helpers.
+- **Error & Assertion Messages**: Start `fmt.Errorf`, `t.Error*`, and `t.Fatal*` messages lowercase (`"failed to ..."`) unless beginning with a capitalized identifier or acronym (`MyFunc() mismatch (-want +got)`).
+- **No Backward Compatibility**: Internal Go code requires no compatibility shims or defensive nil fallbacks; update all callers directly (`backward-compatibility-policy`).
+- **Surgical Diffs**: Tie every change to a concrete bug, explicit rule/AST violation, or genuine coverage gap; do not rewrite working algorithms or add unrequested locks, abstractions, or APIs.
 
-2. **Error and Test Assertion Messages**:
-   - Do not capitalize the first character of messages in `fmt.Errorf`, `t.Error`, `t.Errorf`, `t.Fatal`, `t.Fatalf`, etc. (e.g., use lowercase "failed to ..." instead of "Failed to ...").
-   - This rule does not apply if the message starts with a capitalized name, such as a method name or proper acronym (e.g. `MyFunction() mismatch (-want +got)`).
+## Go Testing Practices
 
-3. **Backward Compatibility and Refactoring**:
-   - Internal Go code in KHI requires **no backward compatibility**. When modifying functions, methods, interfaces, or structs, do **NOT** retain deprecated shims, wrappers, or aliases, and do **NOT** introduce unnecessary variadic parameters or defensive nil fallbacks solely to preserve old call sites.
-   - Always update all call sites across the monorepo directly.
-   - Updating test call sites, constructors, and assertions to adapt to refactored signatures is expected and required.
-   - Refer to the `backward-compatibility-policy` skill for concrete anti-patterns and details.
-
-4. **Multiline String Literals**:
-   - When a string literal contains line breaks, such as YAML, JSON, or Markdown fixtures and expected multi-line output in tests, write it as a raw string literal enclosed in backquotes that keeps the real line breaks.
-   - Do **NOT** embed `\n` escape sequences in the middle of a string literal, and do not join fixed lines with `"\n"` to build multi-line content.
-   - Exceptions:
-     - A single trailing `\n` at the end of a format string (e.g., `fmt.Fprintf(w, "%s\n", line)`).
-     - The `\n` that puts a `cmp.Diff` result on its own line in a test failure message (e.g., `t.Errorf("MyFunction() mismatch (-want +got):\n%s", diff)`).
-     - Content that itself contains backquotes, which a raw string literal cannot hold.
+1. **Test File Naming**: Tests for `A.go` must live in `A_test.go` (except `interface_test.go`, `*_integration_test.go`, `*_script_test.go`, `*_contract_test.go`).
+2. **Table-Driven Tests & Case Comments**: Use `testCases := []struct{...}` with `t.Run()`. Place a `// ... .` comment immediately above **every** table case `{ ... }` and a `// TestXxx ... .` GoDoc comment directly above every `Test*`. Verify the described behavior genuinely without coincidental passes.
+3. **Linear Arrange, Act, Assert (AAA)**: Separate Arrange, Act, and Assert with blank lines (add `// Arrange.`, `// Act.`, `// Assert.` when multi-block). Test one behavior per case; never use `if`/`else` or `for` to compute expected values.
+4. **Structuring `want` in Tables**: Declare literal `want` values in the table (never derive `want` from inputs inside `t.Run`). Use a single `want ReturnType` struct + `cmp.Diff` instead of field-by-field `want*` fields (keep separate fields only for independent side effects or staged setup).
+5. **Assertions & Diffs**: Compare scalars with `==`/`!=` (`t.Errorf("got %v, want %v", got, tc.want)`). Use `cmp.Diff(tc.want, got)` for structs, slices, maps, and multiline strings. Never use `reflect.DeepEqual`.
+6. **Testing Callbacks**: Never place assertions (`t.Error*`, `t.Fatal*`, `cmp.Diff`) inside non-`Run`/`Cleanup`/`Fuzz` callbacks. Record calls/args in Arrange (using mutex/atomic/channel if concurrent), run Act, and assert outside after Act.
+7. **Stress Tests & `testing.Short()`**: Declare full-strength defaults first and scale parameters inside `if testing.Short() { ... }` while keeping bounds sufficient to exercise every branch and lock path. Under `no-short-skip`, never call `t.Skip*`, return early, or guard logic with `!testing.Short()`.
+8. **Deterministic Concurrency (`testing/synctest`) & Test Hygiene**: Use `testing/synctest` (`synctest.Test` + `synctest.Wait`) with channel synchronization for concurrency, coalescing, timeout, and clock-dependent tests instead of `time.Sleep`, wall-clock assumptions, or probabilistic retry loops (`sync.Mutex`/`sync.RWMutex` are not durably blocking in `synctest`, so prefer channel-based waits when observing blocked goroutines, and pair with a lightweight timing-independent `-race` test asserting only schedule-independent invariants). Reuse consistent shared setup helpers across sibling tests instead of repeating per-type boilerplate, and split unrelated behaviors into separate `Test*` functions rather than shattering flat tests into single-caller `t.Helper()` wrappers.
+9. **Surgical Test Edits & Harness Reuse**: Never rewrite already-passing `*_test.go` files wholesale, rename/split passing `Test*` functions, or mass-add boilerplate comments to untouched test cases; keep test edits proportional and directly tied to concrete bugs, coverage gaps, surviving mutants, or `MUSTFIX` limits. Add targeted cases in place, parameterize shared interface/concurrency suites instead of creating overlapping sibling `*_test.go` files, and use ordered slices rather than `range map` when constructing order-sensitive structures.
 
 ```go
-// BAD: escaped line breaks hide the structure of the content.
-const nodeYAML = "apiVersion: v1\nkind: Node\nmetadata:\n  name: node-1\n"
+// TestParseRange verifies whole-struct cmp.Diff, scalar ==, and callback recording outside Assert.
+func TestParseRange(t *testing.T) {
+  // BAD: splitting a returned struct into field-by-field wantLen/wantStart/wantEnd scalars.
+  // GOOD: declare a single want Range (whole struct) and compare with cmp.Diff; use == for scalars.
+  testCases := []struct {
+    name      string
+    input     string
+    want      Range
+    wantCount int
+  }{
+    // Parses a valid start-end range and reports one emitted event.
+    {
+      name:      "valid range",
+      input:     "10..20",
+      want:      Range{Start: 10, End: 20},
+      wantCount: 1,
+    },
+  }
+  for _, tc := range testCases {
+    t.Run(tc.name, func(t *testing.T) {
+      var gotEventCount int
+      onEvent := func() { gotEventCount++ }
 
-// GOOD: a raw string literal keeps the real line breaks.
-const nodeYAML = `apiVersion: v1
-kind: Node
-metadata:
-  name: node-1
-`
+      got, err := ParseRange(tc.input, onEvent)
+
+      if err != nil {
+        t.Fatalf("ParseRange() unexpected error: %v", err)
+      }
+      if diff := cmp.Diff(tc.want, got); diff != "" {
+        t.Errorf("ParseRange() mismatch (-want +got):\n%s", diff)
+      }
+      if gotEventCount != tc.wantCount {
+        t.Errorf("gotEventCount = %d, want %d", gotEventCount, tc.wantCount)
+      }
+    })
+  }
+}
+
+// TestConcurrentStore scales stress parameters in testing.Short() without skipping or returning early.
+func TestConcurrentStore(t *testing.T) {
+  attempts, concurrency := 1000, 100
+  if testing.Short() {
+    attempts, concurrency = 5, 10 // Keep bounds high enough to hit all branches/locks; never t.Skip/return/!testing.Short().
+  }
+  runConcurrentStoreAssertions(t, attempts, concurrency)
+}
 ```
-
-## Testing Practices
-
-1. **Table-Driven Tests & Mandatory Test Case Explanations**:
-   - Write unit tests using the table-driven testing pattern: define a slice of anonymous structs representing the test cases and iterate over them using `t.Run()`.
-   - **Explain Every Test Case with a Preceding Comment**: Place a concise `// ...` comment (ending with `.`) immediately above **every** table case literal `{ ... }` stating the scenario/preconditions and expected behavior. For standalone `Test*` functions without a table, place a `// TestXxx verifies that ...` comment immediately above `func TestXxx(t *testing.T)`.
-   - Ensure the test case's inputs, `Act` call, and `Assert` expectations genuinely test the exact scenario described by its comment and cannot pass coincidentally (for example, when testing `Clear()`, populate an item first so the container is not already empty).
-2. **Test Structure: Arrange, Act, Assert (AAA)**:
-   - Structure every unit test (and every `t.Run` subtest body) into three distinct, linear phases:
-     - **Arrange**: Set up only the minimal inputs, dependencies, and system under test needed to elicit the target behavior. Precondition checks on fixture setup (such as `if err != nil { t.Fatalf(...) }` when creating temp files) belong in Arrange because a failure indicates a broken test setup rather than a bug in the system under test.
-     - **Act**: Invoke the single target function or method under test.
-     - **Assert**: Verify the returned output or resulting state against expected values.
-   - Visually separate Arrange, Act, and Assert with blank lines. When any phase spans multiple blocks or contains internal blank lines, add explicit `// Arrange.`, `// Act.`, and `// Assert.` comments so the `Act` step stands out immediately.
-   - **One Behavior per Test Case**: Do **NOT** chain multiple `Act -> Assert -> Act -> Assert` sequences for independent behaviors inside a single test or subtest, and keep test bodies straight-line without `if/else` or `for` logic computing expected values.
-3. **Testing Callbacks**:
-   - When testing functions, methods, or types that invoke a callback (`func(...)`, listener, hook, or progress reporter), **NEVER** embed behavioral assertions (`t.Error`, `t.Errorf`, `t.Fatal`, `cmp.Diff`) directly inside the callback body. If a defect prevents the callback from ever being invoked, assertions inside the callback are silently skipped and the test passes coincidentally; in-callback assertions also mix Assert into Arrange.
-   - Instead:
-     - **Arrange**: Define the callback to **record** each invocation and its arguments into local test state (such as a `gotCalls` slice or struct variable, guarded by `sync.Mutex`, `atomic`, or a channel when invoked concurrently).
-     - **Act**: Call the function or method under test.
-     - **Assert**: **Outside** the callback (after `Act`), assert on the recorded state to verify whether the callback was invoked, how many times / in what order, and with what arguments.
-4. **Assertions and Diffs**:
-   - **Scalar Values**: For single scalar values (e.g. `int`, `bool`, `float`, single-line `string`, enum), compare directly using equality operators (`==` or `!=`). Report test failures with `t.Errorf` in `got, want` format (e.g., `t.Errorf("got %v, want %v", got, tc.want)` or `t.Errorf("MyFunction(%v) = %v, want %v", tc.input, got, tc.want)`). Do **NOT** use `cmp.Diff` for scalar values.
-   - **Complex Structs and Collections**: **MUST USE** `github.com/google/go-cmp/cmp` (`cmp.Diff`) when comparing complex structs, slices, maps, or nested structures. Output `cmp.Diff` when an assertion fails to clearly communicate the mismatch (`-want +got`).
-   - **Multiline Strings Exception**: `cmp.Diff` is permitted for a single string variable if and only if the string spans multiple lines (e.g., generated YAML, JSON, or multiline text blocks) where line-by-line diffing is beneficial.
-   - **DO NOT USE** the `reflect` package for test assertions (e.g., `reflect.DeepEqual`). Always prefer `cmp.Diff` for complex types.
-5. **Running Tests**:
-   - Executing `make test-go` runs all backend tests at full strength.
-   - Executing `make test-go-short` runs all backend tests in short mode (`go test -short ./...`) with scaled-down stress-test iterations for faster local feedback.
-   - For iterating on specific tests, `go test ./pkg/path/to/test -run TestName` is acceptable, provided a full `make test-go` ensures no regressions before finalizing work.
-6. **Test File Naming**: When adding tests for a file `A.go`, the test file **must** be named `A_test.go`. Do not create independent test files that group tests from multiple files.
-7. **Structuring `want` in Table-Driven Tests**:
-   - **Never Derive `want` from Inputs in the Test Loop**: Every expected value must be declared explicitly as a literal in the test case table. Never compute expected values from input fields inside the `for _, tc := range testCases` body (e.g., `wantMounted := !tc.jobMode`), as this duplicates production logic in the test.
-   - **Whole-Struct `want` for Data Outputs**: When testing a function that returns a struct or multiple data values, do not split fields into separate `wantLen`, `wantStart`, `wantEnd`, or `wantID` fields on the table struct. Define a single `want ReturnType` (or a local outcome struct) and compare it with a single `cmp.Diff(tc.want, got)`.
-   - **Multiple Side Effects or Staged Assertions**: When a test verifies multiple independent side effects or uses an early expectation to gate subsequent setup (e.g., checking whether a component was initialized before starting a test server), keep all expected values in the table case definition (either as explicit `want*` fields like `wantMCP` and `wantRenderTool`, or grouped in a nested `want` struct).
-8. **Stress Tests and `testing.Short()`**:
-   - **Canonical Pattern**: For high-iteration or high-concurrency stress tests, declare full-strength parameters first and scale them down inside `if testing.Short() { ... }`. Full-strength values run in `make test-go`, PR CI, and `go test -race`; scaled-down values run in `make test-go-short` and `make codequality-go` (`covcheck` / `mutcheck` automatically pass `-short` / `-test.short`).
-   - **Strict `no-short-skip` Prohibition (Enforced by `make lint-go`)**: `testing.Short()` is **exclusively** for scaling down stress/load parameters (iteration counts, concurrency, synthetic delays). Never skip tests, subtests, or assertions under `testing.Short()`:
-     - Do **NOT** call `t.Skip`, `t.Skipf`, or `t.SkipNow` inside `if testing.Short()`.
-     - Do **NOT** return early from a void test or subtest function inside `if testing.Short()` (returning a scaled value from a value-returning helper function is permitted).
-     - Do **NOT** guard test logic with negated checks (`if !testing.Short() { ... }`, `testing.Short() == false`) or an empty `if testing.Short() {} else { ... }`.
-   - **Choosing Safe Lower Bounds**: Pick short-mode parameter values large enough to exercise every production branch, lock-contention path, shard/pool reuse path, and assertion so `covcheck` statement coverage and `mutcheck` mutant killing power stay 100% intact (for example, never scale a count to `0` or below a threshold needed to hit conditional branches). Do not apply `testing.Short()` to non-stress tests such as real-time timer tests, integration tests, or exhaustive conformance matrices.
-
-> [!IMPORTANT]
-> Typical table-driven and callback tests should follow these patterns:
->
-> ### 1. Scalar Comparison with Case Explanation & AAA Structure
->
-> ```go
-> func TestCountItems(t *testing.T) {
->  testCases := []struct {
->   name  string
->   input string
->   want  int
->  }{
->   // Counts a single non-empty token without delimiters as one item.
->   {
->    name:  "single item",
->    input: "foo",
->    want:  1,
->   },
->   // Returns zero when the input string is empty.
->   {
->    name:  "empty input",
->    input: "",
->    want:  0,
->   },
->  }
->  for _, tc := range testCases {
->   t.Run(tc.name, func(t *testing.T) {
->    got := CountItems(tc.input)
->
->    if got != tc.want {
->     t.Errorf("CountItems(%q) = %d, want %d", tc.input, got, tc.want)
->    }
->   })
->  }
-> }
-> ```
->
-> ### 2. Complex Struct Comparison
->
-> ```go
-> import (
->  "testing"
->
->  "github.com/google/go-cmp/cmp"
-> )
->
-> func TestParseUser(t *testing.T) {
->  testCases := []struct {
->   name  string
->   input string
->   want  User
->  }{
->   // Extracts numeric ID and display name from a valid key-value pair string.
->   {
->    name:  "valid user",
->    input: "id: 1, name: Alice",
->    want: User{
->     ID:   1,
->     Name: "Alice",
->    },
->   },
->  }
->  for _, tc := range testCases {
->   t.Run(tc.name, func(t *testing.T) {
->    got := ParseUser(tc.input)
->
->    if diff := cmp.Diff(tc.want, got); diff != "" {
->     t.Errorf("ParseUser() mismatch (-want +got):\n%s", diff)
->    }
->   })
->  }
-> }
-> ```
->
-> ### 3. Testing Callbacks (Record in Arrange, Assert Outside)
->
-> ```go
-> // BAD: assertion inside callback silently passes if Export never invokes onProgress!
-> func TestExportProgress_Bad(t *testing.T) {
->  _ = Export(items, func(pct float64) {
->   if pct < 0 || pct > 1 {
->    t.Errorf("pct = %v, want in [0, 1]", pct)
->   }
->  })
-> }
->
-> // TestExportProgress verifies that Export reports start and completion progress in order.
-> func TestExportProgress(t *testing.T) {
->  var gotProgress []float64
->  recordProgress := func(pct float64) {
->   gotProgress = append(gotProgress, pct)
->  }
->
->  err := Export([]string{"a", "b"}, recordProgress)
->
->  if err != nil {
->   t.Fatalf("Export() unexpected error: %v", err)
->  }
->  wantProgress := []float64{0.0, 0.5, 1.0}
->  if diff := cmp.Diff(wantProgress, gotProgress); diff != "" {
->   t.Errorf("progress updates mismatch (-want +got):\n%s", diff)
->  }
-> }
-> ```
->
-> ### 4. Multiline String Comparison (Exception)
->
-> ```go
-> if diff := cmp.Diff(tc.wantYAML, gotYAML); diff != "" {
->  t.Errorf("RenderYAML() mismatch (-want +got):\n%s", diff)
-> }
-> ```
->
-> ### 5. Anti-Patterns to Avoid in Unit Tests
->
-> ```go
-> // BAD 1: Splitting a returned struct into field-by-field want* scalars
-> testCases := []struct {
->  name      string
->  items     []int
->  wantLen   int
->  wantStart int
->  wantEnd   int
-> }{...}
->
-> // BAD 2: Computing an expected value from an input field inside the test loop
-> for _, tc := range testCases {
->  t.Run(tc.name, func(t *testing.T) {
->   _ = Init(ctx, tc.jobMode)
->   wantMCP := !tc.jobMode // Re-implements production branching logic!
->   if got := HasMCP(ctx); got != wantMCP { ... }
->  })
-> }
->
-> // BAD 3: Chaining multiple Act -> Assert -> Act -> Assert behaviors in one subtest
-> t.Run("add and clear", func(t *testing.T) {
->  cache.Add("k", "v")
->  if got := cache.Len(); got != 1 { t.Errorf("got %d, want 1", got) }
->  cache.Clear()
->  if got := cache.Len(); got != 0 { t.Errorf("got %d, want 0", got) }
-> })
-> ```
->
-> ### 6. Scaling Stress Tests with `testing.Short()`
->
-> ```go
-> // GOOD: declare full-strength defaults and scale down parameters under testing.Short().
-> func TestConcurrentStore(t *testing.T) {
->  attempts := 1000
->  concurrency := 100
->  delayMs := 1000
->  if testing.Short() {
->   attempts = 5
->   concurrency = 10
->   delayMs = 50
->  }
->  // Run the exact same logic and assertions with (attempts, concurrency, delayMs).
-> }
->
-> // BAD (rejected by no-short-skip): skipping tests, returning early, or using !testing.Short().
-> func TestConcurrentStore_Bad(t *testing.T) {
->  if testing.Short() {
->   t.Skip("skipping slow test") // Forbidden!
->  }
->  if testing.Short() {
->   return // Forbidden!
->  }
->  if !testing.Short() {
->   runStressAssertions(t) // Forbidden!
->  }
-> }
-> ```
