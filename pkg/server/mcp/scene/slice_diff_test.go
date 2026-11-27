@@ -161,7 +161,7 @@ subsets:
 							{Text: "type: MemoryPressure", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 unchanged lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "8 unchanged lines omitted"},
 					{Kind: ExcerptLineKindContext, OldLineNum: 27, NewLineNum: 27, Text: "  - readyHeader: node-ready"},
 					{Kind: ExcerptLineKindDeleted, OldLineNum: 28, Text: "    reason: KubeletReady"},
 					{Kind: ExcerptLineKindDeleted, OldLineNum: 29, Text: `    status: "True"`},
@@ -177,7 +177,7 @@ subsets:
 							{Text: "type: Ready", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 diff lines omitted"},
 				},
 			},
 		},
@@ -205,9 +205,9 @@ subsets:
 							{Text: "podCIDR: 10.0.0.0/24", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "⋮ 7 unchanged lines omitted"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 diff lines omitted"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "⋮ 7 unchanged lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "7 unchanged lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "8 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "7 unchanged lines omitted"},
 					{
 						Kind:       ExcerptLineKindDeleted,
 						OldLineNum: 28,
@@ -226,7 +226,7 @@ subsets:
 							{Text: "reason: KubeletNotReady", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 10, Text: "⋮ 10 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 10, Text: "10 diff lines omitted"},
 				},
 			},
 		},
@@ -249,7 +249,7 @@ subsets:
 				Changes:        workbench.LineChangeCount{Added: 3, Deleted: 3},
 				TotalDiffLines: 7,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 diff lines omitted"},
 					{
 						Kind:       ExcerptLineKindDeleted,
 						OldLineNum: 3,
@@ -268,7 +268,7 @@ subsets:
 							{Text: "replicas: 4", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 				},
 			},
 		},
@@ -287,7 +287,7 @@ subsets:
 				Changes:        workbench.LineChangeCount{Added: 15},
 				TotalDiffLines: 15,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "8 diff lines omitted"},
 					{
 						Kind:       ExcerptLineKindAdded,
 						NewLineNum: 9,
@@ -297,7 +297,7 @@ subsets:
 							{Text: "ready: true", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "⋮ 1 diff line omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "1 diff line omitted"},
 					{
 						Kind:       ExcerptLineKindAdded,
 						NewLineNum: 11,
@@ -309,7 +309,7 @@ subsets:
 					},
 					{Kind: ExcerptLineKindAdded, NewLineNum: 12, Text: "    kind: Pod"},
 					{Kind: ExcerptLineKindAdded, NewLineNum: 13, Text: "    name: frontend-pod-2"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 				},
 			},
 		},
@@ -336,7 +336,7 @@ subsets:
 				Changes:        workbench.LineChangeCount{Added: 5, Deleted: 5},
 				TotalDiffLines: 11,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 diff lines omitted"},
 					{
 						Kind:       ExcerptLineKindDeleted,
 						OldLineNum: 3,
@@ -355,7 +355,7 @@ subsets:
 							{Text: "b: 20", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 					{
 						Kind:       ExcerptLineKindDeleted,
 						OldLineNum: 5,
@@ -374,7 +374,7 @@ subsets:
 							{Text: "d: 40", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 				},
 			},
 		},
@@ -416,7 +416,7 @@ func TestSliceUnifiedDiff_GapAndBoundarySlices(t *testing.T) {
 				Changes:        workbench.LineChangeCount{Added: 1, Deleted: 1},
 				TotalDiffLines: 3,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						OldLineNum: 2,
@@ -445,7 +445,7 @@ func TestSliceUnifiedDiff_GapAndBoundarySlices(t *testing.T) {
 				Changes:        workbench.LineChangeCount{Added: 1, Deleted: 1},
 				TotalDiffLines: 3,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						OldLineNum: 2,
@@ -477,7 +477,7 @@ func TestSliceUnifiedDiff_GapAndBoundarySlices(t *testing.T) {
 				TotalDiffLines: 4,
 				Lines: []ExcerptLine{
 					{Kind: ExcerptLineKindDeleted, OldLineNum: 2, Text: "- k: first"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 				},
 			},
 		},
@@ -534,9 +534,9 @@ s: 19
 						Text:       "a: 1",
 						Parts:      []LinePart{{Text: "a: 1", Matched: true}},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 unchanged lines omitted"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 diff lines omitted"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 unchanged lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 unchanged lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "8 diff lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 unchanged lines omitted"},
 					{
 						Kind:       ExcerptLineKindAdded,
 						NewLineNum: 19,

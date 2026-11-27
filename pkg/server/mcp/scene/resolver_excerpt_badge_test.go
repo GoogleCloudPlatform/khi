@@ -124,7 +124,7 @@ func TestResolve_BadgeSyncAndOrdering(t *testing.T) {
 							Title:        "Manifest · Resource exists",
 							Subtitle:     "6 lines",
 							Lines: []ExcerptLine{
-								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 lines omitted"},
 								{Kind: ExcerptLineKindContext, NewLineNum: 6, Text: "  phase: Running", Parts: []LinePart{{Text: "  "}, {Text: "phase: Running", Matched: true}}},
 							},
 							LogTimestamp:  "2026-10-01T09:12:00Z",
@@ -144,7 +144,7 @@ func TestResolve_BadgeSyncAndOrdering(t *testing.T) {
 							Title:        "Patch · Resource exists",
 							Subtitle:     "+2 / -2 · 7 diff lines",
 							Lines: []ExcerptLine{
-								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 diff lines omitted"},
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 diff lines omitted"},
 								{Kind: ExcerptLineKindDeleted, OldLineNum: 7, Text: "  reason: KubeletReady", Parts: []LinePart{{Text: "  "}, {Text: "reason: KubeletReady", Matched: true}}},
 								{Kind: ExcerptLineKindAdded, NewLineNum: 7, Text: "  reason: KubeletNotReady", Parts: []LinePart{{Text: "  "}, {Text: "reason: KubeletNotReady", Matched: true}}},
 							},
@@ -164,9 +164,9 @@ func TestResolve_BadgeSyncAndOrdering(t *testing.T) {
 							Title:        "Manifest · Resource exists",
 							Subtitle:     "7 lines",
 							Lines: []ExcerptLine{
-								{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+								{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 lines omitted"},
 								{Kind: ExcerptLineKindContext, NewLineNum: 4, Text: "  name: gke-node-1", Parts: []LinePart{{Text: "  "}, {Text: "name: gke-node-1", Matched: true}}},
-								{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+								{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 lines omitted"},
 							},
 							LogTimestamp:  "2026-10-01T09:24:00Z",
 							LogID:         nodeRev1Bounds.Revision.LogID,

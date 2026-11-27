@@ -57,7 +57,7 @@ timestamp: 2026-10-01T09:25:00Z
 				TotalLines: 16,
 				Lines: []ExcerptLine{
 					{Kind: ExcerptLineKindSummary, Text: "Container web-1 terminated with OOMKilled"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 4,
@@ -68,7 +68,7 @@ timestamp: 2026-10-01T09:25:00Z
 							{Text: ": kubelet@node-1"},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "⋮ 7 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "7 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 12,
@@ -80,7 +80,7 @@ timestamp: 2026-10-01T09:25:00Z
 						},
 					},
 					{Kind: ExcerptLineKindContext, NewLineNum: 13, Text: "  \t/app/server.go:42"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 lines omitted"},
 				},
 			},
 		},
@@ -100,7 +100,7 @@ timestamp: 2026-10-01T09:25:00Z
 				TotalLines: 16,
 				Lines: []ExcerptLine{
 					{Kind: ExcerptLineKindSummary, Text: "Container web-1 terminated with OOMKilled"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 4,
@@ -110,7 +110,7 @@ timestamp: 2026-10-01T09:25:00Z
 							{Text: "principalEmail: kubelet@node-1", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "⋮ 7 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 7, Text: "7 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 12,
@@ -122,7 +122,7 @@ timestamp: 2026-10-01T09:25:00Z
 						},
 					},
 					{Kind: ExcerptLineKindContext, NewLineNum: 13, Text: "  \t/app/server.go:42"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "⋮ 3 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 3, Text: "3 lines omitted"},
 				},
 			},
 		},
@@ -151,7 +151,7 @@ timestamp: 2026-10-01T09:25:00Z
 			want: &LogSliceResult{
 				TotalLines: 16,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 lines omitted"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 3, Text: "  authenticationInfo:"},
 					{
 						Kind:       ExcerptLineKindContext,
@@ -163,7 +163,7 @@ timestamp: 2026-10-01T09:25:00Z
 							{Text: ": kubelet@node-1"},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 12, Text: "⋮ 12 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 12, Text: "12 lines omitted"},
 				},
 			},
 		},
@@ -181,7 +181,7 @@ timestamp: 2026-10-01T09:25:00Z
 			want: &LogSliceResult{
 				TotalLines: 16,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "8 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 9,
@@ -191,7 +191,7 @@ timestamp: 2026-10-01T09:25:00Z
 						},
 					},
 					{Kind: ExcerptLineKindContext, NewLineNum: 10, Text: "  panic: runtime error: out of memory"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 6, Text: "⋮ 6 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 6, Text: "6 lines omitted"},
 				},
 			},
 		},
@@ -213,7 +213,7 @@ afterItems: match-1
 			want: &LogSliceResult{
 				TotalLines: 4,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "⋮ 1 line omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "1 line omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 2,
@@ -234,7 +234,7 @@ afterItems: match-1
 							{Text: "-2"},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "⋮ 1 line omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 1, Text: "1 line omitted"},
 				},
 			},
 		},
@@ -273,7 +273,7 @@ outside: target
 							{Text: "target", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 lines omitted"},
 				},
 			},
 		},

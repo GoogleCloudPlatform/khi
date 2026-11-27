@@ -116,7 +116,7 @@ func TestResolve_Excerpts(t *testing.T) {
 							Title:        "Create · Resource exists",
 							Subtitle:     "+6 / -0 · 6 diff lines",
 							Lines: []ExcerptLine{
-								{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "⋮ 2 diff lines omitted"},
+								{Kind: ExcerptLineKindOmitted, Omitted: 2, Text: "2 diff lines omitted"},
 								{Kind: ExcerptLineKindAdded, NewLineNum: 3, Text: "metadata:", Parts: []LinePart{{Text: "metadata:", Matched: true}}},
 								{Kind: ExcerptLineKindAdded, NewLineNum: 4, Text: "  name: web-1"},
 								{Kind: ExcerptLineKindAdded, NewLineNum: 5, Text: "status:", Parts: []LinePart{{Text: "status:", Matched: true}}},
@@ -186,7 +186,7 @@ func TestResolve_Excerpts(t *testing.T) {
 							Title:        "Manifest · Resource exists",
 							Subtitle:     "7 lines",
 							Lines: []ExcerptLine{
-								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 lines omitted"},
 								{Kind: ExcerptLineKindContext, NewLineNum: 6, Text: `  ready: "True"`, Parts: []LinePart{{Text: "  "}, {Text: `ready: "True"`, Matched: true}}},
 								{Kind: ExcerptLineKindContext, NewLineNum: 7, Text: "  reason: KubeletReady", Parts: []LinePart{{Text: "  "}, {Text: "reason: KubeletReady", Matched: true}}},
 							},
@@ -207,7 +207,7 @@ func TestResolve_Excerpts(t *testing.T) {
 							Title:        "Manifest · Resource exists",
 							Subtitle:     "7 lines",
 							Lines: []ExcerptLine{
-								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+								{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 lines omitted"},
 								{Kind: ExcerptLineKindContext, NewLineNum: 6, Text: `  ready: "False"`, Parts: []LinePart{{Text: "  "}, {Text: `ready: "False"`, Matched: true}}},
 								{Kind: ExcerptLineKindContext, NewLineNum: 7, Text: "  reason: KubeletNotReady", Parts: []LinePart{{Text: "  "}, {Text: "reason: KubeletNotReady", Matched: true}}},
 							},

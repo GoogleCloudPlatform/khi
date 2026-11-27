@@ -72,7 +72,7 @@ status:
 			want: &ManifestSliceResult{
 				TotalLines: 29,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 11, Text: "⋮ 11 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 11, Text: "11 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 12,
@@ -84,7 +84,7 @@ status:
 					},
 					{Kind: ExcerptLineKindContext, NewLineNum: 13, Text: "        averageUtilization: 40"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 14, Text: "        type: Utilization"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "⋮ 8 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 8, Text: "8 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 23,
@@ -96,7 +96,7 @@ status:
 					},
 					{Kind: ExcerptLineKindContext, NewLineNum: 24, Text: "        averageUtilization: 85"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 25, Text: "        averageValue: 850m"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 4, Text: "⋮ 4 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 4, Text: "4 lines omitted"},
 				},
 			},
 		},
@@ -112,7 +112,7 @@ status:
 			want: &ManifestSliceResult{
 				TotalLines: 29,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 6, Text: "⋮ 6 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 6, Text: "6 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 7,
@@ -131,7 +131,7 @@ status:
 							{Text: "minReplicas: 2", Matched: true},
 						},
 					},
-					{Kind: ExcerptLineKindOmitted, Omitted: 21, Text: "⋮ 21 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 21, Text: "21 lines omitted"},
 				},
 			},
 		},
@@ -145,7 +145,7 @@ status:
 			want: &ManifestSliceResult{
 				TotalLines: 29,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 6,
@@ -155,7 +155,7 @@ status:
 					{Kind: ExcerptLineKindContext, NewLineNum: 7, Text: "  maxReplicas: 10"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 8, Text: "  minReplicas: 2"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 9, Text: "  metrics:"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 20, Text: "⋮ 20 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 20, Text: "20 lines omitted"},
 				},
 			},
 		},
@@ -169,7 +169,7 @@ status:
 			want: &ManifestSliceResult{
 				TotalLines: 29,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "⋮ 5 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 5, Text: "5 lines omitted"},
 					{
 						Kind:       ExcerptLineKindContext,
 						NewLineNum: 6,
@@ -187,7 +187,7 @@ status:
 						},
 					},
 					{Kind: ExcerptLineKindContext, NewLineNum: 9, Text: "  metrics:"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 20, Text: "⋮ 20 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 20, Text: "20 lines omitted"},
 				},
 			},
 		},
@@ -200,14 +200,14 @@ status:
 			want: &ManifestSliceResult{
 				TotalLines: 29,
 				Lines: []ExcerptLine{
-					{Kind: ExcerptLineKindOmitted, Omitted: 9, Text: "⋮ 9 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 9, Text: "9 lines omitted"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 10, Text: "  - resource:"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 11, Text: "      name: cpu"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 12, Text: "      target:"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 13, Text: "        averageUtilization: 40"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 14, Text: "        type: Utilization"},
 					{Kind: ExcerptLineKindContext, NewLineNum: 15, Text: "    type: Resource"},
-					{Kind: ExcerptLineKindOmitted, Omitted: 14, Text: "⋮ 14 lines omitted"},
+					{Kind: ExcerptLineKindOmitted, Omitted: 14, Text: "14 lines omitted"},
 				},
 			},
 		},

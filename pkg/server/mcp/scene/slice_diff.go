@@ -348,7 +348,7 @@ func makeDiffOmittedLine(count int, hasChanges bool) ExcerptLine {
 	return ExcerptLine{
 		Kind:    ExcerptLineKindOmitted,
 		Omitted: count,
-		Text:    fmt.Sprintf("⋮ %d %s omitted", count, unit),
+		Text:    fmt.Sprintf("%d %s omitted", count, unit),
 	}
 }
 
