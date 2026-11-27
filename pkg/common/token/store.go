@@ -46,6 +46,14 @@ type BasicTokenStore struct {
 	lastToken             *Token
 	lastTokenRefreshError error
 	initialRefreshOnce    sync.Once
+
+	refreshMu       sync.Mutex
+	inFlightRefresh *refreshFlight
+}
+
+type refreshFlight struct {
+	done chan struct{}
+	err  error
 }
 
 // NewBasicTokenStore creates a BasicTokenStore for the given tokenType and resolver.
@@ -63,39 +71,54 @@ func (b *BasicTokenStore) GetType() string {
 
 // GetToken implements TokenStore.
 func (b *BasicTokenStore) GetToken(ctx context.Context) (*Token, error) {
-	// This ensures lastToken not to be nil while b.lastTokenRefreshError == nil.
-	// Also, sync.Once.Do guarantees there is only 1 execution across all goroutines, and it blocks others until ends.
-	// Thus, we can set the token without the lock and can assume either lastToken or lastTokenRefreshError should be set.
-	b.initialRefreshOnce.Do((func() {
-		b.refreshTokenWithoutLock(ctx)
-	}))
-	defer b.tokenLock.RUnlock()
+	b.initialRefreshOnce.Do(func() {
+		_ = b.resolveAndStoreToken(ctx)
+	})
 	b.tokenLock.RLock()
+	defer b.tokenLock.RUnlock()
 	return b.lastToken, b.lastTokenRefreshError
 }
 
 // IsTokenValidityAssured implements TokenStore.
 func (b *BasicTokenStore) IsTokenValidityAssured(ctx context.Context) bool {
+	b.tokenLock.RLock()
+	defer b.tokenLock.RUnlock()
 	return b.lastToken != nil && b.lastToken.ValidAtLeastUntil.After(time.Now())
 }
 
 // RefreshToken implements TokenStore.
-// A token store can be referenced from multiple http client and these can call RefreshToken multiple times in parallel just after token expiration.
-// RefreshToken() will ignore the refresh request when it can't acquire the write lock and wait until the lock to be acquired.
+// Concurrent RefreshToken calls share a single in-flight resolver call and wait until it completes or ctx is canceled.
 func (b *BasicTokenStore) RefreshToken(ctx context.Context) error {
-	defer b.tokenLock.Unlock()
-	if b.tokenLock.TryLock() {
-		// Only the thread acquiring the lock will request the actual token refresh.
-		return b.refreshTokenWithoutLock(ctx)
-	} else {
-		b.tokenLock.Lock()
+	b.refreshMu.Lock()
+	if flight := b.inFlightRefresh; flight != nil {
+		b.refreshMu.Unlock()
+		select {
+		case <-flight.done:
+			return flight.err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
-	return nil
+	flight := &refreshFlight{done: make(chan struct{})}
+	b.inFlightRefresh = flight
+	b.refreshMu.Unlock()
+
+	defer func() {
+		b.refreshMu.Lock()
+		b.inFlightRefresh = nil
+		close(flight.done)
+		b.refreshMu.Unlock()
+	}()
+
+	flight.err = b.resolveAndStoreToken(ctx)
+	return flight.err
 }
 
-func (b *BasicTokenStore) refreshTokenWithoutLock(ctx context.Context) error {
+func (b *BasicTokenStore) resolveAndStoreToken(ctx context.Context) error {
 	slog.DebugContext(ctx, fmt.Sprintf("Current token for %s is expired. Refreshing a new token", b.tokenType))
 	token, err := b.resolver.Resolve(ctx)
+	b.tokenLock.Lock()
+	defer b.tokenLock.Unlock()
 	if err != nil {
 		b.lastToken = nil
 		b.lastTokenRefreshError = err
