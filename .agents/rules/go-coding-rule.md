@@ -70,36 +70,50 @@ func pruneExpiredEntries(timeoutMillis int64, entriesByKey map[string]string) ti
 9. **Surgical Test Edits & Harness Reuse**: Never rewrite already-passing `*_test.go` files wholesale, rename/split passing `Test*` functions, or mass-add boilerplate comments to untouched test cases; keep test edits proportional and directly tied to concrete bugs, coverage gaps, surviving mutants, or `MUSTFIX` limits. Add targeted cases in place, parameterize shared interface/concurrency suites instead of creating overlapping sibling `*_test.go` files, and use ordered slices rather than `range map` when constructing order-sensitive structures.
 
 ```go
-// TestExportProgress verifies that Export reports start and completion progress in order.
-func TestExportProgress(t *testing.T) {
+// TestParseRange verifies whole-struct cmp.Diff, scalar ==, and callback recording outside Assert.
+func TestParseRange(t *testing.T) {
+  // BAD: splitting a returned struct into field-by-field wantLen/wantStart/wantEnd scalars.
+  // GOOD: declare a single want Range (whole struct) and compare with cmp.Diff; use == for scalars.
   testCases := []struct {
-    name         string
-    items        []string
-    wantProgress []float64
+    name      string
+    input     string
+    want      Range
+    wantCount int
   }{
-    // Reports zero, midpoint, and full completion for a two-item slice.
+    // Parses a valid start-end range and reports one emitted event.
     {
-      name:         "two items",
-      items:        []string{"a", "b"},
-      wantProgress: []float64{0.0, 0.5, 1.0},
+      name:      "valid range",
+      input:     "10..20",
+      want:      Range{Start: 10, End: 20},
+      wantCount: 1,
     },
   }
   for _, tc := range testCases {
     t.Run(tc.name, func(t *testing.T) {
-      var gotProgress []float64
-      recordProgress := func(pct float64) {
-        gotProgress = append(gotProgress, pct)
-      }
+      var gotEventCount int
+      onEvent := func() { gotEventCount++ }
 
-      err := Export(tc.items, recordProgress)
+      got, err := ParseRange(tc.input, onEvent)
 
       if err != nil {
-        t.Fatalf("Export() unexpected error: %v", err)
+        t.Fatalf("ParseRange() unexpected error: %v", err)
       }
-      if diff := cmp.Diff(tc.wantProgress, gotProgress); diff != "" {
-        t.Errorf("progress mismatch (-want +got):\n%s", diff)
+      if diff := cmp.Diff(tc.want, got); diff != "" {
+        t.Errorf("ParseRange() mismatch (-want +got):\n%s", diff)
+      }
+      if gotEventCount != tc.wantCount {
+        t.Errorf("gotEventCount = %d, want %d", gotEventCount, tc.wantCount)
       }
     })
   }
+}
+
+// TestConcurrentStore scales stress parameters in testing.Short() without skipping or returning early.
+func TestConcurrentStore(t *testing.T) {
+  attempts, concurrency := 1000, 100
+  if testing.Short() {
+    attempts, concurrency = 5, 10 // Keep bounds high enough to hit all branches/locks; never t.Skip/return/!testing.Short().
+  }
+  runConcurrentStoreAssertions(t, attempts, concurrency)
 }
 ```

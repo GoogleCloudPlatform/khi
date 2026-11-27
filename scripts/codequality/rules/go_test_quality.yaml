@@ -14,7 +14,7 @@
 
 id: go_test_quality
 name: Go Unit Testing Standards
-description: Verifies test case explanation comments and logic alignment, Arrange-Act-Assert structure, callback testing practices, and clear test identifier naming.
+description: Verifies test case explanation comments and logic alignment, Arrange-Act-Assert structure, callback testing practices, whole-struct want and cmp.Diff/scalar assertion conventions, and clear test identifier naming.
 enabled: true
 enforcement: advisory
 
@@ -172,6 +172,72 @@ questions:
         fix_hint: >-
           Record callback invocations/arguments in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
           and assert on the recorded call count or values in the Assert phase.
+    pass:
+      expected_choice: aligned
+      min_probability: 0.50
+      min_confidence: 0.55
+
+  - id: want_and_assertions
+    for_each: changed_go_test_funcs
+    type: choice
+    instructions: |
+      Evaluate table `want` structuring and assertion style in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}).
+      Verify that:
+      (1) When testing a function that returns a struct or cohesive data value, table cases declare a single
+          whole-struct `want ReturnType` (compared with `cmp.Diff(tc.want, got)`) rather than splitting that
+          struct's fields into field-by-field `wantLen`, `wantStart`, `wantEnd`, etc.
+          (Note: separate `want*` fields ARE valid for independent side effects, error expectations like `wantErr`,
+          or staged assertions that gate subsequent setup.)
+      (2) Single scalar values (int, bool, float, single-line string, enum) are compared directly with `==`/`!=`
+          (NOT `cmp.Diff`), while complex structs, slices, maps, and multiline strings use `cmp.Diff(tc.want, got)`
+          (NEVER `reflect.DeepEqual`).
+
+      Example GOOD (whole-struct want with cmp.Diff, scalar with ==):
+        testCases := []struct {
+            name      string
+            input     string
+            want      Range
+            wantCount int
+        }{...}
+        if diff := cmp.Diff(tc.want, got); diff != "" {
+            t.Errorf("ParseRange() mismatch (-want +got):\n%s", diff)
+        }
+        if count != tc.wantCount {
+            t.Errorf("count = %d, want %d", count, tc.wantCount)
+        }
+
+      Example BAD (split_struct_want — splitting one returned struct into field-by-field want* scalars):
+        testCases := []struct {
+            name      string
+            input     string
+            wantStart int
+            wantEnd   int
+            wantValid bool
+        }{...}
+
+      Example BAD (inappropriate_diff_or_equality — reflect.DeepEqual, or cmp.Diff on a single scalar):
+        if !reflect.DeepEqual(got, tc.want) { t.Errorf("got %v, want %v", got, tc.want) }
+        if diff := cmp.Diff(tc.wantCount, count); diff != "" { t.Errorf("mismatch: %s", diff) }
+    options:
+      aligned:
+        description: >-
+          Uses whole-struct `want` with `cmp.Diff` for returned structs/collections/multiline strings
+          (allowing separate `want*` fields only for independent side effects, error checks, or staged setup),
+          compares single scalars directly with `==`/`!=`, and does not use `reflect.DeepEqual`.
+      split_struct_want:
+        description: >-
+          Splits fields of a single returned struct into multiple field-by-field `want*` table fields
+          (such as `wantStart`, `wantEnd`, `wantID`) instead of declaring a single whole-struct `want` compared with `cmp.Diff`.
+        fix_hint: >-
+          Consolidate the field-by-field `want*` fields in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}})
+          into a single whole-struct `want` value and assert with `cmp.Diff(tc.want, got)`.
+      inappropriate_diff_or_equality:
+        description: >-
+          Uses `reflect.DeepEqual`, applies `cmp.Diff` to a single scalar (int, bool, float, single-line string, or enum),
+          or manually compares complex structs/slices/maps element-by-element instead of using `cmp.Diff`.
+        fix_hint: >-
+          Update assertions in "{{.Name}}" ({{.File}}:L{{.StartLine}}-L{{.EndLine}}) to compare scalars with `==`/`!=`
+          and complex structs, slices, maps, or multiline strings with `cmp.Diff(tc.want, got)` (never `reflect.DeepEqual`).
     pass:
       expected_choice: aligned
       min_probability: 0.50
