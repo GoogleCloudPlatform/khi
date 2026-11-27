@@ -472,7 +472,7 @@ func scanTSQuotedSpan(src []byte, start int, quote byte) (int, int) {
 			}
 		}
 		if c == '\\' {
-			end += 2
+			end, lines = advanceTSEscapedByte(src, end, lines)
 			continue
 		}
 		end++
@@ -481,6 +481,16 @@ func scanTSQuotedSpan(src []byte, start int, quote byte) (int, int) {
 		}
 	}
 	return end, lines
+}
+
+func advanceTSEscapedByte(src []byte, end int, lines int) (int, int) {
+	if end+1 >= len(src) {
+		return len(src), lines
+	}
+	if src[end+1] == '\n' {
+		lines++
+	}
+	return end + 2, lines
 }
 
 func isTSIdentStart(b byte) bool {

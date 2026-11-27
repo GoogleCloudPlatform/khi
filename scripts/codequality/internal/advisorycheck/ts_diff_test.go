@@ -152,6 +152,14 @@ func TestAnalyzeTSProdSuppressionAndDoubleCast(t *testing.T) {
 			changed: map[int]struct{}{2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}},
 			want:    nil,
 		},
+		// Unclosed quoted string ending with a trailing backslash at EOF does not panic while lexing.
+		{
+			name:      "unclosed string ending with trailing backslash does not panic",
+			baseSrc:   "export const ok = 1;\n",
+			targetSrc: "export const bad = \"unterminated\\",
+			changed:   map[int]struct{}{1: {}},
+			want:      nil,
+		},
 		// Real suppression comments and `as unknown as` in TS production code trigger suppression_added and ts_double_cast_added.
 		{
 			name:    "real suppression comment and double cast trigger advisories",
