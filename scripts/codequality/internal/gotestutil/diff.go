@@ -301,7 +301,7 @@ func resolveGitDiffBaseAndArgs(ctx context.Context, repoRoot string, opts DiffOp
 		return gitDiffPlan{
 			baseLabel:   base,
 			resolvedRev: base,
-			args:        []string{"diff", "--unified=0", base, opts.Target},
+			args:        []string{"diff", "--unified=0", "--no-renames", base, opts.Target},
 		}, nil
 	}
 	diffBase := base
@@ -313,7 +313,7 @@ func resolveGitDiffBaseAndArgs(ctx context.Context, repoRoot string, opts DiffOp
 	return gitDiffPlan{
 		baseLabel:   base,
 		resolvedRev: diffBase,
-		args:        []string{"diff", "--unified=0", diffBase},
+		args:        []string{"diff", "--unified=0", "--no-renames", diffBase},
 	}, nil
 }
 
@@ -327,7 +327,7 @@ func resolveCurrentOnlyGitDiff(ctx context.Context, repoRoot string, target stri
 		if err != nil {
 			return gitDiffPlan{}, err
 		}
-		args := []string{"diff", "--unified=0", "HEAD"}
+		args := []string{"diff", "--unified=0", "--no-renames", "HEAD"}
 		if target != "" {
 			args = append(args, target)
 		}
@@ -347,7 +347,7 @@ func resolveCurrentOnlyGitDiff(ctx context.Context, repoRoot string, target stri
 	return gitDiffPlan{
 		baseLabel:   "HEAD~1",
 		resolvedRev: resolvedRev,
-		args:        []string{"diff", "--unified=0", "HEAD~1", target},
+		args:        []string{"diff", "--unified=0", "--no-renames", "HEAD~1", target},
 	}, nil
 }
 

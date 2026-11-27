@@ -54,6 +54,8 @@ type RunConfig struct {
 	UnusedExportsCheck func(repoRoot string, paths []string) ([]rule.QAItem, error)
 	// AdvisoryProviders lists external advisory analyzers evaluated during matching phases.
 	AdvisoryProviders []rule.AdvisoryProvider
+	// ReadBaseFile optionally overrides how advisory providers read base-revision file contents.
+	ReadBaseFile func(relPath string) ([]byte, bool, error)
 }
 
 type commandSpec struct {
@@ -286,9 +288,12 @@ func runAdvisoryProviders(ctx context.Context, cfg RunConfig, phase rule.Speed, 
 	if len(cfg.AdvisoryProviders) == 0 {
 		return nil
 	}
-	req := buildAdvisoryRequest(cfg)
+	req := buildAdvisoryRequest(ctx, cfg)
 	for _, provider := range cfg.AdvisoryProviders {
 		if !providerMatchesPhase(provider.Speed(), phase) {
+			continue
+		}
+		if isSourceSkipped(cfg.SkipSources, provider.Name(), rep) {
 			continue
 		}
 		items, skipped, err := provider.Evaluate(ctx, req)
@@ -310,13 +315,22 @@ func providerMatchesPhase(providerSpeed rule.Speed, phase rule.Speed) bool {
 	return providerSpeed == rule.SpeedSlow
 }
 
-func buildAdvisoryRequest(cfg RunConfig) rule.AdvisoryRequest {
+func buildAdvisoryRequest(ctx context.Context, cfg RunConfig) rule.AdvisoryRequest {
+	readBase := cfg.ReadBaseFile
+	if readBase == nil && cfg.Diff.ResolvedBaseRev != "" {
+		diff := cfg.Diff
+		repoRoot := cfg.RepoRoot
+		readBase = func(relPath string) ([]byte, bool, error) {
+			return gotestutil.ReadBaseFile(ctx, repoRoot, diff, relPath)
+		}
+	}
 	return rule.AdvisoryRequest{
 		RepoRoot:     cfg.RepoRoot,
 		TrustedRoot:  cfg.TrustedRoot,
 		ChangedFiles: slices.Clone(cfg.Diff.ChangedFiles),
 		DeletedFiles: slices.Clone(cfg.Diff.DeletedFiles),
 		ChangedLines: mergeChangedLines(cfg.Diff),
+		ReadBaseFile: readBase,
 	}
 }
 

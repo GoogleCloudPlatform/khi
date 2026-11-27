@@ -516,6 +516,140 @@ func TestContractCLIUnifiedExitCodeAndJSON(t *testing.T) {
 	}
 }
 
+// TestContractSlowAdvisoryGoDynamicAndFastAdvisoryDiff verifies that slow-must passes with 0 blocking when surviving mutants/uncovered lines exist, slow-advisory emits them in advisory[] with Evidence/ReviewPrompt, and fast-advisory emits offline diff signals with Exit 0.
+func TestContractSlowAdvisoryGoDynamicAndFastAdvisoryDiff(t *testing.T) {
+	repoDir := t.TempDir()
+	runContractGit(t, repoDir, "init", "-b", "main")
+	writeContractFiles(t, repoDir, map[string]string{
+		"go.mod": `module example.com/goodhartcontract
+
+go 1.24
+`,
+		"pkg/svc/svc.go": `package svc
+
+// Check returns whether x is positive.
+func Check(x int) bool {
+	return x > 0
+}
+`,
+		"pkg/svc/svc_test.go": `package svc
+
+import "testing"
+
+// TestCheck verifies Check behavior.
+func TestCheck(t *testing.T) {
+	t.Run("positive", func(t *testing.T) {
+		if !Check(5) {
+			t.Fatal("expected true")
+		}
+	})
+	t.Run("removed later", func(t *testing.T) {
+		if Check(-1) {
+			t.Fatal("expected false")
+		}
+	})
+}
+`,
+	})
+	runContractGit(t, repoDir, "add", ".")
+	runContractGit(t, repoDir, "commit", "-m", "base")
+
+	writeContractFiles(t, repoDir, map[string]string{
+		"pkg/svc/svc.go": `package svc
+
+// Check returns whether x is at least 10 or negative.
+func Check(x int) bool {
+	if x < 0 {
+		return false
+	}
+	return x >= 10
+}
+`,
+		"pkg/svc/svc_test.go": `package svc
+
+import "testing"
+
+// TestCheck verifies Check behavior.
+func TestCheck(t *testing.T) {
+	t.Run("positive", func(t *testing.T) {
+		if !Check(20) {
+			t.Fatal("expected true")
+		}
+	})
+}
+`,
+	})
+	runContractGit(t, repoDir, "add", ".")
+	runContractGit(t, repoDir, "commit", "-m", "introduce uncovered branch, surviving mutant, and reduced subtests")
+	t.Chdir(repoDir)
+
+	testCases := []struct {
+		name            string
+		args            []string
+		wantMinAdvisory int
+		wantChecks      []string
+	}{
+		// qa --speed=slow --filter=must exits 0 with 0 mustfix even though Check has uncovered lines and surviving mutants.
+		{
+			name: "qa slow must exits 0 despite uncovered lines and surviving mutants",
+			args: []string{
+				"qa", "--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1", "--speed=slow", "--filter=must",
+				"--lang=go", "--skip-sources=unused_exports,deadcode,go_test_race,build_go", "--format=json",
+			},
+			wantMinAdvisory: 0,
+		},
+		// qa --speed=slow --filter=advisory exits 0 and emits Go dynamic findings with Evidence, EndLine, and ReviewPrompt in advisory[].
+		{
+			name:            "qa slow advisory emits Go dynamic findings with Evidence and ReviewPrompt",
+			args:            []string{"qa", "--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1", "--speed=slow", "--filter=advisory", "--lang=go", "--format=json"},
+			wantMinAdvisory: 2,
+			wantChecks:      []string{"func_uncovered_lines", "func_surviving_mutants", "end_line"},
+		},
+		// qa --speed=fast --filter=advisory exits 0 and emits offline advisorycheck diff signals.
+		{
+			name:            "qa fast advisory emits offline advisorycheck diff signals",
+			args:            []string{"qa", "--repo-root=" + repoDir, "--vcs=git", "--base=HEAD~1", "--speed=fast", "--filter=advisory", "--lang=go", "--format=json"},
+			wantMinAdvisory: 1,
+			wantChecks:      []string{"test_cases_reduced"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdoutBuf, stderrBuf bytes.Buffer
+			exitCode, err := runCLI(context.Background(), cliEnv{
+				args:   tc.args,
+				stdout: &stdoutBuf,
+				stderr: &stderrBuf,
+				getenv: func(string) string { return "" },
+			})
+			if err != nil {
+				t.Fatalf("runCLI() unexpected error: %v (stderr=%s)", err, stderrBuf.String())
+			}
+			if exitCode != 0 {
+				t.Fatalf("runCLI() exitCode = %d, want 0\nstdout:\n%s", exitCode, stdoutBuf.String())
+			}
+			parsed := parseAndValidateJSONContract(t, stdoutBuf.Bytes())
+			if len(parsed.MustFix) != 0 {
+				t.Errorf("len(mustfix) = %d, want 0", len(parsed.MustFix))
+			}
+			if len(parsed.Advisory) < tc.wantMinAdvisory {
+				t.Errorf("len(advisory) = %d, want >= %d\nstdout:\n%s", len(parsed.Advisory), tc.wantMinAdvisory, stdoutBuf.String())
+			}
+			var missingChecks []string
+			outStr := stdoutBuf.String()
+			for _, wantCheck := range tc.wantChecks {
+				if !strings.Contains(outStr, `"`+wantCheck+`"`) {
+					missingChecks = append(missingChecks, wantCheck)
+				}
+			}
+			if len(missingChecks) > 0 {
+				t.Errorf("JSON output missing expected checks %v:\n%s", missingChecks, outStr)
+			}
+		})
+	}
+}
+
 func (s contractDeciderStub) Decide(_ context.Context, req decisioncheck.DecisionRequest) (decisioncheck.DecisionResponse, error) {
 	answers := make(map[string]decisioncheck.WireAnswer, len(req.Questions))
 	for qID := range req.Questions {
