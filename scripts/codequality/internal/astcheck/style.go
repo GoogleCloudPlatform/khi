@@ -142,7 +142,7 @@ func formatStringArgLit(callExpr *ast.CallExpr) *ast.BasicLit {
 			return lit
 		}
 		return stringBasicLitAt(callExpr.Args, 1)
-	case "Fatalf", "Logf", "Skipf", "Printf", "Sprintf":
+	case "Fatalf", "Logf", "Skipf", "Printf", "Sprintf", "Infof", "Warnf", "Warningf", "Panicf", "Debugf", "Tracef":
 		return stringBasicLitAt(callExpr.Args, 0)
 	default:
 		return nil
@@ -443,6 +443,8 @@ func formatLockTargetKey(expr ast.Expr) string {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		return e.Name
+	case *ast.BasicLit:
+		return e.Value
 	case *ast.SelectorExpr:
 		if p := formatLockTargetKey(e.X); p != "" {
 			return p + "." + e.Sel.Name

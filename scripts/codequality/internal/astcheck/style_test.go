@@ -167,15 +167,17 @@ func statusErrorf(code int, format string, args ...any) error { return fmt.Error
 type statusPkg struct{}
 
 func (statusPkg) Errorf(code int, format string, args ...any) error { return nil }
+func (statusPkg) Warnf(format string, args ...any)                 {}
 
 func emit(status statusPkg) {
+	status.Warnf("warn1\nwarn2: %s", "ok")
 	_ = status.Errorf(13, "first\nsecond: %s", "value1\nvalue2")
 }
 `,
 			want: []StyleIssue{
 				{
 					Rule:    rule.RuleMultilineStringEscape,
-					Line:    8,
+					Line:    10,
 					Subject: "<file>",
 					Reason:  `double-quoted string embeds middle "\n"; use a raw backquote literal`,
 				},
@@ -379,12 +381,23 @@ func badLockThenUnlock(mu *sync.Mutex) {
 	mu.Lock()
 	mu.Unlock()
 }
+
+func badIndexedLiteralLock(locks []sync.Mutex) {
+	defer locks[0].Unlock()
+	locks[0].Lock()
+}
 `,
 			want: []StyleIssue{
 				{
 					Rule:    rule.RuleDeferUnlockBeforeLock,
 					Line:    13,
 					Subject: "badLockThenUnlock",
+					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
+				},
+				{
+					Rule:    rule.RuleDeferUnlockBeforeLock,
+					Line:    19,
+					Subject: "badIndexedLiteralLock",
 					Reason:  "defer Unlock/RUnlock placed before Lock/RLock acquisition in the same block",
 				},
 			},
