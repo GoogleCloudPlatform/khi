@@ -105,13 +105,13 @@ KHI_SKIP_CLOUD_LOGGING=true go test ./...
 make test-go-short
 ```
 
-`main`（`trunk`）からの変更差分に含まれるGoおよびTypeScriptコードの品質ルール（Go ASTの認知複雑度・関数/ファイル長・クローン・ファイル名、ならびに両言語の未カバー実行行・生存ミュータント・冗長テスト）をまとめて検証するには、下記を実行してください。
+`main`（`trunk`）からの変更差分に含まれるGoおよびTypeScriptコードの品質ルール（Go ASTの認知複雑度・関数/ファイル長・コードクローン・ファイル名、ならびに両言語の未カバー実行行・生存ミュータント・冗長テスト）をまとめて検証するには、下記を実行してください。
 
 ```shell
 make qa-all
 ```
 
-GoやTypeScriptのリファクタリング中の高速フィードバックには、ブロッキング検査のみの `make qa-fast-must`（またはアドバイザリも含む `make qa-fast`）を使用できます。言語別の個別実行（`QA_LANG=go` / `QA_LANG=ts`）、低速検査のブロッキング/アドバイザリ個別実行（`make qa-slow-must` / `make qa-slow-advisory`）、コンテナ内のChromeを使った実行（`USE_CONTAINER=true`）、宣言的セマンティックルールの有効化（`CODEQUALITY_DECISIONS=true`）、Vertex AI `gemini-embedding-2` を用いたAST正規化ベースの類似関数アドバイザリの有効化（`CODEQUALITY_SIMILARITY=true` および任意の課金先プロジェクト指定 `CODEQUALITY_SIMILARITY_PROJECT=<project-id>`、意図しないGCP課金を防ぐためローカル既定はオフ・Cloud Build CIで有効）、比較元のリビジョンや対象パスの指定（例: `make qa-fast BASE=@-` や `make qa-slow PATHS=pkg/common`）、およびパイプ渡し時のカラー出力切り替え（`COLOR=always` / `COLOR=never`、対話型ターミナルでは自動でカラー表示）もオプションで指定可能です。
+GoやTypeScriptのリファクタリング中の高速フィードバックには、ブロッキング検査のみの `make qa-fast-must`（またはアドバイザリも含む `make qa-fast`）を使用できます。言語別の個別実行（`QA_LANG=go` / `QA_LANG=ts`）、低速検査のブロッキング/アドバイザリ個別実行（`make qa-slow-must` / `make qa-slow-advisory`）、コンテナ内のChromeを使った実行（`USE_CONTAINER=true`）、宣言的セマンティックルールの有効化（`CODEQUALITY_DECISIONS=true`）、Vertex AI `gemini-embedding-2` を用いたAST正規化ベースの類似関数アドバイザリの有効化（`CODEQUALITY_SIMILARITY=true` および任意の課金先プロジェクト指定 `CODEQUALITY_SIMILARITY_PROJECT=<project-id>`、意図しないGCP課金を防ぐためローカルではデフォルトでオフ・Cloud Build CIで有効）、比較元のリビジョンや対象パスの指定（例: `make qa-fast BASE=@-` や `make qa-slow PATHS=pkg/common`）、およびパイプ渡し時のカラー出力切り替え（`COLOR=always` / `COLOR=never`、対話型ターミナルでは自動でカラー表示）もオプションで指定可能です。
 
 Go側の品質ルールはすべて統一された上限・悪化防止ラチェット（既存のレガシー関数では `after <= before` 判定）で動作し、差分の行カバレッジ・生存ミュータント・`test_redundancy` はレビュー用の非ブロッキングな `ADVISORY` として報告されます。GoまたはTypeScriptで生存ミュータントや未カバー分岐が検出された場合は、壊れやすいモックテストを無理に増やすのではなく、①真に到達不能な不要分岐の削除、②既存テストにおける `cmp.Diff` や `*.spec.ts` のシグナル・ViewModel・境界値アサーションの強化を優先してください。正当な防御ガードを削除したり、アドバイザリを消す目的で `CODEQUALITY_ALLOW` を追加したりすることは認められません。
 
