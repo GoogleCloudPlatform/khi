@@ -145,6 +145,68 @@ func TestBasicTokenStore_RefreshTokenCallsResolverOnceInParallel(t *testing.T) {
 	})
 	verifyRefreshErrorPropagation(t)
 	verifyRefreshFollowerCancel(t)
+	verifyRefreshPreCanceledContext(t)
+	verifyRefreshPanicSignalsFollowers(t)
+}
+
+func verifyRefreshPreCanceledContext(t *testing.T) {
+	t.Helper()
+	var calls atomic.Int32
+	resolver := &funcTokenResolver{
+		resolve: func(context.Context) (*Token, error) {
+			calls.Add(1)
+			return New("token"), nil
+		},
+	}
+	store := NewBasicTokenStore("foo", resolver)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := store.RefreshToken(ctx); !errors.Is(err, context.Canceled) {
+		t.Errorf("RefreshToken(canceled) error = %v, want context.Canceled", err)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Errorf("resolver calls on pre-canceled ctx = %d, want 0", got)
+	}
+}
+
+func verifyRefreshPanicSignalsFollowers(t *testing.T) {
+	t.Helper()
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+		resolver := &funcTokenResolver{
+			resolve: func(context.Context) (*Token, error) {
+				close(started)
+				<-release
+				panic("boom")
+			},
+		}
+		store := NewBasicTokenStore("foo", resolver)
+
+		panicked := make(chan any, 1)
+		go func() {
+			defer func() {
+				panicked <- recover()
+			}()
+			_ = store.RefreshToken(t.Context())
+		}()
+		<-started
+
+		followerErrCh := make(chan error, 1)
+		go func() {
+			followerErrCh <- store.RefreshToken(t.Context())
+		}()
+		synctest.Wait()
+
+		close(release)
+		if r := <-panicked; r != "boom" {
+			t.Errorf("leader panic = %v, want %q", r, "boom")
+		}
+		if err := <-followerErrCh; !errors.Is(err, errTokenRefreshAborted) {
+			t.Errorf("follower error after leader panic = %v, want %v", err, errTokenRefreshAborted)
+		}
+	})
 }
 
 func verifyRefreshErrorPropagation(t *testing.T) {
@@ -215,45 +277,68 @@ func verifyRefreshFollowerCancel(t *testing.T) {
 	})
 }
 
-// TestBasicTokenStore_GetTokenCallsResolverOnceInParallel verifies that concurrent initial GetToken calls invoke the resolver only once.
+// TestBasicTokenStore_GetTokenCallsResolverOnceInParallel deterministically verifies concurrent initial GetToken coalescing and self-healing retry after a transient error.
 func TestBasicTokenStore_GetTokenCallsResolverOnceInParallel(t *testing.T) {
-	const concurrency = 100
-	resolver := &blockingTokenResolver{
-		started: make(chan struct{}),
-		release: make(chan struct{}),
-		token:   New("token"),
-	}
-	store := NewBasicTokenStore("foo", resolver)
+	synctest.Test(t, func(t *testing.T) {
+		const concurrency = 100
+		resolver := &blockingTokenResolver{
+			started: make(chan struct{}),
+			release: make(chan struct{}),
+			token:   New("token"),
+		}
+		store := NewBasicTokenStore("foo", resolver)
 
-	var ready sync.WaitGroup
-	ready.Add(concurrency)
-	start := make(chan struct{})
-	var wg sync.WaitGroup
-	for range concurrency {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ready.Done()
-			<-start
-			token, err := store.GetToken(context.Background())
-			if err != nil {
-				t.Errorf("GetToken() unexpected error: %v", err)
-				return
+		var wg sync.WaitGroup
+		for range concurrency {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				token, err := store.GetToken(t.Context())
+				if err != nil {
+					t.Errorf("GetToken() unexpected error: %v", err)
+					return
+				}
+				if token.RawToken != "token" {
+					t.Errorf("GetToken().RawToken = %q, want %q", token.RawToken, "token")
+				}
+			}()
+		}
+
+		<-resolver.started
+		synctest.Wait()
+		if got := resolver.callCount.Load(); got != 1 {
+			t.Errorf("in-flight resolver calls = %d, want 1", got)
+		}
+
+		close(resolver.release)
+		wg.Wait()
+
+		if got := resolver.callCount.Load(); got != 1 {
+			t.Errorf("resolver calls = %d, want 1", got)
+		}
+		// Double-checked resolveToken returns cached token without re-invoking the resolver.
+		tok, err := store.resolveToken(t.Context(), true)
+		if err != nil || tok == nil || tok.RawToken != "token" || resolver.callCount.Load() != 1 {
+			t.Errorf("resolveToken(onlyIfMissing=true) = (%v, %v, calls=%d), want (token, nil, calls=1)", tok, err, resolver.callCount.Load())
+		}
+	})
+
+	// Initial resolution error is not permanently cached; a subsequent GetToken retries and succeeds.
+	wantErr := errors.New("transient failure")
+	var attempt atomic.Int32
+	retryingStore := NewBasicTokenStore("foo", &funcTokenResolver{
+		resolve: func(context.Context) (*Token, error) {
+			if attempt.Add(1) == 1 {
+				return nil, wantErr
 			}
-			if token.RawToken != "token" {
-				t.Errorf("GetToken().RawToken = %q, want %q", token.RawToken, "token")
-			}
-		}()
+			return New("recovered"), nil
+		},
+	})
+	if tok, err := retryingStore.GetToken(context.Background()); !errors.Is(err, wantErr) || tok != nil {
+		t.Fatalf("first GetToken() = (%v, %v), want (nil, %v)", tok, err, wantErr)
 	}
-
-	ready.Wait()
-	close(start)
-	<-resolver.started
-	close(resolver.release)
-	wg.Wait()
-
-	if got := resolver.callCount.Load(); got != 1 {
-		t.Errorf("resolver calls = %d, want 1", got)
+	if tok, err := retryingStore.GetToken(context.Background()); err != nil || tok == nil || tok.RawToken != "recovered" {
+		t.Errorf("retry GetToken() = (%v, %v), want (recovered, nil)", tok, err)
 	}
 }
 

@@ -16,13 +16,18 @@ package token
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 )
 
-var _ TokenStore = &BasicTokenStore{}
+var (
+	_ TokenStore = &BasicTokenStore{}
+
+	errTokenRefreshAborted = errors.New("token refresh aborted")
+)
 
 // TokenStore manages caching and refreshing of authentication tokens.
 type TokenStore interface {
@@ -38,22 +43,21 @@ type TokenStore interface {
 }
 
 // BasicTokenStore provides feature to refresh token and return cached token.
-// BasicTokenStore memory the expired tokens and it calls resolvers in order to get new token after MarkTokenExpired called.
+// BasicTokenStore caches the latest resolved token and coalesces concurrent refreshes.
 type BasicTokenStore struct {
-	tokenType             string
-	resolver              TokenResolver
-	tokenLock             sync.RWMutex
-	lastToken             *Token
-	lastTokenRefreshError error
-	initialRefreshOnce    sync.Once
+	tokenType string
+	resolver  TokenResolver
+	tokenLock sync.RWMutex
+	lastToken *Token
 
 	refreshMu       sync.Mutex
 	inFlightRefresh *refreshFlight
 }
 
 type refreshFlight struct {
-	done chan struct{}
-	err  error
+	done  chan struct{}
+	token *Token
+	err   error
 }
 
 // NewBasicTokenStore creates a BasicTokenStore for the given tokenType and resolver.
@@ -71,35 +75,50 @@ func (b *BasicTokenStore) GetType() string {
 
 // GetToken implements TokenStore.
 func (b *BasicTokenStore) GetToken(ctx context.Context) (*Token, error) {
-	b.initialRefreshOnce.Do(func() {
-		_ = b.resolveAndStoreToken(ctx)
-	})
-	b.tokenLock.RLock()
-	defer b.tokenLock.RUnlock()
-	return b.lastToken, b.lastTokenRefreshError
+	if tok := b.cachedToken(); tok != nil {
+		return tok, nil
+	}
+	return b.resolveToken(ctx, true)
 }
 
 // IsTokenValidityAssured implements TokenStore.
 func (b *BasicTokenStore) IsTokenValidityAssured(ctx context.Context) bool {
-	b.tokenLock.RLock()
-	defer b.tokenLock.RUnlock()
-	return b.lastToken != nil && b.lastToken.ValidAtLeastUntil.After(time.Now())
+	tok := b.cachedToken()
+	return tok != nil && tok.ValidAtLeastUntil.After(time.Now())
 }
 
 // RefreshToken implements TokenStore.
 // Concurrent RefreshToken calls share a single in-flight resolver call and wait until it completes or ctx is canceled.
 func (b *BasicTokenStore) RefreshToken(ctx context.Context) error {
+	_, err := b.resolveToken(ctx, false)
+	return err
+}
+
+func (b *BasicTokenStore) cachedToken() *Token {
+	b.tokenLock.RLock()
+	defer b.tokenLock.RUnlock()
+	return b.lastToken
+}
+
+func (b *BasicTokenStore) resolveToken(ctx context.Context, onlyIfMissing bool) (*Token, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	b.refreshMu.Lock()
-	if flight := b.inFlightRefresh; flight != nil {
-		b.refreshMu.Unlock()
-		select {
-		case <-flight.done:
-			return flight.err
-		case <-ctx.Done():
-			return ctx.Err()
+	if onlyIfMissing {
+		if tok := b.cachedToken(); tok != nil {
+			b.refreshMu.Unlock()
+			return tok, nil
 		}
 	}
-	flight := &refreshFlight{done: make(chan struct{})}
+	if flight := b.inFlightRefresh; flight != nil {
+		b.refreshMu.Unlock()
+		return waitForRefreshFlight(ctx, flight)
+	}
+	flight := &refreshFlight{
+		done: make(chan struct{}),
+		err:  errTokenRefreshAborted,
+	}
 	b.inFlightRefresh = flight
 	b.refreshMu.Unlock()
 
@@ -110,21 +129,28 @@ func (b *BasicTokenStore) RefreshToken(ctx context.Context) error {
 		b.refreshMu.Unlock()
 	}()
 
-	flight.err = b.resolveAndStoreToken(ctx)
-	return flight.err
+	flight.token, flight.err = b.resolveAndStoreToken(ctx)
+	return flight.token, flight.err
 }
 
-func (b *BasicTokenStore) resolveAndStoreToken(ctx context.Context) error {
+func (b *BasicTokenStore) resolveAndStoreToken(ctx context.Context) (*Token, error) {
 	slog.DebugContext(ctx, fmt.Sprintf("Current token for %s is expired. Refreshing a new token", b.tokenType))
 	token, err := b.resolver.Resolve(ctx)
 	b.tokenLock.Lock()
 	defer b.tokenLock.Unlock()
 	if err != nil {
 		b.lastToken = nil
-		b.lastTokenRefreshError = err
-		return err
+		return nil, err
 	}
 	b.lastToken = token
-	b.lastTokenRefreshError = nil
-	return nil
+	return token, nil
+}
+
+func waitForRefreshFlight(ctx context.Context, flight *refreshFlight) (*Token, error) {
+	select {
+	case <-flight.done:
+		return flight.token, flight.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
